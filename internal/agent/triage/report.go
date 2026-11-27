@@ -71,6 +71,8 @@ type Skip struct {
 	Step   string
 	Source string
 	Reason string
+
+	Signals []string
 }
 
 type Findings struct {

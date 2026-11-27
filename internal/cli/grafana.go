@@ -35,12 +35,19 @@ type grafanaImportResult struct {
 type grafanaImport struct {
 	ID      string                `json:"id"`
 	Status  string                `json:"status"`
+	State   string                `json:"state"`
 	Total   int                   `json:"total"`
 	Done    int                   `json:"done"`
 	Failed  int                   `json:"failed"`
 	Skipped int                   `json:"skipped"`
 	Error   *string               `json:"error"`
 	Results []grafanaImportResult `json:"results"`
+}
+
+const importRunning = "running"
+
+func (i grafanaImport) state() string {
+	return stateOrLegacyStatus(i.State, i.Status)
 }
 
 func (a *app) grafanaCommand() *cobra.Command {
@@ -105,7 +112,7 @@ func (a *app) runGrafanaImport(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	final := started
-	if started.Status == "running" {
+	if started.state() == importRunning {
 		data, final, err = pollGrafanaImport(ctx, c, out, connID, started.ID, pollInterval)
 		if err != nil {
 			return err
@@ -160,7 +167,7 @@ func pollGrafanaImport(ctx context.Context, c *client, out *output, connID, sync
 			if !isTransient(err) || failures >= maxPollFailures {
 				return nil, grafanaImport{}, err
 			}
-		case current.Status != "running":
+		case current.state() != importRunning:
 			return data, current, nil
 		default:
 			failures = 0
@@ -210,9 +217,9 @@ func reportGrafanaImport(out *output, final grafanaImport) {
 }
 
 func importOutcome(final grafanaImport) error {
-	switch final.Status {
+	switch state := final.state(); state {
 	case "failed", "canceled":
-		reason := "the import " + final.Status
+		reason := "the import " + state
 		if final.Error != nil && *final.Error != "" {
 			reason += ": " + text(*final.Error)
 		}

@@ -143,6 +143,18 @@ func TestPollGrafanaImportWaitsUntilItFinishes(t *testing.T) {
 	}
 }
 
+func TestGrafanaImportFollowsTheStateTheServerSends(t *testing.T) {
+	stateOnly := func(state string, done int) string {
+		return strings.Replace(importJSON(state, done, 0, ""), `"status"`, `"state"`, 1)
+	}
+	f := newGrafanaFake(t)
+	f.polls = []string{stateOnly("running", 1), stateOnly("canceled", 1)}
+	_, stderr, code := f.run("", "import", testConnection, "--all")
+	if code != 1 || f.pollAt != 2 || !strings.Contains(stderr, "the import canceled") {
+		t.Fatalf("exit %d after %d reads, stderr %q", code, f.pollAt, stderr)
+	}
+}
+
 func TestGrafanaImportGoneWhilePollingExitsOne(t *testing.T) {
 	f := newGrafanaFake(t)
 	f.polls = nil

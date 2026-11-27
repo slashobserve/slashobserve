@@ -59,6 +59,8 @@ func (f *fakeDashboards) Get(_ context.Context, id pgtype.UUID) (dashboards.Dash
 	return f.shown(id.String(), &d), f.version(&d), nil
 }
 
+func (f *fakeDashboards) Delete(context.Context, auth.Principal, pgtype.UUID) error { return nil }
+
 func (r rig) dashboard(t *testing.T) pgtype.UUID {
 	t.Helper()
 	var raw string
@@ -184,6 +186,28 @@ func TestMakingADashboardGivesTheFirstOneBackUnlessAskedForAnother(t *testing.T)
 	other2 := r.create(t, editor, r.shared)
 	if _, _, _, err := r.service.MakeDashboard(reading(t.Context()), editor, mustUUID(t, other2.ID), mustUUID(t, first.ID), false); !errors.Is(err, observations.ErrNotFound) {
 		t.Errorf("make from a block of another observation: %v", err)
+	}
+}
+
+func TestADashboardGivenBackReadsWhatManagesItAndWhatTheCallerMayDo(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	r.addPanel(t, editor, o)
+	id := mustUUID(t, o.ID)
+	first, _, created, err := r.service.MakeDashboard(reading(t.Context()), editor, id, pgtype.UUID{}, false)
+	if err != nil || !created {
+		t.Fatalf("make: created %v: %v", created, err)
+	}
+	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `INSERT INTO applied_dashboards (path, dashboard_id, content_sha256, applied_by_id) VALUES ('a.json', $1, 'sha', $2)`, first.ID, editor.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	again, _, created, err := r.service.MakeDashboard(reading(t.Context()), editor, id, pgtype.UUID{}, false)
+	if err != nil || created || again.ID != first.ID {
+		t.Fatalf("second make: %q created %v, want the first %q: %v", again.ID, created, first.ID, err)
+	}
+	if again.ManagedBy != folders.ManagedByApply || !again.Abilities.View {
+		t.Errorf("the dashboard given back reads managed by %s with %+v, want apply and what its viewer may do", again.ManagedBy, again.Abilities)
 	}
 }
 

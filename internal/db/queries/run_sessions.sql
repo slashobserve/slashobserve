@@ -4,7 +4,14 @@ VALUES (@agent_request_id, @attempt, @state)
 ON CONFLICT (agent_request_id, attempt) DO NOTHING;
 
 -- name: GetRunSessionForUpdate :one
-SELECT state FROM run_sessions WHERE agent_request_id = @agent_request_id AND attempt = @attempt FOR UPDATE;
+SELECT s.state, r.claim_epoch
+FROM run_sessions s JOIN agent_requests r ON r.id = s.agent_request_id
+WHERE s.agent_request_id = @agent_request_id AND s.attempt = @attempt FOR UPDATE OF s;
+
+-- name: GetRunSessionSettled :one
+SELECT COALESCE(s.state->'settled'->>'kind', '')::text AS kind
+FROM run_sessions s JOIN agent_requests r ON r.id = s.agent_request_id
+WHERE s.agent_request_id = @agent_request_id AND s.attempt = @attempt AND r.claim_epoch = @claim_epoch;
 
 -- name: UpsertRunSession :exec
 INSERT INTO run_sessions (agent_request_id, attempt, state)

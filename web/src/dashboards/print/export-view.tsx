@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from "react"
 
 import type { Selections } from "@/api/keys"
-import { describeRange } from "@/lib/time"
+import { describeRange, displayZone } from "@/lib/time"
 import { ActionProvider } from "@/panels/actions/action-context"
 import type { Dashboard } from "@/spec"
 
@@ -44,7 +44,12 @@ export function ExportView({
   const lines = headerLines({
     folder,
     version,
-    range: describeRange(from, to, pickerQuickRanges(spec)),
+    range: describeRange(
+      from,
+      to,
+      pickerQuickRanges(spec),
+      displayZone(undefined, spec.timezone)
+    ),
     variables: variableLines(states),
   })
   return (

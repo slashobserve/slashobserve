@@ -25,6 +25,7 @@ function grant(name: string | null): ConnectedAgent {
     last_used_at: null,
     expires_at: "2027-02-09T10:00:00Z",
     state: "active",
+    revoked_reason: null,
     mode: "direct",
     presence: "offline",
     last_seen_at: null,

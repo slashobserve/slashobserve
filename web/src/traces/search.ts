@@ -1,5 +1,6 @@
 import type { TimeRangeValue } from "@/dashboards/time-range-picker"
 import { resolveTime } from "@/lib/time"
+import type { DatasourceStatus } from "@/datasources/queries"
 import {
   firstString,
   validAsk,
@@ -53,7 +54,9 @@ export type TraceViewSearch = {
 const traceIdPattern = /^(?:[0-9a-f]{16}|[0-9a-f]{32})$/
 const spanIdPattern = /^[0-9a-f]{16}$/
 
-export const traceDatasourceTypes = ["tempo", "jaeger", "clickhouse"] as const
+export function canSearchTraces(datasource: DatasourceStatus): boolean {
+  return datasource.trace_search === true
+}
 
 export function hasQueryText(type: string): boolean {
   return type === "tempo" || type === "jaeger"

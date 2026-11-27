@@ -86,7 +86,7 @@ func TestSourcedTextGivesNoFigureIDOrInstant(t *testing.T) {
 	if r.Reads != nil || r.IDs != nil || r.Instants != nil || r.Facts != nil || r.Names != nil {
 		t.Fatalf("MCP text reached more than the sourced names: %+v", r)
 	}
-	got := r.Check(json.RawMessage(`{"markdown":"Checkout p99 was 9.3 s for 2,950 orders.","onset":"2026-11-20T10:05:00Z","root_cause":{"component":"checkout","kind":"dependency","summary":"s"}}`))
+	got := Unverified(r.Review(json.RawMessage(`{"markdown":"Checkout p99 was 9.3 s for 2,950 orders.","onset":"2026-11-20T10:05:00Z","root_cause":{"component":"checkout","kind":"dependency","summary":"s"}}`), ""))
 	want := []findings.Unverified{
 		{Kind: findings.UnverifiedFigure, Text: "9.3 s"},
 		{Kind: findings.UnverifiedFigure, Text: "2,950"},

@@ -32,15 +32,16 @@ const (
 )
 
 var (
-	ErrNotFound      = errors.New("MCP source not found")
-	ErrToolNotFound  = errors.New("tool not found")
-	ErrUIDTaken      = errors.New("an MCP source with this uid already exists")
-	ErrTooMany       = errors.New("too many MCP sources")
-	ErrProvisioned   = errors.New("this MCP source is defined in the MCP sources file on the server and cannot be changed here")
-	ErrNoSecretKey   = errors.New("SLASHOBSERVE_SECRET_KEY must be set to store a secret")
-	ErrAllowlistFull = errors.New("the outbound allowlist is full")
-	ErrSourceChanged = errors.New("the MCP source changed while the server was being asked; run discovery again")
-	ErrToolChanged   = errors.New("the tool changed since it was read; review it again")
+	ErrNotFound         = errors.New("MCP source not found")
+	ErrToolNotFound     = errors.New("tool not found")
+	ErrUIDTaken         = errors.New("an MCP source with this uid already exists")
+	ErrTooMany          = errors.New("too many MCP sources")
+	ErrProvisioned      = errors.New("this MCP source is defined in the MCP sources file on the server and cannot be changed here")
+	ErrNoSecretKey      = errors.New("SLASHOBSERVE_SECRET_KEY must be set to store a secret")
+	ErrAllowlistFull    = errors.New("the outbound allowlist is full")
+	ErrSourceChanged    = errors.New("the MCP source changed while the server was being asked; run discovery again")
+	ErrToolChanged      = errors.New("the tool changed since it was read; review it again")
+	ErrToolHashRequired = errors.New("the hash of the tool definition that was read is required")
 )
 
 type RefusedError struct {

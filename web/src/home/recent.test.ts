@@ -1,6 +1,9 @@
-import { describe, expect, test } from "vitest"
+import { afterEach, describe, expect, test, vi } from "vitest"
 
-import { parseRecent, recentLimit, recordRecent } from "./recent"
+import { parseRecent, readRecent, recentLimit, recordRecent } from "./recent"
+
+const principal = vi.hoisted(() => ({ id: "u1" as string | undefined }))
+vi.mock("@/lib/auth", () => ({ signedInPrincipalId: () => principal.id }))
 
 const now = new Date("2026-11-06T10:00:00Z")
 
@@ -77,5 +80,35 @@ describe("parseRecent", () => {
       Array.from({ length: 25 }, (_, i) => entry(`d${i}`))
     )
     expect(parseRecent(raw)).toHaveLength(20)
+  })
+})
+
+describe("readRecent", () => {
+  afterEach(() => {
+    localStorage.clear()
+    principal.id = "u1"
+  })
+
+  test("reads only the signed-in person's list", () => {
+    localStorage.setItem(
+      "slashobserve-recent-dashboards:u1",
+      JSON.stringify([entry("mine")])
+    )
+    localStorage.setItem(
+      "slashobserve-recent-dashboards:u2",
+      JSON.stringify([entry("theirs")])
+    )
+    expect(readRecent("dashboard").map((r) => r.id)).toEqual(["mine"])
+    principal.id = "u2"
+    expect(readRecent("dashboard").map((r) => r.id)).toEqual(["theirs"])
+  })
+
+  test("reads nothing while nobody is signed in", () => {
+    localStorage.setItem(
+      "slashobserve-recent-dashboards:u1",
+      JSON.stringify([entry("mine")])
+    )
+    principal.id = undefined
+    expect(readRecent("dashboard")).toEqual([])
   })
 })

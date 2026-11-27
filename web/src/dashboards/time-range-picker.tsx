@@ -136,7 +136,7 @@ export function TimeRangeControl({
     setProblem(null)
   }
 
-  const rangeLabel = describeRange(value.from, value.to, quickRanges)
+  const rangeLabel = describeRange(value.from, value.to, quickRanges, typedZone)
   const parsed = readDraft(draftFrom, draftTo, typedZone).range
   const alreadyDefault =
     saveDefault !== undefined &&
@@ -319,7 +319,7 @@ export function TimeRangePicker({
     save.mutate(
       {
         spec: { ...defaultRange.spec, time: next },
-        summary: `Set the default time range to ${describeRange(next.from, next.to, quickRanges)}`,
+        summary: `Set the default time range to ${describeRange(next.from, next.to, quickRanges, displayZone(undefined, timezone))}`,
         parent_version: defaultRange.version,
         propose: false,
       },

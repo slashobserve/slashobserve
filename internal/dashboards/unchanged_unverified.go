@@ -26,7 +26,7 @@ func acceptUnchangedFailures(prev, next *spec.Dashboard, issues []spec.Issue) ([
 	if accepted.Empty() {
 		return issues, accepted
 	}
-	return withoutAccepted(next, issues, accepted), accepted
+	return withoutAccepted(next, issues, accepted), accepted.becauseOf(unchangedFailureReason)
 }
 
 func acceptedVariables(prev, next *spec.Dashboard, failing []UnverifiedVariable) (Unverified, map[string]bool) {

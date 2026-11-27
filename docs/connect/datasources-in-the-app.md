@@ -78,6 +78,9 @@ The sidebar and the Logs, Traces and Metrics source lists read that list, so a s
 The id and the type are fixed once a datasource is saved.
 A change to either is refused with `422 invalid_datasource`, so add a new datasource instead.
 Everything else can change, including the name.
+Changing the address or the username never sends a stored credential to the new target.
+Enter every credential again, or clear it, before you save or test, or the server refuses the change with `422 secret_required`.
+If the datasource was changed by someone else while you edited, the save is refused with `409 datasource_changed`; reload and try again.
 
 The form shows the common settings first.
 Under **Show advanced settings** it shows these:
@@ -93,26 +96,26 @@ From the CLI:
 
 ```sh
 observe datasources get prom
-observe datasources edit prom --address https://prom2.example.com --clear header:X-Org
+observe datasources edit prom --address https://prom2.example.com --bearer-token-file - --clear header:X-Org
 ```
 
-`edit` changes only the settings you pass.
+`edit` changes only the settings you pass, and a new address or username needs every stored credential again (`--password-file`, `--bearer-token-file`, `--api-key-file` or `--clear`).
 Over HTTP, `PATCH /api/v1/datasources/{uid}` takes the same fields, and a field you leave out keeps its value.
 
 ## Test a connection before saving
 
 **Test connection** runs a health check against the values in the form, before anything is saved.
-When you edit, a credential you leave empty is taken from the saved datasource, so the test reflects what saving would do.
-A failed test shows the same fixed message and cause as the Datasources page.
+When you edit, a credential you leave empty is taken from the saved datasource, so the test reflects what saving would do, unless you changed the address or username: then every credential must be entered again or cleared.
+A failed test shows the same fixed message and cause as the Datasources page, and the same line saying what to do about it.
 The check times out after 10 seconds.
 
 A test never changes the outbound allowlist.
 A domain that is not listed can be tested only while the allowlist is unlocked, and it is added when you save.
 
-From the CLI, `observe datasources test prom --saved --address https://prom2.example.com` starts from the saved datasource and changes only what the flags name.
+From the CLI, `observe datasources test prom --saved --address https://prom2.example.com` starts from the saved datasource and changes only what the flags name, and with a new address it needs the credentials again like `edit`.
 Without `--saved` it tests a draft you describe in full.
 Over HTTP, it is `POST /api/v1/datasources/test`, with `?base=<uid>` to start from a saved datasource.
-It answers `{"healthy": true}`, or `healthy: false` with a `message` and a `detail`.
+It answers `{"healthy": true}`, or `healthy: false` with a `message`, a `detail` and the [`failure_kind`](../concepts/datasources-and-variables.md#check-that-a-datasource-is-healthy) of the failure.
 A test is recorded in the audit trail with the type, the host and the result.
 
 ## Remove a datasource

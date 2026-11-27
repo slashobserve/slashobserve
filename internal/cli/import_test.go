@@ -317,6 +317,17 @@ func TestImportSendsTheFolderAndShowsWhereTheDashboardWent(t *testing.T) {
 	}
 }
 
+func TestAnUpdateFromGrafanaShowsTheWarningOfADashboardThatAFileWrites(t *testing.T) {
+	s := &importServer{reply: strings.TrimSuffix(importedReply, "}") + `,"warning":"A change to its file replaces this edit."}`}
+	code, _, stderr := runImportCommand(t, s, "--update", "0190f3a2-7c1e-7b4c-8f1e-2a5b6c7d8e9f")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	if want := "Folder: Payments\nA change to its file replaces this edit.\n"; !strings.Contains(stderr, want) {
+		t.Fatalf("stderr = %q, want it to contain %q", stderr, want)
+	}
+}
+
 func TestImportShowsTheFolderNote(t *testing.T) {
 	s := &importServer{reply: fallbackReply}
 	code, _, stderr := runImportCommand(t, s, "--folder", "Secret")

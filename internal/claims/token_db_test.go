@@ -195,7 +195,9 @@ func TestAuthenticateRefusesTheTokenOfAReleasedClaimOnceTheRunIsClaimedAgain(t *
 	f := newFixture(t)
 	queued := f.queue(t, revisions.AssignGrant, grantID)
 	first := f.claim(t, grantClaimer)
-	f.runs.Release(context.Background(), f.stored(t, queued.ID))
+	if err := f.runs.Release(context.Background(), f.stored(t, queued.ID)); err != nil {
+		t.Fatal(err)
+	}
 
 	second := f.claim(t, grantClaimer)
 
@@ -207,6 +209,26 @@ func TestAuthenticateRefusesTheTokenOfAReleasedClaimOnceTheRunIsClaimedAgain(t *
 	}
 	if _, ok := f.authenticate(t, "Bearer "+second.Session.Token); !ok {
 		t.Fatal("the token of the new claim was refused")
+	}
+}
+
+func TestAuthenticateRefusesTheTokenOfAReleasedClaimWhileItIsStillStored(t *testing.T) {
+	f := newFixture(t)
+	queued := f.queue(t, revisions.AssignGrant, grantID)
+	first := f.claim(t, grantClaimer)
+	f.runs.Release(context.Background(), f.stored(t, queued.ID))
+
+	second, found, err := f.runs.Claim(context.Background(), grantClaimer.claimant())
+	if err != nil || !found {
+		t.Fatalf("second claim found %v: %v", found, err)
+	}
+
+	if int(second.Row.Attempts) != first.Run.Attempt || f.tokenCount(t, queued.ID) != 1 {
+		t.Fatalf("second claim = attempt %d with %d tokens stored, want attempt %d again and the first claim's token still stored",
+			second.Row.Attempts, f.tokenCount(t, queued.ID), first.Run.Attempt)
+	}
+	if _, ok := f.authenticate(t, "Bearer "+first.Session.Token); ok {
+		t.Fatal("the token of the released claim was accepted for the claim that replaced it")
 	}
 }
 

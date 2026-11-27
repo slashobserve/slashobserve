@@ -102,6 +102,11 @@ describe("formatValue", () => {
     expect(f(90_061, "dtdurations")).toBe("1d 1h 1m")
     expect(f(3723, "clocks")).toBe("01:02:03")
     expect(f(3_723_000, "clockms")).toBe("01:02:03")
+    expect(f(3661, "dthms")).toBe("01:01:01")
+    expect(f(90_061, "dtdhms")).toBe("1d 01:01:01")
+    expect(f(3661, "dtdhms")).toBe("01:01:01")
+    expect(f(-90_061, "dtdhms")).toBe("-1d 01:01:01")
+    expect(f(366_100, "timeticks")).toBe("01:01:01")
   })
 
   it("formats dates", () => {
@@ -131,7 +136,7 @@ describe("formatValue", () => {
     expect(f(2_400_000_000, "hertz")).toBe("2.4 GHz")
     expect(f(21.5, "celsius")).toBe("21.5 °C")
     expect(f(45, "humidity")).toBe("45 %H")
-    expect(f(7, "dthms")).toBe("7 dthms")
+    expect(f(7, "dthms")).toBe("00:00:07")
   })
 
   it("scales short and SI short numbers", () => {

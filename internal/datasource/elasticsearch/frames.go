@@ -140,6 +140,18 @@ func stringValue(v any) string {
 	return string(encoded)
 }
 
+func epochTime(n int64) time.Time {
+	switch magnitude := max(n, -n); {
+	case magnitude < 1e11:
+		return time.Unix(n, 0).UTC()
+	case magnitude < 1e14:
+		return time.UnixMilli(n).UTC()
+	case magnitude < 1e17:
+		return time.UnixMicro(n).UTC()
+	}
+	return time.Unix(0, n).UTC()
+}
+
 func sourceTime(v any) time.Time {
 	switch x := v.(type) {
 	case string:
@@ -148,15 +160,15 @@ func sourceTime(v any) time.Time {
 				return at.UTC()
 			}
 		}
-		if ms, err := strconv.ParseInt(x, 10, 64); err == nil {
-			return time.UnixMilli(ms).UTC()
+		if n, err := strconv.ParseInt(x, 10, 64); err == nil {
+			return epochTime(n)
 		}
 	case json.Number:
-		if ms, err := x.Int64(); err == nil {
-			return time.UnixMilli(ms).UTC()
+		if n, err := x.Int64(); err == nil {
+			return epochTime(n)
 		}
 		if f, err := x.Float64(); err == nil {
-			return time.UnixMilli(int64(f)).UTC()
+			return epochTime(int64(f))
 		}
 	}
 	return time.Time{}

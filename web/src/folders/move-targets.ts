@@ -6,7 +6,7 @@ export function moveChoices(
 ): Folder[] {
   return folders.filter(
     (folder) =>
-      (folder.permissions.edit && !folder.personal) ||
+      folder.allowed_actions.includes("move_into") ||
       folder.id === currentFolderId
   )
 }

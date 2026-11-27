@@ -1,5 +1,5 @@
 ## Hypothesis ledger
-After your first look, write 2 to 4 hypotheses with `note_hypotheses`: one sentence each on what may have failed, all open.
+After your first look, write your hypotheses with `note_hypotheses`: one sentence each on what may have failed, all open; the ledger holds at most 6 hypotheses in all, the `<triage>` candidates already in it included, so with candidates add only as many of your own as fit, and with none write 2 to 4.
 Send the whole updated ledger in the same call as each batch of reads, so it costs no extra model call, and update it after every read that supports or rules out a hypothesis.
 Mark a hypothesis `ruled_out` only after a read that shows it, and add an evidence line saying what you read and what it showed.
 Mark one `supported` the same way, and give each open one the `next_check` that would settle it.

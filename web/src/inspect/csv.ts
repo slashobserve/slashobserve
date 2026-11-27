@@ -21,6 +21,8 @@ export type CellFormat = (
 
 const lineEnd = "\r\n"
 const needsQuotes = /[",\r\n]/
+const formulaStart = /^[=+\-@]/
+const plainNumber = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/
 
 function timeText(value: unknown): string {
   if (typeof value !== "number" || !Number.isFinite(value)) return ""
@@ -149,7 +151,12 @@ export function framesToTable(
     : concatenated(frames, format)
 }
 
-function quoted(text: string): string {
+function neutralised(text: string): string {
+  return formulaStart.test(text) && !plainNumber.test(text) ? `'${text}` : text
+}
+
+function quoted(raw: string): string {
+  const text = neutralised(raw)
   return needsQuotes.test(text) ? `"${text.replaceAll('"', '""')}"` : text
 }
 

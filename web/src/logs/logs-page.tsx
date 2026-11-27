@@ -227,6 +227,7 @@ function LogsWorkspaceView({
     seed: paging.page === 1 ? (results.data?.frames ?? []) : [],
     running: tailing,
     session: tailSession,
+    onFailed: () => setTailing(false),
   })
 
   useEffect(() => {
@@ -254,8 +255,6 @@ function LogsWorkspaceView({
     : results.data
       ? rowCount(results.data.frames)
       : 0
-  const tailOn = tailing && liveTail.error === null
-
   function announce(text: string) {
     setAnnouncement((current) => ({ text, count: current.count + 1 }))
   }
@@ -316,7 +315,7 @@ function LogsWorkspaceView({
     paging,
     tail: {
       ...liveTail,
-      on: tailOn,
+      on: tailing,
       shown: tailShown,
       start: startTail,
       stop: stopTail,
@@ -355,7 +354,7 @@ function LogsWorkspaceView({
           setTailShown(false)
           update(next)
         }}
-        tail={{ on: tailOn, start: startTail, stop: stopTail }}
+        tail={{ on: tailing, start: startTail, stop: stopTail }}
         queryRun={q !== undefined}
         notRunId={notRunId}
         savable={savable}

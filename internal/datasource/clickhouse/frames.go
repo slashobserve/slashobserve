@@ -252,6 +252,7 @@ func (rs *resultSet) seriesFrames() []datasource.Frame {
 	}
 	frames := make([]datasource.Frame, 0, len(order))
 	for _, k := range order {
+		sortByTime(groups[k])
 		frames = append(frames, *groups[k])
 	}
 	if len(frames) == 0 {
@@ -261,6 +262,29 @@ func (rs *resultSet) seriesFrames() []datasource.Frame {
 		warnRounded(frames)
 	}
 	return frames
+}
+
+func sortByTime(f *datasource.Frame) {
+	times := f.Fields[0].Values
+	index := make([]int, len(times))
+	for i := range index {
+		index[i] = i
+	}
+	slices.SortStableFunc(index, func(a, b int) int {
+		ta, okA := times[a].(time.Time)
+		tb, okB := times[b].(time.Time)
+		if !okA || !okB {
+			return 0
+		}
+		return ta.Compare(tb)
+	})
+	for n := range f.Fields {
+		sorted := make([]any, len(index))
+		for i, from := range index {
+			sorted[i] = f.Fields[n].Values[from]
+		}
+		f.Fields[n].Values = sorted
+	}
 }
 
 func warnRounded(frames []datasource.Frame) {

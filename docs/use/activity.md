@@ -119,9 +119,25 @@ A value that is not a non-negative integer answers 400.
 At every ping the server checks your credentials, role and folder access again.
 It ends the stream when the credential is gone.
 It also ends the stream after 30 minutes, so a client reconnects with `Last-Event-ID`.
+
+Before the server ends the stream it sends one last `event: closed` frame.
+Its data is `{"reason": "<reason>"}`:
+
+| Reason | The server ended the stream because | What a client does |
+| --- | --- | --- |
+| `lifetime` | The stream was open for 30 minutes. | Reconnects with `Last-Event-ID`. |
+| `access_lost` | The credential is gone or may no longer read the log. | Stops. |
+| `check_failed` | It could not check the credential or the access twice in a row. | Reconnects with `Last-Event-ID`. |
+| `read_failed` | It could not read the log. | Reconnects with `Last-Event-ID`. |
+| `stopping` | The server is stopping. | Reconnects with `Last-Event-ID`. |
+
+A client treats a reason it does not know like a dropped connection and reconnects.
+The `closed` frame has no `id`, so the last `activity` frame stays the place to resume from.
+A stream that the client or the network ends has no `closed` frame.
+
 A person or key may hold 5 streams, and the server 500.
 The web app holds at most one activity stream per tab: the inbox badge, an open observation and the dashboards list share it.
-Beyond that the answer is 429 or 503 `too_many_streams`.
+Beyond that the answer is 429 or 503 `too_many_streams`, and its `reason` says whose limit was reached.
 
 ## Read the log over MCP
 
@@ -324,7 +340,7 @@ An event made through a key says which key, and an event made over MCP says whic
 - **Proposal.**
   Someone who can edit the dashboard merges a proposal.
 - **Run.**
-  `run.released` is written when a stopping server hands a run back to the queue.
+  `run.released` is written when a stopping server, or the agent that held the run, hands it back to the queue.
   `run.canceling` is written while a worker still holds the run.
   `run.kept` is written when the requester keeps the build of a stopped run as a version.
 - **Thread.**
@@ -414,6 +430,7 @@ To see more of the change, read the object through its own endpoint, which check
 - **Dashboard versions.**
   `dashboard.created`, `dashboard.version_created` and `dashboard.restored` have `version`, `title` and `summary`.
   They also have `parent_version`, except on a create, and `restored_from` on a restore.
+  A version that a [provisioning file](../operate/provisioning.md#edits-made-in-the-app) or `observe dashboards apply` saved over an edit made in the app has `replaced_version`, the version that holds the edit.
 - **Dashboard moves and deletes.**
   `dashboard.moved` has `title`, `from_folder_id` and `to_folder_id`, and `dashboard.deleted` has `title`.
 - **Annotations.**
@@ -503,9 +520,9 @@ A stream that resumes with the `Last-Event-ID` of a deleted event gets `reset`.
 | --- | --- | --- |
 | 400 | `invalid_request` | A filter, `limit`, `cursor` or `Last-Event-ID` is not valid. |
 | 403 | `forbidden_role` | Your role does not allow reading the log. |
-| 429 | `too_many_streams` | You hold 5 streams already. |
-| 503 | `too_many_streams` | The server holds 500 streams already. |
-| 503 | `shutting_down` | The server is stopping. |
+| 429 | `too_many_streams` | You hold 5 streams already. The body's `reason` is `per_caller`. |
+| 503 | `too_many_streams` | The server holds 500 streams already. The body's `reason` is `server_capacity`. |
+| 503 | `shutting_down` | The server is stopping: its [phase](../reference/states.md#server-process) is `stopping`. |
 
 ### Not recorded
 

@@ -43,6 +43,7 @@ function item(over: Partial<InboxItem>): InboxItem {
     created_at: new Date().toISOString(),
     reason: null,
     unread: false,
+    state: "read",
     target_title: null,
     excerpt: null,
     question: null,
@@ -57,6 +58,7 @@ const mention = item({
   data: withData({ object: { kind: "dashboard", id: dashboardId } }),
   reason: "mention",
   unread: true,
+  state: "unread",
 })
 const activity = item({ seq: 9 })
 const longNote =
@@ -69,6 +71,7 @@ const note = item({
   data: withData({ text: longNote }),
   excerpt: longNote,
   unread: true,
+  state: "unread",
 })
 
 function json(body: unknown, status = 200): Response {
@@ -362,6 +365,27 @@ describe("InboxPanel", () => {
         })
       )
     )
+  })
+
+  it("brings back an item the server says is done, whatever list shows it", async () => {
+    const server = mockServer({
+      items: [{ ...mention, unread: false, state: "done" }, activity],
+      unread: 0,
+    })
+    const { user } = renderPanel()
+    openPanel()
+    await screen.findByRole("heading", { name: "Needs you" })
+
+    await user.click(
+      screen.getByRole("button", { name: "Move back to the inbox" })
+    )
+
+    await waitFor(() =>
+      expect(server.states).toEqual([
+        { path: "/api/v1/inbox/items/12", body: { done: false } },
+      ])
+    )
+    expect(toasts.success).not.toHaveBeenCalled()
   })
 
   it("hides the page's side panel while open and shows it again on close", async () => {

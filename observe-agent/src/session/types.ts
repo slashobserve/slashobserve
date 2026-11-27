@@ -44,14 +44,17 @@ export type Compaction = {
 
 export type Start = {
   system: string
-  tools: ToolSpec[]
   prompt: string
   userMessage: string
   buildSaves: number
   pruning: Pruning
 }
 
-export type TurnIO = { signal: AbortSignal; onText: (text: string) => void }
+export type TurnIO = {
+  signal: AbortSignal
+  tools: readonly ToolSpec[]
+  onText: (text: string) => void
+}
 
 export type TurnAnswer = { turn: Turn; attempts: number }
 

@@ -110,7 +110,7 @@ jobs:
         uses: ./.github/actions/setup-go
         with:
           cache-name: race
-          save: ${{ matrix.shard == 'rest-1' }}
+          shard: ${{ matrix.shard }}
 
       - name: Go tests
         env:

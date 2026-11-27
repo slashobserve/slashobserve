@@ -44,12 +44,16 @@ func (s *claimingService) Claim(_ context.Context, c claims.Claimer, _ time.Dura
 	return claims.Offer{Run: &claims.OfferedRun{ID: runRequestID, Attempt: 1, Kind: "create", Intent: "ask", Prompt: "checkout latency"}}, nil
 }
 
-func (*claimingService) ClaimedRun(context.Context, claims.Claimer, string, int) (revisions.Request, error) {
+func (*claimingService) ClaimedRun(context.Context, claims.Claimer, string, int, int) (revisions.Request, error) {
 	return revisions.Request{}, claims.ErrNotYourRun
 }
 
 func (*claimingService) Report(context.Context, claims.Claimer, claims.ReportInput) (claims.ReportAnswer, error) {
 	return claims.ReportAnswer{}, claims.ErrNotYourRun
+}
+
+func (*claimingService) Release(context.Context, claims.Claimer, string, int, int) (claims.ReleaseAnswer, error) {
+	return claims.ReleaseAnswer{}, claims.ErrNotYourRun
 }
 
 func newSidecarHandler(t *testing.T) (http.Handler, *claimingService, *bytes.Buffer) {
@@ -77,7 +81,7 @@ func postFrom(h http.Handler, remote, token, body string) *httptest.ResponseReco
 	return rec
 }
 
-func TestSidecarSessionListsExactlyTheFourClaimTools(t *testing.T) {
+func TestSidecarSessionListsExactlyTheFiveClaimTools(t *testing.T) {
 	h, _, _ := newSidecarHandler(t)
 	rec := postFrom(h, "127.0.0.1:50000", sidecarToken, rpc(1, "tools/list", map[string]any{}))
 	var result struct {
@@ -89,7 +93,7 @@ func TestSidecarSessionListsExactlyTheFourClaimTools(t *testing.T) {
 		names = append(names, tool.Name)
 	}
 	slices.Sort(names)
-	want := []string{"claim_run", "finish_run", "get_run_brief", "report_run"}
+	want := []string{"claim_run", "finish_run", "get_run_brief", "release_run", "report_run"}
 	if !slices.Equal(names, want) {
 		t.Fatalf("tools = %v, want %v", names, want)
 	}

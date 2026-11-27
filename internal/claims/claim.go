@@ -29,6 +29,7 @@ type Offer struct {
 type OfferedRun struct {
 	ID            string         `json:"id"`
 	Attempt       int            `json:"attempt"`
+	ClaimEpoch    int            `json:"claim_epoch"`
 	Kind          string         `json:"kind"`
 	Intent        string         `json:"intent"`
 	Prompt        string         `json:"prompt"`
@@ -120,7 +121,7 @@ func (s *Service) offer(ctx context.Context, c Claimer, claimed revisions.Claime
 	session, err := s.openSession(ctx, c, claimed.Row)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "open run session; releasing the run", logattrs.Failure("run_session_failed", err, slog.String("agent_request_id", claimed.Row.ID.String()), slog.Int("attempt", int(claimed.Row.Attempts)))...)
-		s.runs.Release(ctx, claimed.Row)
+		_ = s.runs.Release(ctx, claimed.Row)
 		return Offer{}, err
 	}
 	run := offeredRun(claimed.Request)
@@ -144,7 +145,7 @@ func (s *Service) openSession(ctx context.Context, c Claimer, row dbsqlc.AgentRe
 			return err
 		}
 		return q.InsertRunToken(ctx, dbsqlc.InsertRunTokenParams{
-			TokenHash: hash, AgentRequestID: row.ID, Attempt: row.Attempts,
+			TokenHash: hash, AgentRequestID: row.ID, Attempt: row.Attempts, ClaimEpoch: row.ClaimEpoch,
 			ExpiresAt: pgtype.Timestamptz{Time: expires, Valid: true},
 		})
 	})
@@ -158,6 +159,7 @@ func offeredRun(req revisions.Request) OfferedRun {
 	run := OfferedRun{
 		ID:            req.ID,
 		Attempt:       req.Attempt,
+		ClaimEpoch:    req.ClaimEpoch,
 		Kind:          revisions.Kind(req.Source),
 		Intent:        string(req.Intent),
 		Prompt:        req.Prompt,

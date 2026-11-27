@@ -231,15 +231,16 @@ export type QuickRange = { label: string; from: string; to: string }
 export function describeRange(
   from: string,
   to: string,
-  ranges: QuickRange[] = quickRanges
+  ranges: QuickRange[] = quickRanges,
+  zone?: string
 ): string {
   const quick = ranges.find((range) => range.from === from && range.to === to)
   return (
     quick?.label ??
     describeRelativeRange(from, to) ??
     describeAgoRange(from, to) ??
-    describeInstantRange(from, to) ??
-    `${formatTimeValue(from)} to ${formatTimeValue(to)}`
+    describeInstantRange(from, to, zone) ??
+    `${zonedTimeValue(from, zone)} to ${zonedTimeValue(to, zone)}`
   )
 }
 
@@ -258,36 +259,65 @@ const monthNames = [
   "Dec",
 ]
 
-function dayText(date: Date, withYear: boolean): string {
-  return `${monthNames[date.getMonth()]} ${date.getDate()}${withYear ? `, ${date.getFullYear()}` : ""}`
+type ClockFields = {
+  year: number
+  month: number
+  day: number
+  hour: number
+  minute: number
 }
 
-function clockText(date: Date): string {
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+function clockFields(date: Date, zone: string | undefined): ClockFields {
+  if (zone === undefined) {
+    return {
+      year: date.getFullYear(),
+      month: date.getMonth(),
+      day: date.getDate(),
+      hour: date.getHours(),
+      minute: date.getMinutes(),
+    }
+  }
+  return localTime(date.getTime(), zone)
 }
 
-function describeInstantRange(from: string, to: string): string | null {
+function dayText(at: ClockFields, withYear: boolean): string {
+  return `${monthNames[at.month]} ${at.day}${withYear ? `, ${at.year}` : ""}`
+}
+
+function clockText(at: ClockFields): string {
+  return `${pad(at.hour)}:${pad(at.minute)}`
+}
+
+function describeInstantRange(
+  from: string,
+  to: string,
+  zone: string | undefined
+): string | null {
   if (!rfc3339.test(from) || !rfc3339.test(to)) return null
-  const start = new Date(from)
   const end = new Date(to)
-  const thisYear = new Date().getFullYear()
-  const withYear =
-    start.getFullYear() !== thisYear || end.getFullYear() !== thisYear
-  const day = (date: Date) => dayText(date, withYear)
+  const start = clockFields(new Date(from), zone)
+  const finish = clockFields(end, zone)
+  const thisYear = clockFields(new Date(), zone).year
+  const withYear = start.year !== thisYear || finish.year !== thisYear
+  const day = (at: ClockFields) => dayText(at, withYear)
   const endText =
-    day(start) === day(end) ? clockText(end) : `${day(end)}, ${clockText(end)}`
-  return `${day(start)}, ${clockText(start)} to ${endText} ${browserZoneName(end)}`
+    day(start) === day(finish)
+      ? clockText(finish)
+      : `${day(finish)}, ${clockText(finish)}`
+  return `${day(start)}, ${clockText(start)} to ${endText} ${browserZoneName(end, zone)}`
 }
 
 export function describeInstant(value: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  const withYear = date.getFullYear() !== new Date().getFullYear()
-  return `${dayText(date, withYear)}, ${clockText(date)} ${browserZoneName(date)}`
+  const at = clockFields(date, undefined)
+  const withYear = at.year !== new Date().getFullYear()
+  return `${dayText(at, withYear)}, ${clockText(at)} ${browserZoneName(date)}`
 }
 
-export function browserZoneName(at: Date): string {
+export function browserZoneName(at: Date, zone?: string): string {
   const part = new Intl.DateTimeFormat(undefined, {
+    timeZone: zone,
     timeZoneName: "short",
   })
     .formatToParts(at)

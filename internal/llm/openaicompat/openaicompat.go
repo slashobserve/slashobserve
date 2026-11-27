@@ -77,7 +77,7 @@ func (p *Provider) Start(ctx context.Context, req llm.Request) (llm.Session, err
 		history = append(history, openai.SystemMessage(req.System))
 	}
 	history = append(history, openai.UserMessage(req.UserMessage()))
-	return &session{provider: p, tools: tools, history: history, buildSaves: req.BuildSaves, pruner: llm.NewPruner(req.Pruning)}, nil
+	return &session{provider: p, tools: tools, history: history, turns: llm.NewTurnGuard(name), buildSaves: req.BuildSaves, pruner: llm.NewPruner(req.Pruning)}, nil
 }
 
 func toolParam(spec llm.ToolSpec) (openai.ChatCompletionToolUnionParam, error) {
@@ -100,8 +100,7 @@ type session struct {
 	tools    []openai.ChatCompletionToolUnionParam
 	history  []openai.ChatCompletionMessageParamUnion
 	calls    int
-	pending  []string
-	ended    bool
+	turns    *llm.TurnGuard
 
 	buildSaves int
 	pruner     *llm.Pruner
@@ -111,7 +110,7 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 	if err := ctx.Err(); err != nil {
 		return llm.Turn{}, err
 	}
-	if err := llm.CheckResults(name, s.ended, s.pending, results); err != nil {
+	if err := s.turns.Accept(results); err != nil {
 		return llm.Turn{}, err
 	}
 
@@ -147,8 +146,7 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 	messages = append(messages, assistantMessage(message, turn.ToolCalls))
 	s.history = messages
 	s.calls++
-	s.pending = llm.PendingIDs(turn.ToolCalls)
-	s.ended = len(s.pending) == 0
+	s.turns.Answered(turn.ToolCalls)
 	return turn, nil
 }
 
@@ -168,7 +166,7 @@ func (s *session) Compact(c llm.Compaction) error {
 	rest := s.history[lead:]
 	if endsInPlainAnswer(rest) {
 		rest = rest[:len(rest)-1]
-		s.ended = false
+		s.turns.Reopen()
 	}
 	weighed := make([]llm.Weighed, len(rest))
 	for i, m := range rest {
@@ -282,7 +280,7 @@ func (p *Provider) streamOnce(ctx, callCtx context.Context, params openai.ChatCo
 	for stream.Next() {
 		chunk := stream.Current()
 		if !acc.AddChunk(chunk) {
-			return streamed{}, fmt.Errorf("%w: openai returned a stream chunk that does not belong to the completion", llm.ErrProvider)
+			return streamed{}, llm.NewCallError(name, llm.ProviderError, 0)
 		}
 		for _, choice := range chunk.Choices {
 			if choice.Index == 0 && choice.FinishReason != "" {
@@ -296,8 +294,11 @@ func (p *Provider) streamOnce(ctx, callCtx context.Context, params openai.ChatCo
 	if err := stream.Err(); err != nil {
 		return streamed{}, p.sanitize(ctx, callCtx, watch, err)
 	}
+	if finishReason == "" {
+		return streamed{}, llm.NewCallError(name, llm.ProviderError, 0)
+	}
 	completion := acc.ChatCompletion
-	if finishReason != "" && len(completion.Choices) > 0 {
+	if len(completion.Choices) > 0 {
 		completion.Choices[0].FinishReason = finishReason
 	}
 	return streamed{completion: completion, usage: used}, nil

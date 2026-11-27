@@ -22,6 +22,7 @@ const (
 const (
 	keep = iota
 	prioCandidate
+	prioGap
 	prioSignals
 	prioEvidence
 	prioServices
@@ -51,7 +52,7 @@ func reportLines(r Report) []line {
 	}
 	lines = append(lines, rateLines(r.Rates)...)
 	if len(r.Candidates) == 0 {
-		lines = append(lines, line{keep, "Candidates: none. No service's errors or latency moved against its baseline on any window the sweep read."})
+		lines = append(lines, line{keep, noCandidates(r.Skipped)})
 	} else {
 		lines = append(lines, line{keep, fmt.Sprintf("Candidates, by onset (change events within %s before an onset):", short(EventLookback))})
 	}
@@ -62,10 +63,31 @@ func reportLines(r Report) []line {
 		lines = append(lines, line{prioBackground, fmt.Sprintf("Background, not a candidate: %s %s %s, %s before it (%s, %s).", b.Service, b.Signal, figure(b.Window, b.Unit), figure(b.Baseline, b.Unit), short(b.Rung), b.Source)})
 	}
 	for _, s := range r.Skipped {
-		lines = append(lines, line{prioSkipped, fmt.Sprintf("Skipped: %s%s: %s.", s.Step, onSource(s.Source), s.Reason)})
+		prio := prioSkipped
+		if len(s.Signals) > 0 {
+			prio = prioGap
+		}
+		lines = append(lines, line{prio, fmt.Sprintf("Skipped: %s%s: %s.", s.Step, onSource(s.Source), s.Reason)})
 	}
 	lines = append(lines, line{keep, fmt.Sprintf("Sweep: %d reads in %s.", r.Calls, r.Duration.Round(100*time.Millisecond))}, line{keep, blockClose})
 	return lines
+}
+
+func noCandidates(skipped []Skip) string {
+	const text = "Candidates: none. No service's errors or latency moved against its baseline on any window the sweep read."
+	var signals []string
+	for _, s := range skipped {
+		for _, signal := range s.Signals {
+			if !slices.Contains(signals, signal) {
+				signals = append(signals, signal)
+			}
+		}
+	}
+	if len(signals) == 0 {
+		return text
+	}
+	slices.Sort(signals)
+	return fmt.Sprintf("Candidates: none among the reads that completed, which is not an all-clear: the reads of %s were skipped or failed (see Skipped), so those signals were not fully compared on every window.", strings.Join(signals, ", "))
 }
 
 func windowsLine(r Report) string {
@@ -187,7 +209,7 @@ func size(lines []line, cut int) int {
 }
 
 func cutNote(n int) string {
-	return fmt.Sprintf("Cut for size: %d lines, skipped steps first, then background, log patterns, per-service rates, service lists, evidence, signals and the last candidates.", n)
+	return fmt.Sprintf("Cut for size: %d lines, skipped steps first, then background, log patterns, per-service rates, service lists, evidence, signals, skipped rate reads and the last candidates.", n)
 }
 
 func lowest(lines []line) int {

@@ -27,6 +27,10 @@ const traceFrames = `{"frames":[{"ref":"A","fields":[
 	{"name":"StatusCode","type":"string","values":["Unset","Ok","STATUS_CODE_ERROR","Ok","Error"]}
 ]}],"meta":{}}`
 
+func searchesTraces(kind string) bool {
+	return kind == "tempo" || kind == "jaeger" || kind == "clickhouse"
+}
+
 type tracesFake struct {
 	server  *httptest.Server
 	kind    string
@@ -41,7 +45,7 @@ func newTracesFake(t *testing.T, kind string) *tracesFake {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/api/v1/datasources":
-			_, _ = fmt.Fprintf(w, `{"datasources":[{"uid":"traces","type":%q,"name":"T","healthy":true,"checked_at":"x","dashboard_count":0}]}`, f.kind)
+			_, _ = fmt.Fprintf(w, `{"datasources":[{"uid":"traces","type":%q,"name":"T","healthy":true,"trace_search":%t,"checked_at":"x","dashboard_count":0}]}`, f.kind, searchesTraces(f.kind))
 		case "/api/v1/datasources/traces/query":
 			var body map[string]any
 			data, _ := io.ReadAll(r.Body)
@@ -95,6 +99,7 @@ func TestTracesRefusesBadInputBeforeQuerying(t *testing.T) {
 		{"quote in id", "clickhouse", []string{"4bf92f3577b34da6' OR 1=1", "--datasource", "traces"}, "is not a trace id"},
 		{"no datasource", "tempo", []string{traceID}, "needs --datasource"},
 		{"prometheus", "prometheus", []string{traceID, "--datasource", "traces"}, "traces reads Tempo, Jaeger or ClickHouse datasources; traces is prometheus"},
+		{"spans index", "elasticsearch", []string{traceID, "--datasource", "traces"}, "traces reads Tempo, Jaeger or ClickHouse datasources; traces is elasticsearch"},
 		{"unknown uid", "tempo", []string{traceID, "--datasource", "nope"}, `no datasource has uid "nope"`},
 	}
 	for _, tc := range cases {

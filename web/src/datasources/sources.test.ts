@@ -19,13 +19,20 @@ import {
   withoutSource,
 } from "./sources"
 
-function source(uid: string, type: string, name = uid): DatasourceStatus {
+function source(
+  uid: string,
+  type: string,
+  name = uid,
+  traceSearch = false
+): DatasourceStatus {
   return {
     uid,
     type,
     name,
+    ...(traceSearch && { trace_search: true }),
     source: "file",
     healthy: true,
+    health_state: "healthy",
     checked_at: "2026-11-14T00:00:00Z",
     dashboard_count: 0,
   }
@@ -36,10 +43,10 @@ const uids = (list: readonly DatasourceStatus[]) => list.map((s) => s.uid)
 describe("sourcesOf", () => {
   const list = [
     source("prom", "prometheus"),
-    source("ch", "clickhouse"),
+    source("ch", "clickhouse", "ch", true),
     source("loki", "loki"),
-    source("tempo", "tempo"),
-    source("jaeger", "jaeger"),
+    source("tempo", "tempo", "tempo", true),
+    source("jaeger", "jaeger", "jaeger", true),
     source("es", "elasticsearch"),
     source("os", "opensearch"),
   ]
@@ -48,7 +55,7 @@ describe("sourcesOf", () => {
     expect(uids(sourcesOf("logs", list))).toEqual(["ch", "loki", "es", "os"])
   })
 
-  it("keeps the trace datasource types for traces", () => {
+  it("keeps the datasources the server reports as trace searchable for traces", () => {
     expect(uids(sourcesOf("traces", list))).toEqual(["ch", "tempo", "jaeger"])
   })
 

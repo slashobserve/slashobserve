@@ -230,3 +230,30 @@ func TestADeepSymlinkChainStops(t *testing.T) {
 		}
 	})
 }
+
+func TestGitDirectoryIsNeverServed(t *testing.T) {
+	code, _ := fixture(t)
+	ctx := context.Background()
+	for _, rel := range []string{".git", ".git/config", "pkg/../.git/config", "./.git"} {
+		if _, err := code.ReadFile(ctx, rel, 1, 10); !errors.Is(err, errNotFound) {
+			t.Errorf("ReadFile(%q) = %v, want not found", rel, err)
+		}
+		if _, err := code.ListDir(ctx, rel); !errors.Is(err, errNotFound) {
+			t.Errorf("ListDir(%q) = %v, want not found", rel, err)
+		}
+	}
+	if got, err := code.Grep(ctx, "paymentFailure", ".git", ""); err == nil || strings.Contains(got, "paymentFailure") {
+		t.Errorf("Grep inside .git = %q, %v", got, err)
+	}
+}
+
+func TestListenDefaultIsLoopbackUnlessTheEnvironmentSaysOtherwise(t *testing.T) {
+	t.Setenv("CODESERVER_ADDR", "")
+	if got := listenDefault(); got != "127.0.0.1:8080" {
+		t.Errorf("default = %q", got)
+	}
+	t.Setenv("CODESERVER_ADDR", ":9090")
+	if got := listenDefault(); got != ":9090" {
+		t.Errorf("from environment = %q", got)
+	}
+}

@@ -65,6 +65,30 @@ describe("framesToCsv", () => {
     )
   })
 
+  it("prefixes text cells and headers that a spreadsheet would run as a formula", () => {
+    const frame: PreparedFrame = {
+      ref: "A",
+      fields: [
+        {
+          name: "=cmd",
+          type: "string",
+          values: ["=1+1", "+SUM(A1)", "-2+3", "@x", "plain", "a=b"],
+        },
+        { name: "n", type: "number", values: [-5, 3, 1.5, -0.25, 1e21, 0] },
+      ],
+    }
+    expect(rows(framesToCsv([frame]))).toEqual([
+      "'=cmd,n",
+      "'=1+1,-5",
+      "'+SUM(A1),3",
+      "'-2+3,1.5",
+      "'@x,-0.25",
+      "plain,1e+21",
+      "a=b,0",
+      "",
+    ])
+  })
+
   it("joins frames on time when every frame has unique times", () => {
     const csv = framesToCsv([
       series("A", 'up{pod="a"}', [t1, t2], [1, 2]),

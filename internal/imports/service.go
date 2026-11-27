@@ -424,33 +424,17 @@ func (s *Service) reimport(ctx context.Context, by auth.Principal, dashboardID p
 	if err != nil {
 		return Imported{}, err
 	}
-	dash, ver, _, err := s.dashboard.AddVersion(ctx, by, dashboardID, latest, rawSpec, versionSummary(updatedPrefix, result.Summary.Title))
+	res, err := s.dashboard.Save(ctx, by, dashboards.SaveInput{
+		DashboardID: dashboardID,
+		Parent:      latest,
+		Spec:        rawSpec,
+		Summary:     versionSummary(updatedPrefix, result.Summary.Title),
+		InTxSaved:   updateHook(req, cols, result),
+	})
 	if err != nil {
 		return Imported{}, err
 	}
-	result.Verify(issuesOf(ver.Unverified))
-	replaceNULInReport(&result.Report)
-	rawReport, err := json.Marshal(result.Report)
-	if err != nil {
-		return Imported{}, fmt.Errorf("marshal import report: %w", err)
-	}
-	updated, err := s.db.Queries().UpdateImport(ctx, dbsqlc.UpdateImportParams{
-		DashboardID:     dashboardID,
-		Version:         httpapi.Int32(ver.Number),
-		ImporterVersion: httpapi.Int32(grafana.ImporterVersion),
-		Original:        req.JSON,
-		Mapping:         cols.mapping,
-		Summary:         cols.summary,
-		Datasources:     cols.datasources,
-		Report:          rawReport,
-		Title:           dash.Title,
-	})
-	if err != nil {
-		return Imported{}, fmt.Errorf("update import: %w", err)
-	}
-	if updated == 0 {
-		return Imported{}, ErrNotFound
-	}
+	dash, ver := res.Dashboard, res.Version
 	record, err := s.ForDashboard(ctx, dashboardID)
 	if err != nil {
 		return Imported{}, err
@@ -458,6 +442,39 @@ func (s *Service) reimport(ctx context.Context, by auth.Principal, dashboardID p
 	imported := Imported{Record: record, Dashboard: dash, Version: ver, Updated: true}
 	s.logImported(ctx, imported)
 	return imported, nil
+}
+
+func updateHook(req Request, cols columns, result *grafana.Result) func(context.Context, *dbsqlc.Queries, dashboards.Dashboard, dashboards.Version) error {
+	return func(ctx context.Context, q *dbsqlc.Queries, dash dashboards.Dashboard, ver dashboards.Version) error {
+		result.Verify(issuesOf(ver.Unverified))
+		replaceNULInReport(&result.Report)
+		rawReport, err := json.Marshal(result.Report)
+		if err != nil {
+			return fmt.Errorf("marshal import report: %w", err)
+		}
+		dashboardID, err := db.ParseUUID(dash.ID)
+		if err != nil {
+			return err
+		}
+		updated, err := q.UpdateImport(ctx, dbsqlc.UpdateImportParams{
+			DashboardID:     dashboardID,
+			Version:         httpapi.Int32(ver.Number),
+			ImporterVersion: httpapi.Int32(grafana.ImporterVersion),
+			Original:        req.JSON,
+			Mapping:         cols.mapping,
+			Summary:         cols.summary,
+			Datasources:     cols.datasources,
+			Report:          rawReport,
+			Title:           dash.Title,
+		})
+		if err != nil {
+			return fmt.Errorf("update import: %w", err)
+		}
+		if updated == 0 {
+			return ErrNotFound
+		}
+		return nil
+	}
 }
 
 func issuesOf(u dashboards.Unverified) []spec.Issue {

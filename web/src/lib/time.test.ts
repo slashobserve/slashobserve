@@ -265,6 +265,36 @@ describe("formatting", () => {
       vi.useRealTimers()
     })
 
+    it("reads both ends in the given zone", () => {
+      vi.useFakeTimers({ now: new Date("2026-10-18T00:00:00Z") })
+      const end = new Date("2026-10-17T11:30:00Z")
+      expect(
+        describeRange(
+          "2026-10-17T09:00:00Z",
+          "2026-10-17T11:30:00Z",
+          undefined,
+          "Asia/Kolkata"
+        )
+      ).toBe(`Oct 17, 14:30 to 17:00 ${browserZoneName(end, "Asia/Kolkata")}`)
+      expect(
+        describeRange(
+          "2026-10-17T22:00:00Z",
+          "2026-10-18T01:00:00Z",
+          undefined,
+          "UTC"
+        )
+      ).toBe(
+        `Oct 17, 22:00 to Oct 18, 01:00 ${browserZoneName(new Date("2026-10-18T01:00:00Z"), "UTC")}`
+      )
+    })
+
+    it("shows epoch milliseconds in the given zone", () => {
+      const ms = Date.UTC(2026, 9, 17, 9, 0, 0)
+      expect(describeRange(String(ms), "now", undefined, "Asia/Kolkata")).toBe(
+        "2026-10-17 14:30:00 to now"
+      )
+    })
+
     it("names the day once for a range within one day", () => {
       vi.useFakeTimers({ now: new Date(2026, 10, 6, 18, 0) })
       expect(

@@ -20,16 +20,28 @@ function countsForYou(item: InboxItem): boolean {
   return item.unread && item.reason !== null
 }
 
+function read(item: InboxItem): InboxItem {
+  return {
+    ...item,
+    unread: false,
+    state: item.state === "done" ? "done" : "read",
+  }
+}
+
 function changedItem(item: InboxItem, change: InboxChange): InboxItem {
+  if (change.kind === "readThrough") {
+    return item.seq <= change.seq ? read(item) : item
+  }
+  if (item.seq !== change.seq) return item
   switch (change.kind) {
-    case "readThrough":
-      return item.seq <= change.seq ? { ...item, unread: false } : item
     case "unread":
-      return item.seq === change.seq ? { ...item, unread: change.unread } : item
+      return change.unread
+        ? { ...item, unread: true, state: "unread" }
+        : read(item)
     case "done":
-      return item.seq === change.seq && change.done
-        ? { ...item, unread: false }
-        : item
+      return change.done
+        ? { ...item, unread: false, state: "done" }
+        : { ...item, state: item.state === "done" ? "read" : item.state }
   }
 }
 

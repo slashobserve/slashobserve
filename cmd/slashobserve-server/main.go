@@ -105,6 +105,7 @@ const (
 	idleTimeout       = 120 * time.Second
 	shutdownTimeout   = 15 * time.Second
 	requestsCutAfter  = shutdownTimeout - 5*time.Second
+	drainPeriod       = 5 * time.Second
 )
 
 func versionLine() string { return version + " (" + commit + ")" }
@@ -364,7 +365,8 @@ func run() error {
 	}
 	logger := newLogger(cfg)
 	slog.SetDefault(logger)
-	logger.Info("starting slashobserve-server", slog.String("version", version), slog.String("commit", commit))
+	phases := server.StartPhases(logger, slog.String("version", version), slog.String("commit", commit))
+	defer phases.Enter(server.PhaseStopped)
 
 	registry, err := provision.Build(logger, cfg.Datasources)
 	if err != nil {
@@ -374,6 +376,7 @@ func run() error {
 	logDatasources(cfg, logger)
 
 	serverMetrics := metrics.New()
+	serverMetrics.ServerPhase(server.PhaseNames(), func() string { return string(phases.Current()) })
 
 	llmProvider, err := newLLMProvider(cfg, logger, serverMetrics)
 	if err != nil {
@@ -399,6 +402,7 @@ func run() error {
 	defer database.Close()
 	serverMetrics.Pool(database.Stat)
 
+	phases.Enter(server.PhaseMigrating)
 	appliedMigrations, err := database.Migrate(ctx)
 	if err != nil {
 		return migrationExit(err)
@@ -406,6 +410,7 @@ func run() error {
 	if err := checkDatabase(ctx, database.Queries(), cfg.Datasources, logger); err != nil {
 		return err
 	}
+	phases.Enter(server.PhaseProvisioning)
 
 	serverID := instanceID()
 	auditMetrics := serverMetrics.Audit()
@@ -639,6 +644,8 @@ func run() error {
 	handler, err := server.New(server.Options{
 		Logger:          logger,
 		TrustedProxies:  cfg.TrustedProxies,
+		Phase:           phases.Current,
+		PublicURL:       cfg.PublicURL,
 		Auth:            authService,
 		Datasources:     registry,
 		DatasourceUsage: dashboardsService,
@@ -670,6 +677,7 @@ func run() error {
 			proxyhttp.NewFindingData(proxyHandler, findingsService),
 			proxyhttp.NewObservationData(proxyHandler, observationsService),
 			users.NewHandler(database, authService, folderAccess, logger),
+			scheduler.NewHandler(database, logger),
 			outbound,
 			prompts.NewHandler(database, logger),
 			news.NewHandler(egressClient, logger),
@@ -709,7 +717,7 @@ func run() error {
 	if err != nil {
 		return described("http_setup_failed", err)
 	}
-	return serveRecorded(ctx, logger, cfg.HTTPAddr, serverID, handler, broker.Close)
+	return serveRecorded(ctx, logger, phases, cfg.HTTPAddr, serverID, handler, broker.Close)
 }
 
 func savedFindingURL(publicURL *url.URL) func(findings.Finding) string {
@@ -742,9 +750,17 @@ func (a threadAnswers) RunAnswer(ctx context.Context, by auth.Principal, run pgt
 	if err != nil || !found {
 		return threads.Answer{}, false, err
 	}
-	raw, err := json.Marshal(findings.JSONOf(f, a.url(f)))
+	answer, err := answerOf(run, f, by, a.url(f))
 	if err != nil {
 		return threads.Answer{}, false, err
+	}
+	return answer, true, nil
+}
+
+func answerOf(run pgtype.UUID, f findings.Finding, by auth.Principal, url string) (threads.Answer, error) {
+	raw, err := json.Marshal(findings.JSONOf(f, url))
+	if err != nil {
+		return threads.Answer{}, err
 	}
 	return threads.Answer{
 		RunID:           run.String(),
@@ -756,44 +772,54 @@ func (a threadAnswers) RunAnswer(ctx context.Context, by auth.Principal, run pgt
 		ObservationID:   f.ObservationID,
 		CanSave:         f.SavableBy(by),
 		Finding:         raw,
-	}, true, nil
+	}, nil
 }
 
 func saveAnswerOf(service *findings.Service) revisions.AnswerSaver {
 	return func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (revisions.SavedAnswer, error) {
 		f, replayed, err := service.SaveAsObservation(ctx, by, requestID)
-		switch {
-		case errors.Is(err, findings.ErrNotFound):
-			return revisions.SavedAnswer{}, revisions.ErrNoAnswer
-		case errors.Is(err, findings.ErrRequesterOnly):
-			return revisions.SavedAnswer{}, revisions.ErrNotRequester
-		case err != nil:
-			return revisions.SavedAnswer{}, err
+		if err != nil {
+			return revisions.SavedAnswer{}, saveAnswerError(err)
 		}
 		return revisions.SavedAnswer{ObservationID: f.ObservationID, Replayed: replayed}, nil
 	}
 }
 
+func saveAnswerError(err error) error {
+	switch {
+	case errors.Is(err, findings.ErrNotFound):
+		return revisions.ErrNoAnswer
+	case errors.Is(err, findings.ErrRequesterOnly):
+		return revisions.ErrNotRequester
+	}
+	return err
+}
+
 func shareAnswerOf(service *threads.Service) revisions.AnswerSharer {
 	return func(ctx context.Context, by auth.Principal, requestID, threadID pgtype.UUID) (revisions.SharedAnswer, error) {
 		shared, err := service.ShareRun(ctx, by, threads.ShareInput{RunID: requestID, ThreadID: threadID})
-		var invalid *threads.InvalidInputError
-		switch {
-		case errors.Is(err, threads.ErrRunNotFound):
-			return revisions.SharedAnswer{}, revisions.ErrRequestNotFound
-		case errors.Is(err, threads.ErrNoAnswer):
-			return revisions.SharedAnswer{}, revisions.ErrNoAnswerToShare
-		case errors.Is(err, threads.ErrNotShareable):
-			return revisions.SharedAnswer{}, revisions.ErrNotShareable
-		case errors.Is(err, threads.ErrNotFound), errors.As(err, &invalid) && invalid.Code == threads.CodeWrongThread:
-			return revisions.SharedAnswer{}, revisions.ErrShareThread
-		case errors.Is(err, threads.ErrTargetNotFound):
-			return revisions.SharedAnswer{}, revisions.ErrRequestNotFound
-		case err != nil:
-			return revisions.SharedAnswer{}, err
+		if err != nil {
+			return revisions.SharedAnswer{}, shareAnswerError(err)
 		}
 		return revisions.SharedAnswer{ThreadID: shared.Thread.ID, MessageID: shared.Message.ID, Replayed: shared.Replayed}, nil
 	}
+}
+
+func shareAnswerError(err error) error {
+	var invalid *threads.InvalidInputError
+	switch {
+	case errors.Is(err, threads.ErrRunNotFound):
+		return revisions.ErrRequestNotFound
+	case errors.Is(err, threads.ErrNoAnswer):
+		return revisions.ErrNoAnswerToShare
+	case errors.Is(err, threads.ErrNotShareable):
+		return revisions.ErrNotShareable
+	case errors.Is(err, threads.ErrNotFound), errors.As(err, &invalid) && invalid.Code == threads.CodeWrongThread:
+		return revisions.ErrShareThread
+	case errors.Is(err, threads.ErrTargetNotFound):
+		return revisions.ErrRequestNotFound
+	}
+	return err
 }
 
 type buildStore struct {
@@ -838,10 +864,14 @@ type runObservations struct {
 
 func (r runObservations) OpenForRun(ctx context.Context, q *dbsqlc.Queries, in revisions.RunObservationOpen) (pgtype.UUID, error) {
 	id, err := r.service.OpenForRun(ctx, q, observations.RunOpen{Run: in.Run, By: in.By, ObservationID: in.ObservationID, Strict: in.Strict})
+	return id, openObservationError(err)
+}
+
+func openObservationError(err error) error {
 	if errors.Is(err, observations.ErrNotFound) {
-		return pgtype.UUID{}, revisions.ErrObservationNotFound
+		return revisions.ErrObservationNotFound
 	}
-	return id, err
+	return err
 }
 
 func revisionsBuildError(err error) error {
@@ -1078,7 +1108,7 @@ func newLogger(cfg config.Config) *slog.Logger {
 	return slog.New(slog.NewJSONHandler(os.Stderr, opts))
 }
 
-func serve(ctx context.Context, logger *slog.Logger, listener net.Listener, handler http.Handler, onShutdown ...func()) error {
+func serve(ctx context.Context, logger *slog.Logger, phases *server.Phases, listener net.Listener, handler http.Handler, onShutdown ...func()) error {
 	requests, cutRequests := context.WithCancel(context.Background())
 	defer cutRequests()
 	// WriteTimeout is deliberately unset: a write deadline would cut SSE streams.
@@ -1093,9 +1123,9 @@ func serve(ctx context.Context, logger *slog.Logger, listener net.Listener, hand
 	for _, f := range onShutdown {
 		srv.RegisterOnShutdown(f)
 	}
+	phases.Enter(server.PhaseReady, slog.String("addr", listener.Addr().String()))
 	serveErr := make(chan error, 1)
 	go func() {
-		logger.Info("listening", slog.String("addr", listener.Addr().String()))
 		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serveErr <- err
 		}
@@ -1107,14 +1137,15 @@ func serve(ctx context.Context, logger *slog.Logger, listener net.Listener, hand
 	case <-ctx.Done():
 	}
 
-	logger.Info("shutting down", slog.Duration("timeout", shutdownTimeout))
-	return shutdown(srv, cutRequests, requestsCutAfter, shutdownTimeout)
+	phases.Enter(server.PhaseStopping, slog.Duration("timeout", shutdownTimeout))
+	return shutdown(srv, cutRequests, drainPeriod, requestsCutAfter, shutdownTimeout)
 }
 
-func shutdown(srv *http.Server, cutRequests context.CancelFunc, cutAfter, timeout time.Duration) error {
+func shutdown(srv *http.Server, cutRequests context.CancelFunc, drain, cutAfter, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	cut := time.AfterFunc(cutAfter, cutRequests)
 	defer cut.Stop()
+	time.Sleep(drain)
 	return srv.Shutdown(ctx)
 }

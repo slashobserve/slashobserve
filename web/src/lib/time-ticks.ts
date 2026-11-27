@@ -52,17 +52,18 @@ export function timeTicks(
   const interval =
     niceIntervals.find((candidate) => spanMs / candidate <= maxTicks) ??
     niceIntervals[niceIntervals.length - 1]
-  const offset =
-    zone === undefined
-      ? -new Date(xs[0]).getTimezoneOffset() * minute
-      : zoneOffsetMs(xs[0], zone)
-  const slot = (ms: number) => Math.floor((ms + offset) / interval)
+  const localMs = (ms: number) =>
+    ms +
+    (zone === undefined
+      ? -new Date(ms).getTimezoneOffset() * minute
+      : zoneOffsetMs(ms, zone))
   const ticks: TimeTick[] = []
+  let previousSlot = NaN
   xs.forEach((ms, index) => {
-    const crossed =
-      index === 0
-        ? (ms + offset) % interval === 0
-        : slot(ms) !== slot(xs[index - 1])
+    const local = localMs(ms)
+    const slot = Math.floor(local / interval)
+    const crossed = index === 0 ? local % interval === 0 : slot !== previousSlot
+    previousSlot = slot
     if (crossed) ticks.push({ index, label: timeLabel(ms, spanMs, zone) })
   })
   return ticks

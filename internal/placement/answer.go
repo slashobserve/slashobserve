@@ -66,23 +66,44 @@ func refuseRestrictedAnswerMove(ctx context.Context, q *dbsqlc.Queries, kind fol
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return fmt.Errorf("lock folder: %w", err)
 	}
-	held, err := kept()
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		return nil
-	case err != nil:
-		return fmt.Errorf("read whether the %s holds an answer that read Admin-only data: %w", kind.Noun(), err)
-	case held.Restricted:
+	confinement, err := confinementOf(kind, kept)
+	if err != nil {
+		return err
+	}
+	switch confinement {
+	case folders.ConfinedPermanent:
 		answer, err := restrictedAnswer()
 		if err != nil {
 			slog.Default().WarnContext(ctx, "could not name the answer that stops a move", logattrs.Failure("restricted_answer_unnamed", err, slog.String("kind", string(kind)))...)
 			answer = folders.AnswerRef{}
 		}
 		return folders.RestrictedAnswerMove(kind, answer)
-	case held.InFlight:
+	case folders.ConfinedRunInFlight:
 		return folders.RunInFlightMove(kind)
 	}
 	return nil
+}
+
+func confinementOf(kind folders.ContentKind, kept func() (keptWithAdmins, error)) (folders.Confinement, error) {
+	held, err := kept()
+	if errors.Is(err, pgx.ErrNoRows) {
+		return folders.NotConfined, nil
+	}
+	if err != nil {
+		return folders.NotConfined, fmt.Errorf("read whether the %s holds an answer that read Admin-only data: %w", kind.Noun(), err)
+	}
+	return folders.ConfinementOf(held.Restricted, held.InFlight), nil
+}
+
+func observationKept(ctx context.Context, q *dbsqlc.Queries, id pgtype.UUID) func() (keptWithAdmins, error) {
+	return func() (keptWithAdmins, error) {
+		row, err := q.ObservationKeptWithAdmins(ctx, id)
+		return keptWithAdmins(row), err
+	}
+}
+
+func ObservationConfinement(ctx context.Context, q *dbsqlc.Queries, id pgtype.UUID) (folders.Confinement, error) {
+	return confinementOf(folders.ContentObservation, observationKept(ctx, q, id))
 }
 
 func restrictedAnswerOpening(ctx context.Context, q *dbsqlc.Queries, folderID pgtype.UUID) error {

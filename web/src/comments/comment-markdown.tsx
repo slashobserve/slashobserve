@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react"
 import Markdown, { type Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
 import type { Plugin } from "unified"
@@ -25,6 +26,8 @@ export function markerFor(index: number): string {
 export function withoutMarkers(text: string): string {
   return text.replace(reserved, "")
 }
+
+const remarkPlugins = [remarkGfm]
 
 const commentComponents: Components = {
   ...components,
@@ -100,21 +103,25 @@ function chipsPlugin(chips: readonly Chip[]): Plugin<[], HastRoot> {
   }
 }
 
-export function CommentMarkdown({
+export const CommentMarkdown = memo(function CommentMarkdown({
   markdown,
   chips,
 }: {
   markdown: string
   chips: readonly Chip[]
 }) {
+  const rehypePlugins = useMemo(
+    () => [...commentRehypePlugins, chipsPlugin(chips)],
+    [chips]
+  )
   return (
     <Markdown
-      remarkPlugins={[remarkGfm]}
-      rehypePlugins={[...commentRehypePlugins, chipsPlugin(chips)]}
+      remarkPlugins={remarkPlugins}
+      rehypePlugins={rehypePlugins}
       urlTransform={(url) => safeUrl(url)}
       components={commentComponents}
     >
       {markdown}
     </Markdown>
   )
-}
+})

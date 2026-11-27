@@ -182,5 +182,5 @@ Details of **Working now**:
 
 Details of **Pick up where you left off**:
 
-- The list lives in this browser's local storage and never reaches the server.
+- The list lives in this browser's local storage, kept apart for each person who signs in, and never reaches the server.
 - It keeps the last 20 dashboards and the last 20 observations you opened, and shows the five newest of them together.

@@ -218,6 +218,30 @@ See [the command line](../use/cli.md#folders).
 Over REST, `GET /api/v1/folders/{id}/permissions` reads the list, and `PUT` replaces all of it in one call.
 `{"entries": [], "admins_only": true}` makes the folder Admins only.
 
+Each folder in `GET /api/v1/folders` and `GET /api/v1/folders/{id}` carries a `kind` and the caller's `allowed_actions`.
+`kind` is the first of these that fits; [States](../reference/states.md#folder) lists them too.
+
+| `kind` | The folder |
+| --- | --- |
+| `general` | General. |
+| `personal` | Your My Dashboards. |
+| `audit` | [The Audit folder](#the-audit-folder), whoever reads it. |
+| `admins_only` | Only Admins read it. |
+| `restricted` | It lists people or groups. |
+| `open` | Everyone sees it by role. |
+
+`allowed_actions` names what you may do with the folder now, so a client does not work it out from the level and the kind.
+
+| Action | Means | Offered when |
+| --- | --- | --- |
+| `create_in` | Create a dashboard, an observation or a saved search in it. | You have Edit. |
+| `move_into` | Move one of those into it. | You have Edit, and the folder is not My Dashboards. |
+| `rename` | Rename the folder. | You manage it, and it is not General. |
+| `set_permissions` | Change its list or make it Admins only. | You manage it, and it is not General. |
+| `delete` | Delete it once it is empty. | You manage it, and it is not General. |
+
+A move or a save into a folder that offers the action is still refused when the folder may not hold that content; see [Admins-only folders in detail](#admins-only-folders-in-detail).
+
 | Error | When |
 | --- | --- |
 | `409 general_folder` | Renaming, deleting or restricting General. |
@@ -225,11 +249,14 @@ Over REST, `GET /api/v1/folders/{id}/permissions` reads the list, and `PUT` repl
 | `409 personal_folder` | Moving a dashboard into My Dashboards. |
 | `422 unknown_user` | An entry names an address nobody has signed in with. |
 
+A `general_folder`, `personal_folder` or `admins_only_folder` refusal carries `allowed_actions` too: what you may do with General, with your My Dashboards or with an Admins-only folder.
+
 ### The Audit folder
 
 The [Audit folder](../use/activity.md#audit-folder) is an ordinary Admins-only folder that the server made.
 Each folder in `GET /api/v1/folders` carries a read-only `audit`, true for that one whatever it is now called and false for every other folder.
 The same flag is `audit` in the MCP `list_folders` result, and `observe folders list` marks that folder `(Audit folder)`.
+Its `kind` is `audit`, and `admins_only` still says whether only Admins read it.
 
 The Dashboards page leaves that folder out, and so can any other client.
 These leave the Audit folder's dashboards out of the rows, the total and the paging alike, and change nothing else:
@@ -290,6 +317,19 @@ The copy then holds the answer too, so it stays in Admins-only folders as well.
 While a run about a dashboard or observation in an Admins-only folder has not ended, the same two are refused with `409 restricted_answer` and a message to wait for the run to end.
 What the run writes may still read Admin-only data.
 
+A `restricted_answer` refusal of a move, a copy, a save or a folder change says whether waiting helps in `reason`.
+
+| `reason` | Meaning |
+| --- | --- |
+| `permanent` | The content holds an answer that read Admin-only data, or the run that is writing read such data. That does not change, so the same request is refused again. |
+| `run_in_flight` | An agent run about the content has not ended. The same request can succeed once the run ends. |
+
+`GET /api/v1/observations/{id}` says the same before a move is tried.
+Its answer carries `confined` with that `reason` while an answer or a run keeps the observation in Admins-only folders, and leaves `confined` out otherwise.
+The observation's **Move to folder** panel shows it as a note above the folder field.
+`confined` does not cover an Admins-only datasource: a move of content that reads one is refused with `restricted_content`, which names the datasource.
+Lists of observations and the dashboard routes do not return `confined`.
+
 An Admins-only folder has no [public links](../use/public-links.md).
 Choosing **Admins only** for a folder that holds a dashboard or an RCA with an unexpired public link, or moving such a dashboard or observation into it, is refused with `409 admins_only_folder`.
 Revoke the links first.
@@ -298,6 +338,8 @@ Revoke the links first.
 
 `POST /api/v1/access-requests` takes `{"object": {"kind": "dashboard", "id": "<id>"}, "note": "<note>"}`, with `observation` as the other kind, and answers the request.
 `GET /api/v1/access-requests` lists the open requests on the folders you manage.
+`GET /api/v1/access-requests?scope=mine` lists the requests you made, each with its `state`: `open` while it waits, `granted`, `dismissed` when someone who can grant it marked it done without granting it, or `expired` after 30 days.
+You can ask again after a request was dismissed or expired; the [states reference](../reference/states.md#access-request) lists the four states.
 Both need the Viewer role or higher.
 
 Errors:

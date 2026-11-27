@@ -281,6 +281,7 @@ var answers = []answer{
 	{ErrNoSecretKey, http.StatusConflict, "secret_key_missing", ""},
 	{ErrSourceChanged, http.StatusConflict, "source_changed", ""},
 	{ErrToolChanged, http.StatusConflict, "tool_changed", ""},
+	{ErrToolHashRequired, http.StatusBadRequest, "tool_hash_required", ""},
 	{ErrTooMany, http.StatusUnprocessableEntity, "too_many_mcp_sources", "at most 50 MCP sources can be added"},
 	{ErrAllowlistFull, http.StatusUnprocessableEntity, "too_many_domains", "at most 100 outbound domains can be allowed"},
 }

@@ -21,6 +21,9 @@ FROM clock
 ON CONFLICT (author_kind, author_id, client_id) WHERE client_id IS NOT NULL DO NOTHING
 RETURNING *;
 
+-- name: SetMessageRunRefusal :exec
+UPDATE thread_messages SET run_refusal_code = @code::text, run_refusal_message = @message::text WHERE id = @id;
+
 -- name: GetMessageByClient :one
 SELECT * FROM thread_messages WHERE author_kind = @author_kind AND author_id = @author_id AND client_id = @client_id;
 
@@ -68,7 +71,7 @@ WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = @run_id::uuid AND
 RETURNING *;
 
 -- name: ShareRunInThread :execrows
-UPDATE agent_requests SET thread_message_id = @thread_message_id, thread_replied_at = NULL WHERE id = @id AND thread_message_id IS NULL;
+UPDATE agent_requests SET thread_message_id = @thread_message_id, thread_replied_at = NULL, thread_reply_abandoned_at = NULL WHERE id = @id AND thread_message_id IS NULL;
 
 -- name: LockSharedRunsInThread :many
 SELECT r.id, r.chat_id, r.thread_message_id, f.id AS finding_id FROM agent_requests r
@@ -80,7 +83,7 @@ ORDER BY r.id
 FOR UPDATE OF r;
 
 -- name: WithdrawRunShares :exec
-UPDATE agent_requests SET thread_message_id = NULL, thread_replied_at = NULL WHERE id = ANY(@ids::uuid[]);
+UPDATE agent_requests SET thread_message_id = NULL, thread_replied_at = NULL, thread_reply_abandoned_at = NULL WHERE id = ANY(@ids::uuid[]);
 
 -- name: DeleteSharedMessages :many
 DELETE FROM thread_messages

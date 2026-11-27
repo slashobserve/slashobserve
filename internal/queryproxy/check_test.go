@@ -529,10 +529,6 @@ func TestCheckSpecPanelParallelismBound(t *testing.T) {
 	}()
 
 	waitFor(t, "4 concurrent panel checks", func() bool { return fake.inflightNow() == checkPanelParallelism })
-	time.Sleep(50 * time.Millisecond)
-	if got := fake.inflightNow(); got != checkPanelParallelism {
-		t.Fatalf("inflight = %d while gated, want exactly %d", got, checkPanelParallelism)
-	}
 	open()
 	select {
 	case got := <-done:

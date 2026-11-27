@@ -18,6 +18,27 @@ export function shouldCheckDashboard(failures: number): boolean {
   return failures > 0 && failures % checkEveryFailures === 0
 }
 
+export type AfterClosed = "reopen" | "stop" | "retry"
+
+function closeReason(data: string): unknown {
+  try {
+    return (JSON.parse(data) as { reason?: unknown } | null)?.reason
+  } catch {
+    return undefined
+  }
+}
+
+export function afterClosed(data: string): AfterClosed {
+  switch (closeReason(data)) {
+    case "lifetime":
+      return "reopen"
+    case "access_lost":
+      return "stop"
+    default:
+      return "retry"
+  }
+}
+
 export type GoneOutcome = "deleted" | "reload" | "keep"
 
 export function isGone(error: ApiError): boolean {

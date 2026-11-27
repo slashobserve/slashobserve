@@ -10,6 +10,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/server"
 )
 
 func recordSystemEvent(ctx context.Context, logger *slog.Logger, e audit.Event) {
@@ -32,12 +33,12 @@ func serverTarget(serverID string) audit.Target {
 	return audit.Target{Kind: "server", ID: serverID}
 }
 
-func serveRecorded(ctx context.Context, logger *slog.Logger, addr, serverID string, handler http.Handler, onShutdown func()) error {
+func serveRecorded(ctx context.Context, logger *slog.Logger, phases *server.Phases, addr, serverID string, handler http.Handler, onShutdown func()) error {
 	listener, err := listenAndRecordStart(ctx, logger, addr, serverID)
 	if err != nil {
 		return described("http_listen_failed", err)
 	}
-	served := serve(ctx, logger, listener, handler, onShutdown)
+	served := serve(ctx, logger, phases, listener, handler, onShutdown)
 	recordServerStop(ctx, logger, serverID, served)
 	if served != nil {
 		return described("http_server_failed", served)

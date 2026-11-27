@@ -356,6 +356,9 @@ func (b *panelBuild) graphThresholds(p *spec.FieldProps) {
 		case !ok:
 			b.recordImplicit(path+".value", outcomeNoEffect)
 		default:
+			if asString(t["yaxis"]) == "right" {
+				b.partial(path+".yaxis", "A threshold on the right axis is drawn on the left axis.")
+			}
 			area, line = area || truthy(t["fill"]), line || truthy(t["line"])
 			steps = append(steps, thresholdStep{index: i, value: &value, color: legacyThresholdColor(t)})
 		}
@@ -375,8 +378,10 @@ func legacyThresholdsStyle(area, line bool) string {
 		return "line+area"
 	case area:
 		return "area"
+	case line:
+		return "line"
 	}
-	return "line"
+	return "off"
 }
 
 func legacyThresholdColor(t map[string]any) string {

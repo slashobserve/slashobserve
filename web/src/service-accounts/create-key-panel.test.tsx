@@ -28,8 +28,9 @@ function account(over: Partial<ServiceAccount> = {}): ServiceAccount {
 
 type Call = { method: string; url: string; body: unknown }
 
-function serve(current: ServiceAccount) {
+function serve(current: ServiceAccount, keyFailures = 0) {
   const calls: Call[] = []
+  let failuresLeft = keyFailures
   vi.stubGlobal(
     "fetch",
     vi.fn(async (request: Request) => {
@@ -45,10 +46,20 @@ function serve(current: ServiceAccount) {
         return json({ ...current, ...(body as object) })
       }
       if (request.method === "POST" && request.url.endsWith("/keys")) {
+        if (failuresLeft > 0) {
+          failuresLeft -= 1
+          return json({ code: "internal", message: "key store is down" }, 500)
+        }
         return json(
           { token: "sok_secret", key: { id: "k1", name: "laptop" } },
           201
         )
+      }
+      if (
+        request.method === "POST" &&
+        request.url.endsWith("/service-accounts")
+      ) {
+        return json({ ...current, id: "a2", ...(body as object) }, 201)
       }
       return json({})
     })
@@ -212,5 +223,47 @@ describe("CreateKeyPanel role", () => {
     const options = await screen.findAllByRole("option")
     await user.click(options[options.length - 1])
     expect(onClose).not.toHaveBeenCalled()
+  })
+})
+
+describe("CreateKeyPanel after the account was created and the key was not", () => {
+  it("says the account exists and issues the key again without a second account", async () => {
+    const calls = serve(account(), 1)
+    const { user } = renderPanel(account())
+    await user.type(await screen.findByLabelText("Name"), "laptop")
+    await user.type(screen.getByLabelText("Service account name"), "new-bot")
+    await user.click(screen.getByRole("button", { name: "Create key" }))
+
+    expect(
+      await screen.findByText(
+        /The service account new-bot was created, but it has no key yet\./
+      )
+    ).toBeVisible()
+    expect(screen.getByLabelText("Service account")).toHaveTextContent(
+      "new-bot"
+    )
+    await user.click(
+      screen.getByRole("button", { name: "Issue the key again" })
+    )
+
+    expect(await screen.findByText("sok_secret")).toBeVisible()
+    const accountPosts = calls.filter(
+      (call) => call.method === "POST" && call.url.endsWith("/service-accounts")
+    )
+    expect(accountPosts).toHaveLength(1)
+    const keyPosts = calls.filter((call) => call.url.endsWith("/keys"))
+    expect(keyPosts).toHaveLength(2)
+    expect(keyPosts[1].url).toMatch(/\/service-accounts\/a2\/keys$/)
+  })
+
+  it("keeps the plain form when an existing account's key fails", async () => {
+    serve(account(), 1)
+    const { user } = renderPanel(account())
+    await chooseExistingAccount(user, "ci-bot")
+    await user.type(screen.getByLabelText("Name"), "laptop")
+    await user.click(screen.getByRole("button", { name: "Create key" }))
+    expect(await screen.findByRole("alert")).toBeVisible()
+    expect(screen.getByRole("button", { name: "Create key" })).toBeVisible()
+    expect(screen.queryByText(/was created, but/)).not.toBeInTheDocument()
   })
 })

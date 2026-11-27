@@ -228,21 +228,17 @@ func (a *Applier) update(ctx context.Context, by auth.Principal, res Result, id 
 	if access.Provisioned {
 		return refused(res, CodeProvisioned, folders.ErrProvisioned.Error()), nil
 	}
-	provisioned, err := a.db.Queries().IsProvisionedDashboard(ctx, id)
-	if err != nil {
-		return Result{}, fmt.Errorf("check provisioned dashboard: %w", err)
-	}
-	if provisioned {
+	if access.FromFile {
 		return refused(res, CodeProvisioned, "the dashboard comes from a file in the server's provisioning directory; change that file instead"), nil
 	}
-	latest, err := a.dashboards.LatestVersion(ctx, id)
+	_, latest, err := a.dashboards.Get(ctx, id)
 	if err != nil {
 		return failure(res, err)
 	}
 	res.DashboardID = id.String()
 	unchanged := sameFile
 	if !unchanged {
-		unchanged, err = a.dashboards.HasContent(ctx, id, latest, raw)
+		unchanged, err = a.dashboards.HasContent(ctx, id, latest.Number, raw)
 		if err != nil {
 			return failure(res, err)
 		}
@@ -251,18 +247,31 @@ func (a *Applier) update(ctx context.Context, by auth.Principal, res Result, id 
 		if err := a.bind(ctx, by, res.Path, id, sum, reasonUnchanged); err != nil {
 			return Result{}, err
 		}
-		res.Outcome, res.Version = OutcomeUnchanged, latest
+		res.Outcome, res.Version = OutcomeUnchanged, latest.Number
 		return res, nil
 	}
-	_, ver, _, err := a.dashboards.AddVersion(ctx, by, id, latest, raw, applySummaryPrefix+res.Path)
+	saved, err := a.dashboards.Save(ctx, by, dashboards.SaveInput{
+		DashboardID:     id,
+		Parent:          latest.Number,
+		Spec:            raw,
+		Summary:         applySummaryPrefix + res.Path,
+		ReplacedVersion: versionApplyReplaced(latest.VersionMeta),
+	})
 	if err != nil {
 		return failure(res, err)
 	}
 	if err := a.bind(ctx, by, res.Path, id, sum, ""); err != nil {
 		return Result{}, err
 	}
-	res.Outcome, res.Version = OutcomeUpdated, ver.Number
+	res.Outcome, res.Version = OutcomeUpdated, saved.Version.Number
 	return res, nil
+}
+
+func versionApplyReplaced(latest dashboards.VersionMeta) int {
+	if strings.HasPrefix(latest.Summary, applySummaryPrefix) {
+		return 0
+	}
+	return latest.Number
 }
 
 func (a *Applier) bind(ctx context.Context, by auth.Principal, path string, id pgtype.UUID, sum, reason string) error {

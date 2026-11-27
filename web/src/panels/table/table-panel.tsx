@@ -148,12 +148,14 @@ type ColumnView = {
   description: string | undefined
 }
 
+const collator = new Intl.Collator("en", { numeric: true })
+
 function compareValues(a: unknown, b: unknown): number {
   if (a === null || a === undefined)
     return b === null || b === undefined ? 0 : 1
   if (b === null || b === undefined) return -1
   if (typeof a === "number" && typeof b === "number") return a - b
-  return String(a).localeCompare(String(b), "en", { numeric: true })
+  return collator.compare(String(a), String(b))
 }
 
 function cellFill(

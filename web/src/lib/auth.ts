@@ -1,4 +1,10 @@
 import type { Role } from "./roles"
+import {
+  agreesWith,
+  reduceSession,
+  unknownSession,
+  type SessionEvent,
+} from "./session-state"
 
 export type Principal = {
   kind: "user" | "service_account"
@@ -12,30 +18,33 @@ export type Session =
   { authenticated: false } | { authenticated: true; principal: Principal }
 
 let cachedSession: Promise<Session> | undefined
-let knownSession: Session | undefined
 let generation = 0
-let ended = false
+let state = unknownSession
 
-function remember(session: Session) {
-  if (knownSession?.authenticated && !session.authenticated) ended = true
-  if (session.authenticated) ended = false
-  knownSession = session
+function move(event: SessionEvent) {
+  state = reduceSession(state, event)
+}
+
+export function signedInPrincipalId(): string | undefined {
+  return state.status === "signed_in" ? state.principal.id : undefined
 }
 
 export function sessionEnded(): boolean {
-  return ended
+  return state.status === "ended"
 }
 
 export function getSession(): Promise<Session> {
   if (cachedSession) return cachedSession
   const current = ++generation
+  move({ type: "check_started" })
   const pending: Promise<Session> = fetchSession().then(
     (session) => {
-      if (generation === current) remember(session)
+      if (generation === current) move({ type: "answered", session })
       return session
     },
     (error: unknown) => {
       if (cachedSession === pending) cachedSession = undefined
+      move({ type: "check_failed" })
       throw error
     }
   )
@@ -50,8 +59,8 @@ export async function refreshSession(): Promise<{
   const current = ++generation
   const session = await fetchSession()
   if (generation !== current) return { session, changed: false }
-  const changed = !sameSession(knownSession, session)
-  remember(session)
+  const changed = !agreesWith(state, session)
+  move({ type: "answered", session })
   cachedSession = Promise.resolve(session)
   return { session, changed }
 }
@@ -61,12 +70,9 @@ export function invalidateSession(): void {
   cachedSession = undefined
 }
 
-function sameSession(a: Session | undefined, b: Session): boolean {
-  if (!a || a.authenticated !== b.authenticated) return false
-  if (!a.authenticated || !b.authenticated) return true
-  return (
-    a.principal.id === b.principal.id && a.principal.role === b.principal.role
-  )
+export function leaveSession(): void {
+  move({ type: "left" })
+  invalidateSession()
 }
 
 async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
@@ -86,7 +92,7 @@ async function fetchSession(): Promise<Session> {
 export async function logout(): Promise<void> {
   const response = await apiFetch("/api/v1/auth/logout", { method: "POST" })
   if (!response.ok) throw new Error(`sign out failed: ${response.status}`)
-  knownSession = { authenticated: false }
+  move({ type: "left" })
 }
 
 export function loginHref(returnTo: string): string {

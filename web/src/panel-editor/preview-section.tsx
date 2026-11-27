@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import type { PanelSource } from "@/dashboards/panel-source"
 import { maxDataPointsFor, usePanelData } from "@/dashboards/use-panel-data"
 import { sameJson, stableJson } from "@/lib/json"
-import { describeRange } from "@/lib/time"
+import { describeRange, displayZone } from "@/lib/time"
 import { useSpecValidator } from "@/lib/use-spec-validator"
 import { PanelBody, StaticPanelBody } from "@/panels/panel-body"
 import { noSharedCursor } from "@/panels/shared-cursor"
@@ -319,7 +319,9 @@ function DataPreview({
         status={status}
         range={describeRange(
           timeRange.from ?? spec.time.from,
-          timeRange.to ?? spec.time.to
+          timeRange.to ?? spec.time.to,
+          undefined,
+          displayZone(undefined, spec.timezone)
         )}
       />
       {body}

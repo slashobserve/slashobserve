@@ -149,12 +149,33 @@ func (r *ask) options() writeOptions {
 func (r *ask) sent(w written) Sent {
 	out := Sent{Thread: w.thread, Message: w.message, Run: r.queuedRun, Refusal: r.refusal, To: ToEveryone, Replayed: w.replayed}
 	if w.replayed {
-		out.Run, out.Refusal = w.message.Run, nil
+		out.Run, out.Refusal = w.message.Run, w.refusal
 	}
-	if r.asked || out.Run != nil {
+	if r.asked || out.Run != nil || out.Refusal != nil {
 		out.To = ToAgent
 	}
 	return out
+}
+
+func storedRefusal(row dbsqlc.ThreadMessage) *RunRefusal {
+	if !row.RunRefusalCode.Valid {
+		return nil
+	}
+	return &RunRefusal{Code: row.RunRefusalCode.String, Message: row.RunRefusalMessage.String}
+}
+
+func (r *ask) storeRefusal(q *dbsqlc.Queries, message Message) error {
+	if r.refusal == nil {
+		return nil
+	}
+	id, err := db.ParseUUID(message.ID)
+	if err != nil {
+		return fmt.Errorf("message id: %w", err)
+	}
+	if err := q.SetMessageRunRefusal(r.ctx, dbsqlc.SetMessageRunRefusalParams{ID: id, Code: r.refusal.Code, Message: r.refusal.Message}); err != nil {
+		return fmt.Errorf("store the run refusal: %w", err)
+	}
+	return nil
 }
 
 func (r *ask) runAllowed() (*RunRefusal, error) {
@@ -223,6 +244,13 @@ func (r *ask) reachOf(q *dbsqlc.Queries, agent revisions.Assignee) (reach, error
 }
 
 func (r *ask) hook(q *dbsqlc.Queries, thread Thread, message Message) error {
+	if err := r.startOrRefuse(q, thread, message); err != nil {
+		return err
+	}
+	return r.storeRefusal(q, message)
+}
+
+func (r *ask) startOrRefuse(q *dbsqlc.Queries, thread Thread, message Message) error {
 	state := thread.recipientState()
 	recipient, err := recipientOf(state, message.Body, r.to, r.asks.builtinAgent)
 	if err != nil {
@@ -279,7 +307,7 @@ func (r *ask) hook(q *dbsqlc.Queries, thread Thread, message Message) error {
 func (r *ask) setSticky(q *dbsqlc.Queries, thread Thread, state threadAgent, recipient Recipient) error {
 	switch recipient.Sticky {
 	case stickyOff:
-		if state.Agent == nil || state.Off {
+		if !state.allows(AgentTurnOff) {
 			return nil
 		}
 		return r.writeSticky(q, thread, state.Agent, true)

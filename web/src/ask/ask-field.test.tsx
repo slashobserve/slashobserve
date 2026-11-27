@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { AskField } from "./ask-field"
 
+vi.mock("@/lib/auth", () => ({ signedInPrincipalId: () => "u1" }))
+
 function Field({
   onAsk = vi.fn(),
   onCancel = vi.fn(),
@@ -74,7 +76,7 @@ describe("AskField", () => {
 
   it("fills the last recorded ask on Up in an empty field", () => {
     localStorage.setItem(
-      "slashobserve-ask-history-logs",
+      "slashobserve-ask-history-logs:u1",
       JSON.stringify(["newest ask", "older ask"])
     )
     render(<Field />)
@@ -88,13 +90,15 @@ describe("AskField", () => {
     const field = screen.getByRole("textbox", { name: "Question" })
     await userEvent.type(field, "slow checkout{Enter}")
     expect(
-      JSON.parse(localStorage.getItem("slashobserve-ask-history-logs") ?? "[]")
+      JSON.parse(
+        localStorage.getItem("slashobserve-ask-history-logs:u1") ?? "[]"
+      )
     ).toEqual(["slow checkout"])
   })
 
   it("lists recent asks on focus and fills one on click", async () => {
     localStorage.setItem(
-      "slashobserve-ask-history-logs",
+      "slashobserve-ask-history-logs:u1",
       JSON.stringify(["newest ask", "older ask"])
     )
     render(<Field />)

@@ -14,7 +14,8 @@ type Conversion = ConvertOptions["conversions"][number]
 type Converted = Pick<PreparedField, "type" | "values">
 
 function toNumber(value: unknown): number | null {
-  if (value === null || value === undefined || value === "") return null
+  if (value === null || value === undefined) return null
+  if (typeof value === "string" && value.trim() === "") return null
   const number = Number(value)
   return Number.isFinite(number) ? number : null
 }

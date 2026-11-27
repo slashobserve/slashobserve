@@ -64,6 +64,7 @@ UPDATE agent_requests
 SET state = 'running',
   status = 'running',
   attempts = attempts + 1,
+  claim_epoch = claim_epoch + 1,
   lease_until = clock_timestamp() + make_interval(secs => @lease_seconds::double precision),
   started_at = coalesce(started_at, clock_timestamp()),
   claimed_by = @claimed_by::text
@@ -74,7 +75,7 @@ RETURNING sqlc.embed(agent_requests), picked.first_claim::boolean AS first_claim
 -- name: RenewAgentRequestLease :one
 UPDATE agent_requests
 SET lease_until = clock_timestamp() + make_interval(secs => @lease_seconds::double precision)
-WHERE id = @id AND status = 'running' AND attempts = @attempts
+WHERE id = @id AND status = 'running' AND claim_epoch = @claim_epoch
 RETURNING cancel_requested_at;
 
 -- name: FailExhaustedAgentRequests :many
@@ -125,7 +126,7 @@ WITH target AS (
   LEFT JOIN dashboard_versions saved ON saved.agent_request_id = r.id AND (r.dashboard_id IS NULL OR saved.dashboard_id = r.dashboard_id)
   LEFT JOIN findings f ON f.agent_request_id = r.id
   LEFT JOIN LATERAL (SELECT p.id FROM proposals p WHERE p.run_id = r.id LIMIT 1) pr ON true
-  WHERE r.id = @id AND r.attempts = @attempts AND r.state = ANY(@from_states::text[]) AND r.cancel_requested_at IS NOT NULL
+  WHERE r.id = @id AND r.claim_epoch = @claim_epoch AND r.state = ANY(@from_states::text[]) AND r.cancel_requested_at IS NOT NULL
   FOR NO KEY UPDATE OF r
 )
 UPDATE agent_requests
@@ -189,7 +190,7 @@ SET state = 'succeeded',
   dashboard_id = coalesce(dashboard_id, (SELECT v.dashboard_id FROM dashboard_versions v WHERE v.agent_request_id = @id)),
   lease_until = NULL,
   finished_at = clock_timestamp()
-WHERE id = @id AND state = ANY(@from_states::text[]) AND attempts = @attempts
+WHERE id = @id AND state = ANY(@from_states::text[]) AND claim_epoch = @claim_epoch
 RETURNING *;
 
 -- name: FailAgentRequest :one
@@ -201,14 +202,14 @@ SET state = 'failed',
   run_usage = sqlc.narg('run_usage')::jsonb,
   lease_until = NULL,
   finished_at = clock_timestamp()
-WHERE id = @id AND state = ANY(@from_states::text[]) AND attempts = @attempts
+WHERE id = @id AND state = ANY(@from_states::text[]) AND claim_epoch = @claim_epoch
 RETURNING *;
 
 -- name: ReleaseAgentRequest :one
 UPDATE agent_requests
-SET state = 'queued', status = 'queued', attempts = attempts - 1, lease_until = NULL,
+SET state = 'queued', status = 'queued', attempts = attempts - 1, lease_until = NULL, claimed_by = NULL,
   check_failures = check_failures + CASE WHEN @check_failed::boolean THEN 1 ELSE 0 END
-WHERE id = @id AND state = ANY(@from_states::text[]) AND attempts = @attempts
+WHERE id = @id AND state = ANY(@from_states::text[]) AND claim_epoch = @claim_epoch
 RETURNING *;
 
 -- name: GetAgentRequest :one
@@ -278,7 +279,7 @@ SET steps = (
   ) ranked
   WHERE ranked.recent IS NULL OR ranked.recent < @max_steps::integer
 ) || jsonb_build_array(@step::jsonb)
-WHERE id = @id AND status = 'running' AND attempts = @attempts::integer;
+WHERE id = @id AND status = 'running' AND claim_epoch = @claim_epoch::integer;
 
 -- name: SeedAgentRequestStep :execrows
 UPDATE agent_requests
@@ -427,7 +428,7 @@ SET state = 'succeeded',
   run_usage = sqlc.narg('run_usage')::jsonb,
   lease_until = NULL,
   finished_at = clock_timestamp()
-WHERE id = @id AND state = ANY(@from_states::text[]) AND attempts = @attempts
+WHERE id = @id AND state = ANY(@from_states::text[]) AND claim_epoch = @claim_epoch
 RETURNING *;
 
 -- name: GetSuggestRequest :one
@@ -467,7 +468,7 @@ SET state = 'succeeded',
   run_usage = sqlc.narg('run_usage')::jsonb,
   lease_until = NULL,
   finished_at = clock_timestamp()
-WHERE agent_requests.id = @id AND agent_requests.state = ANY(@from_states::text[]) AND agent_requests.attempts = @attempts
+WHERE agent_requests.id = @id AND agent_requests.state = ANY(@from_states::text[]) AND agent_requests.claim_epoch = @claim_epoch
   AND agent_requests.intent <> 'suggest'
   AND EXISTS (SELECT 1 FROM findings f WHERE f.agent_request_id = agent_requests.id)
 RETURNING *;
@@ -483,7 +484,7 @@ SET state = 'succeeded',
   run_usage = sqlc.narg('run_usage')::jsonb,
   lease_until = NULL,
   finished_at = clock_timestamp()
-WHERE agent_requests.id = @id AND agent_requests.state = ANY(@from_states::text[]) AND agent_requests.attempts = @attempts
+WHERE agent_requests.id = @id AND agent_requests.state = ANY(@from_states::text[]) AND agent_requests.claim_epoch = @claim_epoch
   AND EXISTS (SELECT 1 FROM proposals p WHERE p.run_id = agent_requests.id)
 RETURNING *;
 
@@ -552,8 +553,20 @@ WHERE r.state = ANY(@terminal::text[])
   AND r.thread_message_id IS NOT NULL
   AND r.finished_at > clock_timestamp() - make_interval(secs => @within_seconds::float8)
   AND r.thread_replied_at IS NULL
+  AND (sqlc.narg('after_finished_at')::timestamptz IS NULL
+    OR r.finished_at < sqlc.narg('after_finished_at')::timestamptz
+    OR (r.finished_at = sqlc.narg('after_finished_at')::timestamptz AND r.id > sqlc.narg('after_id')::uuid))
 ORDER BY r.finished_at DESC, r.id
 LIMIT @max_rows::int;
+
+-- name: AbandonThreadReplies :execrows
+UPDATE agent_requests
+SET thread_reply_abandoned_at = clock_timestamp()
+WHERE state = ANY(@terminal::text[])
+  AND thread_message_id IS NOT NULL
+  AND thread_replied_at IS NULL
+  AND thread_reply_abandoned_at IS NULL
+  AND finished_at <= clock_timestamp() - make_interval(secs => @within_seconds::float8);
 
 -- name: ChatTurnsBefore :many
 SELECT r.id, r.prompt, r.result_version, f.markdown AS answer, v.summary AS version_summary

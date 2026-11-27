@@ -104,8 +104,7 @@ func (s *Service) admit(ctx context.Context, c Claimant, row dbsqlc.AgentRequest
 		return Request{}, settled
 	case err != nil:
 		s.logger.ErrorContext(ctx, "load agent request requester", logattrs.Failure("agent_requester_load_failed", err, logAttrs(row)...)...)
-		s.releaseLogged(ctx, row, true)
-		return Request{}, released
+		return Request{}, s.checkFailedAdmission(ctx, row, checkRequester, err)
 	}
 	switch err := s.checkRun(ctx, targetOf(row), requester); {
 	case errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrObservationNotFound):
@@ -116,8 +115,7 @@ func (s *Service) admit(ctx context.Context, c Claimant, row dbsqlc.AgentRequest
 		return Request{}, settled
 	case err != nil:
 		s.logger.ErrorContext(ctx, "check agent request requester access", logattrs.Failure("agent_requester_access_failed", err, logAttrs(row)...)...)
-		s.releaseLogged(ctx, row, true)
-		return Request{}, released
+		return Request{}, s.checkFailedAdmission(ctx, row, checkRequesterAccess, err)
 	}
 	if !actsFor(c, requester) {
 		s.finishLogged(ctx, row, outcome{message: actsForAnotherMessage, code: "agent_acts_for_another", failure: FailureRequesterForbidden})
@@ -165,13 +163,13 @@ func (s *Service) Requester(ctx context.Context, row dbsqlc.AgentRequest) (auth.
 	return s.principals.Principal(ctx, auth.PrincipalKind(row.RequestedByKind), row.RequestedByID.String())
 }
 
-func (s *Service) Release(ctx context.Context, row dbsqlc.AgentRequest) {
-	s.releaseLogged(ctx, row, false)
+func (s *Service) Release(ctx context.Context, row dbsqlc.AgentRequest) error {
+	return s.releaseLogged(ctx, row, false)
 }
 
 func (s *Service) RenewLease(ctx context.Context, row dbsqlc.AgentRequest) (canceled bool, err error) {
 	cancelRequestedAt, err := s.db.Queries().RenewAgentRequestLease(ctx, dbsqlc.RenewAgentRequestLeaseParams{
-		LeaseSeconds: s.leaseTTL.Seconds(), ID: row.ID, Attempts: row.Attempts,
+		LeaseSeconds: s.leaseTTL.Seconds(), ID: row.ID, ClaimEpoch: row.ClaimEpoch,
 	})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
@@ -268,12 +266,7 @@ func (s *Service) settleChecked(ctx context.Context, row dbsqlc.AgentRequest, er
 	switch {
 	case err != nil:
 		s.logger.ErrorContext(ctx, "check agent request result", logattrs.Failure("agent_request_check_failed", err, slog.String("agent_request_id", row.ID.String()))...)
-		if int(row.CheckFailures)+1 >= maxCheckFailures {
-			s.finishLogged(ctx, row, outcome{message: checkFailedMessage, code: "agent_request_check_failed", failure: FailureCheckFailed, cause: err})
-			return true, true
-		}
-		s.releaseLogged(ctx, row, true)
-		return true, false
+		return true, s.failCheck(ctx, row, checkSavedResult, err)
 	case saved:
 		s.finishLogged(ctx, row, success)
 		return true, true
@@ -281,7 +274,27 @@ func (s *Service) settleChecked(ctx context.Context, row dbsqlc.AgentRequest, er
 	return false, true
 }
 
-func (s *Service) releaseLogged(ctx context.Context, row dbsqlc.AgentRequest, checkFailed bool) {
+func (s *Service) checkFailedAdmission(ctx context.Context, row dbsqlc.AgentRequest, check admissionCheck, err error) admission {
+	if s.failCheck(ctx, row, check, err) {
+		return settled
+	}
+	return released
+}
+
+func (s *Service) failCheck(ctx context.Context, row dbsqlc.AgentRequest, check admissionCheck, err error) (finished bool) {
+	if !checksExhausted(row) {
+		_ = s.releaseLogged(ctx, row, true)
+		return false
+	}
+	s.finishLogged(ctx, row, checkFailedOutcome(check, err))
+	return true
+}
+
+func checksExhausted(row dbsqlc.AgentRequest) bool {
+	return int(row.CheckFailures)+1 >= maxCheckFailures
+}
+
+func (s *Service) releaseLogged(ctx context.Context, row dbsqlc.AgentRequest, checkFailed bool) error {
 	releaseCtx, cancel := finishContext(ctx)
 	defer cancel()
 	released, err := s.release(releaseCtx, row, checkFailed)
@@ -292,6 +305,7 @@ func (s *Service) releaseLogged(ctx context.Context, row dbsqlc.AgentRequest, ch
 	case !released:
 		s.logger.WarnContext(ctx, "agent request was finished elsewhere; not releasing it", attrs...)
 	}
+	return err
 }
 
 func (s *Service) finishLogged(ctx context.Context, row dbsqlc.AgentRequest, o outcome) {
@@ -304,7 +318,7 @@ func (s *Service) finishLogged(ctx context.Context, row dbsqlc.AgentRequest, o o
 		s.logger.ErrorContext(ctx, "finish agent request", logattrs.Failure("agent_request_finish_failed", err, attrs...)...)
 	case !finished:
 		s.logger.WarnContext(ctx, "agent request was finished elsewhere; dropping this result", attrs...)
-	case o.suggestion != nil, o.finding:
+	case o.suggestion != nil, o.finding, o.proposal:
 		s.logger.InfoContext(ctx, "agent request succeeded", append(attrs, slog.Int("attempt", int(row.Attempts)))...)
 	case o.version != nil:
 		s.logger.InfoContext(ctx, "agent request succeeded", append(attrs, slog.Int("version", *o.version), slog.Int("attempt", int(row.Attempts)))...)
@@ -338,6 +352,7 @@ func RequestOf(row dbsqlc.AgentRequest) Request {
 		BaseVersion:  int(row.BaseVersion.Int32),
 		Draft:        row.Draft,
 		Attempt:      int(row.Attempts),
+		ClaimEpoch:   int(row.ClaimEpoch),
 		RequestedBy:  requesterOf(row),
 		Origin:       origin.Origin{Kind: origin.Kind(row.Origin.String), Client: row.OriginClient.String},
 		Assignee:     AssigneeKind(row.AssignedKind),

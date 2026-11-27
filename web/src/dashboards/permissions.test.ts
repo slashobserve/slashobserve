@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest"
 import {
   composerMode,
   contentChange,
+  appliedNote,
+  editNote,
+  fileOwnedNote,
   mayEditBesidesContent,
   readerNote,
   type DashboardPermissions,
@@ -85,4 +88,33 @@ describe("mayEditBesidesContent", () => {
       false
     )
   })
+})
+
+describe("editNote", () => {
+  it.each([
+    ["file", { edit: true }, fileOwnedNote],
+    ["file", { comment: true }, null],
+    ["file", {}, null],
+    ["apply", { edit: true }, appliedNote],
+    ["apply", { comment: true }, null],
+    ["starter", { edit: true }, null],
+    ["workspace", { edit: true }, null],
+  ] as const)(
+    "on a dashboard managed by %s with permissions %j says %j",
+    (managedBy, flags, expected) => {
+      expect(
+        editNote({ managed_by: managedBy, permissions: permissions(flags) })
+      ).toBe(expected)
+    }
+  )
+})
+
+describe("the notes on a dashboard that a file writes", () => {
+  it.each([fileOwnedNote, appliedNote])(
+    "say what replaces an edit without promising that it will: %s",
+    (note) => {
+      expect(note).not.toMatch(/the next/i)
+      expect(note).toMatch(/replaces edits made here/)
+    }
+  )
 })

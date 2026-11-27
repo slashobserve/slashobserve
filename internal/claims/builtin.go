@@ -46,7 +46,7 @@ func (s *Service) ReleaseHeld(ctx context.Context, c Claimer) error {
 		return fmt.Errorf("list the runs a claimer holds: %w", err)
 	}
 	for _, row := range held {
-		s.runs.Release(ctx, row)
+		_ = s.runs.Release(ctx, row)
 	}
 	return nil
 }
