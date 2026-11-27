@@ -1,4 +1,4 @@
-import { Fragment } from "react"
+import { Fragment, memo, useMemo } from "react"
 
 import type { components } from "@/api/schema.gen"
 
@@ -49,7 +49,7 @@ function WithCodeSpans({ text }: { text: string }) {
   )
 }
 
-export function MessageBody({
+export const MessageBody = memo(function MessageBody({
   body,
   mentions,
   markdown = false,
@@ -60,8 +60,11 @@ export function MessageBody({
   markdown?: boolean
   codeSpans?: boolean
 }) {
-  if (markdown) {
-    const parsed = markdownOf(body, mentions)
+  const parsed = useMemo(
+    () => (markdown ? markdownOf(body, mentions) : null),
+    [markdown, body, mentions]
+  )
+  if (parsed !== null) {
     return <CommentMarkdown markdown={parsed.markdown} chips={parsed.chips} />
   }
   return (
@@ -88,4 +91,4 @@ export function MessageBody({
       })}
     </>
   )
-}
+})
