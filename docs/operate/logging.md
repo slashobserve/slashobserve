@@ -123,6 +123,19 @@ The path never includes the query string, and the token of a public link is repl
 - A panic is logged by its Go type (`panic_type`), never its value.
 - A datasource that turns unhealthy logs `datasource unhealthy` once, with its `uid` and `type`.
   It does not log again until the datasource has recovered.
+- A datasource added in the app that the server cannot load logs `stored datasource cannot be used` (it then shows as Unavailable) or `stored datasource not loaded` (it is not registered at all), with its `uid`, `type` and an `error_code`.
+  The line is written once per saved version of the datasource, so it repeats only after someone saves the datasource again.
+
+  | `error_code` | Cause |
+  | --- | --- |
+  | `datasource_no_secret_key` | The datasource has credentials and `SLASHOBSERVE_SECRET_KEY` is not set. |
+  | `datasource_credentials_unreadable` | The sealed credentials cannot be read with the server's secret key. |
+  | `datasource_definition_not_json` | The stored definition is not valid JSON. |
+  | `datasource_definition_invalid` | The stored definition no longer validates. |
+  | `datasource_definition_not_opened` | The stored definition validates but the datasource cannot be opened from it. |
+  | `datasource_not_loadable` | The stored definition cannot be used for another reason. |
+  | `datasource_server_owned` | A datasource from the datasources file or built into the server has the same uid, so the app one is not loaded. |
+  | `datasource_not_loaded` | Any other cause. |
 - A refused sign-in also logs the domain of the email address.
   A failed code exchange logs the provider's `oauth_error` code, such as `invalid_grant`, when it is a plain code.
 - A line of the harness child that is not JSON is logged as `harness output` with the text in `line`.
