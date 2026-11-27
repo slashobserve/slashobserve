@@ -177,6 +177,21 @@ Details of the ledger:
 - The finished run's `usage.hypotheses` holds the last ledger with each closing, in the run API and in `get_run`, for the requester and Admins only, because the ledger quotes data the run read.
 - Without the setting, the tool, the prompt section and the block are absent.
 
+### Closing every candidate
+
+An incident investigation that started with candidates may conclude only when each of them is accounted for, so the first plausible anomaly is not taken for the whole answer.
+Its `save_finding` is sent back once, with a line per candidate that says what is missing, when:
+
+- a candidate is still open, missing from the ledger, or supported or ruled out with no closing, with the read that would close it;
+- a candidate is closed as `transient` but the run made no data read after its first one, so nothing showed it gone;
+- a candidate closed as `cause` is not named by the finding's `causes`;
+- a cause in the finding names the service of a candidate closed as `background`, `transient` or `unrelated`;
+- `no_incident` is set while a candidate is open or closed as `cause` or `knock_on`, so a finding of no incident needs every candidate closed as `background`, `transient` or `unrelated`, or no candidate at all.
+
+The rule never traps a run: the save is not sent back at the call limit, the second save is accepted, and the send-back may read past the limit.
+Each candidate still open when the finding is accepted is stored in its `unverified` list as a `candidate` item with its id and service, such as `c2 ad`, rather than as a cause, because nothing the run read says it was one; the observation shows them in a line such as `1 triage candidate was left open when the investigation ended: c2 ad`.
+The rule applies only with the setting on, to an incident investigation or one the server did not sort into a task type, whose preflight brief listed candidates.
+
 ### Stages and the call budget
 
 Stages belong to the built-in agent only.
@@ -197,6 +212,7 @@ Details of the stages:
 - The agent gets one line after each turn, such as `Stage: test. Model call 7 of 12.`, and the run's steps show one line each time the stage changes, under the label `stage`.
 - The limit starts at `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`, or the task type's own limit when that is unset.
   It grows by 3 calls each time a hypothesis moves to `supported` or `ruled_out`, as long as the run made at least one successful read since the limit last grew, and stops at `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`, 40 by default.
+  When one ledger closes several candidates with evidence, it grows by 3 calls for each of them, so a run with five candidates is not cut off where a run with one would be.
   The move counts when the hypothesis carried evidence already or gains an evidence line that no hypothesis of the earlier ledger had, so renaming a hypothesis earns nothing.
   A ledger written without reading anything earns nothing, and unset, the ceiling equals the starting limit, so the limit never grows.
 - When the stage becomes `conclude` because a hypothesis is supported and none is open, the agent is told at once to save the finding instead of waiting for the limit.

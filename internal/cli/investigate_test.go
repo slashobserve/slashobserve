@@ -305,9 +305,9 @@ func TestPrintFindingListsTheItemsNotFoundInWhatTheAgentRead(t *testing.T) {
 		Title:      "Checkout latency",
 		Markdown:   "p99 rose to 523 ms.",
 		URL:        "https://o.example/o/1",
-		Unverified: []findingUnverified{{Kind: "figure", Text: "523 ms"}, {Kind: "component", Text: "cartservice"}},
+		Unverified: []findingUnverified{{Kind: "figure", Text: "523 ms"}, {Kind: "candidate", Text: "c2 ad"}, {Kind: "component", Text: "cartservice"}},
 	}, investigationID)
-	want := "Checkout latency\n\nNot found in what the agent read: 523 ms; cartservice\n\np99 rose to 523 ms.\n\nhttps://o.example/o/1\n"
+	want := "Checkout latency\n\nNot found in what the agent read: 523 ms; cartservice\nTriage candidates left open: c2 ad\n\np99 rose to 523 ms.\n\nhttps://o.example/o/1\n"
 	if stdout.String() != want {
 		t.Errorf("printed %q\nwant %q", stdout.String(), want)
 	}

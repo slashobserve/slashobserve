@@ -14,6 +14,7 @@ const (
 	UnverifiedFact      = "fact"
 	UnverifiedTraceID   = "trace_id"
 	UnverifiedTrigger   = "trigger"
+	UnverifiedCandidate = "candidate"
 )
 
 type Unverified struct {

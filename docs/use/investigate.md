@@ -262,6 +262,7 @@ The agent fills them when it saves an investigation, and they must agree with th
 - `ruled_out` lists at most 5 causes that were checked and excluded, and `next_steps` lists at most 3 things to do.
 - `no_incident` is true when nothing was wrong.
   It cannot be set together with `root_cause` or `causes`.
+  In an incident investigation whose preflight brief listed candidates, it is accepted only when every candidate was closed as background, transient or unrelated; see [Closing every candidate](../concepts/investigate.md#closing-every-candidate).
 
 A component is at most 120 characters, a sentence at most 300 and a list line at most 200, each on one line.
 A save that breaks a rule is refused with the reason, and the agent fixes it and saves again.

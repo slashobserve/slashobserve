@@ -164,6 +164,7 @@ func (sess *session) admit(ctx context.Context, c guard.Call, turn *Turn) (admit
 	open.Admitted++
 	out.seq = open.Seq
 	out.grounding = sess.state.checkGrounding(&c, sess.req.Prompt)
+	out.grounding.unverified = append(out.grounding.unverified, sess.state.checkCandidates(&c)...)
 	out.adm = sess.state.Guard.Admit(position, c)
 	if out.adm.Verdict != guard.Refuse {
 		return out, nil
@@ -200,6 +201,9 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 	}
 	d.content = state.issueFacts(c, d)
 	state.noteGrounding(c, d)
+	if !d.res.IsError && guard.ReadsData(c.Name) {
+		state.DataReads++
+	}
 	if d.res.IsError {
 		step.Status = "error"
 	}

@@ -30,8 +30,17 @@ func (s *State) noteLedgerResult(res tools.Result) {
 	})
 }
 
-func (s *State) ledgerBehind(input json.RawMessage) (fault, bool) {
-	if s.Ledger == nil || s.Ledger.Asked || s.Ledger.Resolved || !namesConclusion(input) {
+func (s *State) ledgerBehind(c Call) (fault, bool) {
+	if s.Ledger == nil || s.Ledger.Asked {
+		return fault{}, false
+	}
+	if c.Unclosed != "" && s.Window.Calls < s.windowLimit() {
+		s.Ledger.Asked = true
+		s.Counts.Nudges++
+		s.Turn.Rejected = true
+		return fault{c.Unclosed, "it concluded while a triage candidate was not accounted for"}, true
+	}
+	if s.Ledger.Resolved || !namesConclusion(c.Input) {
 		return fault{}, false
 	}
 	s.Ledger.Asked = true

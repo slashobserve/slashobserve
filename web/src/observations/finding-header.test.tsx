@@ -271,6 +271,31 @@ describe("the line for items the agent did not read", () => {
   })
 })
 
+describe("the line for triage candidates left open", () => {
+  it("names them apart from the items the agent did not read", () => {
+    expect(
+      unverifiedLine(
+        finding({ unverified: [{ kind: "candidate", text: "c2 ad" }] })
+      )
+    ).toBe(
+      "1 triage candidate was left open when the investigation ended: c2 ad"
+    )
+    expect(
+      unverifiedLine(
+        finding({
+          unverified: [
+            { kind: "figure", text: "12%" },
+            { kind: "candidate", text: "c2 ad" },
+            { kind: "candidate", text: "c3 cart" },
+          ],
+        })
+      )
+    ).toBe(
+      "1 figure was not found in what the agent read: 12%. 2 triage candidates were left open when the investigation ended: c2 ad, c3 cart"
+    )
+  })
+})
+
 describe("which block carries a header", () => {
   it("picks the first text block of the run and skips a finding with no field", () => {
     const blocks = [

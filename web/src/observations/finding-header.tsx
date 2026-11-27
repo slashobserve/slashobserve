@@ -38,9 +38,10 @@ function hasUnverified(finding: RunFinding): boolean {
   return finding.unverified.length > 0
 }
 
-type UnverifiedKind = RunFinding["unverified"][number]["kind"]
+type UnverifiedItem = RunFinding["unverified"][number]
+type UnreadKind = Exclude<UnverifiedItem["kind"], "candidate">
 
-function subjectOf(kind: UnverifiedKind, count: number): string {
+function subjectOf(kind: UnreadKind, count: number): string {
   switch (kind) {
     case "figure":
       return count === 1 ? "1 figure" : `${count} figures`
@@ -58,8 +59,25 @@ function subjectOf(kind: UnverifiedKind, count: number): string {
 }
 
 export function unverifiedLine(finding: RunFinding): string {
-  const counts = new Map<UnverifiedKind, number>()
+  const unread: { kind: UnreadKind; text: string }[] = []
+  const open: string[] = []
   for (const item of finding.unverified) {
+    if (item.kind === "candidate") open.push(item.text)
+    else unread.push({ kind: item.kind, text: item.text })
+  }
+  const candidates =
+    open.length === 0
+      ? ""
+      : `${open.length === 1 ? "1 triage candidate was" : `${open.length} triage candidates were`} left open when the investigation ended: ${open.join(", ")}`
+  return [unreadLine(unread), candidates].filter((s) => s !== "").join(". ")
+}
+
+function unreadLine(
+  items: readonly { kind: UnreadKind; text: string }[]
+): string {
+  if (items.length === 0) return ""
+  const counts = new Map<UnreadKind, number>()
+  for (const item of items) {
     counts.set(item.kind, (counts.get(item.kind) ?? 0) + 1)
   }
   const subjects = [...counts].map(([kind, n]) => subjectOf(kind, n))
@@ -74,8 +92,8 @@ export function unverifiedLine(finding: RunFinding): string {
     (counts.get("trigger") ?? 0) > 1 ||
     (counts.get("fact") ?? 0) > 1 ||
     (counts.get("trace_id") ?? 0) > 1
-  const items = finding.unverified.map((item) => item.text).join(", ")
-  const sentence = `${subject} ${plural ? "were" : "was"} not found in what the agent read: ${items}`
+  const texts = items.map((item) => item.text).join(", ")
+  const sentence = `${subject} ${plural ? "were" : "was"} not found in what the agent read: ${texts}`
   return sentence.charAt(0).toUpperCase() + sentence.slice(1)
 }
 

@@ -7402,10 +7402,10 @@ export interface components {
         };
         FindingUnverified: {
             /**
-             * @description A figure from the Markdown or the impact, a cause's component or trigger key, an onset time, a cited fact or `answers` entry that did not pass (an unknown fact, an option more than 1% away, two values for one quantity, or an answer the Markdown never gives), or a trace or span id that was cut short or that the run never read.
+             * @description A figure from the Markdown or the impact, a cause's component or trigger key, an onset time, a cited fact or `answers` entry that did not pass (an unknown fact, an option more than 1% away, two values for one quantity, or an answer the Markdown never gives), or a trace or span id that was cut short or that the run never read; `candidate` is a triage candidate the investigation left open when it concluded, as its id and service, such as "c2 ad".
              * @enum {string}
              */
-            kind: "figure" | "component" | "onset" | "fact" | "trace_id" | "trigger";
+            kind: "figure" | "component" | "onset" | "fact" | "trace_id" | "trigger" | "candidate";
             /** @description The item as the agent wrote it, such as "523 ms". */
             text: string;
         };

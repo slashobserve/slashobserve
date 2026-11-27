@@ -134,12 +134,19 @@ func (f findingSummary) header() []string {
 		}
 		lines = append(lines, list.label+": "+strings.Join(cleaned, "; "))
 	}
-	if len(f.Unverified) > 0 {
-		items := make([]string, len(f.Unverified))
-		for i, item := range f.Unverified {
-			items[i] = text(item.Text)
+	var unread, open []string
+	for _, item := range f.Unverified {
+		if item.Kind == "candidate" {
+			open = append(open, text(item.Text))
+		} else {
+			unread = append(unread, text(item.Text))
 		}
-		lines = append(lines, "Not found in what the agent read: "+strings.Join(items, "; "))
+	}
+	if len(unread) > 0 {
+		lines = append(lines, "Not found in what the agent read: "+strings.Join(unread, "; "))
+	}
+	if len(open) > 0 {
+		lines = append(lines, "Triage candidates left open: "+strings.Join(open, "; "))
 	}
 	return lines
 }
