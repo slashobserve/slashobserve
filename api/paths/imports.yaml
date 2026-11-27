@@ -114,7 +114,7 @@ imports:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/AlreadyImported"
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
@@ -128,7 +128,7 @@ imports:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/DatasourcesUnresolved"
                 - $ref: "../openapi.yaml#/components/schemas/ValidationError"

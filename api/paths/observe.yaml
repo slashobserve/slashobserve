@@ -498,7 +498,7 @@ observe-id-build-save:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/VersionConflict"
                 - $ref: "../openapi.yaml#/components/schemas/BuildRefusal"
@@ -557,7 +557,7 @@ observe-id-observation:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "500":
@@ -630,7 +630,7 @@ observe-id-share:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "500":
@@ -743,7 +743,7 @@ observe-id-continue:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/RunRefusal"
                 - $ref: "../openapi.yaml#/components/schemas/Error"
       "429":
@@ -813,7 +813,7 @@ observe-id-retry:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/RunRefusal"
                 - $ref: "../openapi.yaml#/components/schemas/Error"
       "422":

@@ -292,7 +292,7 @@ folders-id-permissions:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "413":

@@ -76,7 +76,7 @@ mcp-sources:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/InvalidMCPSourceError"
                 - $ref: "../openapi.yaml#/components/schemas/Error"
       "500":
@@ -159,7 +159,7 @@ mcp-sources-uid:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/InvalidMCPSourceError"
                 - $ref: "../openapi.yaml#/components/schemas/Error"
       "500":
@@ -347,7 +347,7 @@ mcp-sources-uid-tools-name-approve:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/ToolRefusedError"
                 - $ref: "../openapi.yaml#/components/schemas/InvalidTransition"

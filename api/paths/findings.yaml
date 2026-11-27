@@ -152,7 +152,7 @@ findings-id-pin:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "500":
@@ -205,7 +205,7 @@ findings-id-dashboard:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "422":
