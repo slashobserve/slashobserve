@@ -1,0 +1,235 @@
+{
+  "investigate": [
+    {
+      "task": "",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 27664,
+      "sha256": "f4c641cb390ca6a4aa3140a3b4ebf61c68fee6bc324eeeee1ef0cae0a2a6560c"
+    },
+    {
+      "task": "",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 29317,
+      "sha256": "2b708b0b991eaee62baadb79a8062f5684b581e79a89e3595d14afc9c1cede38"
+    },
+    {
+      "task": "",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 28214,
+      "sha256": "eba2661a7709d8f118b57fb78730ef57764e694faebafc5c3baab6ef92f8a31f"
+    },
+    {
+      "task": "",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 29867,
+      "sha256": "2e4e31cd28585803aee26a5fadf38a30eeba6e52c500e81791447c31b4b9b8e5"
+    },
+    {
+      "task": "measure",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 19970,
+      "sha256": "54a583c07507756584ad44be74764a484b48d10932c49b45f668f3345b99daf5"
+    },
+    {
+      "task": "measure",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 21623,
+      "sha256": "32e46a18649d8c3e4d4d531ccc332d3f5beb189ac3be27df16f469d39a5343d4"
+    },
+    {
+      "task": "measure",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 20520,
+      "sha256": "fb94ce8c6b126d5b9abd57b71dcda102c934a39203989edb75b80a5415032a98"
+    },
+    {
+      "task": "measure",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 22173,
+      "sha256": "82e24d56838c696538bf0c00344a2ed9daf1e6431943e89136451572305a365b"
+    },
+    {
+      "task": "logs",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 18861,
+      "sha256": "66c8ef8d711155c9a2b853c1016977b78009cdac15aba98452c0a4cb59f4ad1e"
+    },
+    {
+      "task": "logs",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 20514,
+      "sha256": "821ad84ea6ed7fffa7a46576794ba3a469ff392b0fffcaed4b57064427fcb1dd"
+    },
+    {
+      "task": "logs",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 19411,
+      "sha256": "6a09a10822b51a22dafaba73a201ff145d0498d6364b6590920e359979c480b9"
+    },
+    {
+      "task": "logs",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 21064,
+      "sha256": "b1787dbd9e066d2edb6871d7c4669bf50248ac80cff53861134bd89f4de4034d"
+    },
+    {
+      "task": "traces",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 19169,
+      "sha256": "fec776f9cd80c6e1ed0d72bf22cfec73ee2b5f6222683e4fa5b4cb4d3da4cd84"
+    },
+    {
+      "task": "traces",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 20822,
+      "sha256": "a5a7726c6bc4ae1e32886eb4a4a58e3e8eca607e9a4e309be45237726567f6e6"
+    },
+    {
+      "task": "traces",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 19719,
+      "sha256": "70d02dacd71b816d28737ecf6ffd60362d67c958c7ecff8406d327ce2babdae3"
+    },
+    {
+      "task": "traces",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 21372,
+      "sha256": "14264e79402c9f16139be674bdef67c946cdad791d2942b392274cd575e0f5d3"
+    },
+    {
+      "task": "incident",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 20259,
+      "sha256": "91fc92269dee9b583beb1f68d81099cd27346d13331c57121ec7e10eb20dce5c"
+    },
+    {
+      "task": "incident",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 21912,
+      "sha256": "356be2459013e327b530d56b04228928edfb6d790e78ee8d81c27a4c6d053986"
+    },
+    {
+      "task": "incident",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 20809,
+      "sha256": "1b9724e0947a52ac341e6bf5e0d0e986bb036b79dcf79c3d9de1a1ec82eee9b3"
+    },
+    {
+      "task": "incident",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 22462,
+      "sha256": "b79e2bdb9c614503ef3356b8ff2b3b896b25fb326a8c22987f286a1c6deb5082"
+    },
+    {
+      "task": "inventory",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 18322,
+      "sha256": "5067592b8f41cc36534d392614a9c596b432a1b9e01da83f0c5e18e6b6ebb1da"
+    },
+    {
+      "task": "inventory",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 19975,
+      "sha256": "e910b53c467365ed5866475fafbc3ab5284ea014bb4b2e2a828eba7b8252fc3e"
+    },
+    {
+      "task": "inventory",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 18872,
+      "sha256": "728393da102cf8602622368f01ad6ca77de4fb16a68a3efaba89bad8a711ffb7"
+    },
+    {
+      "task": "inventory",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 20525,
+      "sha256": "a48f0f25621c540dc6e8d7e274d269be30ba1044ce5d7e3b82fdea2c235e2bc7"
+    },
+    {
+      "task": "explain",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 19123,
+      "sha256": "037cad737f3d9298f9b2aa677891698e7cd095b4ce45305c0450f566a93797bc"
+    },
+    {
+      "task": "explain",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 20776,
+      "sha256": "c0b4931e5e080b519d87a4ec22a076621c0538b41fbdc5e384b340083a53a9d3"
+    },
+    {
+      "task": "explain",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 19673,
+      "sha256": "1fe2f4912fbc5b4d61cac4b58ed3fbca0866433b71fece692eb271f496656890"
+    },
+    {
+      "task": "explain",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 21326,
+      "sha256": "e3796df4eb7d508b43b28f8b59f20b37e6bf18342fdbaedae840512b36c38e31"
+    }
+  ],
+  "build": [
+    {
+      "guide": "guide-prometheus.md",
+      "bytes": 24163,
+      "sha256": "f4315d70e1db9b3550c2f76c29d97603b8612645937d6a3c1d7f429aea20c6d3"
+    }
+  ]
+}

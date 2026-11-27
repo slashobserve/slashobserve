@@ -37,7 +37,7 @@
           {
             "id": "s0",
             "type": "stat",
-            "title": "Service 0 \u003cerrors\u003e — café",
+            "title": "Service 0 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 0,
@@ -55,7 +55,7 @@
           {
             "id": "s1",
             "type": "stat",
-            "title": "Service 1 \u003cerrors\u003e — café",
+            "title": "Service 1 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 6,
@@ -73,7 +73,7 @@
           {
             "id": "s2",
             "type": "stat",
-            "title": "Service 2 \u003cerrors\u003e — café",
+            "title": "Service 2 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 12,
@@ -91,7 +91,7 @@
           {
             "id": "s3",
             "type": "stat",
-            "title": "Service 3 \u003cerrors\u003e — café",
+            "title": "Service 3 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 18,
@@ -109,7 +109,7 @@
           {
             "id": "s4",
             "type": "stat",
-            "title": "Service 4 \u003cerrors\u003e — café",
+            "title": "Service 4 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 0,
@@ -127,7 +127,7 @@
           {
             "id": "s5",
             "type": "stat",
-            "title": "Service 5 \u003cerrors\u003e — café",
+            "title": "Service 5 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 6,
@@ -145,7 +145,7 @@
           {
             "id": "s6",
             "type": "stat",
-            "title": "Service 6 \u003cerrors\u003e — café",
+            "title": "Service 6 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 12,
@@ -163,7 +163,7 @@
           {
             "id": "s7",
             "type": "stat",
-            "title": "Service 7 \u003cerrors\u003e — café",
+            "title": "Service 7 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 18,
@@ -181,7 +181,7 @@
           {
             "id": "s8",
             "type": "stat",
-            "title": "Service 8 \u003cerrors\u003e — café",
+            "title": "Service 8 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 0,
@@ -199,7 +199,7 @@
           {
             "id": "s9",
             "type": "stat",
-            "title": "Service 9 \u003cerrors\u003e — café",
+            "title": "Service 9 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 6,
@@ -217,7 +217,7 @@
           {
             "id": "s10",
             "type": "stat",
-            "title": "Service 10 \u003cerrors\u003e — café",
+            "title": "Service 10 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 12,
@@ -235,7 +235,7 @@
           {
             "id": "s11",
             "type": "stat",
-            "title": "Service 11 \u003cerrors\u003e — café",
+            "title": "Service 11 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 18,
@@ -253,7 +253,7 @@
           {
             "id": "s12",
             "type": "stat",
-            "title": "Service 12 \u003cerrors\u003e — café",
+            "title": "Service 12 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 0,
@@ -271,7 +271,7 @@
           {
             "id": "s13",
             "type": "stat",
-            "title": "Service 13 \u003cerrors\u003e — café",
+            "title": "Service 13 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 6,
@@ -289,7 +289,7 @@
           {
             "id": "s14",
             "type": "stat",
-            "title": "Service 14 \u003cerrors\u003e — café",
+            "title": "Service 14 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 12,
@@ -307,7 +307,7 @@
           {
             "id": "s15",
             "type": "stat",
-            "title": "Service 15 \u003cerrors\u003e — café",
+            "title": "Service 15 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 18,
@@ -325,7 +325,7 @@
           {
             "id": "s16",
             "type": "stat",
-            "title": "Service 16 \u003cerrors\u003e — café",
+            "title": "Service 16 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 0,
@@ -343,7 +343,7 @@
           {
             "id": "s17",
             "type": "stat",
-            "title": "Service 17 \u003cerrors\u003e — café",
+            "title": "Service 17 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 6,
@@ -361,7 +361,7 @@
           {
             "id": "s18",
             "type": "stat",
-            "title": "Service 18 \u003cerrors\u003e — café",
+            "title": "Service 18 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 12,
@@ -379,7 +379,7 @@
           {
             "id": "s19",
             "type": "stat",
-            "title": "Service 19 \u003cerrors\u003e — café",
+            "title": "Service 19 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 18,
@@ -397,7 +397,7 @@
           {
             "id": "s20",
             "type": "stat",
-            "title": "Service 20 \u003cerrors\u003e — café",
+            "title": "Service 20 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 0,
@@ -415,7 +415,7 @@
           {
             "id": "s21",
             "type": "stat",
-            "title": "Service 21 \u003cerrors\u003e — café",
+            "title": "Service 21 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 6,
@@ -433,7 +433,7 @@
           {
             "id": "s22",
             "type": "stat",
-            "title": "Service 22 \u003cerrors\u003e — café",
+            "title": "Service 22 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 12,
@@ -451,7 +451,7 @@
           {
             "id": "s23",
             "type": "stat",
-            "title": "Service 23 \u003cerrors\u003e — café",
+            "title": "Service 23 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 18,
@@ -469,7 +469,7 @@
           {
             "id": "s24",
             "type": "stat",
-            "title": "Service 24 \u003cerrors\u003e — café",
+            "title": "Service 24 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 0,
@@ -487,7 +487,7 @@
           {
             "id": "s25",
             "type": "stat",
-            "title": "Service 25 \u003cerrors\u003e — café",
+            "title": "Service 25 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 6,
@@ -505,7 +505,7 @@
           {
             "id": "s26",
             "type": "stat",
-            "title": "Service 26 \u003cerrors\u003e — café",
+            "title": "Service 26 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 12,
@@ -523,7 +523,7 @@
           {
             "id": "s27",
             "type": "stat",
-            "title": "Service 27 \u003cerrors\u003e — café",
+            "title": "Service 27 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 18,
@@ -541,7 +541,7 @@
           {
             "id": "s28",
             "type": "stat",
-            "title": "Service 28 \u003cerrors\u003e — café",
+            "title": "Service 28 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 0,
@@ -559,7 +559,7 @@
           {
             "id": "s29",
             "type": "stat",
-            "title": "Service 29 \u003cerrors\u003e — café",
+            "title": "Service 29 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 6,
@@ -577,7 +577,7 @@
           {
             "id": "s30",
             "type": "stat",
-            "title": "Service 30 \u003cerrors\u003e — café",
+            "title": "Service 30 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 12,
@@ -595,7 +595,7 @@
           {
             "id": "s31",
             "type": "stat",
-            "title": "Service 31 \u003cerrors\u003e — café",
+            "title": "Service 31 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 18,
@@ -613,7 +613,7 @@
           {
             "id": "s32",
             "type": "stat",
-            "title": "Service 32 \u003cerrors\u003e — café",
+            "title": "Service 32 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 0,
@@ -631,7 +631,7 @@
           {
             "id": "s33",
             "type": "stat",
-            "title": "Service 33 \u003cerrors\u003e — café",
+            "title": "Service 33 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 6,
@@ -649,7 +649,7 @@
           {
             "id": "s34",
             "type": "stat",
-            "title": "Service 34 \u003cerrors\u003e — café",
+            "title": "Service 34 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 12,
@@ -667,7 +667,7 @@
           {
             "id": "s35",
             "type": "stat",
-            "title": "Service 35 \u003cerrors\u003e — café",
+            "title": "Service 35 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 18,
@@ -685,7 +685,7 @@
           {
             "id": "s36",
             "type": "stat",
-            "title": "Service 36 \u003cerrors\u003e — café",
+            "title": "Service 36 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 0,
@@ -703,7 +703,7 @@
           {
             "id": "s37",
             "type": "stat",
-            "title": "Service 37 \u003cerrors\u003e — café",
+            "title": "Service 37 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 6,
@@ -721,7 +721,7 @@
           {
             "id": "s38",
             "type": "stat",
-            "title": "Service 38 \u003cerrors\u003e — café",
+            "title": "Service 38 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 12,
@@ -739,7 +739,7 @@
           {
             "id": "s39",
             "type": "stat",
-            "title": "Service 39 \u003cerrors\u003e — café",
+            "title": "Service 39 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 18,
@@ -757,7 +757,7 @@
           {
             "id": "s40",
             "type": "stat",
-            "title": "Service 40 \u003cerrors\u003e — café",
+            "title": "Service 40 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 0,
@@ -775,7 +775,7 @@
           {
             "id": "s41",
             "type": "stat",
-            "title": "Service 41 \u003cerrors\u003e — café",
+            "title": "Service 41 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 6,
@@ -793,7 +793,7 @@
           {
             "id": "s42",
             "type": "stat",
-            "title": "Service 42 \u003cerrors\u003e — café",
+            "title": "Service 42 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 12,
@@ -811,7 +811,7 @@
           {
             "id": "s43",
             "type": "stat",
-            "title": "Service 43 \u003cerrors\u003e — café",
+            "title": "Service 43 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 18,
@@ -829,7 +829,7 @@
           {
             "id": "s44",
             "type": "stat",
-            "title": "Service 44 \u003cerrors\u003e — café",
+            "title": "Service 44 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 0,
@@ -847,7 +847,7 @@
           {
             "id": "s45",
             "type": "stat",
-            "title": "Service 45 \u003cerrors\u003e — café",
+            "title": "Service 45 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 6,
@@ -865,7 +865,7 @@
           {
             "id": "s46",
             "type": "stat",
-            "title": "Service 46 \u003cerrors\u003e — café",
+            "title": "Service 46 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 12,
@@ -883,7 +883,7 @@
           {
             "id": "s47",
             "type": "stat",
-            "title": "Service 47 \u003cerrors\u003e — café",
+            "title": "Service 47 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 18,
@@ -901,7 +901,7 @@
           {
             "id": "s48",
             "type": "stat",
-            "title": "Service 48 \u003cerrors\u003e — café",
+            "title": "Service 48 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 0,
@@ -919,7 +919,7 @@
           {
             "id": "s49",
             "type": "stat",
-            "title": "Service 49 \u003cerrors\u003e — café",
+            "title": "Service 49 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 6,
@@ -937,7 +937,7 @@
           {
             "id": "s50",
             "type": "stat",
-            "title": "Service 50 \u003cerrors\u003e — café",
+            "title": "Service 50 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 12,
@@ -955,7 +955,7 @@
           {
             "id": "s51",
             "type": "stat",
-            "title": "Service 51 \u003cerrors\u003e — café",
+            "title": "Service 51 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 18,
@@ -973,7 +973,7 @@
           {
             "id": "s52",
             "type": "stat",
-            "title": "Service 52 \u003cerrors\u003e — café",
+            "title": "Service 52 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 0,
@@ -991,7 +991,7 @@
           {
             "id": "s53",
             "type": "stat",
-            "title": "Service 53 \u003cerrors\u003e — café",
+            "title": "Service 53 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 6,
@@ -1009,7 +1009,7 @@
           {
             "id": "s54",
             "type": "stat",
-            "title": "Service 54 \u003cerrors\u003e — café",
+            "title": "Service 54 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 12,
@@ -1027,7 +1027,7 @@
           {
             "id": "s55",
             "type": "stat",
-            "title": "Service 55 \u003cerrors\u003e — café",
+            "title": "Service 55 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 18,
@@ -1045,7 +1045,7 @@
           {
             "id": "s56",
             "type": "stat",
-            "title": "Service 56 \u003cerrors\u003e — café",
+            "title": "Service 56 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 0,
@@ -1063,7 +1063,7 @@
           {
             "id": "s57",
             "type": "stat",
-            "title": "Service 57 \u003cerrors\u003e — café",
+            "title": "Service 57 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 6,
@@ -1081,7 +1081,7 @@
           {
             "id": "s58",
             "type": "stat",
-            "title": "Service 58 \u003cerrors\u003e — café",
+            "title": "Service 58 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 12,
@@ -1099,7 +1099,7 @@
           {
             "id": "s59",
             "type": "stat",
-            "title": "Service 59 \u003cerrors\u003e — café",
+            "title": "Service 59 <errors> — café",
             "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
             "gridPos": {
               "x": 18,
@@ -1172,7 +1172,6 @@
     },
     "draft": null
   },
-  "guide": "guide-prometheus.md",
   "reason": "",
   "now": "2026-11-25T05:29:00Z",
   "state": {
@@ -1184,11 +1183,7 @@
     "digest": null
   },
   "want": {
-    "system": {
-      "bytes": 24163,
-      "sha256": "f4315d70e1db9b3550c2f76c29d97603b8612645937d6a3c1d7f429aea20c6d3"
-    },
-    "context": "Configured datasources:\n- prom (prometheus): healthy\n\nYou are revising dashboard big, currently version 12. Change it for the request, or answer it with save_finding if it only asks a question. The Spec is too large to send whole, so this is its outline: read the full JSON of other panels with get_panels.\nTitle: \"Big\"\nTime: {\"from\":\"now-1h\",\"to\":\"now\"}\nRefresh: \"\"\nTags: []\nLinks: []\nVariables: []\nPanels (id type title, row, position as x y w h):\n- s0 stat \"Service 0 \u003cerrors\u003e — café\" x0 y0 w6 h4\n- s1 stat \"Service 1 \u003cerrors\u003e — café\" x6 y0 w6 h4\n- s2 stat \"Service 2 \u003cerrors\u003e — café\" x12 y0 w6 h4\n- s3 stat \"Service 3 \u003cerrors\u003e — café\" x18 y0 w6 h4\n- s4 stat \"Service 4 \u003cerrors\u003e — café\" x0 y4 w6 h4\n- s5 stat \"Service 5 \u003cerrors\u003e — café\" x6 y4 w6 h4\n- s6 stat \"Service 6 \u003cerrors\u003e — café\" x12 y4 w6 h4\n- s7 stat \"Service 7 \u003cerrors\u003e — café\" x18 y4 w6 h4\n- s8 stat \"Service 8 \u003cerrors\u003e — café\" x0 y8 w6 h4\n- s9 stat \"Service 9 \u003cerrors\u003e — café\" x6 y8 w6 h4\n- s10 stat \"Service 10 \u003cerrors\u003e — café\" x12 y8 w6 h4\n- s11 stat \"Service 11 \u003cerrors\u003e — café\" x18 y8 w6 h4\n- s12 stat \"Service 12 \u003cerrors\u003e — café\" x0 y12 w6 h4\n- s13 stat \"Service 13 \u003cerrors\u003e — café\" x6 y12 w6 h4\n- s14 stat \"Service 14 \u003cerrors\u003e — café\" x12 y12 w6 h4\n- s15 stat \"Service 15 \u003cerrors\u003e — café\" x18 y12 w6 h4\n- s16 stat \"Service 16 \u003cerrors\u003e — café\" x0 y16 w6 h4\n- s17 stat \"Service 17 \u003cerrors\u003e — café\" x6 y16 w6 h4\n- s18 stat \"Service 18 \u003cerrors\u003e — café\" x12 y16 w6 h4\n- s19 stat \"Service 19 \u003cerrors\u003e — café\" x18 y16 w6 h4\n- s20 stat \"Service 20 \u003cerrors\u003e — café\" x0 y20 w6 h4\n- s21 stat \"Service 21 \u003cerrors\u003e — café\" x6 y20 w6 h4\n- s22 stat \"Service 22 \u003cerrors\u003e — café\" x12 y20 w6 h4\n- s23 stat \"Service 23 \u003cerrors\u003e — café\" x18 y20 w6 h4\n- s24 stat \"Service 24 \u003cerrors\u003e — café\" x0 y24 w6 h4\n- s25 stat \"Service 25 \u003cerrors\u003e — café\" x6 y24 w6 h4\n- s26 stat \"Service 26 \u003cerrors\u003e — café\" x12 y24 w6 h4\n- s27 stat \"Service 27 \u003cerrors\u003e — café\" x18 y24 w6 h4\n- s28 stat \"Service 28 \u003cerrors\u003e — café\" x0 y28 w6 h4\n- s29 stat \"Service 29 \u003cerrors\u003e — café\" x6 y28 w6 h4\n- s30 stat \"Service 30 \u003cerrors\u003e — café\" x12 y28 w6 h4\n- s31 stat \"Service 31 \u003cerrors\u003e — café\" x18 y28 w6 h4\n- s32 stat \"Service 32 \u003cerrors\u003e — café\" x0 y32 w6 h4\n- s33 stat \"Service 33 \u003cerrors\u003e — café\" x6 y32 w6 h4\n- s34 stat \"Service 34 \u003cerrors\u003e — café\" x12 y32 w6 h4\n- s35 stat \"Service 35 \u003cerrors\u003e — café\" x18 y32 w6 h4\n- s36 stat \"Service 36 \u003cerrors\u003e — café\" x0 y36 w6 h4\n- s37 stat \"Service 37 \u003cerrors\u003e — café\" x6 y36 w6 h4\n- s38 stat \"Service 38 \u003cerrors\u003e — café\" x12 y36 w6 h4\n- s39 stat \"Service 39 \u003cerrors\u003e — café\" x18 y36 w6 h4\n- s40 stat \"Service 40 \u003cerrors\u003e — café\" x0 y40 w6 h4\n- s41 stat \"Service 41 \u003cerrors\u003e — café\" x6 y40 w6 h4\n- s42 stat \"Service 42 \u003cerrors\u003e — café\" x12 y40 w6 h4\n- s43 stat \"Service 43 \u003cerrors\u003e — café\" x18 y40 w6 h4\n- s44 stat \"Service 44 \u003cerrors\u003e — café\" x0 y44 w6 h4\n- s45 stat \"Service 45 \u003cerrors\u003e — café\" x6 y44 w6 h4\n- s46 stat \"Service 46 \u003cerrors\u003e — café\" x12 y44 w6 h4\n- s47 stat \"Service 47 \u003cerrors\u003e — café\" x18 y44 w6 h4\n- s48 stat \"Service 48 \u003cerrors\u003e — café\" x0 y48 w6 h4\n- s49 stat \"Service 49 \u003cerrors\u003e — café\" x6 y48 w6 h4\n- s50 stat \"Service 50 \u003cerrors\u003e — café\" x12 y48 w6 h4\n- s51 stat \"Service 51 \u003cerrors\u003e — café\" x18 y48 w6 h4\n- s52 stat \"Service 52 \u003cerrors\u003e — café\" x0 y52 w6 h4\n- s53 stat \"Service 53 \u003cerrors\u003e — café\" x6 y52 w6 h4\n- s54 stat \"Service 54 \u003cerrors\u003e — café\" x12 y52 w6 h4\n- s55 stat \"Service 55 \u003cerrors\u003e — café\" x18 y52 w6 h4\n- s56 stat \"Service 56 \u003cerrors\u003e — café\" x0 y56 w6 h4\n- s57 stat \"Service 57 \u003cerrors\u003e — café\" x6 y56 w6 h4\n- s58 stat \"Service 58 \u003cerrors\u003e — café\" x12 y56 w6 h4\n- s59 stat \"Service 59 \u003cerrors\u003e — café\" x18 y56 w6 h4\n- row-a row \"Row A\" x0 y60 w24 h1\n- inner_1 timeseries \"Inner\" row=row-a x0 y61 w24 h8\nPanels in full, rows without their children:\n```json\n[{\"id\":\"s3\",\"type\":\"stat\",\"title\":\"Service 3 \\u003cerrors\\u003e — café\",\"description\":\"A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. \",\"gridPos\":{\"x\":18,\"y\":0,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"svc-3\\\",code=~\\\"5..\\\"}[5m]))\"}]},{\"id\":\"s7\",\"type\":\"stat\",\"title\":\"Service 7 \\u003cerrors\\u003e — café\",\"description\":\"A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. \",\"gridPos\":{\"x\":18,\"y\":4,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"svc-7\\\",code=~\\\"5..\\\"}[5m]))\"}]},{\"id\":\"s12\",\"type\":\"stat\",\"title\":\"Service 12 \\u003cerrors\\u003e — café\",\"description\":\"A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. \",\"gridPos\":{\"x\":0,\"y\":12,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"svc-12\\\",code=~\\\"5..\\\"}[5m]))\"}]},{\"id\":\"row-a\",\"type\":\"row\",\"title\":\"Row A\",\"gridPos\":{\"x\":0,\"y\":60,\"w\":24,\"h\":1}},{\"id\":\"inner_1\",\"type\":\"timeseries\",\"title\":\"Inner\",\"gridPos\":{\"x\":0,\"y\":61,\"w\":24,\"h\":8},\"datasource\":\"prom\",\"queries\":[{\"query\":\"up\"}]}]\n```\nThe request is about panel s3 titled \"Service 3 \u003cerrors\u003e — café\".\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nWhen you answer with save_finding, write each figure from a read that gave fact ids in `facts` as its fact, `{{f3}}`, which the server fills in (`{{f3:ms}}`, `{{f3:%}}` or `{{f3:3}}` change the unit or the figures within 1%), copy trace ids whole, and list each quantity asked in `answers` with its one fact.",
-    "user": "Configured datasources:\n- prom (prometheus): healthy\n\nYou are revising dashboard big, currently version 12. Change it for the request, or answer it with save_finding if it only asks a question. The Spec is too large to send whole, so this is its outline: read the full JSON of other panels with get_panels.\nTitle: \"Big\"\nTime: {\"from\":\"now-1h\",\"to\":\"now\"}\nRefresh: \"\"\nTags: []\nLinks: []\nVariables: []\nPanels (id type title, row, position as x y w h):\n- s0 stat \"Service 0 \u003cerrors\u003e — café\" x0 y0 w6 h4\n- s1 stat \"Service 1 \u003cerrors\u003e — café\" x6 y0 w6 h4\n- s2 stat \"Service 2 \u003cerrors\u003e — café\" x12 y0 w6 h4\n- s3 stat \"Service 3 \u003cerrors\u003e — café\" x18 y0 w6 h4\n- s4 stat \"Service 4 \u003cerrors\u003e — café\" x0 y4 w6 h4\n- s5 stat \"Service 5 \u003cerrors\u003e — café\" x6 y4 w6 h4\n- s6 stat \"Service 6 \u003cerrors\u003e — café\" x12 y4 w6 h4\n- s7 stat \"Service 7 \u003cerrors\u003e — café\" x18 y4 w6 h4\n- s8 stat \"Service 8 \u003cerrors\u003e — café\" x0 y8 w6 h4\n- s9 stat \"Service 9 \u003cerrors\u003e — café\" x6 y8 w6 h4\n- s10 stat \"Service 10 \u003cerrors\u003e — café\" x12 y8 w6 h4\n- s11 stat \"Service 11 \u003cerrors\u003e — café\" x18 y8 w6 h4\n- s12 stat \"Service 12 \u003cerrors\u003e — café\" x0 y12 w6 h4\n- s13 stat \"Service 13 \u003cerrors\u003e — café\" x6 y12 w6 h4\n- s14 stat \"Service 14 \u003cerrors\u003e — café\" x12 y12 w6 h4\n- s15 stat \"Service 15 \u003cerrors\u003e — café\" x18 y12 w6 h4\n- s16 stat \"Service 16 \u003cerrors\u003e — café\" x0 y16 w6 h4\n- s17 stat \"Service 17 \u003cerrors\u003e — café\" x6 y16 w6 h4\n- s18 stat \"Service 18 \u003cerrors\u003e — café\" x12 y16 w6 h4\n- s19 stat \"Service 19 \u003cerrors\u003e — café\" x18 y16 w6 h4\n- s20 stat \"Service 20 \u003cerrors\u003e — café\" x0 y20 w6 h4\n- s21 stat \"Service 21 \u003cerrors\u003e — café\" x6 y20 w6 h4\n- s22 stat \"Service 22 \u003cerrors\u003e — café\" x12 y20 w6 h4\n- s23 stat \"Service 23 \u003cerrors\u003e — café\" x18 y20 w6 h4\n- s24 stat \"Service 24 \u003cerrors\u003e — café\" x0 y24 w6 h4\n- s25 stat \"Service 25 \u003cerrors\u003e — café\" x6 y24 w6 h4\n- s26 stat \"Service 26 \u003cerrors\u003e — café\" x12 y24 w6 h4\n- s27 stat \"Service 27 \u003cerrors\u003e — café\" x18 y24 w6 h4\n- s28 stat \"Service 28 \u003cerrors\u003e — café\" x0 y28 w6 h4\n- s29 stat \"Service 29 \u003cerrors\u003e — café\" x6 y28 w6 h4\n- s30 stat \"Service 30 \u003cerrors\u003e — café\" x12 y28 w6 h4\n- s31 stat \"Service 31 \u003cerrors\u003e — café\" x18 y28 w6 h4\n- s32 stat \"Service 32 \u003cerrors\u003e — café\" x0 y32 w6 h4\n- s33 stat \"Service 33 \u003cerrors\u003e — café\" x6 y32 w6 h4\n- s34 stat \"Service 34 \u003cerrors\u003e — café\" x12 y32 w6 h4\n- s35 stat \"Service 35 \u003cerrors\u003e — café\" x18 y32 w6 h4\n- s36 stat \"Service 36 \u003cerrors\u003e — café\" x0 y36 w6 h4\n- s37 stat \"Service 37 \u003cerrors\u003e — café\" x6 y36 w6 h4\n- s38 stat \"Service 38 \u003cerrors\u003e — café\" x12 y36 w6 h4\n- s39 stat \"Service 39 \u003cerrors\u003e — café\" x18 y36 w6 h4\n- s40 stat \"Service 40 \u003cerrors\u003e — café\" x0 y40 w6 h4\n- s41 stat \"Service 41 \u003cerrors\u003e — café\" x6 y40 w6 h4\n- s42 stat \"Service 42 \u003cerrors\u003e — café\" x12 y40 w6 h4\n- s43 stat \"Service 43 \u003cerrors\u003e — café\" x18 y40 w6 h4\n- s44 stat \"Service 44 \u003cerrors\u003e — café\" x0 y44 w6 h4\n- s45 stat \"Service 45 \u003cerrors\u003e — café\" x6 y44 w6 h4\n- s46 stat \"Service 46 \u003cerrors\u003e — café\" x12 y44 w6 h4\n- s47 stat \"Service 47 \u003cerrors\u003e — café\" x18 y44 w6 h4\n- s48 stat \"Service 48 \u003cerrors\u003e — café\" x0 y48 w6 h4\n- s49 stat \"Service 49 \u003cerrors\u003e — café\" x6 y48 w6 h4\n- s50 stat \"Service 50 \u003cerrors\u003e — café\" x12 y48 w6 h4\n- s51 stat \"Service 51 \u003cerrors\u003e — café\" x18 y48 w6 h4\n- s52 stat \"Service 52 \u003cerrors\u003e — café\" x0 y52 w6 h4\n- s53 stat \"Service 53 \u003cerrors\u003e — café\" x6 y52 w6 h4\n- s54 stat \"Service 54 \u003cerrors\u003e — café\" x12 y52 w6 h4\n- s55 stat \"Service 55 \u003cerrors\u003e — café\" x18 y52 w6 h4\n- s56 stat \"Service 56 \u003cerrors\u003e — café\" x0 y56 w6 h4\n- s57 stat \"Service 57 \u003cerrors\u003e — café\" x6 y56 w6 h4\n- s58 stat \"Service 58 \u003cerrors\u003e — café\" x12 y56 w6 h4\n- s59 stat \"Service 59 \u003cerrors\u003e — café\" x18 y56 w6 h4\n- row-a row \"Row A\" x0 y60 w24 h1\n- inner_1 timeseries \"Inner\" row=row-a x0 y61 w24 h8\nPanels in full, rows without their children:\n```json\n[{\"id\":\"s3\",\"type\":\"stat\",\"title\":\"Service 3 \\u003cerrors\\u003e — café\",\"description\":\"A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. \",\"gridPos\":{\"x\":18,\"y\":0,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"svc-3\\\",code=~\\\"5..\\\"}[5m]))\"}]},{\"id\":\"s7\",\"type\":\"stat\",\"title\":\"Service 7 \\u003cerrors\\u003e — café\",\"description\":\"A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. \",\"gridPos\":{\"x\":18,\"y\":4,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"svc-7\\\",code=~\\\"5..\\\"}[5m]))\"}]},{\"id\":\"s12\",\"type\":\"stat\",\"title\":\"Service 12 \\u003cerrors\\u003e — café\",\"description\":\"A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. \",\"gridPos\":{\"x\":0,\"y\":12,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"svc-12\\\",code=~\\\"5..\\\"}[5m]))\"}]},{\"id\":\"row-a\",\"type\":\"row\",\"title\":\"Row A\",\"gridPos\":{\"x\":0,\"y\":60,\"w\":24,\"h\":1}},{\"id\":\"inner_1\",\"type\":\"timeseries\",\"title\":\"Inner\",\"gridPos\":{\"x\":0,\"y\":61,\"w\":24,\"h\":8},\"datasource\":\"prom\",\"queries\":[{\"query\":\"up\"}]}]\n```\nThe request is about panel s3 titled \"Service 3 \u003cerrors\u003e — café\".\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nWhen you answer with save_finding, write each figure from a read that gave fact ids in `facts` as its fact, `{{f3}}`, which the server fills in (`{{f3:ms}}`, `{{f3:%}}` or `{{f3:3}}` change the unit or the figures within 1%), copy trace ids whole, and list each quantity asked in `answers` with its one fact.\n\n\u003crequest\u003e\nchange s7, s12, row-a and inner_1 (not s99)\n\u003c/request\u003e"
+    "context": "Configured datasources:\n- prom (prometheus): healthy\n\nYou are revising dashboard big, currently version 12. Change it for the request, or answer it with save_finding if it only asks a question. The Spec is too large to send whole, so this is its outline: read the full JSON of other panels with get_panels.\nTitle: \"Big\"\nTime: {\"from\":\"now-1h\",\"to\":\"now\"}\nRefresh: \"\"\nTags: []\nLinks: []\nVariables: []\nPanels (id type title, row, position as x y w h):\n- s0 stat \"Service 0 <errors> — café\" x0 y0 w6 h4\n- s1 stat \"Service 1 <errors> — café\" x6 y0 w6 h4\n- s2 stat \"Service 2 <errors> — café\" x12 y0 w6 h4\n- s3 stat \"Service 3 <errors> — café\" x18 y0 w6 h4\n- s4 stat \"Service 4 <errors> — café\" x0 y4 w6 h4\n- s5 stat \"Service 5 <errors> — café\" x6 y4 w6 h4\n- s6 stat \"Service 6 <errors> — café\" x12 y4 w6 h4\n- s7 stat \"Service 7 <errors> — café\" x18 y4 w6 h4\n- s8 stat \"Service 8 <errors> — café\" x0 y8 w6 h4\n- s9 stat \"Service 9 <errors> — café\" x6 y8 w6 h4\n- s10 stat \"Service 10 <errors> — café\" x12 y8 w6 h4\n- s11 stat \"Service 11 <errors> — café\" x18 y8 w6 h4\n- s12 stat \"Service 12 <errors> — café\" x0 y12 w6 h4\n- s13 stat \"Service 13 <errors> — café\" x6 y12 w6 h4\n- s14 stat \"Service 14 <errors> — café\" x12 y12 w6 h4\n- s15 stat \"Service 15 <errors> — café\" x18 y12 w6 h4\n- s16 stat \"Service 16 <errors> — café\" x0 y16 w6 h4\n- s17 stat \"Service 17 <errors> — café\" x6 y16 w6 h4\n- s18 stat \"Service 18 <errors> — café\" x12 y16 w6 h4\n- s19 stat \"Service 19 <errors> — café\" x18 y16 w6 h4\n- s20 stat \"Service 20 <errors> — café\" x0 y20 w6 h4\n- s21 stat \"Service 21 <errors> — café\" x6 y20 w6 h4\n- s22 stat \"Service 22 <errors> — café\" x12 y20 w6 h4\n- s23 stat \"Service 23 <errors> — café\" x18 y20 w6 h4\n- s24 stat \"Service 24 <errors> — café\" x0 y24 w6 h4\n- s25 stat \"Service 25 <errors> — café\" x6 y24 w6 h4\n- s26 stat \"Service 26 <errors> — café\" x12 y24 w6 h4\n- s27 stat \"Service 27 <errors> — café\" x18 y24 w6 h4\n- s28 stat \"Service 28 <errors> — café\" x0 y28 w6 h4\n- s29 stat \"Service 29 <errors> — café\" x6 y28 w6 h4\n- s30 stat \"Service 30 <errors> — café\" x12 y28 w6 h4\n- s31 stat \"Service 31 <errors> — café\" x18 y28 w6 h4\n- s32 stat \"Service 32 <errors> — café\" x0 y32 w6 h4\n- s33 stat \"Service 33 <errors> — café\" x6 y32 w6 h4\n- s34 stat \"Service 34 <errors> — café\" x12 y32 w6 h4\n- s35 stat \"Service 35 <errors> — café\" x18 y32 w6 h4\n- s36 stat \"Service 36 <errors> — café\" x0 y36 w6 h4\n- s37 stat \"Service 37 <errors> — café\" x6 y36 w6 h4\n- s38 stat \"Service 38 <errors> — café\" x12 y36 w6 h4\n- s39 stat \"Service 39 <errors> — café\" x18 y36 w6 h4\n- s40 stat \"Service 40 <errors> — café\" x0 y40 w6 h4\n- s41 stat \"Service 41 <errors> — café\" x6 y40 w6 h4\n- s42 stat \"Service 42 <errors> — café\" x12 y40 w6 h4\n- s43 stat \"Service 43 <errors> — café\" x18 y40 w6 h4\n- s44 stat \"Service 44 <errors> — café\" x0 y44 w6 h4\n- s45 stat \"Service 45 <errors> — café\" x6 y44 w6 h4\n- s46 stat \"Service 46 <errors> — café\" x12 y44 w6 h4\n- s47 stat \"Service 47 <errors> — café\" x18 y44 w6 h4\n- s48 stat \"Service 48 <errors> — café\" x0 y48 w6 h4\n- s49 stat \"Service 49 <errors> — café\" x6 y48 w6 h4\n- s50 stat \"Service 50 <errors> — café\" x12 y48 w6 h4\n- s51 stat \"Service 51 <errors> — café\" x18 y48 w6 h4\n- s52 stat \"Service 52 <errors> — café\" x0 y52 w6 h4\n- s53 stat \"Service 53 <errors> — café\" x6 y52 w6 h4\n- s54 stat \"Service 54 <errors> — café\" x12 y52 w6 h4\n- s55 stat \"Service 55 <errors> — café\" x18 y52 w6 h4\n- s56 stat \"Service 56 <errors> — café\" x0 y56 w6 h4\n- s57 stat \"Service 57 <errors> — café\" x6 y56 w6 h4\n- s58 stat \"Service 58 <errors> — café\" x12 y56 w6 h4\n- s59 stat \"Service 59 <errors> — café\" x18 y56 w6 h4\n- row-a row \"Row A\" x0 y60 w24 h1\n- inner_1 timeseries \"Inner\" row=row-a x0 y61 w24 h8\nPanels in full, rows without their children:\n```json\n[{\"id\":\"s3\",\"type\":\"stat\",\"title\":\"Service 3 \\u003cerrors\\u003e — café\",\"description\":\"A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. \",\"gridPos\":{\"x\":18,\"y\":0,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"svc-3\\\",code=~\\\"5..\\\"}[5m]))\"}]},{\"id\":\"s7\",\"type\":\"stat\",\"title\":\"Service 7 \\u003cerrors\\u003e — café\",\"description\":\"A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. \",\"gridPos\":{\"x\":18,\"y\":4,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"svc-7\\\",code=~\\\"5..\\\"}[5m]))\"}]},{\"id\":\"s12\",\"type\":\"stat\",\"title\":\"Service 12 \\u003cerrors\\u003e — café\",\"description\":\"A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. \",\"gridPos\":{\"x\":0,\"y\":12,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"svc-12\\\",code=~\\\"5..\\\"}[5m]))\"}]},{\"id\":\"row-a\",\"type\":\"row\",\"title\":\"Row A\",\"gridPos\":{\"x\":0,\"y\":60,\"w\":24,\"h\":1}},{\"id\":\"inner_1\",\"type\":\"timeseries\",\"title\":\"Inner\",\"gridPos\":{\"x\":0,\"y\":61,\"w\":24,\"h\":8},\"datasource\":\"prom\",\"queries\":[{\"query\":\"up\"}]}]\n```\nThe request is about panel s3 titled \"Service 3 <errors> — café\".\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nWhen you answer with save_finding, write each figure from a read that gave fact ids in `facts` as its fact, `{{f3}}`, which the server fills in (`{{f3:ms}}`, `{{f3:%}}` or `{{f3:3}}` change the unit or the figures within 1%), copy trace ids whole, and list each quantity asked in `answers` with its one fact.",
+    "user": "Configured datasources:\n- prom (prometheus): healthy\n\nYou are revising dashboard big, currently version 12. Change it for the request, or answer it with save_finding if it only asks a question. The Spec is too large to send whole, so this is its outline: read the full JSON of other panels with get_panels.\nTitle: \"Big\"\nTime: {\"from\":\"now-1h\",\"to\":\"now\"}\nRefresh: \"\"\nTags: []\nLinks: []\nVariables: []\nPanels (id type title, row, position as x y w h):\n- s0 stat \"Service 0 <errors> — café\" x0 y0 w6 h4\n- s1 stat \"Service 1 <errors> — café\" x6 y0 w6 h4\n- s2 stat \"Service 2 <errors> — café\" x12 y0 w6 h4\n- s3 stat \"Service 3 <errors> — café\" x18 y0 w6 h4\n- s4 stat \"Service 4 <errors> — café\" x0 y4 w6 h4\n- s5 stat \"Service 5 <errors> — café\" x6 y4 w6 h4\n- s6 stat \"Service 6 <errors> — café\" x12 y4 w6 h4\n- s7 stat \"Service 7 <errors> — café\" x18 y4 w6 h4\n- s8 stat \"Service 8 <errors> — café\" x0 y8 w6 h4\n- s9 stat \"Service 9 <errors> — café\" x6 y8 w6 h4\n- s10 stat \"Service 10 <errors> — café\" x12 y8 w6 h4\n- s11 stat \"Service 11 <errors> — café\" x18 y8 w6 h4\n- s12 stat \"Service 12 <errors> — café\" x0 y12 w6 h4\n- s13 stat \"Service 13 <errors> — café\" x6 y12 w6 h4\n- s14 stat \"Service 14 <errors> — café\" x12 y12 w6 h4\n- s15 stat \"Service 15 <errors> — café\" x18 y12 w6 h4\n- s16 stat \"Service 16 <errors> — café\" x0 y16 w6 h4\n- s17 stat \"Service 17 <errors> — café\" x6 y16 w6 h4\n- s18 stat \"Service 18 <errors> — café\" x12 y16 w6 h4\n- s19 stat \"Service 19 <errors> — café\" x18 y16 w6 h4\n- s20 stat \"Service 20 <errors> — café\" x0 y20 w6 h4\n- s21 stat \"Service 21 <errors> — café\" x6 y20 w6 h4\n- s22 stat \"Service 22 <errors> — café\" x12 y20 w6 h4\n- s23 stat \"Service 23 <errors> — café\" x18 y20 w6 h4\n- s24 stat \"Service 24 <errors> — café\" x0 y24 w6 h4\n- s25 stat \"Service 25 <errors> — café\" x6 y24 w6 h4\n- s26 stat \"Service 26 <errors> — café\" x12 y24 w6 h4\n- s27 stat \"Service 27 <errors> — café\" x18 y24 w6 h4\n- s28 stat \"Service 28 <errors> — café\" x0 y28 w6 h4\n- s29 stat \"Service 29 <errors> — café\" x6 y28 w6 h4\n- s30 stat \"Service 30 <errors> — café\" x12 y28 w6 h4\n- s31 stat \"Service 31 <errors> — café\" x18 y28 w6 h4\n- s32 stat \"Service 32 <errors> — café\" x0 y32 w6 h4\n- s33 stat \"Service 33 <errors> — café\" x6 y32 w6 h4\n- s34 stat \"Service 34 <errors> — café\" x12 y32 w6 h4\n- s35 stat \"Service 35 <errors> — café\" x18 y32 w6 h4\n- s36 stat \"Service 36 <errors> — café\" x0 y36 w6 h4\n- s37 stat \"Service 37 <errors> — café\" x6 y36 w6 h4\n- s38 stat \"Service 38 <errors> — café\" x12 y36 w6 h4\n- s39 stat \"Service 39 <errors> — café\" x18 y36 w6 h4\n- s40 stat \"Service 40 <errors> — café\" x0 y40 w6 h4\n- s41 stat \"Service 41 <errors> — café\" x6 y40 w6 h4\n- s42 stat \"Service 42 <errors> — café\" x12 y40 w6 h4\n- s43 stat \"Service 43 <errors> — café\" x18 y40 w6 h4\n- s44 stat \"Service 44 <errors> — café\" x0 y44 w6 h4\n- s45 stat \"Service 45 <errors> — café\" x6 y44 w6 h4\n- s46 stat \"Service 46 <errors> — café\" x12 y44 w6 h4\n- s47 stat \"Service 47 <errors> — café\" x18 y44 w6 h4\n- s48 stat \"Service 48 <errors> — café\" x0 y48 w6 h4\n- s49 stat \"Service 49 <errors> — café\" x6 y48 w6 h4\n- s50 stat \"Service 50 <errors> — café\" x12 y48 w6 h4\n- s51 stat \"Service 51 <errors> — café\" x18 y48 w6 h4\n- s52 stat \"Service 52 <errors> — café\" x0 y52 w6 h4\n- s53 stat \"Service 53 <errors> — café\" x6 y52 w6 h4\n- s54 stat \"Service 54 <errors> — café\" x12 y52 w6 h4\n- s55 stat \"Service 55 <errors> — café\" x18 y52 w6 h4\n- s56 stat \"Service 56 <errors> — café\" x0 y56 w6 h4\n- s57 stat \"Service 57 <errors> — café\" x6 y56 w6 h4\n- s58 stat \"Service 58 <errors> — café\" x12 y56 w6 h4\n- s59 stat \"Service 59 <errors> — café\" x18 y56 w6 h4\n- row-a row \"Row A\" x0 y60 w24 h1\n- inner_1 timeseries \"Inner\" row=row-a x0 y61 w24 h8\nPanels in full, rows without their children:\n```json\n[{\"id\":\"s3\",\"type\":\"stat\",\"title\":\"Service 3 \\u003cerrors\\u003e — café\",\"description\":\"A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. \",\"gridPos\":{\"x\":18,\"y\":0,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"svc-3\\\",code=~\\\"5..\\\"}[5m]))\"}]},{\"id\":\"s7\",\"type\":\"stat\",\"title\":\"Service 7 \\u003cerrors\\u003e — café\",\"description\":\"A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. \",\"gridPos\":{\"x\":18,\"y\":4,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"svc-7\\\",code=~\\\"5..\\\"}[5m]))\"}]},{\"id\":\"s12\",\"type\":\"stat\",\"title\":\"Service 12 \\u003cerrors\\u003e — café\",\"description\":\"A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. \",\"gridPos\":{\"x\":0,\"y\":12,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"svc-12\\\",code=~\\\"5..\\\"}[5m]))\"}]},{\"id\":\"row-a\",\"type\":\"row\",\"title\":\"Row A\",\"gridPos\":{\"x\":0,\"y\":60,\"w\":24,\"h\":1}},{\"id\":\"inner_1\",\"type\":\"timeseries\",\"title\":\"Inner\",\"gridPos\":{\"x\":0,\"y\":61,\"w\":24,\"h\":8},\"datasource\":\"prom\",\"queries\":[{\"query\":\"up\"}]}]\n```\nThe request is about panel s3 titled \"Service 3 <errors> — café\".\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nWhen you answer with save_finding, write each figure from a read that gave fact ids in `facts` as its fact, `{{f3}}`, which the server fills in (`{{f3:ms}}`, `{{f3:%}}` or `{{f3:3}}` change the unit or the figures within 1%), copy trace ids whole, and list each quantity asked in `answers` with its one fact.\n\n<request>\nchange s7, s12, row-a and inner_1 (not s99)\n</request>"
   }
 }

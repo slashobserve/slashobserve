@@ -1,0 +1,74 @@
+{
+  "name": "thread-ask-long-quote",
+  "brief": {
+    "request": {
+      "mode": "investigate",
+      "source": "comment",
+      "prompt": "explain this",
+      "panel_id": null,
+      "from": null,
+      "to": null,
+      "time_zone": "Not/AZone",
+      "zone": null,
+      "as_of": null,
+      "continue_note": null,
+      "thread_context": null,
+      "continues": false,
+      "attempt": 1,
+      "investigation": false,
+      "pointer": {
+        "anchor": {
+          "kind": "series",
+          "pos": {
+            "x": 0.1,
+            "y": 0.2
+          },
+          "series": {
+            "k00": "café  <00> & value of some length",
+            "k01": "café  <01> & value of some length",
+            "k02": "café  <02> & value of some length",
+            "k03": "café  <03> & value of some length",
+            "k04": "café  <04> & value of some length",
+            "k05": "café  <05> & value of some length",
+            "k06": "café  <06> & value of some length",
+            "k07": "café  <07> & value of some length",
+            "k08": "café  <08> & value of some length",
+            "k09": "café  <09> & value of some length",
+            "k10": "café  <10> & value of some length",
+            "k11": "café  <11> & value of some length",
+            "k12": "café  <12> & value of some length",
+            "k13": "café  <13> & value of some length",
+            "k14": "café  <14> & value of some length",
+            "k15": "café  <15> & value of some length"
+          }
+        },
+        "block_id": null,
+        "observation_id": "obs2",
+        "thread_ask": true
+      }
+    },
+    "current": null,
+    "build": null,
+    "datasources": [],
+    "withheld": false,
+    "guide": {
+      "text": "",
+      "schema": null
+    },
+    "draft": null
+  },
+  "reason": "",
+  "now": "2026-11-25T05:29:00Z",
+  "state": {
+    "task": "explain",
+    "loop": false,
+    "facts": false,
+    "ledger": null,
+    "triage": "",
+    "digest": null
+  },
+  "want": {
+    "context": "Configured datasources:\n\nInvestigate the question and save one finding.\nWindow: the last hour (a default the question may need to exceed)\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nThe request points at \"the series k00=café &lt;00&gt; &amp; value of some length, k01=café &lt;01&gt; &amp; value of some length, k02=café &lt;02&gt; &amp; value of some length, k03=café &lt;03&gt; &amp; value of some length, k04=café &lt;04&gt; &amp; value of some length, k05=café &lt;05&gt; &amp; value of some length, k06=café &lt;06&gt; &amp; value of some length, k07=café &lt;07&gt; &amp; value of some length, k08=café &lt;08&gt; &amp; value of some length, k09=café &lt;09&gt; &amp; value of some length, k10=café &lt;10&gt; &amp; value of some length, k11=café &lt;11&gt; &amp; value of some length, k12=café &lt;12&gt; &amp; value of some len...\".",
+    "user": "Configured datasources:\n\nInvestigate the question and save one finding.\nWindow: the last hour (a default the question may need to exceed)\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nThe request points at \"the series k00=café &lt;00&gt; &amp; value of some length, k01=café &lt;01&gt; &amp; value of some length, k02=café &lt;02&gt; &amp; value of some length, k03=café &lt;03&gt; &amp; value of some length, k04=café &lt;04&gt; &amp; value of some length, k05=café &lt;05&gt; &amp; value of some length, k06=café &lt;06&gt; &amp; value of some length, k07=café &lt;07&gt; &amp; value of some length, k08=café &lt;08&gt; &amp; value of some length, k09=café &lt;09&gt; &amp; value of some length, k10=café &lt;10&gt; &amp; value of some length, k11=café &lt;11&gt; &amp; value of some length, k12=café &lt;12&gt; &amp; value of some len...\".\n\n<request>\nexplain this\n</request>"
+  }
+}

@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { createHash } from "node:crypto"
-import { readdirSync, readFileSync } from "node:fs"
+import { readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { describeAnchor, type Anchor } from "../src/brief/anchor"
 import { addDiscovery, digestText, type Discovery } from "../src/brief/digest"
@@ -18,24 +17,24 @@ function read(...path: string[]): string {
 type Golden = {
   name: string
   brief: unknown
-  guide: string
   reason: Reason
   now: string
   state: BriefState & {
     ledger: BriefState["ledger"] | null
     digest: Discovery[] | null
   }
-  want: {
-    system: { bytes: number; sha256: string }
-    context: string
-    user: string
-  }
+  want: { context: string; user: string }
 }
 
-const goldenDir = resolve(examples, "agent", "brief")
+const updating = process.env["UPDATE_GOLDENS"] === "1"
+
+const goldenDir = resolve(import.meta.dir, "fixtures", "brief")
 const goldens = readdirSync(goldenDir)
   .filter((name) => name.endsWith(".json"))
-  .map((name) => JSON.parse(read("agent", "brief", name)) as Golden)
+  .map(
+    (name) =>
+      JSON.parse(readFileSync(resolve(goldenDir, name), "utf8")) as Golden
+  )
 
 describe("render", () => {
   test("covers every run shape the goldens name", () => {
@@ -58,21 +57,26 @@ describe("render", () => {
   })
 
   for (const g of goldens) {
-    test(`writes Go's brief for ${g.name}`, () => {
+    test(`writes the brief for ${g.name}`, () => {
       const brief = runBrief.parse(g.brief)
-      brief.guide.text = read("agent", "prompts", g.guide)
       const state: BriefState = {
         ...g.state,
         ledger: g.state.ledger ?? [],
         digest: g.state.digest ?? [],
       }
       const got = render(brief, g.reason, state, new Date(g.now))
+      if (updating) {
+        const { name, brief: raw, reason, now, state: saved } = g
+        const golden = { name, brief: raw, reason, now, state: saved }
+        const want = { context: got.context, user: got.user }
+        writeFileSync(
+          resolve(goldenDir, `${g.name}.json`),
+          JSON.stringify({ ...golden, want }, null, 2) + "\n"
+        )
+        return
+      }
       expect(got.context).toBe(g.want.context)
       expect(got.user).toBe(g.want.user)
-      expect({
-        bytes: Buffer.byteLength(got.system),
-        sha256: createHash("sha256").update(got.system).digest("hex"),
-      }).toEqual(g.want.system)
     })
   }
 })

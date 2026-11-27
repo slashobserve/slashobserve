@@ -43,15 +43,7 @@ import type {
 } from "../src/triage/types"
 import { type FakeServer, startMcpServer } from "./mcpServer"
 
-const fixtures = resolve(
-  import.meta.dir,
-  "..",
-  "..",
-  "spec",
-  "examples",
-  "agent",
-  "triage"
-)
+const fixtures = resolve(import.meta.dir, "fixtures", "triage")
 
 function fixture<T>(name: string): T {
   return JSON.parse(readFileSync(resolve(fixtures, name), "utf8")) as T

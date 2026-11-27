@@ -13,14 +13,16 @@ import {
 } from "../src/route/route"
 import { callsForTask, toolsForTask } from "../src/route/tools"
 
-const fixtures = resolve(
+const fixtures = resolve(import.meta.dir, "fixtures", "route")
+const taskTools = resolve(
   import.meta.dir,
   "..",
   "..",
   "spec",
   "examples",
   "agent",
-  "route"
+  "route",
+  "task-tools.json"
 )
 
 function fixture<T>(name: string): T {
@@ -79,7 +81,9 @@ describe("parseTask", () => {
 })
 
 describe("toolsForTask", () => {
-  const { all, cases } = fixture<TaskToolsCases>("task-tools.json")
+  const { all, cases } = JSON.parse(
+    readFileSync(taskTools, "utf8")
+  ) as TaskToolsCases
 
   test("offers each task type the tools the Go registry offers", () => {
     expect(cases.length).toBe(2 * (tasks.length + 1))

@@ -44,7 +44,6 @@
     },
     "draft": null
   },
-  "guide": "guide-prometheus.md",
   "reason": "continue",
   "now": "2026-11-25T05:29:00Z",
   "state": {
@@ -56,11 +55,7 @@
     "digest": null
   },
   "want": {
-    "system": {
-      "bytes": 29317,
-      "sha256": "2b708b0b991eaee62baadb79a8062f5684b581e79a89e3595d14afc9c1cede38"
-    },
     "context": "Configured datasources:\n- prom (prometheus): healthy\n\nInvestigate the question and save one finding.\nWindow: the last hour (a default the question may need to exceed)\nWhy this is a new session: Your earlier run stopped before it finished, and the person asked you to continue it from the build above.\nThe person's note for this run: check the db too\n\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.",
-    "user": "Configured datasources:\n- prom (prometheus): healthy\n\nInvestigate the question and save one finding.\nWindow: the last hour (a default the question may need to exceed)\nWhy this is a new session: Your earlier run stopped before it finished, and the person asked you to continue it from the build above.\nThe person's note for this run: check the db too\n\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\n\u003crequest\u003e\nkeep going\n\u003c/request\u003e"
+    "user": "Configured datasources:\n- prom (prometheus): healthy\n\nInvestigate the question and save one finding.\nWindow: the last hour (a default the question may need to exceed)\nWhy this is a new session: Your earlier run stopped before it finished, and the person asked you to continue it from the build above.\nThe person's note for this run: check the db too\n\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\n<request>\nkeep going\n</request>"
   }
 }

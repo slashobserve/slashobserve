@@ -278,26 +278,8 @@
       ]
     },
     {
-      "name": "a restart re-arms the answer send-backs in Go",
-      "source": "TestARestartForgetsWhatWasAskedOfTheAnswer",
-      "go_only": "Go resets the absence, evidence and title send-backs on a conflict restart; the TS guard sends each back once per attempt.",
-      "start": {"mode":"create"},
-      "steps": [
-        {"turn":{"saves":0}},
-        {"call":{"name":"query_range","input":{"datasource":"ch","query":"SELECT 1"}},"result":{}},
-        {"turn":{"saves":0}},
-        {"call":{"name":"save_finding","input":{"markdown":"46 error spans."}},"expect":{"verdict":"refuse","message_has":"no evidence panel"}},
-        {"restart":{}},
-        {"turn":{"saves":0}},
-        {"call":{"name":"query_range","input":{"datasource":"ch","query":"SELECT 2"}},"result":{}},
-        {"turn":{"saves":0}},
-        {"call":{"name":"save_finding","input":{"markdown":"46 error spans."}},"expect":{"verdict":"refuse","message_has":"no evidence panel"}}
-      ]
-    },
-    {
       "name": "a restart keeps the send-back latches",
       "source": "TestARestartForgetsWhatWasAskedOfTheAnswer",
-      "ts_only": "One latch structure: the five send-backs (absence, evidence, title, ledger, grounding) are each sent once per attempt, and nothing re-arms them. Go re-armed the absence, evidence and title ones on a conflict restart while the ledger and grounding ones stayed once per attempt.",
       "start": {"mode":"create"},
       "steps": [
         {"turn":{"saves":0}},
@@ -314,7 +296,6 @@
     {
       "name": "the absence send-back lets the next turn read past the limit",
       "source": "absence.go",
-      "ts_only": "A send-back whose fix needs a read opens the next turn's diagnose window, as the grounding and unclosed-candidate send-backs did: Go sent an absent metric or deploy back with the instruction to read list_metrics or list_annotations and then refused that read with finding_now at the call limit.",
       "start": {"mode":"investigate","agent":{"investigation_calls":6},"window_calls":6},
       "steps": [
         {"turn":{"saves":1}},
@@ -325,19 +306,6 @@
         {"end_turn":{"stop":null}},
         {"turn":{"saves":1}},
         {"call":{"name":"save_finding","input":{"markdown":"There was no deploy of checkout today."}},"expect":{"verdict":"dispatch"}}
-      ]
-    },
-    {
-      "name": "the absence send-back's read is refused at the limit in Go",
-      "source": "absence.go",
-      "go_only": "The refused send-back read that the TS guard fixes.",
-      "start": {"mode":"investigate","agent":{"investigation_calls":6},"window_calls":6},
-      "steps": [
-        {"turn":{"saves":1}},
-        {"call":{"name":"save_finding","input":{"markdown":"There was no deploy of checkout today."}},"expect":{"verdict":"refuse","message_has":"read it with tag deploy"}},
-        {"end_turn":{"stop":null}},
-        {"turn":{"saves":0}},
-        {"call":{"name":"list_annotations","input":{"tags":["deploy"]}},"expect":{"verdict":"refuse","step":"Refused list_annotations: 6 model calls passed without a finding"}}
       ]
     }
   ]

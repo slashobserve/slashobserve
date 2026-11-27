@@ -46,15 +46,7 @@ import {
 import { parseTime } from "../src/grounding/time"
 import { traceIDProblems } from "../src/grounding/traceids"
 
-const fixtures = resolve(
-  import.meta.dir,
-  "..",
-  "..",
-  "spec",
-  "examples",
-  "agent",
-  "grounding"
-)
+const fixtures = resolve(import.meta.dir, "fixtures", "grounding")
 
 export function fixture<T>(name: string): T {
   return JSON.parse(readFileSync(resolve(fixtures, name), "utf8")) as T

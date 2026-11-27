@@ -44,7 +44,6 @@
     },
     "draft": null
   },
-  "guide": "guide-prometheus.md",
   "reason": "",
   "now": "2026-11-25T05:29:00Z",
   "state": {
@@ -56,11 +55,7 @@
     "digest": null
   },
   "want": {
-    "system": {
-      "bytes": 27664,
-      "sha256": "f4c641cb390ca6a4aa3140a3b4ebf61c68fee6bc324eeeee1ef0cae0a2a6560c"
-    },
     "context": "Configured datasources:\n- prom (prometheus): healthy\n\nInvestigate the question and save one finding.\nWindow: the last hour (a default the question may need to exceed)\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nThe request is about the whole of block blk9 of observation obs3.",
-    "user": "Configured datasources:\n- prom (prometheus): healthy\n\nInvestigate the question and save one finding.\nWindow: the last hour (a default the question may need to exceed)\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nThe request is about the whole of block blk9 of observation obs3.\n\n\u003crequest\u003e\nis this right\n\u003c/request\u003e"
+    "user": "Configured datasources:\n- prom (prometheus): healthy\n\nInvestigate the question and save one finding.\nWindow: the last hour (a default the question may need to exceed)\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nThe request is about the whole of block blk9 of observation obs3.\n\n<request>\nis this right\n</request>"
   }
 }

@@ -1,0 +1,82 @@
+{
+  "name": "create-fresh",
+  "brief": {
+    "request": {
+      "mode": "create",
+      "source": "prompt",
+      "prompt": "make a checkout dashboard",
+      "panel_id": null,
+      "from": null,
+      "to": null,
+      "time_zone": "Europe/Berlin",
+      "zone": {
+        "label": "CET",
+        "offset_seconds": 3600
+      },
+      "as_of": null,
+      "continue_note": null,
+      "thread_context": null,
+      "continues": false,
+      "attempt": 1,
+      "investigation": false,
+      "pointer": {
+        "anchor": null,
+        "block_id": null,
+        "observation_id": null,
+        "thread_ask": false
+      }
+    },
+    "current": null,
+    "build": null,
+    "datasources": [
+      {
+        "uid": "prom",
+        "type": "prometheus",
+        "name": "Prometheus",
+        "source": "",
+        "healthy": true,
+        "checked_at": "0001-01-01T00:00:00Z",
+        "health_state": "",
+        "everyone": true
+      }
+    ],
+    "withheld": false,
+    "guide": {
+      "text": "",
+      "schema": null
+    },
+    "draft": null
+  },
+  "reason": "",
+  "now": "2026-11-25T05:29:00Z",
+  "state": {
+    "task": "",
+    "loop": false,
+    "facts": true,
+    "ledger": null,
+    "triage": "",
+    "digest": [
+      {
+        "datasource": "prom",
+        "of": "metrics",
+        "names": [
+          "http_requests_total",
+          "http_request_duration_seconds_bucket"
+        ]
+      },
+      {
+        "datasource": "prom",
+        "of": "labels",
+        "names": [
+          "service",
+          "route",
+          "code"
+        ]
+      }
+    ]
+  },
+  "want": {
+    "context": "Configured datasources:\n- prom (prometheus): healthy\n\nCreate a new dashboard for the request, or answer it with save_finding if it only asks a question. Without a folder_id the dashboard is saved in the requester's My Dashboards. If the request names a folder, find it with list_folders and pass its id as folder_id on your first save; use only a folder with can_create true, and when none fits, build it in My Dashboards and say in the last save's summary that it can be moved. This run cannot create alerts, and a dashboard that already exists is changed from its own chat. To change one, find it with list_dashboards by the id or exact title in the request, reading at most 3 pages with next_cursor: when exactly one dashboard matches, answer with save_finding that says the change is asked for on that dashboard's own chat, and pass its id as ask_on_dashboard_id; when none or several match, answer with save_finding that lists up to 5 candidate titles and pass no ask_on_dashboard_id. For an alert, answer with save_finding that says so, and that a dashboard with a threshold line can be asked for instead.\n\nTime zone: the person reads times in Europe/Berlin, labelled CET. Tool results give UTC; write every time in the answer in Europe/Berlin with its label, such as 14:05 CET, not in UTC. It is now 06:29 CET on 2026-11-25, which is 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nWhen you answer with save_finding, write each figure from a read that gave fact ids in `facts` as its fact, `{{f3}}`, which the server fills in (`{{f3:ms}}`, `{{f3:%}}` or `{{f3:3}}` change the unit or the figures within 1%), copy trace ids whole, and list each quantity asked in `answers` with its one fact.\n\n<discovered>\nNames this run already found; use them without listing them again.\n- prom labels: service, route, code\n- prom metrics: http_requests_total, http_request_duration_seconds_bucket\n</discovered>",
+    "user": "Configured datasources:\n- prom (prometheus): healthy\n\nCreate a new dashboard for the request, or answer it with save_finding if it only asks a question. Without a folder_id the dashboard is saved in the requester's My Dashboards. If the request names a folder, find it with list_folders and pass its id as folder_id on your first save; use only a folder with can_create true, and when none fits, build it in My Dashboards and say in the last save's summary that it can be moved. This run cannot create alerts, and a dashboard that already exists is changed from its own chat. To change one, find it with list_dashboards by the id or exact title in the request, reading at most 3 pages with next_cursor: when exactly one dashboard matches, answer with save_finding that says the change is asked for on that dashboard's own chat, and pass its id as ask_on_dashboard_id; when none or several match, answer with save_finding that lists up to 5 candidate titles and pass no ask_on_dashboard_id. For an alert, answer with save_finding that says so, and that a dashboard with a threshold line can be asked for instead.\n\nTime zone: the person reads times in Europe/Berlin, labelled CET. Tool results give UTC; write every time in the answer in Europe/Berlin with its label, such as 14:05 CET, not in UTC. It is now 06:29 CET on 2026-11-25, which is 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nWhen you answer with save_finding, write each figure from a read that gave fact ids in `facts` as its fact, `{{f3}}`, which the server fills in (`{{f3:ms}}`, `{{f3:%}}` or `{{f3:3}}` change the unit or the figures within 1%), copy trace ids whole, and list each quantity asked in `answers` with its one fact.\n\n<discovered>\nNames this run already found; use them without listing them again.\n- prom labels: service, route, code\n- prom metrics: http_requests_total, http_request_duration_seconds_bucket\n</discovered>\n\n<request>\nmake a checkout dashboard\n</request>"
+  }
+}

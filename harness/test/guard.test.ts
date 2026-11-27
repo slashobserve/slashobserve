@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { existsSync, readdirSync, readFileSync } from "node:fs"
+import { readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import {
   type Admission,
@@ -19,15 +19,7 @@ import * as text from "../src/guard/text"
 import { readsData } from "../src/phase"
 import type { AgentSettings } from "../src/protocol"
 
-const fixtures = resolve(
-  import.meta.dir,
-  "..",
-  "..",
-  "spec",
-  "examples",
-  "agent",
-  "guard"
-)
+const fixtures = resolve(import.meta.dir, "fixtures", "guard")
 const traceFiles = [
   "admission",
   "windows",
@@ -100,8 +92,6 @@ type TraceStep = {
 }
 type Trace = {
   name: string
-  ts_only?: string
-  go_only?: string
   start: {
     mode: Mode
     agent?: Partial<AgentSettings>
@@ -360,9 +350,6 @@ for (const file of traceFiles) {
   const { traces } = read<{ traces: Trace[] }>(`${file}.json`)
   describe(`guard traces: ${file}`, () => {
     for (const trace of traces) {
-      if (trace.go_only !== undefined) {
-        continue
-      }
       test(trace.name, () => runTrace(trace, false))
       test(`${trace.name}, reloaded before every step`, () =>
         runTrace(trace, true))
@@ -471,44 +458,4 @@ describe("guard state", () => {
     expect(limit("revise", { save_calls: 7 })).toBe(7)
     expect(limit("suggest", { suggest_calls: 9 })).toBe(9)
   })
-})
-
-const guardSource = resolve(
-  import.meta.dir,
-  "..",
-  "..",
-  "internal",
-  "agent",
-  "guard"
-)
-
-describe("guard texts", () => {
-  test.skipIf(!existsSync(guardSource))(
-    "are the Go guard's own strings",
-    () => {
-      const source = readdirSync(guardSource)
-        .filter((file) => file.endsWith(".go") && !file.endsWith("_test.go"))
-        .map((file) => readFileSync(join(guardSource, file), "utf8"))
-        .join("\n")
-      const fixed = [
-        "repeated_save",
-        "read_in_flight",
-        "repeated_write",
-      ] as const
-      const texts = [
-        ...Object.entries(text)
-          .filter(
-            ([name, value]) =>
-              typeof value === "string" &&
-              /^(message|fault|people|step|sentBack)/.test(name)
-          )
-          .map(([, value]) => value as string),
-        ...fixed.flatMap((name) => Object.values(text.ruleOf(name, 0, false))),
-      ]
-      expect(texts.length).toBeGreaterThan(20)
-      for (const value of texts) {
-        expect(source, value).toContain(JSON.stringify(value))
-      }
-    }
-  )
 })

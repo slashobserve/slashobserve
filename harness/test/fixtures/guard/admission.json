@@ -163,7 +163,6 @@
     {
       "name": "reordered keys are one read",
       "source": "one call key",
-      "ts_only": "One canonical call key for reads, saves and writes: Go's read and save key compacts the input but keeps its key order, so the same input with its keys reordered was a new read and a new save there; it is now the same call, as it already was for writes.",
       "start": {"mode":"create"},
       "steps": [
         {"turn":{"saves":0}},
@@ -173,17 +172,6 @@
         {"call":{"name":"update_panels","input":{"a":1,"b":2}},"expect":{"verdict":"dispatch"}},
         {"turn":{"saves":1}},
         {"call":{"name":"update_panels","raw":"{\"b\": 2, \"a\": 1}"},"expect":{"verdict":"refuse","step":"Refused update_panels: the same save was sent again"}}
-      ]
-    },
-    {
-      "name": "reordered keys are two reads in Go",
-      "source": "one call key",
-      "go_only": "Go's read key keeps the input's key order; the TS guard has one canonical key.",
-      "start": {"mode":"create"},
-      "steps": [
-        {"turn":{"saves":0}},
-        {"call":{"name":"get_panels","input":{"a":1,"b":2}},"expect":{"verdict":"dispatch"}},
-        {"call":{"name":"get_panels","raw":"{\"b\":2,\"a\":1}"},"expect":{"verdict":"dispatch"}}
       ]
     }
   ]
