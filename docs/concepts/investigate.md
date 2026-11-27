@@ -152,8 +152,8 @@ The block is sent to the LLM provider like any tool result and never written to 
 
 With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` set to `true`, the default, the built-in agent also gets `note_hypotheses`, and an investigation that opens an observation is told in its prompt to use it.
 A plain question gets the tool but no prompt section and no `<hypotheses>` block.
-It writes down 2 to 4 candidate causes after its first look and sends the whole list again with each batch of reads.
-When the preflight brief lists candidates in an incident investigation, or one the server did not sort into a task type, the ledger starts with one open hypothesis per candidate, up to 5, with the candidate's id (`c1`, `c2`, ...), the service, what moved and the onset, and the agent sees it in a `<hypotheses>` block from its first message; it may add hypotheses of its own.
+It writes down its candidate causes after its first look, 2 to 4 when the brief seeded none, and sends the whole list again with each batch of reads; the ledger holds at most 6 hypotheses, seeded candidates included.
+When the preflight brief lists candidates in an incident investigation, or one the server did not sort into a task type, the ledger starts with one open hypothesis per candidate, up to 5, with the candidate's id (`c1`, `c2`, ...), the service, what moved and the onset, and the agent sees it in a `<hypotheses>` block from its first message; it may add hypotheses of its own up to the limit of 6.
 Each hypothesis has a short id, one sentence, a status of `open`, `supported` or `ruled_out`, up to 3 evidence lines and, for an open one, the next check.
 A hypothesis is ruled out or supported only with an evidence line that says what was read and what it showed.
 A supported or ruled-out hypothesis may also carry a closing that says how it was settled:
