@@ -32,7 +32,7 @@ import {
   type Problems,
   type SavedCredentials,
 } from "./draft"
-import { rowLabel } from "./format"
+import { failureAdvice, rowLabel } from "./format"
 import type { DatasourceStatus } from "./queries"
 import { saveProblemText } from "./problems"
 import { RestrictedHolders } from "./restricted-holders"
@@ -137,7 +137,12 @@ function panelKeyOf(uid: string) {
 
 type TestOutcome =
   | { kind: "healthy" }
-  | { kind: "unhealthy"; message: string; detail: string | undefined }
+  | {
+      kind: "unhealthy"
+      message: string
+      detail: string | undefined
+      advice: string | undefined
+    }
   | { kind: "failed"; message: string }
 
 function Editor({
@@ -236,6 +241,7 @@ function Editor({
                   kind: "unhealthy",
                   message: result.message ?? "The datasource did not answer.",
                   detail: result.detail,
+                  advice: failureAdvice(result.failure_kind),
                 }
           ),
         onError: (error) => {
@@ -376,6 +382,7 @@ function TestResult({ outcome }: { outcome: TestOutcome }) {
       <AlertDescription>
         <p>{outcome.message}</p>
         {outcome.detail === undefined ? null : <p>{outcome.detail}</p>}
+        {outcome.advice === undefined ? null : <p>{outcome.advice}</p>}
       </AlertDescription>
     </Alert>
   )

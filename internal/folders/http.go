@@ -173,7 +173,7 @@ func (h *Handler) abortTitleWrite(c *gin.Context, err error, action string) bool
 	case errors.Is(err, ErrFolderExists):
 		httpapi.AbortError(c, http.StatusConflict, "folder_exists", "a folder with that name already exists")
 	case errors.Is(err, ErrGeneralFolder):
-		httpapi.AbortError(c, http.StatusConflict, "general_folder", "the General folder cannot be renamed")
+		abortGeneralFolder(c, "the General folder cannot be renamed")
 	case errors.Is(err, ErrNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "folder not found")
 	case errors.Is(err, ErrForbidden):
@@ -199,7 +199,7 @@ func (h *Handler) rename(c *gin.Context) {
 func (h *Handler) remove(c *gin.Context) {
 	current := folderFrom(c)
 	if current.Folder.General {
-		httpapi.AbortError(c, http.StatusConflict, "general_folder", "the General folder cannot be deleted")
+		abortGeneralFolder(c, "the General folder cannot be deleted")
 		return
 	}
 	ctx := c.Request.Context()
@@ -402,7 +402,7 @@ func abortPermissionsRefusal(c *gin.Context, err error) bool {
 	case errors.Is(err, errFolderGone):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "folder not found")
 	case errors.Is(err, errGeneralFolder):
-		httpapi.AbortError(c, http.StatusConflict, "general_folder", "the General folder is open to everyone and cannot be restricted")
+		abortGeneralFolder(c, "the General folder is open to everyone and cannot be restricted")
 	case errors.Is(err, errDuplicateUser):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "a user can appear only once")
 	case errors.As(err, &unknown):

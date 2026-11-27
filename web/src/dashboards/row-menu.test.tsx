@@ -26,6 +26,14 @@ const folders = [
     title: "Shop",
     general: false,
     personal: false,
+    kind: "open",
+    allowed_actions: [
+      "create_in",
+      "move_into",
+      "rename",
+      "set_permissions",
+      "delete",
+    ],
     permissions: { comment: true, edit: true, manage: true, create: true },
   },
 ]

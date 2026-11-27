@@ -311,8 +311,7 @@ func (s *Service) getDashboard(c *gin.Context) {
 		s.fail(c, "get dashboard", err)
 		return
 	}
-	dash.Abilities = folders.DashboardFrom(c).Shown()
-	dash.Provisioned = folders.DashboardFrom(c).Provisioned
+	dash = dash.WithAccess(folders.DashboardFrom(c))
 	audit.Conclude(c.Request.Context(), audit.Result{
 		Outcome: audit.OutcomeSuccess,
 		Target:  audit.Target{Kind: "dashboard", ID: c.Param("id")},
@@ -393,8 +392,7 @@ func (s *Service) getVersion(c *gin.Context) {
 		s.fail(c, "get dashboard version", err)
 		return
 	}
-	dash.Abilities = folders.DashboardFrom(c).Shown()
-	dash.Provisioned = folders.DashboardFrom(c).Provisioned
+	dash = dash.WithAccess(folders.DashboardFrom(c))
 	httpapi.RevalidatedJSON(c, NewDashboardVersionJSON(dash, ver))
 }
 
@@ -452,7 +450,8 @@ func (s *Service) answerSave(c *gin.Context, res SaveResult) {
 		c.JSON(http.StatusAccepted, proposalCreatedJSON{ProposalID: res.Proposal.ID, Revision: res.Proposal.Revision, Opened: res.Proposal.Opened, Outcome: res.Outcome()})
 		return
 	}
-	body := versionSavedJSON{DashboardVersionJSON: NewDashboardVersionJSON(res.Dashboard, res.Version), MergedFrom: res.MergedFrom, Outcome: res.Outcome()}
+	body := editedJSON(res.Dashboard, res.Version, res.Outcome())
+	body.MergedFrom = res.MergedFrom
 	if res.Replayed {
 		c.Header("Idempotent-Replay", "true")
 		c.JSON(http.StatusOK, body)
@@ -520,7 +519,7 @@ func (s *Service) restoreVersion(c *gin.Context) {
 		return
 	}
 	c.Header("Location", versionLocation(dash.ID, ver.Number))
-	c.JSON(http.StatusCreated, NewDashboardVersionJSON(dash, ver))
+	c.JSON(http.StatusCreated, editedJSON(dash, ver, OutcomeCreated))
 }
 
 func (s *Service) diff(c *gin.Context) {
@@ -570,7 +569,7 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 	case errors.Is(err, folders.ErrNoAccess):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", ErrNotFound.Error())
 	case errors.Is(err, folders.ErrMoveIntoPersonal):
-		httpapi.AbortError(c, http.StatusConflict, "personal_folder", err.Error())
+		folders.AbortPersonalFolder(c, err.Error())
 	case errors.Is(err, folders.ErrForbidden):
 		c.AbortWithStatusJSON(http.StatusForbidden, forbidden.BodyOf(err))
 	case errors.Is(err, ErrUserSessionRequired):

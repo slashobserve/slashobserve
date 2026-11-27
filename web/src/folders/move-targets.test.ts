@@ -12,6 +12,10 @@ function folder(id: string, extra: Partial<Folder> = {}, edit = true): Folder {
     restricted: false,
     admins_only: false,
     audit: false,
+    kind: "open",
+    allowed_actions: edit
+      ? ["create_in", "move_into", "rename", "set_permissions", "delete"]
+      : [],
     dashboard_count: 0,
     grantees: [],
     grantee_count: 0,
@@ -39,7 +43,14 @@ describe("moveChoices", () => {
   })
 
   it("leaves out a personal folder unless it is the current one", () => {
-    const folders = [folder("mine", { personal: true }), folder("shop")]
+    const folders = [
+      folder("mine", {
+        personal: true,
+        kind: "personal",
+        allowed_actions: ["create_in"],
+      }),
+      folder("shop"),
+    ]
     expect(moveChoices(folders, null).map((choice) => choice.id)).toEqual([
       "shop",
     ])

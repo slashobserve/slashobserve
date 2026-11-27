@@ -45,6 +45,15 @@ type personJSON struct {
 	DeactivatedAt  *string            `json:"deactivated_at"`
 	DeactivatedBy  *string            `json:"deactivated_by"`
 	PersonalItems  *personalItemsJSON `json:"personal_items"`
+	State          State              `json:"state"`
+	AllowedActions []Action           `json:"allowed_actions"`
+}
+
+type refusalJSON struct {
+	Error          string   `json:"error"`
+	Code           string   `json:"code"`
+	State          State    `json:"state"`
+	AllowedActions []Action `json:"allowed_actions"`
 }
 
 type personalItemsJSON struct {
@@ -92,7 +101,8 @@ func (h *Handler) list(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	levels, err := h.access.Levels(ctx, httpapi.Caller(c))
+	caller := httpapi.Caller(c)
+	levels, err := h.access.Levels(ctx, caller)
 	if err != nil {
 		h.fail(c, "list folder levels", err)
 		return
@@ -107,7 +117,7 @@ func (h *Handler) list(c *gin.Context) {
 		if clientgone.Handle(c, h.logger, "list users", err) {
 			return
 		}
-		h.logger.ErrorContext(ctx, "list users", logattrs.Failure("internal", err, slog.String("actor_id", httpapi.Caller(c).ID))...)
+		h.logger.ErrorContext(ctx, "list users", logattrs.Failure("internal", err, slog.String("actor_id", caller.ID))...)
 		httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
 		return
 	}
@@ -119,14 +129,17 @@ func (h *Handler) list(c *gin.Context) {
 		body.NextCursor = &next
 	}
 	for _, r := range rows {
-		body.Users = append(body.Users, newPersonJSON(r))
+		body.Users = append(body.Users, newPersonJSON(r, caller))
 	}
 	c.JSON(http.StatusOK, body)
 }
 
-func newPersonJSON(r dbsqlc.ListUsersRow) personJSON {
+func newPersonJSON(r dbsqlc.ListUsersRow, caller auth.Principal) personJSON {
 	source := auth.RoleSource(r.RoleSource)
+	f := factsOf(caller, r.ID, source, r.DeactivatedAt)
 	p := personJSON{
+		State:          f.state,
+		AllowedActions: allowedActions(f),
 		ID:             r.ID.String(),
 		Name:           r.Name,
 		Email:          r.Email,
@@ -217,10 +230,10 @@ func (h *Handler) update(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "user not found")
 		return
 	case errors.As(err, &locked):
-		httpapi.AbortError(c, http.StatusConflict, "role_locked", lockedMessage(locked.Source))
+		h.refuse(c, id, "role_locked", lockedMessage(locked.Source))
 		return
 	case errors.Is(err, auth.ErrLastAdmin):
-		httpapi.AbortError(c, http.StatusConflict, "last_admin", "at least one admin must remain")
+		h.refuse(c, id, "last_admin", "at least one admin must remain")
 		return
 	case err != nil:
 		h.fail(c, "set manual role", err, slog.String("user_id", id.String()))
@@ -250,7 +263,15 @@ func (h *Handler) person(c *gin.Context, id pgtype.UUID) (personJSON, bool) {
 		h.fail(c, "get person", err, slog.String("user_id", id.String()))
 		return personJSON{}, false
 	}
-	return newPersonJSON(dbsqlc.ListUsersRow(row)), true
+	return newPersonJSON(dbsqlc.ListUsersRow(row), httpapi.Caller(c)), true
+}
+
+func (h *Handler) refuse(c *gin.Context, id pgtype.UUID, code, message string) {
+	person, ok := h.person(c, id)
+	if !ok {
+		return
+	}
+	c.AbortWithStatusJSON(http.StatusConflict, refusalJSON{Error: message, Code: code, State: person.State, AllowedActions: person.AllowedActions})
 }
 
 func (h *Handler) fail(c *gin.Context, action string, err error, ids ...any) {

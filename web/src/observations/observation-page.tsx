@@ -315,6 +315,7 @@ function LoadedObservation({
       {moving ? (
         <MovePanel
           observation={observation}
+          confined={envelope.confined}
           trigger={moreButton}
           onClose={() => setMoving(false)}
         />

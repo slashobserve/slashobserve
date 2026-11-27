@@ -428,8 +428,8 @@ func TestReportRunKeepsTheRenewedLeaseWhenNoteUsageTimesOut(t *testing.T) {
 	previous := usageNoteTimeout
 	usageNoteTimeout = 20 * time.Millisecond
 	t.Cleanup(func() { usageNoteTimeout = previous })
-	until := "2026-01-01T00:00:00Z"
-	fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "running", LeaseUntil: &until}}}
+	until, at := "2026-01-01T00:00:00Z", "2025-12-31T23:59:00Z"
+	fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "running", LeaseUntil: &until, ServerTime: &at}}}
 	rs := &fakeRunSessions{blockNoteUsage: true, progress: &BuildProgress{Saves: 1, Panels: 2, PlannedPanels: 5}}
 	live := &fakeLiveText{}
 
@@ -440,7 +440,7 @@ func TestReportRunKeepsTheRenewedLeaseWhenNoteUsageTimesOut(t *testing.T) {
 	}
 
 	out := jsonOf(t, res)
-	if out["state"] != "running" || out["stop"] != false || out["lease_until"] != until || out["build"] == nil {
+	if out["state"] != "running" || out["stop"] != false || out["lease_until"] != until || out["server_time"] != at || out["build"] == nil {
 		t.Fatalf("answer = %v", out)
 	}
 	if len(fc.reports) != 1 || len(live.texts) != 1 {

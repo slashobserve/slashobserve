@@ -1,6 +1,6 @@
 import { useEffect, useRef, useSyncExternalStore } from "react"
 
-import { backoffDelay } from "@/dashboards/live/reconnect"
+import { afterClosed, backoffDelay } from "@/dashboards/live/reconnect"
 import { closeWhileCached } from "@/lib/page-cache"
 
 import type { ActivityEvent } from "./activity-match"
@@ -76,6 +76,15 @@ export function useActivityStream({
       stream.addEventListener("reset", () => {
         if (source !== stream) return
         handlers.current.onGap()
+      })
+      stream.addEventListener("closed", (message) => {
+        if (source !== stream) return
+        if (afterClosed((message as MessageEvent<string>).data) !== "stop") {
+          return
+        }
+        stream.close()
+        source = undefined
+        gapPending = true
       })
       stream.onerror = () => {
         if (source !== stream || stream.readyState !== EventSource.CLOSED) {

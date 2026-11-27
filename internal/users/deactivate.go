@@ -33,10 +33,10 @@ func (h *Handler) deactivate(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "user not found")
 		return
 	case errors.Is(err, auth.ErrDeactivateSelf):
-		httpapi.AbortError(c, http.StatusConflict, "cannot_deactivate_self", "you cannot deactivate yourself; ask another Admin to do it")
+		h.refuse(c, id, "cannot_deactivate_self", "you cannot deactivate yourself; ask another Admin to do it")
 		return
 	case errors.Is(err, auth.ErrLastAdmin):
-		httpapi.AbortError(c, http.StatusConflict, "last_admin", "this is the last active Admin; make someone else an Admin first")
+		h.refuse(c, id, "last_admin", "this is the last active Admin; make someone else an Admin first")
 		return
 	case err != nil:
 		h.fail(c, "deactivate a person", err, slog.String("user_id", id.String()))
@@ -114,7 +114,7 @@ func (h *Handler) remove(c *gin.Context) {
 		h.fail(c, "remove a person", err, slog.String("user_id", id.String()))
 		return
 	case active:
-		httpapi.AbortError(c, http.StatusConflict, "not_deactivated", "deactivate this person first; only a deactivated person can be removed")
+		h.refuse(c, id, "not_deactivated", "deactivate this person first; only a deactivated person can be removed")
 		return
 	}
 	h.logger.InfoContext(ctx, "removed a person", slog.String("actor_id", caller.ID), slog.String("user_id", id.String()))

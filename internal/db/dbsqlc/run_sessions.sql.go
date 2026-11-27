@@ -78,6 +78,25 @@ func (q *Queries) GetRunSessionForUpdate(ctx context.Context, arg GetRunSessionF
 	return i, err
 }
 
+const getRunSessionSettled = `-- name: GetRunSessionSettled :one
+SELECT COALESCE(s.state->'settled'->>'kind', '')::text AS kind
+FROM run_sessions s JOIN agent_requests r ON r.id = s.agent_request_id
+WHERE s.agent_request_id = $1 AND s.attempt = $2 AND r.claim_epoch = $3
+`
+
+type GetRunSessionSettledParams struct {
+	AgentRequestID pgtype.UUID
+	Attempt        int32
+	ClaimEpoch     int32
+}
+
+func (q *Queries) GetRunSessionSettled(ctx context.Context, arg GetRunSessionSettledParams) (string, error) {
+	row := q.db.QueryRow(ctx, getRunSessionSettled, arg.AgentRequestID, arg.Attempt, arg.ClaimEpoch)
+	var kind string
+	err := row.Scan(&kind)
+	return kind, err
+}
+
 const getRunWrites = `-- name: GetRunWrites :one
 SELECT
   r.intent,

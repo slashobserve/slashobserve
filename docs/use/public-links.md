@@ -32,7 +32,7 @@ The Share pane lists each link with:
 - its prefix and label;
 - its variables mode, and the values a frozen link holds;
 - its expiry, or "No expiry";
-- "Expired", or "Not usable: uses the viewer's identity", when the link no longer opens;
+- "Expired", or "Not usable:" with the reason, when the link no longer opens;
 - who created it and when, and when it was last viewed.
 
 ## Revoke a link
@@ -179,8 +179,17 @@ Every route except the public ones needs a session or a service-account key with
 | `GET /api/v1/public/{token}/variables/{name}/values` | Lists one variable's values for the link. |
 
 Details of the list: each link has its prefix, label, variables mode, expiry, creator, last view and whether it is usable.
-A link that is not usable carries `unusable_reason`: `expired` when its expiry has passed, or `user_scoped` when the dashboard's latest version reads the viewer's identity.
+A link that is not usable carries `unusable_reason`, the first of these that applies, and the Share pane shows the text beside it.
+
+| `unusable_reason` | When | Share pane |
+| --- | --- | --- |
+| `expired` | Its expiry has passed. | "Expired" |
+| `admins_only_folder` | The dashboard is in a folder only Admins can read. | "Not usable: the dashboard is in a folder only Admins can read" |
+| `user_scoped` | The dashboard's latest version reads the viewer's identity. | "Not usable: uses the viewer's identity" |
+| `restricted_datasource` | The dashboard's latest version reads a datasource only Admins can query. | "Not usable: reads a datasource only Admins can query" |
+
 `unusable_reason` is null while the link is usable.
+The public address of a link that is not usable answers 404.
 It also has a `state`, `active` or `expired`; see [States](../reference/states.md).
 
 Details of the public view: the answer holds the latest version's Spec with every query's text, the dashboard's tags and its links left out, and the datasources it uses (uid and type).

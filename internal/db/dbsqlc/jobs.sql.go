@@ -15,7 +15,9 @@ const claimJob = `-- name: ClaimJob :one
 UPDATE jobs
 SET leased_by = $1,
     lease_until = now() + make_interval(secs => LEAST(every_seconds, $2::int)),
-    last_started_at = now()
+    last_started_at = now(),
+    last_outcome = CASE WHEN lease_until IS NOT NULL THEN 'interrupted' ELSE last_outcome END,
+    last_error = CASE WHEN lease_until IS NOT NULL THEN '' ELSE last_error END
 WHERE name = (
   SELECT j.name FROM jobs j
   WHERE j.name = ANY($3::text[])
@@ -107,6 +109,57 @@ func (q *Queries) GetJob(ctx context.Context, name string) (Job, error) {
 		&i.LastError,
 	)
 	return i, err
+}
+
+const listJobs = `-- name: ListJobs :many
+SELECT name, every_seconds, next_run_at, leased_by, lease_until, last_started_at, last_finished_at, last_outcome, last_error,
+  now()::timestamptz AS read_at
+FROM jobs
+ORDER BY name
+`
+
+type ListJobsRow struct {
+	Name           string
+	EverySeconds   int32
+	NextRunAt      pgtype.Timestamptz
+	LeasedBy       string
+	LeaseUntil     pgtype.Timestamptz
+	LastStartedAt  pgtype.Timestamptz
+	LastFinishedAt pgtype.Timestamptz
+	LastOutcome    string
+	LastError      string
+	ReadAt         pgtype.Timestamptz
+}
+
+func (q *Queries) ListJobs(ctx context.Context) ([]ListJobsRow, error) {
+	rows, err := q.db.Query(ctx, listJobs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListJobsRow
+	for rows.Next() {
+		var i ListJobsRow
+		if err := rows.Scan(
+			&i.Name,
+			&i.EverySeconds,
+			&i.NextRunAt,
+			&i.LeasedBy,
+			&i.LeaseUntil,
+			&i.LastStartedAt,
+			&i.LastFinishedAt,
+			&i.LastOutcome,
+			&i.LastError,
+			&i.ReadAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const releaseJob = `-- name: ReleaseJob :execrows

@@ -108,7 +108,11 @@ var (
 	ErrDashboardVersionNotFound = errors.New("dashboard version not found")
 )
 
-const CodeChatReadOnly = "chat_read_only"
+const (
+	CodeChatReadOnly    = "chat_read_only"
+	CodeRequestFinished = "request_finished"
+	CodeNotContinuable  = "not_continuable"
+)
 
 type PanelChecker interface {
 	HasPanel(ctx context.Context, dashboardID pgtype.UUID, version int, panelID string) (bool, error)
@@ -207,12 +211,14 @@ func WithBuiltInAgent() Option {
 type Metrics interface {
 	AgentRun(kind, outcome string)
 	RequestClaimed(source string, waited time.Duration)
+	ThreadRepliesAbandoned(replies int)
 }
 
 type noMetrics struct{}
 
 func (noMetrics) AgentRun(string, string)              {}
 func (noMetrics) RequestClaimed(string, time.Duration) {}
+func (noMetrics) ThreadRepliesAbandoned(int)           {}
 
 func WithMetrics(m Metrics) Option {
 	return func(s *Service) { s.metrics = m }

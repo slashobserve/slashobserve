@@ -2,6 +2,7 @@ import { useId, useState, type RefObject } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 
+import { RoleNote } from "@/components/role-note"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,22 +19,25 @@ import { foldersQuery } from "@/folders/queries"
 import { loadProblemText } from "@/service-accounts/queries"
 import { SidePanel } from "@/shell/side-panel"
 
+import { confinedNote, type Confined } from "./confined"
 import { useMoveObservation, type Observation } from "./queries"
 
 type Choice = { id: string; title: string }
 
 type Props = {
   observation: Observation
+  confined?: Confined
   onClose: () => void
   trigger: RefObject<HTMLElement | null>
 }
 
-export function MovePanel({ observation, onClose, trigger }: Props) {
+export function MovePanel({ observation, confined, onClose, trigger }: Props) {
   const fieldId = useId()
   const folders = useQuery(foldersQuery())
   const move = useMoveObservation(observation.id)
   const [target, setTarget] = useState<Choice | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
+  const note = confinedNote(confined)
   const choices: Choice[] = moveChoices(
     folders.data ?? [],
     observation.folder_id
@@ -78,6 +82,7 @@ export function MovePanel({ observation, onClose, trigger }: Props) {
         </>
       }
     >
+      {note === null ? null : <RoleNote>{note}</RoleNote>}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={fieldId}>Folder</Label>
         <Combobox<Choice>

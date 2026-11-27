@@ -10,14 +10,25 @@ import (
 const (
 	finishTimeout = 15 * time.Second
 
-	maxCheckFailures   = 3
-	checkFailedMessage = "could not check the request's saved version"
+	maxCheckFailures = 3
 
 	requesterGoneMessage = "the person or key that asked for this run no longer exists"
 
 	noSuggestionMessage = "the agent did not propose a panel"
 	noFindingMessage    = "the agent finished without saving a finding"
 )
+
+type admissionCheck string
+
+const (
+	checkSavedResult     admissionCheck = "could not check the request's saved version"
+	checkRequester       admissionCheck = "could not load the person or key that asked for this run"
+	checkRequesterAccess admissionCheck = "could not check that the requester may still run this request"
+)
+
+func checkFailedOutcome(check admissionCheck, cause error) outcome {
+	return outcome{message: string(check), code: "agent_request_check_failed", failure: FailureCheckFailed, cause: cause}
+}
 
 func canceledOutcome(cause error, usage *Usage) outcome {
 	return outcome{message: CanceledMessage, code: "agent_run_canceled", failure: FailureCanceled, cause: cause, usage: usage}

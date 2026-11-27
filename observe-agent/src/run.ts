@@ -27,7 +27,7 @@ import {
   heartbeatMs,
   textFlushMs,
 } from "./reporter"
-import { type RetryPolicy, retryWithin, startRetry } from "./retry"
+import { type RetryPolicy, finishRetry, retryWithin, startRetry } from "./retry"
 import {
   CallError,
   NoFixtureError,
@@ -58,6 +58,7 @@ export type ClaimedRun = {
 
 export type RunOptions = Partial<ReporterOptions> & {
   startRetry?: RetryPolicy
+  finishRetry?: RetryPolicy
 }
 
 type FinishBody =
@@ -187,6 +188,7 @@ class RunLoop {
   private readonly outer: AbortSignal
   private readonly options: ReporterOptions
   private readonly startRetry: RetryPolicy
+  private readonly finishRetry: RetryPolicy
   private readonly tools: RunTools
   private readonly cancel = new AbortController()
   private readonly reporter: Reporter
@@ -221,7 +223,8 @@ class RunLoop {
     factory: SessionFactory,
     outer: AbortSignal,
     options: ReporterOptions,
-    startRetry: RetryPolicy
+    startRetry: RetryPolicy,
+    finishRetry: RetryPolicy
   ) {
     this.claim = claim
     this.claimed = claimed
@@ -229,6 +232,7 @@ class RunLoop {
     this.outer = outer
     this.options = options
     this.startRetry = startRetry
+    this.finishRetry = finishRetry
     this.mode = modeOf(claimed.run)
     this.runRef = { run_id: claimed.run.id, attempt: claimed.run.attempt }
     this.renewBytes =
@@ -358,6 +362,7 @@ class RunLoop {
         this.cutOffs = 0
         this.answerNudged = false
         this.pendingNudged = false
+        this.inWriteWindow = false
         this.session = undefined
         reason = "conflict"
         carry = undefined
@@ -426,7 +431,6 @@ class RunLoop {
         this.claimed.model,
         {
           system,
-          tools: this.specs,
           prompt: this.claimed.run.prompt,
           userMessage: message,
           buildSaves: this.buildSaves,
@@ -483,6 +487,7 @@ class RunLoop {
       this.reporter.startMessage()
       answer = await session.next(results, {
         signal: this.cancel.signal,
+        tools: this.specs,
         onText: (text) => this.reporter.push(text),
       })
     } catch (error) {
@@ -543,9 +548,10 @@ class RunLoop {
     })
     this.made.push(...madeBy(this.specs, turn.toolCalls, executed.results))
     if (widened(turn.toolCalls, executed.results)) {
-      this.specs = await this.tools.listTools(
-        startReadTimeoutMs,
-        this.cancel.signal
+      this.specs = await retryWithin(
+        (signal) => this.tools.listTools(startReadTimeoutMs, signal),
+        this.cancel.signal,
+        this.startRetry
       )
     }
     this.sessionBytes += sizeOfTurn(
@@ -672,9 +678,14 @@ class RunLoop {
 
   private async finish(body: FinishBody) {
     await this.reporter.flush()
-    return this.claim.finishRun(
-      { ...this.runRef, ...body, usage: this.usageBody() },
-      this.outer
+    return retryWithin(
+      (signal) =>
+        this.claim.finishRun(
+          { ...this.runRef, ...body, usage: this.usageBody() },
+          signal
+        ),
+      this.outer,
+      this.finishRetry
     )
   }
 
@@ -714,7 +725,8 @@ export async function runLoop(
       heartbeatMs: options.heartbeatMs ?? heartbeatMs,
       textFlushMs: options.textFlushMs ?? textFlushMs,
     },
-    options.startRetry ?? startRetry
+    options.startRetry ?? startRetry,
+    options.finishRetry ?? finishRetry
   ).run()
 }
 

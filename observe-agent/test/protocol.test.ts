@@ -167,6 +167,20 @@ describe("protocol", () => {
     expect(parsed.build ?? null).toBeNull()
   })
 
+  test("a report answer keeps the lease end and the server's time", () => {
+    const parsed = reportAnswer.parse({
+      state: "running",
+      stop: false,
+      lease_until: "2026-11-27T10:01:00Z",
+      server_time: "2026-11-27T10:00:00Z",
+      build: null,
+    })
+    expect(parsed).toMatchObject({
+      lease_until: "2026-11-27T10:01:00Z",
+      server_time: "2026-11-27T10:00:00Z",
+    })
+  })
+
   test("inputs are strict", () => {
     expect(claimInput.safeParse({ wait_seconds: 30 }).success).toBe(true)
     expect(claimInput.safeParse({ wait_seconds: 31 }).success).toBe(false)

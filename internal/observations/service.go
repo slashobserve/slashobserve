@@ -241,6 +241,9 @@ func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (O
 		return Observation{}, err
 	}
 	o.Findings = fieldsOfShownAnswers(fields, o.Blocks, viewer)
+	if o.Confinement, err = placement.ObservationConfinement(ctx, s.store.db.Queries(), id); err != nil {
+		return Observation{}, err
+	}
 	return o, nil
 }
 

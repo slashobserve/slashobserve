@@ -9,6 +9,7 @@ function source(uid: string, healthy: boolean): DatasourceStatus {
     name: uid,
     source: "file",
     healthy,
+    health_state: healthy ? "healthy" : "failing",
     checked_at: "2026-11-20T00:00:00Z",
     dashboard_count: 0,
   }
