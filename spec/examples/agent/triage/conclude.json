@@ -1,0 +1,764 @@
+{
+  "leads": [
+    {
+      "id": "c1",
+      "service": "payment",
+      "text": "payment: errors 25% from 0.1% (1h); onset 2026-11-20T09:40:00Z",
+      "next": "Read payment errors before and after the onset"
+    },
+    {
+      "id": "c2",
+      "service": "ad",
+      "text": "ad: latency 2.5 s from 90 ms (1h); onset 2026-11-20T09:50:00Z",
+      "next": "Read ad latency before and after the onset"
+    }
+  ],
+  "seed": [
+    {
+      "name": "an incident with candidates",
+      "loop": true,
+      "task": "incident",
+      "swept": true,
+      "ledger": [],
+      "want": [
+        {
+          "id": "c1",
+          "text": "payment: errors 25% from 0.1% (1h); onset 2026-11-20T09:40:00Z",
+          "status": "open",
+          "next": "Read payment errors before and after the onset"
+        },
+        {
+          "id": "c2",
+          "text": "ad: latency 2.5 s from 90 ms (1h); onset 2026-11-20T09:50:00Z",
+          "status": "open",
+          "next": "Read ad latency before and after the onset"
+        }
+      ]
+    },
+    {
+      "name": "a run with no type",
+      "loop": true,
+      "task": "",
+      "swept": true,
+      "ledger": [],
+      "want": [
+        {
+          "id": "c1",
+          "text": "payment: errors 25% from 0.1% (1h); onset 2026-11-20T09:40:00Z",
+          "status": "open",
+          "next": "Read payment errors before and after the onset"
+        },
+        {
+          "id": "c2",
+          "text": "ad: latency 2.5 s from 90 ms (1h); onset 2026-11-20T09:50:00Z",
+          "status": "open",
+          "next": "Read ad latency before and after the onset"
+        }
+      ]
+    },
+    {
+      "name": "the loop off",
+      "loop": false,
+      "task": "incident",
+      "swept": true,
+      "ledger": [],
+      "want": []
+    },
+    {
+      "name": "a measure question",
+      "loop": true,
+      "task": "measure",
+      "swept": true,
+      "ledger": [],
+      "want": []
+    },
+    {
+      "name": "no sweep",
+      "loop": true,
+      "task": "incident",
+      "swept": false,
+      "ledger": [],
+      "want": []
+    },
+    {
+      "name": "a ledger already kept",
+      "loop": true,
+      "task": "incident",
+      "swept": true,
+      "ledger": [
+        {
+          "id": "h1",
+          "text": "mine",
+          "status": "open"
+        }
+      ],
+      "want": [
+        {
+          "id": "h1",
+          "text": "mine",
+          "status": "open"
+        }
+      ]
+    }
+  ],
+  "problems": [
+    {
+      "name": "every candidate closed and the cause named",
+      "ledger": [
+        {
+          "id": "c1",
+          "text": "t",
+          "status": "supported",
+          "closing": "cause",
+          "evidence": [
+            "payment 5xx 25%"
+          ]
+        },
+        {
+          "id": "c2",
+          "text": "t",
+          "status": "ruled_out",
+          "closing": "transient",
+          "evidence": [
+            "ad p95 2.5 s at 09:50",
+            "ad p95 90 ms at 10:10"
+          ]
+        }
+      ],
+      "transient_at": {
+        "c2": 2
+      },
+      "finding": {
+        "causes": [
+          {
+            "component": {
+              "name": "payment"
+            }
+          }
+        ]
+      },
+      "want": {
+        "problems": [],
+        "open": [],
+        "unclosed": "",
+        "unverified": []
+      }
+    },
+    {
+      "name": "a candidate still open",
+      "ledger": [
+        {
+          "id": "c1",
+          "text": "t",
+          "status": "supported",
+          "closing": "cause",
+          "evidence": [
+            "payment 5xx 25%"
+          ]
+        },
+        {
+          "id": "c2",
+          "text": "t",
+          "status": "open",
+          "next": "read ad latency"
+        }
+      ],
+      "transient_at": {},
+      "finding": {
+        "causes": [
+          {
+            "component": {
+              "name": "payment"
+            }
+          }
+        ]
+      },
+      "want": {
+        "problems": [
+          "c2 (ad) is still open; next: read ad latency"
+        ],
+        "open": [
+          "c2"
+        ],
+        "unclosed": "the finding cannot conclude while a triage candidate is unaccounted for: c2 (ad) is still open; next: read ad latency. Close each one in note_hypotheses as cause, knock_on with knock_on_of, background, transient or unrelated, with the evidence you read, then save the finding again",
+        "unverified": [
+          {
+            "kind": "candidate",
+            "text": "c2 ad"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a candidate open with no next of its own",
+      "ledger": [
+        {
+          "id": "c1",
+          "text": "t",
+          "status": "supported",
+          "closing": "cause",
+          "evidence": [
+            "payment 5xx 25%"
+          ]
+        },
+        {
+          "id": "c2",
+          "text": "t",
+          "status": "open"
+        }
+      ],
+      "transient_at": {},
+      "finding": {
+        "causes": [
+          {
+            "component": {
+              "name": " Payment "
+            }
+          }
+        ]
+      },
+      "want": {
+        "problems": [
+          "c2 (ad) is still open; next: Read ad latency before and after the onset"
+        ],
+        "open": [
+          "c2"
+        ],
+        "unclosed": "the finding cannot conclude while a triage candidate is unaccounted for: c2 (ad) is still open; next: Read ad latency before and after the onset. Close each one in note_hypotheses as cause, knock_on with knock_on_of, background, transient or unrelated, with the evidence you read, then save the finding again",
+        "unverified": [
+          {
+            "kind": "candidate",
+            "text": "c2 ad"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a candidate dropped from the ledger",
+      "ledger": [
+        {
+          "id": "c1",
+          "text": "t",
+          "status": "supported",
+          "closing": "cause",
+          "evidence": [
+            "payment 5xx 25%"
+          ]
+        }
+      ],
+      "transient_at": {},
+      "finding": {
+        "causes": [
+          {
+            "component": {
+              "name": "payment"
+            }
+          }
+        ]
+      },
+      "want": {
+        "problems": [
+          "c2 (ad) is missing from the ledger; send it again with the others"
+        ],
+        "open": [
+          "c2"
+        ],
+        "unclosed": "the finding cannot conclude while a triage candidate is unaccounted for: c2 (ad) is missing from the ledger; send it again with the others. Close each one in note_hypotheses as cause, knock_on with knock_on_of, background, transient or unrelated, with the evidence you read, then save the finding again",
+        "unverified": [
+          {
+            "kind": "candidate",
+            "text": "c2 ad"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a candidate with no closing",
+      "ledger": [
+        {
+          "id": "c1",
+          "text": "t",
+          "status": "supported",
+          "closing": "cause",
+          "evidence": [
+            "payment 5xx 25%"
+          ]
+        },
+        {
+          "id": "c2",
+          "text": "t",
+          "status": "ruled_out",
+          "evidence": [
+            "e"
+          ]
+        }
+      ],
+      "transient_at": {},
+      "finding": {
+        "causes": [
+          {
+            "component": {
+              "name": "payment"
+            }
+          }
+        ]
+      },
+      "want": {
+        "problems": [
+          "c2 (ad) is ruled_out with no closing"
+        ],
+        "open": [
+          "c2"
+        ],
+        "unclosed": "the finding cannot conclude while a triage candidate is unaccounted for: c2 (ad) is ruled_out with no closing. Close each one in note_hypotheses as cause, knock_on with knock_on_of, background, transient or unrelated, with the evidence you read, then save the finding again",
+        "unverified": [
+          {
+            "kind": "candidate",
+            "text": "c2 ad"
+          }
+        ]
+      }
+    },
+    {
+      "name": "transient with no later read",
+      "ledger": [
+        {
+          "id": "c1",
+          "text": "t",
+          "status": "supported",
+          "closing": "cause",
+          "evidence": [
+            "payment 5xx 25%"
+          ]
+        },
+        {
+          "id": "c2",
+          "text": "t",
+          "status": "ruled_out",
+          "closing": "transient",
+          "evidence": [
+            "ad p95 2.5 s at 09:50",
+            "ad p95 90 ms at 10:10"
+          ]
+        }
+      ],
+      "transient_at": {
+        "c2": 1
+      },
+      "finding": {
+        "causes": [
+          {
+            "component": {
+              "name": "payment"
+            }
+          }
+        ]
+      },
+      "want": {
+        "problems": [
+          "c2 (ad) is closed as transient, but no read after the first one shows it gone; read it again and cite that later read"
+        ],
+        "open": [
+          "c2"
+        ],
+        "unclosed": "the finding cannot conclude while a triage candidate is unaccounted for: c2 (ad) is closed as transient, but no read after the first one shows it gone; read it again and cite that later read. Close each one in note_hypotheses as cause, knock_on with knock_on_of, background, transient or unrelated, with the evidence you read, then save the finding again",
+        "unverified": [
+          {
+            "kind": "candidate",
+            "text": "c2 ad"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a cause the finding leaves out",
+      "ledger": [
+        {
+          "id": "c1",
+          "text": "t",
+          "status": "supported",
+          "closing": "cause",
+          "evidence": [
+            "payment 5xx 25%"
+          ]
+        },
+        {
+          "id": "c2",
+          "text": "t",
+          "status": "ruled_out",
+          "closing": "transient",
+          "evidence": [
+            "ad p95 2.5 s at 09:50",
+            "ad p95 90 ms at 10:10"
+          ]
+        }
+      ],
+      "transient_at": {
+        "c2": 2
+      },
+      "finding": {
+        "causes": [
+          {
+            "component": {
+              "name": "checkout"
+            }
+          }
+        ]
+      },
+      "want": {
+        "problems": [
+          "c1 (payment) is closed as cause, but causes does not name payment"
+        ],
+        "open": [],
+        "unclosed": "the finding cannot conclude while a triage candidate is unaccounted for: c1 (payment) is closed as cause, but causes does not name payment. Close each one in note_hypotheses as cause, knock_on with knock_on_of, background, transient or unrelated, with the evidence you read, then save the finding again",
+        "unverified": []
+      }
+    },
+    {
+      "name": "a cause closed as transient",
+      "ledger": [
+        {
+          "id": "c1",
+          "text": "t",
+          "status": "supported",
+          "closing": "cause",
+          "evidence": [
+            "payment 5xx 25%"
+          ]
+        },
+        {
+          "id": "c2",
+          "text": "t",
+          "status": "ruled_out",
+          "closing": "transient",
+          "evidence": [
+            "ad p95 2.5 s at 09:50",
+            "ad p95 90 ms at 10:10"
+          ]
+        }
+      ],
+      "transient_at": {
+        "c2": 2
+      },
+      "finding": {
+        "causes": [
+          {
+            "component": {
+              "name": "payment"
+            }
+          },
+          {
+            "component": {
+              "name": "AD"
+            }
+          }
+        ]
+      },
+      "want": {
+        "problems": [
+          "causes names ad, which c2 closed as transient"
+        ],
+        "open": [],
+        "unclosed": "the finding cannot conclude while a triage candidate is unaccounted for: causes names ad, which c2 closed as transient. Close each one in note_hypotheses as cause, knock_on with knock_on_of, background, transient or unrelated, with the evidence you read, then save the finding again",
+        "unverified": []
+      }
+    },
+    {
+      "name": "a legacy root cause",
+      "ledger": [
+        {
+          "id": "c1",
+          "text": "t",
+          "status": "supported",
+          "closing": "cause",
+          "evidence": [
+            "payment 5xx 25%"
+          ]
+        },
+        {
+          "id": "c2",
+          "text": "t",
+          "status": "ruled_out",
+          "closing": "transient",
+          "evidence": [
+            "ad p95 2.5 s at 09:50",
+            "ad p95 90 ms at 10:10"
+          ]
+        }
+      ],
+      "transient_at": {
+        "c2": 2
+      },
+      "finding": {
+        "root_cause": {
+          "component": "payment"
+        }
+      },
+      "want": {
+        "problems": [],
+        "open": [],
+        "unclosed": "",
+        "unverified": []
+      }
+    },
+    {
+      "name": "no incident over excluded candidates",
+      "ledger": [
+        {
+          "id": "c1",
+          "text": "t",
+          "status": "ruled_out",
+          "closing": "background",
+          "evidence": [
+            "e"
+          ]
+        },
+        {
+          "id": "c2",
+          "text": "t",
+          "status": "ruled_out",
+          "closing": "unrelated",
+          "evidence": [
+            "e"
+          ]
+        }
+      ],
+      "transient_at": {},
+      "finding": {
+        "no_incident": true
+      },
+      "want": {
+        "problems": [],
+        "open": [],
+        "unclosed": "",
+        "unverified": []
+      }
+    },
+    {
+      "name": "no incident over a cause",
+      "ledger": [
+        {
+          "id": "c1",
+          "text": "t",
+          "status": "supported",
+          "closing": "cause",
+          "evidence": [
+            "payment 5xx 25%"
+          ]
+        },
+        {
+          "id": "c2",
+          "text": "t",
+          "status": "ruled_out",
+          "closing": "unrelated",
+          "evidence": [
+            "e"
+          ]
+        }
+      ],
+      "transient_at": {},
+      "finding": {
+        "no_incident": true
+      },
+      "want": {
+        "problems": [
+          "no_incident is set, but c1 (payment) is closed as cause"
+        ],
+        "open": [],
+        "unclosed": "the finding cannot conclude while a triage candidate is unaccounted for: no_incident is set, but c1 (payment) is closed as cause. Close each one in note_hypotheses as cause, knock_on with knock_on_of, background, transient or unrelated, with the evidence you read, then save the finding again",
+        "unverified": []
+      }
+    },
+    {
+      "name": "no incident over an open candidate",
+      "ledger": [
+        {
+          "id": "c1",
+          "text": "t",
+          "status": "ruled_out",
+          "closing": "background",
+          "evidence": [
+            "e"
+          ]
+        }
+      ],
+      "transient_at": {},
+      "finding": {
+        "no_incident": true
+      },
+      "want": {
+        "problems": [
+          "c2 (ad) is missing from the ledger; send it again with the others"
+        ],
+        "open": [
+          "c2"
+        ],
+        "unclosed": "the finding cannot conclude while a triage candidate is unaccounted for: c2 (ad) is missing from the ledger; send it again with the others. Close each one in note_hypotheses as cause, knock_on with knock_on_of, background, transient or unrelated, with the evidence you read, then save the finding again",
+        "unverified": [
+          {
+            "kind": "candidate",
+            "text": "c2 ad"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a finding that does not decode names nothing",
+      "ledger": [
+        {
+          "id": "c1",
+          "text": "t",
+          "status": "supported",
+          "closing": "cause",
+          "evidence": [
+            "e"
+          ]
+        },
+        {
+          "id": "c2",
+          "text": "t",
+          "status": "supported",
+          "closing": "knock_on",
+          "knock_on_of": "c1",
+          "evidence": [
+            "e"
+          ]
+        }
+      ],
+      "transient_at": {},
+      "finding": {
+        "no_incident": "yes"
+      },
+      "want": {
+        "problems": [
+          "c1 (payment) is closed as cause, but causes does not name payment"
+        ],
+        "open": [],
+        "unclosed": "the finding cannot conclude while a triage candidate is unaccounted for: c1 (payment) is closed as cause, but causes does not name payment. Close each one in note_hypotheses as cause, knock_on with knock_on_of, background, transient or unrelated, with the evidence you read, then save the finding again",
+        "unverified": []
+      }
+    }
+  ],
+  "transient": [
+    {
+      "name": "closed again with new evidence after more reads",
+      "steps": [
+        {
+          "reads": 0,
+          "ledger": [
+            {
+              "id": "c2",
+              "text": "t",
+              "status": "ruled_out",
+              "closing": "transient",
+              "evidence": [
+                "ad p95 2.5 s at 09:50"
+              ]
+            }
+          ]
+        },
+        {
+          "reads": 2,
+          "ledger": [
+            {
+              "id": "c2",
+              "text": "t",
+              "status": "ruled_out",
+              "closing": "transient",
+              "evidence": [
+                "ad p95 2.5 s at 09:50",
+                "ad p95 90 ms at 10:10"
+              ]
+            }
+          ]
+        }
+      ],
+      "want": {
+        "c2": 2
+      }
+    },
+    {
+      "name": "the same ledger sent again keeps its first mark",
+      "steps": [
+        {
+          "reads": 1,
+          "ledger": [
+            {
+              "id": "c2",
+              "text": "t",
+              "status": "ruled_out",
+              "closing": "transient",
+              "evidence": [
+                "ad p95 2.5 s at 09:50"
+              ]
+            }
+          ]
+        },
+        {
+          "reads": 3,
+          "ledger": [
+            {
+              "id": "c2",
+              "text": "t",
+              "status": "ruled_out",
+              "closing": "transient",
+              "evidence": [
+                "ad p95 2.5 s at 09:50"
+              ]
+            }
+          ]
+        }
+      ],
+      "want": {
+        "c2": 1
+      }
+    },
+    {
+      "name": "reopened and closed again",
+      "steps": [
+        {
+          "reads": 0,
+          "ledger": [
+            {
+              "id": "c2",
+              "text": "t",
+              "status": "ruled_out",
+              "closing": "transient",
+              "evidence": [
+                "ad p95 2.5 s at 09:50"
+              ]
+            }
+          ]
+        },
+        {
+          "reads": 2,
+          "ledger": [
+            {
+              "id": "c2",
+              "text": "t",
+              "status": "open"
+            }
+          ]
+        },
+        {
+          "reads": 2,
+          "ledger": [
+            {
+              "id": "c2",
+              "text": "t",
+              "status": "ruled_out",
+              "closing": "transient",
+              "evidence": [
+                "ad p95 2.5 s at 09:50",
+                "ad p95 90 ms at 10:10"
+              ]
+            }
+          ]
+        }
+      ],
+      "want": {
+        "c2": 2
+      }
+    }
+  ]
+}

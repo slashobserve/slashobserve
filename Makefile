@@ -105,6 +105,7 @@ golden:
 	go test ./internal/agent/prompts -run TestRunTextGoldensAreCurrent -update
 	go test ./internal/agent/brief -run TestBriefGoldensAreCurrent -update
 	go test ./internal/agent/grounding -run Fixtures -update
+	go test ./internal/agent/triage -run 'Fixtures|Transcripts' -update
 
 tidy-check:
 	go mod tidy -diff

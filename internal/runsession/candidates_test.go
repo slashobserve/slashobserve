@@ -6,101 +6,14 @@ import (
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/agent/brief"
-	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/route"
-	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/agent/triage"
 	"github.com/slashobserve/slashobserve/internal/findings"
-	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 var twoLeads = []triage.Lead{
 	{ID: "c1", Service: "payment", Text: "payment: errors 25% from 0.1% (1h); onset 2026-11-20T09:40:00Z", Next: "Read payment errors before and after the onset"},
 	{ID: "c2", Service: "ad", Text: "ad: latency 2.5 s from 90 ms (1h); onset 2026-11-20T09:50:00Z", Next: "Read ad latency before and after the onset"},
-}
-
-func TestTheLedgerIsSeededWithOneOpenHypothesisPerCandidate(t *testing.T) {
-	own := []revisions.Hypothesis{{ID: "h1", Text: "mine", Status: revisions.HypothesisOpen}}
-	cases := []struct {
-		name   string
-		loop   bool
-		task   route.Task
-		triage *Triage
-		ledger []revisions.Hypothesis
-		want   []string
-	}{
-		{"an incident with candidates", true, route.Incident, &Triage{Leads: twoLeads}, nil, []string{"c1", "c2"}},
-		{"a run with no type", true, route.Full, &Triage{Leads: twoLeads}, nil, []string{"c1", "c2"}},
-		{"the loop off", false, route.Incident, &Triage{Leads: twoLeads}, nil, nil},
-		{"a measure question", true, route.Measure, &Triage{Leads: twoLeads}, nil, nil},
-		{"no candidates", true, route.Incident, &Triage{}, nil, nil},
-		{"no sweep", true, route.Incident, nil, nil, nil},
-		{"a ledger already kept", true, route.Incident, &Triage{Leads: twoLeads}, own, []string{"h1"}},
-	}
-	for _, c := range cases {
-		s := State{Guard: guard.New(tools.ModeInvestigate), Loop: c.loop, Task: c.task, Triage: c.triage, Ledger: c.ledger}
-		s.seedLedger()
-		var ids []string
-		for _, h := range s.Ledger {
-			ids = append(ids, h.ID)
-		}
-		if strings.Join(ids, ",") != strings.Join(c.want, ",") {
-			t.Errorf("%s: ledger = %v, want %v", c.name, ids, c.want)
-		}
-	}
-	s := State{Guard: guard.New(tools.ModeInvestigate), Loop: true, Task: route.Incident, Triage: &Triage{Leads: twoLeads}}
-	s.seedLedger()
-	if h := s.Ledger[1]; h.Status != revisions.HypothesisOpen || h.Text != twoLeads[1].Text || h.Next != twoLeads[1].Next || len(h.Evidence) != 0 {
-		t.Errorf("seeded hypothesis = %+v", h)
-	}
-}
-
-func closedAs(id, closing string, evidence ...string) revisions.Hypothesis {
-	return revisions.Hypothesis{ID: id, Text: "t", Status: revisions.ClosingStatus(closing), Closing: closing, Evidence: evidence}
-}
-
-func TestTheConcludeRuleNamesWhatIsUnaccountedFor(t *testing.T) {
-	cause := closedAs("c1", revisions.ClosingCause, "payment 5xx 25%")
-	transient := closedAs("c2", revisions.ClosingTransient, "ad p95 2.5 s at 09:50", "ad p95 90 ms at 10:10")
-	cases := []struct {
-		name      string
-		ledger    []revisions.Hypothesis
-		reads     map[string]int
-		finding   string
-		want      []string
-		wantsOpen []string
-	}{
-		{"every candidate closed and the cause named", []revisions.Hypothesis{cause, transient}, map[string]int{"c2": 2}, `{"causes":[{"component":{"name":"payment"}}]}`, nil, nil},
-		{"a candidate still open", []revisions.Hypothesis{cause, {ID: "c2", Text: "t", Status: "open", Next: "read ad latency"}}, nil, `{"causes":[{"component":{"name":"payment"}}]}`, []string{"c2 (ad) is still open; next: read ad latency"}, []string{"c2"}},
-		{"a candidate dropped from the ledger", []revisions.Hypothesis{cause}, nil, `{"causes":[{"component":{"name":"payment"}}]}`, []string{"c2 (ad) is missing from the ledger"}, []string{"c2"}},
-		{"a candidate with no closing", []revisions.Hypothesis{cause, {ID: "c2", Text: "t", Status: "ruled_out", Evidence: []string{"e"}}}, nil, `{"causes":[{"component":{"name":"payment"}}]}`, []string{"c2 (ad) is ruled_out with no closing"}, []string{"c2"}},
-		{"transient with no later read", []revisions.Hypothesis{cause, transient}, map[string]int{"c2": 1}, `{"causes":[{"component":{"name":"payment"}}]}`, []string{"c2 (ad) is closed as transient, but no read after the first one shows it gone"}, []string{"c2"}},
-		{"a cause the finding leaves out", []revisions.Hypothesis{cause, transient}, map[string]int{"c2": 2}, `{"causes":[{"component":{"name":"checkout"}}]}`, []string{"c1 (payment) is closed as cause, but causes does not name payment"}, nil},
-		{"a cause closed as transient", []revisions.Hypothesis{cause, transient}, map[string]int{"c2": 2}, `{"causes":[{"component":{"name":"payment"}},{"component":{"name":"AD"}}]}`, []string{"causes names ad, which c2 closed as transient"}, nil},
-		{"a legacy root cause", []revisions.Hypothesis{cause, transient}, map[string]int{"c2": 2}, `{"root_cause":{"component":"payment"}}`, nil, nil},
-		{"no incident over excluded candidates", []revisions.Hypothesis{closedAs("c1", revisions.ClosingBackground, "e"), closedAs("c2", revisions.ClosingUnrelated, "e")}, nil, `{"no_incident":true}`, nil, nil},
-		{"no incident over a cause", []revisions.Hypothesis{cause, closedAs("c2", revisions.ClosingUnrelated, "e")}, nil, `{"no_incident":true}`, []string{"no_incident is set, but c1 (payment) is closed as cause"}, nil},
-		{"no incident over an open candidate", []revisions.Hypothesis{closedAs("c1", revisions.ClosingBackground, "e")}, nil, `{"no_incident":true}`, []string{"c2 (ad) is missing"}, []string{"c2"}},
-	}
-	for _, c := range cases {
-		problems, open := candidateProblems(twoLeads, c.ledger, c.reads, concludedOf(json.RawMessage(c.finding)))
-		if len(problems) != len(c.want) {
-			t.Errorf("%s: problems = %q, want %q", c.name, problems, c.want)
-			continue
-		}
-		for i, want := range c.want {
-			if !strings.HasPrefix(problems[i], want) {
-				t.Errorf("%s: problem %q, want %q", c.name, problems[i], want)
-			}
-		}
-		var ids []string
-		for _, l := range open {
-			ids = append(ids, l.ID)
-		}
-		if strings.Join(ids, ",") != strings.Join(c.wantsOpen, ",") {
-			t.Errorf("%s: open = %v, want %v", c.name, ids, c.wantsOpen)
-		}
-	}
 }
 
 func incidentScript(t *testing.T, calls int) *script {
@@ -211,35 +124,5 @@ func TestTheFirstBriefShowsTheSeededLedger(t *testing.T) {
 		"- c2 [open] " + twoLeads[1].Text + "\n  next: " + twoLeads[1].Next + "\n</hypotheses>"
 	if !strings.Contains(got.Message, want) {
 		t.Fatalf("the first brief lacks the seeded ledger:\n%s", got.Message)
-	}
-}
-
-type ledgerStep struct {
-	reads  int
-	ledger revisions.Hypothesis
-}
-
-func TestATransientClosingMadeTooEarlyCanBeRedoneAfterReadingAgain(t *testing.T) {
-	early := closedAs("c2", revisions.ClosingTransient, "ad p95 2.5 s at 09:50")
-	later := closedAs("c2", revisions.ClosingTransient, "ad p95 2.5 s at 09:50", "ad p95 90 ms at 10:10")
-	reopened := revisions.Hypothesis{ID: "c2", Text: "t", Status: revisions.HypothesisOpen}
-	cases := []struct {
-		name  string
-		steps []ledgerStep
-		want  int
-	}{
-		{"closed again with new evidence after more reads", []ledgerStep{{0, early}, {2, later}}, 2},
-		{"the same ledger sent again keeps its first mark", []ledgerStep{{1, early}, {3, early}}, 1},
-		{"reopened and closed again", []ledgerStep{{0, early}, {2, reopened}, {2, later}}, 2},
-	}
-	for _, c := range cases {
-		s := &State{Guard: guard.New(tools.ModeInvestigate), Loop: true, Task: route.Incident, Triage: &Triage{Leads: twoLeads}}
-		for _, step := range c.steps {
-			s.DataReads = step.reads
-			s.noteLedger([]revisions.Hypothesis{step.ledger})
-		}
-		if got := s.TransientAt["c2"]; got != c.want {
-			t.Errorf("%s: TransientAt = %d, want %d", c.name, got, c.want)
-		}
 	}
 }
