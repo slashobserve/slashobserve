@@ -315,3 +315,23 @@ func postTraces(ctx context.Context, body []byte) error {
 	}
 	return nil
 }
+
+func TestJaegerListsFailingTracesOfAService(t *testing.T) {
+	ds := integrationDS(t)
+	ctx := context.Background()
+	eventually(t, ds, pushedTraceID)
+	if _, err := ds.ListTraces(ctx, datasource.TraceListRequest{Range: aroundSend(), Errors: true}); !errors.Is(err, datasource.ErrInvalidQuery) {
+		t.Fatalf("a list without a service: err = %v, want an invalid query", err)
+	}
+	got, err := ds.ListTraces(ctx, datasource.TraceListRequest{Range: aroundSend(), Filter: datasource.TraceFilter{Service: "checkout", Route: "POST /checkout"}, Errors: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Complete || len(got.Traces) != 1 || got.Traces[0].ID != pushedTraceID || got.Traces[0].Duration != 50*time.Millisecond {
+		t.Fatalf("failing traces = %+v", got)
+	}
+	got, err = ds.ListTraces(ctx, datasource.TraceListRequest{Range: aroundSend(), Filter: datasource.TraceFilter{Service: "checkout", Route: "GET /other"}})
+	if err != nil || len(got.Traces) != 0 {
+		t.Fatalf("another route = %+v, %v", got, err)
+	}
+}

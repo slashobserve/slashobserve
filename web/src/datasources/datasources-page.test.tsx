@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { contextSourceKeys, datasourceKeys } from "@/api/keys"
+import { mcpSourceKeys, datasourceKeys } from "@/api/keys"
 import { PanelHostContext } from "@/shell/side-panel"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
@@ -10,7 +10,7 @@ import { DatasourcesPage } from "./datasources-page"
 function seeded(settled: boolean) {
   const queryClient = testQueryClient()
   queryClient.setQueryData(datasourceKeys.list(), { datasources: [] })
-  if (settled) queryClient.setQueryData(contextSourceKeys.list(), [])
+  if (settled) queryClient.setQueryData(mcpSourceKeys.list(), [])
   return queryClient
 }
 

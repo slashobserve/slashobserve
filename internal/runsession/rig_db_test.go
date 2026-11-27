@@ -238,6 +238,10 @@ func withMaxCost(limit float64, prices pricing.Table) rigOption {
 	return func(c *Config) { c.MaxRunCostUSD, c.Prices = limit, prices }
 }
 
+func withInvestigationLoop() rigOption {
+	return func(c *Config) { c.InvestigationLoop = true }
+}
+
 func withInvestigationCalls(n int) rigOption {
 	return func(c *Config) { c.InvestigationCalls = n }
 }

@@ -221,7 +221,6 @@ func TestInvestigateTreatsAnEmptyFilterAsMatchingNothing(t *testing.T) {
 	system := Investigate()
 	for _, want := range []string{
 		"A filter that returns nothing matched nothing",
-		"a ClickHouse span status, which is `Error`",
 		"look for the service's span-metrics series",
 	} {
 		if !strings.Contains(system, want) {
@@ -241,7 +240,7 @@ func TestInvestigateRanksAndGroupsErrorsBeforeItNamesACause(t *testing.T) {
 	system := Investigate()
 	for _, want := range []string{
 		"rank the services by their error counts before you read one trace",
-		"group the error spans by status message over time",
+		"group the error spans or lines by message over time",
 		"Give the time of the last error span before you call a bucket partial",
 		"Make the first sentence match the numbers under it",
 	} {

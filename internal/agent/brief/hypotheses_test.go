@@ -34,6 +34,18 @@ func TestHypothesesRenderEachOneWithItsStatusEvidenceAndNextCheck(t *testing.T) 
 	}
 }
 
+func TestAClosedHypothesisRendersItsClosing(t *testing.T) {
+	got := Hypotheses([]revisions.Hypothesis{
+		{ID: "c1", Text: "cart errors rose", Status: "supported", Closing: "cause", Evidence: []string{"cart 5xx 12%"}},
+		{ID: "c2", Text: "checkout errors rose", Status: "ruled_out", Closing: "knock_on", KnockOnOf: "c1", Evidence: []string{"only on cart calls"}},
+	})
+	for _, want := range []string{"- c1 [supported, cause] cart errors rose\n", "- c2 [ruled_out, knock_on of c1] checkout errors rose\n"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("block lacks %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestAFullLedgerRendersWithinTheLedgerCapPlusItsFixedText(t *testing.T) {
 	var ledger []revisions.Hypothesis
 	for _, id := range []string{"a", "b", "c", "d", "e", "f"} {
@@ -90,8 +102,8 @@ func TestRenderSendsTheLedgerSectionOnlyInInvestigateRunsWithTheLoopOn(t *testin
 			}
 			continue
 		}
-		if off.System != prompts.Investigate() || on.System != prompts.InvestigateWithLedger() || off.System == on.System {
-			t.Fatalf("investigate: system text off %t, on %t", off.System == prompts.Investigate(), on.System == prompts.InvestigateWithLedger())
+		if off.System != investigateText(prompts.Variant{}) || on.System != investigateText(prompts.Variant{Ledger: true}) || off.System == on.System {
+			t.Fatalf("investigate: system text off %t, on %t", off.System == investigateText(prompts.Variant{}), on.System == investigateText(prompts.Variant{Ledger: true}))
 		}
 		if on.Context != off.Context || on.User != off.User {
 			t.Fatal("investigate: the loop changed the context of a run with no ledger yet")

@@ -13,7 +13,7 @@ The datasource answers queries as soon as it is saved, and other servers in a fl
 2. Choose **Add source** in the page header.
 3. Fill in the form:
    - **Type**, one of Prometheus, Loki, Tempo, Jaeger, "ClickHouse, read only", Elasticsearch or OpenSearch.
-     The list also offers **MCP server**, which registers a context source instead; see [Context sources](../operate/context-sources.md).
+     The list also offers **MCP server**, which registers an MCP source instead; see [MCP sources](../operate/mcp-sources.md).
    - **Id**, which dashboards use to refer to the datasource and which cannot change later.
      It starts with a letter or digit and has at most 40 letters, digits, `_` and `-`.
    - **Name**, shown in lists, at most 100 characters.
@@ -292,7 +292,7 @@ They need an Admin key, except `recheck`, which needs a Viewer key.
 - `--clear` takes `password`, `bearer_token`, `api_key` or `header:<name>`, and repeats for several.
 - `--database` and `--tls` apply to ClickHouse.
 - `--tenant-id` is the Loki tenant, and `--scrape-interval` is the Prometheus scrape interval.
-- `--index`, `--time-field`, `--query-language` (`kql` or `lucene`) and the `--field-message`, `--field-level`, `--field-service`, `--field-trace-id` and `--field-span-id` settings apply to Elasticsearch and OpenSearch.
+- `--index`, `--time-field`, `--query-language` (`kql` or `lucene`), `--spans` (`jaeger` for an index of Jaeger spans) and the `--field-message`, `--field-level`, `--field-service`, `--field-trace-id` and `--field-span-id` settings apply to Elasticsearch and OpenSearch.
 - `--timeout`, `--max-series`, `--max-points`, `--max-rows` and `--max-concurrent-queries` set the query limits.
 - `--grafana-uid` names a Grafana datasource uid this one stands for on import, and repeats for several.
 

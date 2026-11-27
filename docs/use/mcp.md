@@ -312,7 +312,7 @@ An MCP client investigates with its own model, using the discovery and query too
 
 ## Search logs and traces
 
-Over MCP, `log_context`, `log_patterns`, `log_facets` and `logs_for_trace` read logs, and `get_trace`, `trace_stats` and `compare_traces` read traces.
+Over MCP, `log_context`, `log_patterns`, `log_facets` and `logs_for_trace` read logs, and `get_trace`, `trace_stats`, `trace_error_origins`, `trace_slow_path` and `compare_traces` read traces.
 `query_instant` runs your own query, including SQL over `otel_traces` on ClickHouse.
 `save_search` saves a search so people can open it from the logs, traces or metrics page.
 [Logs and traces](logs-and-traces.md) describes the same features in the web app.
@@ -407,7 +407,7 @@ A run that no outside agent took within 10 minutes fails as `agent_unavailable`.
 
 The server enforces the guards of [SlashObserve's own agent](../concepts/agent.md#guards) on every run session, whatever agent works in it:
 
-- The save-now window: after 6 turns without a save, 12 in a suggest run and `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` (12 by default) in an investigate run and in a create run until its first panel is saved, only a save runs and a read in a turn without a save is refused; the call before the limit gets a note.
+- The save-now window: after 6 turns without a save, 12 in a suggest run and `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` (by default the task type's limit, 12 to 30, and 12 in a create run) in an investigate run and in a create run until its first panel is saved, only a save runs and a read in a turn without a save is refused; the call before the limit gets a note.
 - Identical reads: a third identical read is refused, and an errored read or a query result runs again.
 - One save per turn: a second save in one turn is refused.
 - Repeated saves: a save identical to an earlier one is refused.
@@ -416,8 +416,10 @@ The server enforces the guards of [SlashObserve's own agent](../concepts/agent.m
 - Stalled turns: two turns in a row in which every call was refused end the run as `no_progress`.
 - The hypothesis ledger: with `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, an investigate run has `note_hypotheses`, which a connected agent gets only in an investigate run with a run token and `get_run_brief` gives it the prompt section too, never outside a run; its calls are neither reads nor writes, so they are not refused at the call limit, and a turn with only ledger calls counts as stalled.
   The stages, the stage line after each turn and the call limit that grow with progress (`SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`) belong to the built-in agent only; a connected agent never sees a stage line and keeps the fixed limit.
-- The grounding check: with `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, a finding saved in an investigate run is checked against what the run read, for a connected agent as for the built-in one.
+- The grounding check: with `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, a finding saved in a run is checked against what the run read, for a connected agent as for the built-in one; the measurement, trace, `log_facets` and `log_patterns` reads then carry fact ids in `facts`, `save_finding` cites them as `{{f3}}` and lists `answers`, and the server writes the values into the text before it is stored.
   With `enforce`, `save_finding` is sent back once with the figures and names that were not found, the next call may read past the call limit, and the second save is accepted; the send-back is not a rejected save.
+  Each entry of an investigation's `causes` is then scored from the evidence, and `save_finding` answers with each cause's `confidence`, `band` and `stated`; see [Causes and confidence](../concepts/investigate.md#causes-and-confidence).
+- Task types: an investigate run whose question the server sorted into a [task type](../concepts/investigate.md#task-types) lists only that type's tools, for a connected agent as for the built-in one, and a call to another tool answers `unknown_tool` with a line naming the run's tools; `list_more_tools`, offered only in such a run, offers every investigation tool for the rest of the run, so list the tools again after it.
 - Churn: a save that changes no panel, or changes a panel for the fifth time, gets a note, and the fourth such save in a row ends the run as `no_progress`.
 - The cost limit: when `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` is set and `report_run` or `finish_run` reports `usage` whose cost reaches it, the answer has `stop: true` and the run ends as `budget_exhausted`.
   Without `usage` the server cannot know the cost and never stops a run for it.
@@ -523,7 +525,7 @@ The server uses the role of the key's service account, or of the person for an O
 | `apply_suggested_change` | Viewer |
 | `archive_run` | Viewer |
 | `arrange_blocks` | Viewer |
-| `call_context_tool` | Viewer |
+| `call_mcp_tool` | Viewer |
 | `cancel_run` | Viewer |
 | `claim_run` | Viewer |
 | `clear_home_dashboard` | Viewer |
@@ -539,7 +541,7 @@ The server uses the role of the key's service account, or of the person for an O
 | `draft_query` | Viewer |
 | `duplicate_dashboard` | Viewer |
 | `edit_comment` | Viewer |
-| `find_context_tools` | Viewer |
+| `find_mcp_tools` | Viewer |
 | `finish_run` | Viewer |
 | `get_audit_event` | Admin |
 | `get_audit_histogram` | Admin |
@@ -566,7 +568,6 @@ The server uses the role of the key's service account, or of the person for an O
 | `list_audit_fields` | Admin |
 | `list_chats` | Viewer |
 | `list_comments` | Viewer |
-| `list_context_sources` | Viewer |
 | `list_dashboard_health` | Viewer |
 | `list_dashboard_versions` | Viewer |
 | `list_dashboard_viewers` | Viewer |
@@ -576,6 +577,7 @@ The server uses the role of the key's service account, or of the person for an O
 | `list_inbox` | Viewer |
 | `list_label_values` | Viewer |
 | `list_labels` | Viewer |
+| `list_mcp_sources` | Viewer |
 | `list_mentionable_people` | Viewer |
 | `list_metrics` | Viewer |
 | `list_observations` | Viewer |
@@ -590,6 +592,8 @@ The server uses the role of the key's service account, or of the person for an O
 | `log_patterns` | Viewer |
 | `logs_for_trace` | Viewer |
 | `make_dashboard` | Viewer |
+| `measure_aggregate` | Viewer |
+| `measure_window` | Viewer |
 | `merge_proposal` | Viewer |
 | `move_dashboard` | Viewer |
 | `move_observation` | Viewer |
@@ -622,6 +626,8 @@ The server uses the role of the key's service account, or of the person for an O
 | `share_answer` | Viewer |
 | `show_panel` | Viewer |
 | `start_run` | Viewer |
+| `trace_error_origins` | Viewer |
+| `trace_slow_path` | Viewer |
 | `trace_stats` | Viewer |
 | `unpin_dashboard` | Viewer |
 | `unpin_run` | Viewer |
@@ -714,7 +720,7 @@ An Admin also gets the section on the built-in audit datasource.
 
 Each datasource type answers these discovery tools:
 
-- Prometheus: `list_metrics`, `list_labels` and `list_label_values`.
+- Prometheus: `list_metrics`, `list_labels` and `list_label_values`, over the last hour unless you pass `from` and `to`.
 - ClickHouse: the same on the OpenTelemetry tables, plus `get_schema` and `sample_rows`.
 - Loki:
   - `list_labels` and `list_label_values` for stream labels, narrowed by a stream selector in `metric`.
@@ -1108,6 +1114,7 @@ Runs a query over a time range and returns a compact summary: up to 20 series wi
   The summary shows up to ten lines; `query_instant` with `page_size` shows the whole page.
 - On any ClickHouse table, `query_range` refuses a query that does not read the time range through a macro such as `$__timeFilter(Timestamp)`.
   A macro inside a comment does not count.
+- On Prometheus and Loki, an empty result's `note` says why nothing matched, as [Empty results](#empty-results) explains.
 
 #### `show_panel`
 
@@ -1123,13 +1130,64 @@ It is read-only, and it runs through the same path and under the same limits as 
 - A chart with more than 2 MiB of data is not drawn: the host gets the summary and a note to ask for a shorter range or fewer series.
 - A server built without the chart view, and a client that does not show MCP Apps, get the summary only.
 
+#### `measure_aggregate`
+
+Measures one figure pooled over a whole window on a Prometheus or Loki datasource: a total, a ratio of two totals, a quantile, or the peak, low or average of a field in log lines.
+It runs one instant query at `to` over a range as long as the window, so the figure covers every sample and is never pieced together from the points of a range query.
+
+- Pass `datasource`, `op` and `query`, and optionally `denominator`, `quantile`, `unwrap`, `by`, `from` and `to`.
+- On Prometheus, `query` is a series selector such as `http_requests_total{service_name="cart"}`; an expression is refused, because the server adds `increase` and `sum` itself.
+- `op` `total` is `sum(increase(query[W]))`, where `W` is the window.
+- `op` `ratio` divides the total of `query` by the total of `denominator`.
+  A group whose numerator has no series but whose denominator grew reads 0, not an empty result.
+  Each value also carries `numerator` and `denominator`, and the result carries the two queries that gave them.
+- `op` `quantile` with `quantile`, such as `0.99`, is `histogram_quantile(q, sum by (le) (increase(<name>_bucket{...}[W])))`.
+  When `<name>_bucket` has no series, the selector is read as a native histogram, `histogram_quantile(q, sum(increase(<name>{...}[W])))`, and `query` names the one that answered.
+- On Loki, `query` is a log query, a stream selector with an optional pipeline such as `{service_name="cart"} | json`; a metric query is refused, because the server adds the range function itself.
+  `op` `total` counts the matching lines, `sum(count_over_time(query [W]))`, and `ratio` divides the line counts of `query` and `denominator`, 0 when `query` matches nothing.
+  With `unwrap`, the numeric label or parsed field to measure (`duration(field)` and `bytes(field)` read values with units), `total` is the field's sum and `quantile`, `max`, `min` and `avg` pool every line in the window, such as `quantile_over_time(0.99, query | unwrap ms | __error__="" [W]) by ()`.
+  Lines whose field does not parse are skipped.
+- `by` names up to 5 labels to group by, such as `service_name`; leave it out for one figure over everything matched.
+- The result holds `store`, the datasource type, `query`, the query that ran, and one entry per group in `values` (at most 20) with `value` at full precision, or `undefined` when nothing was counted, such as a ratio whose denominator did not grow.
+  With the grounding check on, a fact of a Loki result is the logs signal of a cause, and one of Prometheus is the metrics signal.
+- An empty result says so in `note`: no series matched, which does not show the value was zero, and the note first says why, as [Empty results](#empty-results) explains.
+- On Prometheus, `max`, `min` and `avg` are `measure_window`'s, and another datasource type answers `invalid_request`.
+
+#### `measure_window`
+
+Measures one figure of a PromQL expression over a whole window on a Prometheus datasource.
+The datasource computes it from every sample or step, so a peak between the points of a range query is not missed.
+
+- Pass `datasource`, `query`, `stat` and optionally `from`, `to` and `step`.
+- `stat` is `max`, `min`, `avg` or `last` for a value, and `first_time` or `last_time` with `where` for when a condition first or last held, such as `== 0` or `> 100`.
+- A plain selector such as `queue_depth{service="orders"}` is measured over every stored sample.
+  Any other expression is evaluated every `step`, 1 minute by default and 15 seconds for a time.
+- The result holds `query`, the PromQL that ran, `sampled`, and one entry per series in `values` (at most 20): `value` at full precision, or `at` and `seconds_after_from` for a time.
+- `max` and `min` of a single series also carry `at`, when the value was first reached, when a 15 second step finds it.
+- An empty result says so in `note`: no series matched, which does not show the value was zero, and the note first says why, as [Empty results](#empty-results) explains.
+- A total, a ratio or a quantile over the window comes from `measure_aggregate`.
+- Another datasource type answers `invalid_request`.
+
+#### Empty results
+
+When `query_range`, `query_instant`, `measure_window` or `measure_aggregate` returns nothing on a Prometheus or Loki datasource, the server reads the datasource's label names and values for each selector in the query before it answers, and the `note` starts with the first reason it finds:
+
+- A label key the selector uses is on no series of that metric, or no stream, in the window, with the closest keys the datasource has, such as `service_name` and `job` for `service`.
+- The key exists but the value does not, with the closest values, or some of the values when none is close.
+- The key or value exists in the 7 days around the window but has no samples in it, or the metric has series but none in the window.
+- No metric of that name exists, with the closest names.
+- On Loki, the stream selector matches lines in the window, so the pipeline after it dropped them all, with the count of those lines.
+- On Prometheus, when every selector's values exist, the note says that either no series has them all together or the query's functions or label matching removed every series.
+
+The check makes at most 6 discovery calls in 4 seconds; when one fails or the time runs out, the note says nothing more and the result is unchanged.
+
 #### `query_instant`
 
 Runs a query as an instant query, PromQL evaluated once at `to`, and returns the summary of the rows or series.
 Use it for a table panel's query, or a query with `instant: true`.
 
 - It takes the arguments of `query_range` except `format` and `max_data_points`, plus `page_size`, `page`, `cursor`, `sort` and `as_written`.
-- It returns `executed`, as `query_range` does.
+- It returns `executed`, as `query_range` does, and on Prometheus and Loki explains an empty result in `note`.
 - On a ClickHouse trace datasource it also runs your own SQL over `otel_traces`, the query the SQL view of the trace search runs, with the same read-only, time range and row checks.
   `page_size` (50 to 500), `page` and `sort` page it.
   - A paged query that selects `Timestamp` comes back as log lines, newest first, with a `TimeNs` column.
@@ -1176,12 +1234,16 @@ The built-in agent has the same tool.
 - The answer says `source` (`loki`, `elasticsearch` or `server`), `lines_sampled` and `lines_matched`.
 - Each pattern has `count`, `sample` cut to 200 bytes, `first`, `last`, `level` and `trend`.
   `trend` holds the counts of 30 equal buckets over the range, whose width in milliseconds is `trend_step_ms`.
+- With the grounding check on, each pattern's `count` and the answer's `lines_matched` carry fact ids in `facts`; with `source: server` they are sampled facts, which a finding shows as `at least` the count ([Facts](../concepts/investigate.md#facts)).
 
 #### `log_facets`
 
 Counts the top values of each label, field or column that a logs query matches on a Loki, ClickHouse, Elasticsearch or OpenSearch datasource.
 Counts are exact where the datasource can give them, and come from the newest sampled lines where it cannot.
 The built-in agent has the same tool.
+
+- With the grounding check on, each value's `count` and the answer's `lines_sampled` carry fact ids in `facts`.
+  A count of a field that does not say `exact: true` is a sampled fact, which a finding shows as `at least` the count, and a count with `unit: bytes` shows `bytes` after it ([Facts](../concepts/investigate.md#facts)).
 
 #### `logs_for_trace`
 
@@ -1194,7 +1256,7 @@ It answers the table summary of `query_instant`.
 
 #### `get_trace`
 
-Reads one trace by id from a Tempo, Jaeger or ClickHouse datasource: its services, root span, error spans with the message each set, and slowest spans.
+Reads one trace by id from a Tempo, Jaeger or ClickHouse datasource, or from an Elasticsearch or OpenSearch datasource with `spans: jaeger` ([Read spans that Jaeger stored](../connect/opensearch.md#read-spans-that-jaeger-stored)): its services, root span, error spans with the message each set, and slowest spans.
 A trace over 20,000 spans is cut to its earliest spans and says so.
 The built-in agent has the same tool.
 
@@ -1202,16 +1264,45 @@ The built-in agent has the same tool.
 
 Counts spans and errors per time bucket (at most 60, set with `buckets`).
 It gives p50, p95 and p99 durations per bucket and a duration histogram over a filter.
-On Tempo it also gives p50, p95 and p99 for the whole range in `window`, and with `group_by` (one attribute such as `resource.service.name`, `span.http.route` or `.http.method`, or `name`, `status` or `kind`) the span count, error count and the same quantiles per value, at most 20 values by span count.
-Tempo computes quantiles by interpolating its log-scale duration buckets, so they are approximate, and the response says so in `note`.
-ClickHouse answers per-bucket quantiles only and says so in `note`.
-The `query` is a TraceQL filter on Tempo or a SQL condition over `otel_traces` on ClickHouse.
+It also gives p50, p95 and p99 for the whole range in `window`, and with `group_by` (one attribute such as `resource.service.name`, `span.http.route` or `.http.method`, or `name`, `status` or `kind`, which ClickHouse maps to its columns) the span count, error count and the same quantiles per value, at most 20 values by span count.
+The window and group quantiles are exact: each is the duration at position q times n of every matching span's duration, sorted, which is what ClickHouse `quantilesExact` reads.
+On Tempo the server reads those durations from a trace search of at most 20,000 spans; when the search returns fewer spans than match, `quantiles` says `sample` and `quantile_spans` says how many spans the figures rest on.
+Tempo's per-bucket quantiles are interpolated from its log-scale duration buckets, so they are approximate, and the response says so in `note`.
+
+The `query` is a TraceQL filter on Tempo, a SQL condition over `otel_traces` on ClickHouse, or a query in the datasource's own language over the span documents of an Elasticsearch or OpenSearch datasource with `spans: jaeger`, such as `process.serviceName:checkout`.
+On such a datasource the window and group quantiles are exact from up to 20,000 span durations, and the per-bucket quantiles are the cluster's percentile estimates, which `note` says are approximate.
+The built-in agent has the same tool.
+
+#### `trace_error_origins`
+
+Finds where failing requests start over a window.
+It counts each failing trace once, at its deepest erroring span with no error below it, and groups the traces by that span's service, operation and status message.
+Each group has its trace count, its share of the examined traces, one full example trace id and `relayed_by`, the services above the origin whose spans also failed and only passed the error on.
+
+- It takes `datasource` (Tempo, Jaeger, ClickHouse, or an Elasticsearch or OpenSearch datasource with `spans: jaeger`), `service`, `route` (the root span name), `operation`, `by_route`, `from` and `to`; Jaeger needs `service`.
+- `by_route` splits the groups by route, so each share is of that route's examined traces, and `routes` lists each route's failing and examined traces.
+- The server lists up to 2,000 failing traces, the newest first, and reads up to 200 of them, spread over the window and taken from every route in turn.
+  `failing_traces` is how many it listed, `complete` whether that is every failing trace in the window, `examined` how many it read and `sample` whether the figures rest on fewer than all of them.
+
+The built-in agent has the same tool.
+
+#### `trace_slow_path`
+
+Finds where slow requests spend their time, for each route on its own.
+A trace is slow when it lasts longer than `threshold_ms`, or by default longer than twice the p50 of its route over the listed traces of the window.
+For each route (the root span name) it gives the threshold, the number of slow traces, the three spans with the most self time across them (service, operation, self time, share of the slow traces' self time and how many traces have the span), every service in the slow traces with its trace count, and the slowest one as an example with its full trace id and exact duration.
+
+- It takes `datasource` (Tempo, Jaeger, ClickHouse, or an Elasticsearch or OpenSearch datasource with `spans: jaeger`), `service`, `route`, `operation`, `threshold_ms`, `from` and `to`; Jaeger needs `service`.
+- Self time is a span's duration less the time its children cover.
+- The server lists up to 2,000 traces and reads up to 200 slow ones, spread over the window and taken from every route in turn; `complete` and `sample` say whether the figures cover every slow trace, and at most 10 routes are returned.
+- Tempo lists trace durations in whole milliseconds, so on Tempo the threshold and p50 rest on those, while the example's duration comes from the whole trace.
+
 The built-in agent has the same tool.
 
 #### `compare_traces`
 
 Explains why some traces are slow or failing.
-It takes up to 50 `selected` trace ids and up to 150 `baseline` ids from a Tempo or ClickHouse datasource.
+It takes up to 50 `selected` trace ids and up to 150 `baseline` ids from a Tempo or ClickHouse datasource, or from an Elasticsearch or OpenSearch datasource with `spans: jaeger`.
 It returns the attribute values whose share of traces differs most between the two sets, at most `limit` of them (default 20, at most 100).
 The built-in agent has the same tool.
 
@@ -1586,7 +1677,7 @@ Reads one run of the built-in agent by the id of a `run.*` event from `list_acti
   It stays set after the answer is saved into another observation.
   It is null when the run is `redacted` or when you cannot open that observation.
 - The run's `investigation` field says whether it is an investigation.
-- The run's `finding` also carries the structured fields `root_cause`, `onset`, `impact`, `confidence`, `ruled_out`, `next_steps` and `no_incident`, which the agent's `save_finding` sets; see [Investigate](investigate.md#structured-fields).
+- The run's `finding` also carries the structured fields `causes`, `root_cause`, `onset`, `impact`, `confidence`, `ruled_out`, `next_steps` and `no_incident`, which the agent's `save_finding` sets; see [Investigate](investigate.md#structured-fields).
 - `anchor` and `block_id` are the spot a run points at, shaped as `start_run` takes it.
   They are filled only for the person who asked the run, and are `null` for anyone else and for a run that points at nothing.
   The turns of `get_chat` carry the same two fields under the same rule.
@@ -1808,42 +1899,43 @@ They are `search_audit_events`, `get_audit_event`, `list_audit_facets`, `get_aud
   `list_audit_fields` records nothing, and none of them changes or deletes an event.
 - The export is in the CLI and the API only, because a tool answer holds at most 16 KiB.
 
-### Context source tools
+### MCP source tools
 
-Three tools let an agent read from the [context sources](../operate/context-sources.md) an Admin registered.
+Three tools let an agent read from the [MCP sources](../operate/mcp-sources.md) an Admin registered.
 All three need the Viewer role, and a run offers them in an investigation or a question asked in a chat only, not when a dashboard is built or revised or a panel is suggested.
 
-#### `list_context_sources`
+#### `list_mcp_sources`
 
-Lists the context sources the caller may use, each with the approved tools it may call.
+Lists the MCP sources the caller may use, each with the approved tools it may call.
 
-- A source shows its `source` (the id to pass to `call_context_tool`), `name`, an `about` line, a `status` when its last check failed, and its `tool_count`.
+- A source shows its `source` (the id to pass to `call_mcp_tool`), `name`, an `about` line, a `status` when its last check failed, and its `tool_count`.
   The line is the description an Admin gave the source, or "<name>, an MCP server at <host>" when it has none.
-- While the caller may use 20 approved tools or fewer in all, each tool also shows its `name`, a one-line `description` and its `arguments`, such as `query (string, required), limit (integer)`.
-  Above that the list gives only the count for each source and a `find` line that points to `find_context_tools`, so the answer stays short however many tools there are.
+- While the caller may use 20 approved tools or fewer in all, each tool also shows its `name`, a one-line `description`, its `arguments`, such as `query (string, required), limit (integer)`, and `read_only`.
+  `read_only` is true when the source's server marks the tool as only reading, and false for a tool an Admin approved by name although the server does not mark it so; calling such a tool may change the system it reaches.
+  Above that the list gives only the count for each source and a `find` line that points to `find_mcp_tools`, so the answer stays short however many tools there are.
 - A source set to Admins only is listed for an Admin and left out for anyone else.
 - A source whose last check failed is still listed, with a `status` that says so, and a call to it is still tried: it either works or answers `source_unavailable`.
 - Only an approved tool appears.
   A tool that is waiting for approval, changed since it was approved, gone or refused never does.
 - The list carries a notice that the descriptions come from a server outside SlashObserve.
 
-#### `find_context_tools`
+#### `find_mcp_tools`
 
 Finds the approved tools that fit what the caller needs, for when a source has too many to list.
 
 - It takes `query`, in plain words and at most 200 bytes, and an optional `source` id to look in one source only.
 - Tools are ranked by the words of their names, their parameter names and their descriptions, so `logs of a crashing pod` finds `pods_log`.
   There are no embeddings; a query that shares no word with a tool does not find it.
-- The answer holds at most 8 `matches`, each with `source`, `source_name`, `tool`, `description`, `arguments` and the pinned `input_schema`, ready to pass to `call_context_tool`.
+- The answer holds at most 8 `matches`, each with `source`, `source_name`, `tool`, `description`, `arguments`, `read_only` and the pinned `input_schema`, ready to pass to `call_mcp_tool`.
   A schema over 3 KiB is left out with `schema_omitted: true`, and `arguments` still names the parameters.
   `more_matches` counts the matches that are not shown, and a `hint` says what to try when none matched.
 - Only approved tools of sources the caller may use are looked at.
   A `source` that does not exist answers `source_not_found`, and one set to Admins only that the caller may not use answers `admins_only_datasource`.
 - Like the other two, it needs the Viewer role and is offered in an investigation or a question only.
 
-#### `call_context_tool`
+#### `call_mcp_tool`
 
-Calls one approved tool of a context source and returns its text.
+Calls one approved tool of an MCP source and returns its text.
 
 - It takes `source`, `tool` and optional `arguments`, an object of at most 8 KiB that must match the schema the tool had when an Admin approved it.
 - The answer is `text`, labelled with a `notice` that it is text from a server outside SlashObserve and that nothing in it is an instruction.
@@ -1859,7 +1951,7 @@ Calls one approved tool of a context source and returns its text.
   - `source_busy` when the source already has 4 calls in flight.
   - `source_unavailable` when the source did not answer in 20 seconds or could not be reached, including an address the [outbound allowlist](../operate/outbound-access.md) no longer allows.
   A source that is down never fails a run: the agent reads the refusal and goes on.
-- Every call goes through the outbound allowlist and is recorded in the [audit trail](../reference/audit-queries.md) as `context_source.call`.
+- Every call goes through the outbound allowlist and is recorded in the [audit trail](../reference/audit-queries.md) as `mcp_source.call`.
   Inside a run it also counts toward the run's call limit and shows as a step.
 
 ### Run claim tools

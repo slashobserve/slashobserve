@@ -29,7 +29,7 @@ var nonHTTPAuditSources = map[audit.Action]string{
 	"saved_prompt.unshare": "the prompts handler, in the transaction of a change that makes a shared prompt personal",
 
 	"agent.tool_call":          "the MCP handler, for each tool call except the claim tools",
-	"context_source.call":      "the context sources service, for each call_context_tool call that reaches it, allowed or refused",
+	"mcp_source.call":          "the MCP sources service, for each call_mcp_tool call that reaches it, allowed or refused",
 	"auth.credential_rejected": "authentication, for a bearer credential that matches no key or token",
 	"auth.csrf_rejected":       "authentication, for a cookie request refused by the cross-origin check",
 	"migration.apply":          "the server at start, once for each migration it applied",

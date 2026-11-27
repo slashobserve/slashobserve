@@ -25,5 +25,8 @@ func investigateContext(statuses []datasource.Status, task Task, current *Revisi
 		}
 	}
 	writeSeedNote(&b, sd)
+	if task.Triage != "" {
+		b.WriteString("\n\n" + task.Triage)
+	}
 	return b.String()
 }

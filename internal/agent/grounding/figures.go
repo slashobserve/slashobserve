@@ -14,6 +14,8 @@ type Figure struct {
 	Value float64
 	Step  float64
 	Unit  string
+
+	start, end int
 }
 
 type unit struct {
@@ -48,6 +50,7 @@ var (
 	angleLink  = regexp.MustCompile(`<[a-z]+://[^>]*>`)
 	bareURL    = regexp.MustCompile(`(?i)\bhttps?://\S*|(?:^|[\s(])/[ocd]/\S*`)
 	listMarker = regexp.MustCompile(`(?m)^\s*\d+[.)]\s`)
+	linkTarget = regexp.MustCompile(`\]\([^)]*\)`)
 
 	isoTime  = regexp.MustCompile(`\d{4}-\d{2}-\d{2}(?:[T ]\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?`)
 	slashDay = regexp.MustCompile(`\b\d{1,2}/\d{1,2}/\d{2,4}\b`)
@@ -60,7 +63,11 @@ var (
 var spansToSkip = []*regexp.Regexp{fencedCode, inlineCode, mdLink, angleLink, bareURL, listMarker, isoTime, slashDay, monthDay, clock, duration}
 
 func blank(text string) string {
-	for _, re := range spansToSkip {
+	return blankWith(text, spansToSkip...)
+}
+
+func blankWith(text string, spans ...*regexp.Regexp) string {
+	for _, re := range spans {
 		text = re.ReplaceAllStringFunc(text, func(s string) string { return strings.Repeat(" ", len(s)) })
 	}
 	return text
@@ -108,7 +115,7 @@ func scan(text string) []Figure {
 		if !ok {
 			continue
 		}
-		out = append(out, Figure{Text: strings.TrimSpace(text[start:after]), Value: value, Step: step, Unit: u.name})
+		out = append(out, Figure{Text: strings.TrimSpace(text[start:after]), Value: value, Step: step, Unit: u.name, start: start, end: after})
 	}
 	return out
 }

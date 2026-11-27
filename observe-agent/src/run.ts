@@ -35,6 +35,7 @@ import {
   SessionError,
   type Session,
   type SessionFactory,
+  type ToolCall,
   type ToolResult,
   type ToolSpec,
 } from "./session/types"
@@ -47,6 +48,7 @@ export const pruneKeepTurns = 4
 export const pruneStepBytes = 64 << 10
 export const maxCutOffsInRow = 2
 export const saveFindingTool = "save_finding"
+export const moreToolsTool = "list_more_tools"
 
 export type ClaimedRun = {
   run: OfferedRun
@@ -540,6 +542,12 @@ class RunLoop {
       throw error
     })
     this.made.push(...madeBy(this.specs, turn.toolCalls, executed.results))
+    if (widened(turn.toolCalls, executed.results)) {
+      this.specs = await this.tools.listTools(
+        startReadTimeoutMs,
+        this.cancel.signal
+      )
+    }
     this.sessionBytes += sizeOfTurn(
       turn.text,
       turn.toolCalls.map((call) => call.input),
@@ -708,4 +716,14 @@ export async function runLoop(
     },
     options.startRetry ?? startRetry
   ).run()
+}
+
+export function widened(
+  calls: readonly ToolCall[],
+  results: readonly ToolResult[]
+): boolean {
+  return calls.some(
+    (call, index) =>
+      call.name === moreToolsTool && results[index]?.isError === false
+  )
 }

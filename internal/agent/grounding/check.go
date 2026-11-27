@@ -30,6 +30,7 @@ type saved struct {
 	Onset     string `json:"onset"`
 	RootCause *struct {
 		Component string `json:"component"`
+		Summary   string `json:"summary"`
 	} `json:"root_cause"`
 }
 
@@ -189,7 +190,7 @@ func (r *Record) sawName(component string) bool {
 		return true
 	}
 	byTokens := len([]rune(whole)) >= minNameRunes
-	for _, name := range slices.Concat(r.Discovered, r.Names) {
+	for _, name := range slices.Concat(r.Discovered, r.Names, r.Sourced) {
 		seen := tokensOf(name)
 		if strings.Join(seen, "") == whole || byTokens && containsRun(seen, want) {
 			return true
@@ -244,9 +245,17 @@ func SendBack(items []findings.Unverified) string {
 func describe(kind string) string {
 	switch kind {
 	case findings.UnverifiedComponent:
-		return "root_cause.component, not a name this run saw,"
+		return "component, not a name this run saw,"
+	case findings.UnverifiedTrigger:
+		return "trigger key, not a name this run saw,"
 	case findings.UnverifiedOnset:
 		return "onset, outside every time range this run queried,"
+	case findings.UnverifiedFact:
+		return "cited fact"
+	case findings.UnverifiedTraceID:
+		return "trace id"
+	case kindAnswers:
+		return "answer"
 	}
 	return "figure"
 }

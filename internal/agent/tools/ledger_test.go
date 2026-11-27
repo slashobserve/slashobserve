@@ -164,6 +164,51 @@ func TestALedgerThatBreaksARuleIsRejectedWithTheReason(t *testing.T) {
 	}
 }
 
+func TestAClosingIsCheckedAgainstItsStatusAndEvidence(t *testing.T) {
+	one := func(fields string) string {
+		return `{"hypotheses":[{"id":"c1","text":"cart errors rose",` + fields + `}]}`
+	}
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"an unknown closing", one(`"status":"ruled_out","closing":"noise","evidence":["a"]`), "closing must be one of cause, knock_on, background, transient, unrelated"},
+		{"a closing on an open one", one(`"status":"open","closing":"cause"`), "is open, so it takes no closing"},
+		{"cause that is ruled out", one(`"status":"ruled_out","closing":"cause","evidence":["a"]`), "closed as cause, so its status must be supported"},
+		{"background that is supported", one(`"status":"supported","closing":"background","evidence":["a"]`), "closed as background, so its status must be ruled_out"},
+		{"a closing with no evidence", one(`"status":"ruled_out","closing":"unrelated"`), "closed as unrelated with no evidence line"},
+		{"transient with one read", one(`"status":"ruled_out","closing":"transient","evidence":["5xx burst at 10:02"]`), "a later read that shows it gone"},
+		{"knock_on of nothing", one(`"status":"ruled_out","closing":"knock_on","evidence":["a"]`), "knock_on_of must name another hypothesis"},
+		{"knock_on of itself", one(`"status":"ruled_out","closing":"knock_on","knock_on_of":"c1","evidence":["a"]`), "knock_on_of must name another hypothesis"},
+		{"knock_on_of without knock_on", one(`"status":"ruled_out","closing":"unrelated","knock_on_of":"c2","evidence":["a"]`), "goes only with closing knock_on"},
+		{"knock_on_of with no closing", one(`"status":"ruled_out","knock_on_of":"c2","evidence":["a"]`), "goes only with closing knock_on"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := callLedger(t, ModeInvestigate, tc.input)
+			if !res.IsError || res.Ledger != nil {
+				t.Fatalf("accepted: %s", toJSON(t, res.Content))
+			}
+			if body := toJSON(t, res.Content); !strings.Contains(body, tc.want) {
+				t.Fatalf("message %s lacks %q", body, tc.want)
+			}
+		})
+	}
+
+	res := callLedger(t, ModeInvestigate, `{"hypotheses":[
+		{"id":"c1","text":"cart errors rose","status":"supported","closing":"cause","evidence":["cart 5xx 12% from 0.1% at 10:05"]},
+		{"id":"c2","text":"checkout errors rose","status":"ruled_out","closing":"knock_on","knock_on_of":"c1","evidence":["checkout fails only on cart calls"]},
+		{"id":"c3","text":"ad latency rose","status":"ruled_out","closing":"transient","evidence":["ad p95 2 s at 10:01","ad p95 80 ms at 10:20"]},
+		{"id":"old","text":"The deploy broke it","status":"ruled_out","evidence":["no deploy"]}]}`)
+	if res.IsError {
+		t.Fatalf("result = %s", toJSON(t, res.Content))
+	}
+	if got := res.Ledger; got[0].Closing != "cause" || got[1].Closing != "knock_on" || got[1].KnockOnOf != "c1" || got[2].Closing != "transient" || got[3].Closing != "" {
+		t.Errorf("ledger = %s", toJSON(t, got))
+	}
+}
+
 func ledgerOf(n int, fields string) string {
 	items := make([]string, n)
 	for i := range items {

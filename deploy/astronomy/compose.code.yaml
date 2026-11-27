@@ -25,10 +25,10 @@ services:
 
   server:
     environment:
-      SLASHOBSERVE_CONTEXT_SOURCES_FILE: /etc/slashobserve/context-sources.yaml
+      SLASHOBSERVE_MCP_SOURCES_FILE: /etc/slashobserve/mcp-sources.yaml
       SLASHOBSERVE_OUTBOUND_DOMAINS: codeserver.demo.internal
     volumes:
-      - ${ASTRONOMY_DIR:?}/context-sources.yaml:/etc/slashobserve/context-sources.yaml:ro
+      - ${ASTRONOMY_DIR:?}/mcp-sources.yaml:/etc/slashobserve/mcp-sources.yaml:ro
     depends_on:
       codeserver:
         condition: service_healthy

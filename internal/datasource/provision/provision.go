@@ -154,7 +154,7 @@ func Open(src config.Datasource) (datasource.Datasource, error) {
 }
 
 func newSearch(flavor elasticsearch.Flavor, s *config.SearchDatasource, limits datasource.Limits) (datasource.Datasource, error) {
-	ds, err := elasticsearch.New(elasticsearch.Options{
+	ds, err := elasticsearch.Open(elasticsearch.Options{
 		Flavor:            flavor,
 		URL:               s.URL,
 		Headers:           mergeHeaders(s.Headers, s.SecretHeaders),
@@ -172,6 +172,7 @@ func newSearch(flavor elasticsearch.Flavor, s *config.SearchDatasource, limits d
 			TraceID: s.Fields.TraceID,
 			SpanID:  s.Fields.SpanID,
 		},
+		Spans:  s.Spans,
 		Limits: limits,
 	})
 	if err != nil {

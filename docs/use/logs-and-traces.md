@@ -947,8 +947,9 @@ The scatter then plots only the times the found traces cover, so a full page tha
 
 #### Count spans over time
 
-The `trace_stats` MCP tool counts spans and errors per time bucket over the same traces, on Tempo and ClickHouse.
-On Tempo it also returns whole-range p50, p95 and p99, and per-value counts and quantiles when `group_by` names an attribute.
+The `trace_stats` MCP tool counts spans and errors per time bucket over the same traces, on Tempo, ClickHouse and an Elasticsearch or OpenSearch datasource with `spans: jaeger`.
+It also returns whole-range p50, p95 and p99, and per-value counts and quantiles when `group_by` names an attribute.
+Those whole-range quantiles are exact on ClickHouse, and on Tempo when a trace search returns every matching span; otherwise the result says they rest on a sample and on how many spans.
 
 - On Tempo its query is TraceQL.
 - On ClickHouse it is a SQL condition over `otel_traces`, such as `ServiceName = 'checkout' AND Duration > 1000000`.

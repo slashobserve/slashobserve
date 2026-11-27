@@ -1,0 +1,11 @@
+mcpSources:
+  - uid: shop-code
+    name: Astronomy Shop source code
+    description: The source code of the Astronomy Shop's services at the pinned release, read-only. List a directory, read a file or search the text of every service, for example to see where a service reads a feature flag.
+    url: http://codeserver.demo.internal:8080/mcp
+    audience: everyone
+    allowPrivate: true
+    approve:
+      - list_dir
+      - read_file
+      - grep

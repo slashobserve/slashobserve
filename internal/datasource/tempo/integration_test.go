@@ -303,3 +303,54 @@ func TestTempoSaysWhatIsWrongWithARangeOrAQuery(t *testing.T) {
 	}
 	t.Logf("parse error reads: %v", err)
 }
+
+func TestTempoTraceDurationsAreExactSpanDurations(t *testing.T) {
+	ds := integrationDS(t)
+	eventually(t, ds, pushedTraceID)
+	req := datasource.TraceDurationRequest{Query: `{ resource.service.name = "checkout" }`, GroupBy: "name", Range: aroundSend()}
+	var got datasource.TraceDurations
+	deadline := time.Now().Add(60 * time.Second)
+	for {
+		var err error
+		if got, err = ds.TraceDurations(context.Background(), req); err != nil {
+			t.Fatal(err)
+		}
+		if got.Window.Spans == 2 || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	if !got.Exact || got.Window.Spans != 2 || got.Window.Errors != 1 || got.Window.P50 != 50 || got.Window.P99 != 50 {
+		t.Fatalf("window = %+v, exact %v", got.Window, got.Exact)
+	}
+	byName := map[string]datasource.DurationQuantiles{}
+	for _, g := range got.Groups {
+		byName[g.Value] = g
+	}
+	if byName["charge"].P99 != 30 || byName["POST /checkout"].P50 != 50 || byName["POST /checkout"].Errors != 1 {
+		t.Fatalf("groups = %+v", got.Groups)
+	}
+}
+
+func TestTempoListsFailingTracesWithTheirRoute(t *testing.T) {
+	ds := integrationDS(t)
+	eventually(t, ds, pushedTraceID)
+	req := datasource.TraceListRequest{Range: aroundSend(), Filter: datasource.TraceFilter{Service: "checkout", Route: "POST /checkout"}, Errors: true, MinDuration: 40 * time.Millisecond}
+	var got datasource.TraceList
+	for deadline := time.Now().Add(60 * time.Second); ; time.Sleep(time.Second) {
+		var err error
+		if got, err = ds.ListTraces(context.Background(), req); err != nil {
+			t.Fatal(err)
+		}
+		if len(got.Traces) > 0 || time.Now().After(deadline) {
+			break
+		}
+	}
+	if !got.Complete || len(got.Traces) != 1 || got.Traces[0].ID != pushedTraceID || got.Traces[0].Route != "POST /checkout" {
+		t.Fatalf("failing traces = %+v", got)
+	}
+	got, err := ds.ListTraces(context.Background(), datasource.TraceListRequest{Range: aroundSend(), Filter: datasource.TraceFilter{Service: "checkout"}, MinDuration: time.Second})
+	if err != nil || len(got.Traces) != 0 {
+		t.Fatalf("slower than a second = %+v, %v", got, err)
+	}
+}

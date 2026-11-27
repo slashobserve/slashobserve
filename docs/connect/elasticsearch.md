@@ -1,6 +1,6 @@
 ---
 title: Connect Elasticsearch
-description: Add an Elasticsearch cluster as a datasource for logs, with its index pattern, time field, field roles and authentication, a first query, and the rules for queries, aggregations, filters and paging.
+description: Add an Elasticsearch cluster as a datasource for logs, or for the spans Jaeger stored there, with its index pattern, time field, field roles and authentication, a first query, and the rules for queries, aggregations, filters and paging.
 ---
 
 Connect an Elasticsearch cluster to search its logs on the Logs page, chart document counts and aggregations in dashboards, and let the agent read them.
@@ -86,6 +86,25 @@ Set `fields` when your documents use other names.
 A query variable takes `label_values(field)` or `label_values(<query>, field)`.
 [Variables and discovery](#variables-and-discovery) lists what the agent and the field browser can read.
 
+## Read spans that Jaeger stored
+
+Jaeger can store its spans in Elasticsearch.
+Set `spans: jaeger` on an entry whose index holds those span documents, and the datasource answers the trace reads as a Jaeger or Tempo datasource does.
+Use it when the Jaeger in front of the cluster is older than the 2.21 the [Jaeger](jaeger.md) type needs, or when only the cluster is reachable:
+
+```yaml
+- uid: traces
+  type: elasticsearch
+  name: Jaeger spans
+  elasticsearch:
+    url: http://elasticsearch:9200
+    index: jaeger-main-jaeger-span-*
+    spans: jaeger
+```
+
+The server never guesses that an index holds spans; only this setting says so.
+[Jaeger spans on OpenSearch](opensearch.md#jaeger-spans), which holds for Elasticsearch too, lists what such a datasource reads and what it cannot do.
+
 ## Reference
 
 ### Fields
@@ -98,6 +117,7 @@ Every entry also takes the [fields common to every datasource](../reference/data
 | `index` | Required. One or more comma-separated index names, patterns, aliases or data streams. |
 | `timeField` | The `date` or `date_nanos` field that orders documents. Default `@timestamp`. |
 | `queryLanguage` | `kql` (default) or `lucene`. |
+| `spans` | `jaeger` when the index holds span documents that Jaeger wrote. |
 | `fields` | Role overrides: `message`, `level`, `service`, `traceId` and `spanId`. |
 | `apiKeyEnv`, `apiKeyFile` | An API key from an environment variable or a file. |
 | `headers` | Plain request headers. Not for secrets. |

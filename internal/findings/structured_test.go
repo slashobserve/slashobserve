@@ -70,7 +70,21 @@ func TestNoIncidentAloneIsAFinding(t *testing.T) {
 
 func TestJSONOfAnEmptyFindingHasNoNulls(t *testing.T) {
 	got := StructuredJSONOf(Structured{})
-	if got.RootCause != nil || got.Onset != nil || got.Impact != nil || got.Confidence != nil || got.RuledOut == nil || got.NextSteps == nil || got.NoIncident {
+	if got.RootCause != nil || got.Onset != nil || got.Impact != nil || got.Confidence != nil || got.RuledOut == nil || got.NextSteps == nil || got.Causes == nil || got.NoIncident {
 		t.Fatalf("got %#v", got)
+	}
+}
+
+func TestTheJSONOfACauseNamesItsRelationAndHasNoNullLists(t *testing.T) {
+	score := 0.7
+	got := CausesJSON([]Cause{
+		{Component: Component{Kind: "flag", Name: "cartFailure"}, Kind: "config_or_flag", Mechanism: "m", Trigger: &Trigger{Kind: "feature_flag", Key: "cartFailure"}, Score: &score, Band: BandHigh, Stated: true},
+		{Component: Component{Kind: "service", Name: "checkout", Namespace: "shop"}, Kind: "dependency", Mechanism: "m", KnockOnOf: new(0), Affected: []Component{{Kind: "service", Name: "frontend"}}},
+	})
+	if got[0].Relation != RelationIndependent || got[0].Trigger.Value != nil || *got[0].Band != BandHigh || got[0].Estimate != nil || got[0].Affected == nil || got[0].Evidence.Facts == nil || got[0].Evidence.Queries == nil {
+		t.Errorf("first %+v", got[0])
+	}
+	if got[1].Relation != RelationKnockOn || *got[1].KnockOnOf != 0 || *got[1].Component.Namespace != "shop" || got[1].Confidence != nil || got[1].Band != nil || got[1].Affected[0].Name != "frontend" {
+		t.Errorf("second %+v", got[1])
 	}
 }

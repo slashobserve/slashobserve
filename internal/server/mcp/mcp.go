@@ -146,7 +146,7 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 				mcpserver.WithRecovery(),
 				mcpserver.WithToolFilter(listableRunTools(reg.List())))
 			for _, t := range reg.List() {
-				if t.OfferedInRun(shape.run()) {
+				if t.OfferedInMode(shape.run()) {
 					run.AddTool(toolFor(t.ForRun(mode, shape.investigation)), h.callRunTool(t.Name))
 				}
 			}
@@ -196,9 +196,10 @@ func listableRunTools(all []tools.Tool) mcpserver.ToolFilterFunc {
 		if len(listed) == 1 || !ok {
 			return listed
 		}
+		run, _ := tools.RunFrom(ctx)
 		return slices.DeleteFunc(slices.Clone(listed), func(listed mcplib.Tool) bool {
 			t := byName[listed.Name]
-			return (t.PersonOnly && p.Kind != auth.KindUser) || (!t.Answers && !p.Role.AtLeast(t.MinRole))
+			return (t.PersonOnly && p.Kind != auth.KindUser) || (!t.Answers && !p.Role.AtLeast(t.MinRole)) || !t.InTask(run)
 		})
 	}
 }

@@ -21,7 +21,7 @@ var errDatasourceTestFailed = errors.New("the datasource did not pass the check"
 type datasourceFlags struct {
 	kind, name, audience, address, username, database, tenantID       string
 	scrapeInterval                                                    string
-	index, timeField, queryLanguage                                   string
+	index, timeField, queryLanguage, spans                            string
 	fieldMessage, fieldLevel, fieldService, fieldTraceID, fieldSpanID string
 	timeout                                                           string
 	tls                                                               bool
@@ -47,6 +47,7 @@ type datasourceConfig struct {
 	Index      string   `json:"index"`
 	TimeField  string   `json:"time_field"`
 	Language   string   `json:"query_language"`
+	Spans      string   `json:"spans"`
 	GrafanaIDs []string `json:"grafana_uids"`
 	SecretsSet []string `json:"secrets_set"`
 	UpdatedAt  string   `json:"updated_at"`
@@ -83,6 +84,7 @@ func (f *datasourceFlags) register(cmd *cobra.Command, withType bool) {
 	flags.StringVar(&f.index, "index", "", "the Elasticsearch or OpenSearch index pattern")
 	flags.StringVar(&f.timeField, "time-field", "", "the time field of the index")
 	flags.StringVar(&f.queryLanguage, "query-language", "", "kql or lucene")
+	flags.StringVar(&f.spans, "spans", "", "jaeger when the index holds spans Jaeger wrote")
 	flags.StringVar(&f.fieldMessage, "field-message", "", "the index field that holds the log message")
 	flags.StringVar(&f.fieldLevel, "field-level", "", "the index field that holds the log level")
 	flags.StringVar(&f.fieldService, "field-service", "", "the index field that holds the service name")
@@ -171,6 +173,7 @@ func (f *datasourceFlags) body(cmd *cobra.Command, a *app) (map[string]any, erro
 	set("index", "index", f.index)
 	set("time-field", "time_field", f.timeField)
 	set("query-language", "query_language", f.queryLanguage)
+	set("spans", "spans", f.spans)
 	set("grafana-uid", "grafana_uids", f.grafanaUIDs)
 	roles := map[string]any{}
 	for flag, key := range map[string]string{"field-message": "message", "field-level": "level", "field-service": "service", "field-trace-id": "trace_id", "field-span-id": "span_id"} {
@@ -419,7 +422,7 @@ func (a *app) runDatasourcesGet(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	pairs := [][2]string{{"UID", text(cfg.UID)}, {"Type", text(cfg.Type)}, {"Name", text(cfg.Name)}, {"Audience", text(cfg.Audience)}, {"Address", text(cfg.Address)}}
-	for _, optional := range [][2]string{{"Username", cfg.Username}, {"Database", cfg.Database}, {"Tenant", cfg.TenantID}, {"Scrape interval", cfg.Scrape}, {"Index", cfg.Index}, {"Time field", cfg.TimeField}, {"Query language", cfg.Language}} {
+	for _, optional := range [][2]string{{"Username", cfg.Username}, {"Database", cfg.Database}, {"Tenant", cfg.TenantID}, {"Scrape interval", cfg.Scrape}, {"Index", cfg.Index}, {"Time field", cfg.TimeField}, {"Query language", cfg.Language}, {"Spans", cfg.Spans}} {
 		if optional[1] != "" {
 			pairs = append(pairs, [2]string{optional[0], text(optional[1])})
 		}

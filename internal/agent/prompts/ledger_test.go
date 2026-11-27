@@ -28,7 +28,7 @@ func TestTheLedgerSectionIsShortAndSitsBeforeTheScope(t *testing.T) {
 	if lines := strings.Count(strings.TrimRight(section, "\n"), "\n") + 1; lines > 10 {
 		t.Fatalf("the section has %d lines, over 10", lines)
 	}
-	for _, want := range []string{"note_hypotheses", "ruled_out", "supported", "next_check", "<hypotheses>", "save_finding"} {
+	for _, want := range []string{"note_hypotheses", "ruled_out", "supported", "next_check", "<hypotheses>", "save_finding", "close every one with its evidence and a `closing`", "`transient` (gone on a later read, citing both reads)"} {
 		if !strings.Contains(section, want) {
 			t.Errorf("the section lacks %q", want)
 		}

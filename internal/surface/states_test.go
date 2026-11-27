@@ -10,9 +10,9 @@ import (
 
 	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
-	"github.com/slashobserve/slashobserve/internal/contextsources"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/health"
+	"github.com/slashobserve/slashobserve/internal/inboundmcp"
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
 	"github.com/slashobserve/slashobserve/internal/mcpauth"
 	"github.com/slashobserve/slashobserve/internal/observations"
@@ -42,8 +42,8 @@ func statesReference() string {
 		mcpauth.GrantStates.Doc("Connected agent", "`GET /me/grants` and `GET /grants` return the `state` of each connected agent."),
 		public.LinkStates.Doc("Public link", "`GET /dashboards/{id}/public-links` returns the `state` of each link."),
 		grafanaconn.SyncMachine.Doc("Grafana import", "A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /grafana/{id}/imports/{sync_id}`; its moves write server log lines with these names, not activity events, because a Grafana connection is Admin only."),
-		contextsources.ToolMachine.Doc("Context source tool", "A context source tool is one tool of an MCP server an Admin registered, returned by `GET /api/v1/context-sources/{uid}/tools`; discovery moves it between `offered`, `changed`, `gone` and `refused`, and an Admin approves or revokes it."),
-		contextsources.SourceStates.Doc("Context source", "`GET /api/v1/context-sources` returns the `state` of each context source."),
+		inboundmcp.ToolMachine.Doc("MCP source tool", "An MCP source tool is one tool of an MCP server an Admin registered, returned by `GET /api/v1/mcp-sources/{uid}/tools`; discovery moves it between `offered`, `changed`, `gone` and `refused`, and an Admin approves or revokes it."),
+		inboundmcp.SourceStates.Doc("MCP source", "`GET /api/v1/mcp-sources` returns the `state` of each MCP source."),
 		presence.States.Doc("Agent presence", "Whether an outside agent is taking runs: derived from when it last asked for work and the runs it holds."),
 	)
 }
@@ -98,7 +98,7 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 		{"ServiceAccountKey", "state", auth.KeyStates.Names()},
 		{"ConnectedAgent", "state", mcpauth.GrantStates.Names()},
 		{"PublicLink", "state", public.LinkStates.Names()},
-		{"ContextSource", "state", contextsources.SourceStates.Names()},
+		{"MCPSource", "state", inboundmcp.SourceStates.Names()},
 	}
 	var offered []string
 	for _, a := range threads.ThreadMachine.Offered() {
@@ -218,19 +218,19 @@ func TestObservationEnumsMatchTheMachines(t *testing.T) {
 	}
 }
 
-func TestContextSourceToolEnumsMatchTheMachine(t *testing.T) {
+func TestMCPSourceToolEnumsMatchTheMachine(t *testing.T) {
 	doc := apitest.Load(t)
 	var states, offered []string
-	for _, s := range contextsources.ToolMachine.States {
+	for _, s := range inboundmcp.ToolMachine.States {
 		states = append(states, string(s))
 	}
-	for _, a := range contextsources.ToolMachine.Offered() {
+	for _, a := range inboundmcp.ToolMachine.Offered() {
 		offered = append(offered, string(a))
 	}
-	if got := enumOf(t, doc, "ContextSourceTool", "state"); !slices.Equal(got, states) {
-		t.Errorf("ContextSourceTool.state enum = %v, want %v", got, states)
+	if got := enumOf(t, doc, "MCPSourceTool", "state"); !slices.Equal(got, states) {
+		t.Errorf("MCPSourceTool.state enum = %v, want %v", got, states)
 	}
-	if got := enumOf(t, doc, "ContextSourceTool", "allowed_actions"); !slices.Equal(got, offered) {
-		t.Errorf("ContextSourceTool.allowed_actions enum = %v, want %v", got, offered)
+	if got := enumOf(t, doc, "MCPSourceTool", "allowed_actions"); !slices.Equal(got, offered) {
+		t.Errorf("MCPSourceTool.allowed_actions enum = %v, want %v", got, offered)
 	}
 }
