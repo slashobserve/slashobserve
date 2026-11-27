@@ -10,6 +10,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -203,7 +204,7 @@ func (h *RCAHandler) fail(c *gin.Context, action string, err error) {
 	case errors.Is(err, ErrObservationChanged):
 		httpapi.AbortError(c, http.StatusConflict, CodeObservationChanged, ErrObservationChanged.Error())
 	case errors.Is(err, ErrPublishPersonal):
-		httpapi.AbortError(c, http.StatusConflict, "personal_folder", ErrPublishPersonal.Error())
+		folders.AbortPersonalFolder(c, ErrPublishPersonal.Error())
 	case errors.As(err, &failed):
 		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, httpapi.InvalidSpecBody{Error: failed.Error(), Code: CodePanelFailed, Issues: []spec.Issue{failed.Issue()}})
 	default:

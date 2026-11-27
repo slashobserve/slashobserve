@@ -237,7 +237,7 @@ func (s *Service) granters(ctx context.Context, q *dbsqlc.Queries, folder pgtype
 	}
 	candidates := make([]candidate, 0, len(rows))
 	for _, r := range rows {
-		candidates = append(candidates, candidate{id: r.ID, role: roleOf(r.Role), facts: folders.Facts{Restricted: r.Restricted, AdminsOnly: r.AdminsOnly, Grants: levelsOf(r.Grants), Creator: r.Creator}})
+		candidates = append(candidates, candidate{id: r.ID, role: roleOf(r.Role), facts: folders.Facts{Restricted: folders.Restricted(r.AdminsOnly, r.Listed), AdminsOnly: r.AdminsOnly, Grants: levelsOf(r.Grants), Creator: r.Creator}})
 	}
 	admins, err := q.ActiveAdminIDs(ctx)
 	if err != nil {

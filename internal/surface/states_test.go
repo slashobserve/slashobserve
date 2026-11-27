@@ -54,6 +54,7 @@ func statesReference() string {
 		mcpauth.GrantStates.Doc("Connected agent", "`GET /me/grants` and `GET /grants` return the `state` of each connected agent."),
 		dashboards.SaveOutcomes.Doc("Dashboard save", "`POST /dashboards/{id}/versions` and `PATCH /dashboards/{id}/panels` return the `outcome` of the save, and so do the `update_dashboard` and `update_panels` tools."),
 		public.LinkStates.Doc("Public link", "`GET /dashboards/{id}/public-links` returns the `state` of each link."),
+		folders.Kinds.Doc("Folder", "`GET /folders` and `GET /folders/{id}` return the `kind` of each folder, and its `allowed_actions` say what the caller may do with it."),
 		activity.InboxItemStates.Doc("Inbox item", "`GET /inbox` returns the `state` of each item for the person reading it."),
 		grafanaconn.SyncMachine.Doc("Grafana import", "A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /grafana/{id}/imports/{sync_id}`; its moves write server log lines with these names, not activity events, because a Grafana connection is Admin only."),
 		grafanaconn.TestStates.Doc("Grafana connection test", "`GET /grafana` returns the `test.state` of each connection."),
@@ -107,6 +108,14 @@ func enumOf(t *testing.T, doc *openapi3.T, schema, property string) []string {
 	return out
 }
 
+func folderActions() []string {
+	out := make([]string, len(folders.Actions))
+	for i, a := range folders.Actions {
+		out[i] = string(a)
+	}
+	return out
+}
+
 func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 	doc := apitest.Load(t)
 	failureKinds := make([]string, len(datasource.FailureKinds))
@@ -127,6 +136,8 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 		{"Proposal", "mergeability", proposals.MergeabilityStates.Names()},
 		{"PublicLink", "state", public.LinkStates.Names()},
 		{"PublicLink", "unusable_reason", public.UnusableReasons},
+		{"Folder", "kind", folders.Kinds.Names()},
+		{"Folder", "allowed_actions", folderActions()},
 		{"InboxItem", "state", activity.InboxItemStates.Names()},
 		{"MCPSource", "state", inboundmcp.SourceStates.Names()},
 		{"AccessRequest", "state", accessrequests.States.Names()},

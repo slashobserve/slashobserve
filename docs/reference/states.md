@@ -250,6 +250,20 @@ This state is computed from stored fields on every read; nothing stores it.
 | `expired` | Its expiry time has passed; the link no longer opens. |
 | `active` | None of the above; usable says whether the link opens, and unusable_reason says why it does not. |
 
+## Folder
+
+`GET /folders` and `GET /folders/{id}` return the `kind` of each folder, and its `allowed_actions` say what the caller may do with it.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `general` | It is General: everyone sees it by role, and it is never renamed, restricted or deleted. |
+| `personal` | It is the caller's My Dashboards: only they see it, it takes new work but no moves, and nobody renames, shares or deletes it. |
+| `audit` | It is the Audit folder the server made for the audit starters; `admins_only` and `restricted` say who reads it. |
+| `admins_only` | Only Admins read it, and it lists nobody. |
+| `restricted` | It lists people or groups, and only they, its creator and Admins see it. |
+| `open` | None of the above: everyone sees it, each at the level of their role. |
+
 ## Inbox item
 
 `GET /inbox` returns the `state` of each item for the person reading it.

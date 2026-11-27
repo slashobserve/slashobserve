@@ -165,7 +165,7 @@ func (q *Queries) FolderByTitle(ctx context.Context, title string) (pgtype.UUID,
 const folderFacts = `-- name: FolderFacts :many
 SELECT f.id, f.title, f.general, f.personal, f.admins_only,
   coalesce(f.owner_id = $1::uuid, false)::boolean AS owner,
-  (f.admins_only OR EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id))::boolean AS restricted,
+  EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id)::boolean AS listed,
   ARRAY(
     SELECT p.level FROM folder_permissions p
     WHERE p.folder_id = f.id AND (p.user_id = $1::uuid OR p.group_name = ANY($2::text[]))
@@ -190,7 +190,7 @@ type FolderFactsRow struct {
 	Personal   bool
 	AdminsOnly bool
 	Owner      bool
-	Restricted bool
+	Listed     bool
 	Grants     []string
 	Creator    bool
 }
@@ -216,7 +216,7 @@ func (q *Queries) FolderFacts(ctx context.Context, arg FolderFactsParams) ([]Fol
 			&i.Personal,
 			&i.AdminsOnly,
 			&i.Owner,
-			&i.Restricted,
+			&i.Listed,
 			&i.Grants,
 			&i.Creator,
 		); err != nil {

@@ -1823,6 +1823,7 @@ The built-in agent also has it, so a request that names a folder can place the d
   A save that reads an Admins-only datasource, and is refused with `restricted_content`, goes in one of those.
   A key below Admin never sees the field.
 - Each folder carries `audit`, true when it is the [Audit folder](activity.md#audit-folder) and false otherwise.
+- Each folder carries `kind`: `general`, `personal`, `audit`, `admins_only`, `restricted` or `open`, as [the folder routes](../teams/folders.md#folder-routes-and-commands) return it.
 - No tool changes a folder's access: an Admin sets it with `observe folders permissions admins-only`.
 
 #### `create_folder`

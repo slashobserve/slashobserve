@@ -13,6 +13,8 @@ function folder(id: string, extra: Partial<Folder> = {}): Folder {
     restricted: false,
     admins_only: false,
     audit: false,
+    kind: "open",
+    allowed_actions: ["create_in", "move_into"],
     dashboard_count: 0,
     grantees: [],
     grantee_count: 0,
@@ -30,28 +32,40 @@ const viewOnly: Folder["permissions"] = {
   create: false,
 }
 
+const ownFolder: Partial<Folder> = {
+  personal: true,
+  kind: "personal",
+  allowed_actions: ["create_in"],
+}
+
 function ids(folders: Folder[]): string[] {
   return publishTargets(folders).map((target) => target.id)
 }
 
 describe("publishTargets", () => {
   it("leaves out a personal folder", () => {
-    expect(ids([folder("mine", { personal: true }), folder("ops")])).toEqual([
-      "ops",
-    ])
+    expect(ids([folder("mine", ownFolder), folder("ops")])).toEqual(["ops"])
   })
 
   it("leaves out a folder the caller can only view", () => {
     expect(
-      ids([folder("ro", { permissions: viewOnly }), folder("ops")])
+      ids([
+        folder("ro", { permissions: viewOnly, allowed_actions: [] }),
+        folder("ops"),
+      ])
     ).toEqual(["ops"])
   })
 
   it("includes General when the caller can edit it", () => {
     expect(
       ids([
-        folder("general", { general: true }),
-        folder("locked", { general: true, permissions: viewOnly }),
+        folder("general", { general: true, kind: "general" }),
+        folder("locked", {
+          general: true,
+          kind: "general",
+          permissions: viewOnly,
+          allowed_actions: [],
+        }),
       ])
     ).toEqual(["general"])
   })
@@ -65,7 +79,7 @@ describe("publishTargets", () => {
   })
 
   it("is empty when nothing qualifies", () => {
-    expect(ids([folder("mine", { personal: true })])).toEqual([])
+    expect(ids([folder("mine", ownFolder)])).toEqual([])
   })
 })
 

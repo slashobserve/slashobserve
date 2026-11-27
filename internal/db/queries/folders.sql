@@ -1,7 +1,7 @@
 -- name: FolderFacts :many
 SELECT f.id, f.title, f.general, f.personal, f.admins_only,
   coalesce(f.owner_id = sqlc.narg('user_id')::uuid, false)::boolean AS owner,
-  (f.admins_only OR EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id))::boolean AS restricted,
+  EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id)::boolean AS listed,
   ARRAY(
     SELECT p.level FROM folder_permissions p
     WHERE p.folder_id = f.id AND (p.user_id = sqlc.narg('user_id')::uuid OR p.group_name = ANY(@groups::text[]))

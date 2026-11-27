@@ -438,7 +438,10 @@ components:
           type: array
           items:
             type: string
-          description: Present with `state`; the actions the caller may take on the object now, as in the object's own `allowed_actions`.
+          description: >-
+            Present with `state`; the actions the caller may take on the object now, as in the object's own `allowed_actions`.
+            Also present with `general_folder`, `personal_folder` and `admins_only_folder`: what the caller may do with the folder the refusal is about, each a `FolderAction`, as on the folder's own `allowed_actions`.
+            For `personal_folder` that is the caller's My Dashboards, and for `admins_only_folder` a folder only Admins can read.
         datasource:
           type: string
           description: >-
@@ -1392,7 +1395,7 @@ components:
     Folder:
       type: object
       additionalProperties: false
-      required: [id, title, general, personal, restricted, admins_only, audit, dashboard_count, grantees, grantee_count, created_by, permissions, level]
+      required: [id, title, general, personal, restricted, admins_only, audit, kind, allowed_actions, dashboard_count, grantees, grantee_count, created_by, permissions, level]
       properties:
         id:
           type: string
@@ -1416,6 +1419,20 @@ components:
         audit:
           type: boolean
           description: True for the Audit folder, the one the server made to hold the starter dashboards over the audit trail, whatever it is now called. False for every other folder, and for all of them when the Audit folder was deleted, which the server does not recreate. The field cannot be set.
+        kind:
+          type: string
+          enum: [general, personal, audit, admins_only, restricted, open]
+          description: >-
+            What the folder is, decided in this order: `general`, `personal` (the caller's My Dashboards), `audit` (the Audit folder, whoever reads it), `admins_only`, `restricted` (it lists people or groups), else `open`.
+            `general`, `personal`, `restricted`, `admins_only` and `audit` stay as they were; `docs/reference/states.md` lists the kinds.
+        allowed_actions:
+          type: array
+          description: >-
+            What the caller may do with this folder now: `create_in` (create a dashboard, an observation or a saved search in it), `move_into` (move one into it), `rename`, `set_permissions` and `delete`.
+            General never offers `rename`, `set_permissions` or `delete`, and a personal folder offers only `create_in`.
+            `delete` still needs the folder to be empty, and a move or a save is still refused when the folder may not hold that content.
+          items:
+            $ref: "#/components/schemas/FolderAction"
         dashboard_count:
           type: integer
           description: All dashboards in the folder, including ones the caller cannot see when the caller manages it.
@@ -1439,6 +1456,9 @@ components:
           description: The caller's level on this folder and on every dashboard in it, the higher of what their role gives and their highest matching entry. Admins have `admin` on every folder except other people's personal folders, and a personal folder's owner has `edit`.
           allOf:
             - $ref: "#/components/schemas/FolderLevel"
+    FolderAction:
+      type: string
+      enum: [create_in, move_into, rename, set_permissions, delete]
     FolderPermissionEntry:
       type: object
       additionalProperties: false
