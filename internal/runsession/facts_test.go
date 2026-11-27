@@ -170,6 +170,22 @@ func TestReportRecordsABrokenCitationWithoutSendingItBack(t *testing.T) {
 	}
 }
 
+func TestASampledLogFacetCountIsCitedAsALowerBound(t *testing.T) {
+	s := groundingScript(t, grounding.Enforce)
+	const facets = `{"sampled":true,"lines_sampled":2000,"fields":[{"name":"level","kind":"field","exact":false,"values":[{"value":"error","count":37}],"truncated":false}],"truncated":false}`
+	answer := s.readAnswer("log_facets", `{"datasource":"loki","query":"{service_name=\"cart\"}"}`, facets, &Turn{ID: "t1", Calls: 1})
+	if !strings.Contains(string(answer.Content), `{"value":"error","count":37,"facts":{"count":"f2"}}`) {
+		t.Fatalf("the facet count lacks its fact id: %s", answer.Content)
+	}
+	got := s.admitSave(`{"markdown":"Cart logged {{f2}} errors."}`, &Turn{ID: "t2", Calls: 1})
+	if got.answer != nil || got.grounding.unverified != nil {
+		t.Fatalf("the citation was refused or flagged: %+v %+v", got.answer, got.grounding.unverified)
+	}
+	if rendered, _ := got.grounding.ledger.Render("Cart logged {{f2}} errors."); rendered != "Cart logged at least 37 errors." {
+		t.Errorf("rendered %q", rendered)
+	}
+}
+
 func TestWithGroundingOffAReadIsReturnedAsTheToolGaveIt(t *testing.T) {
 	s := groundingScript(t, grounding.Off)
 	if answer := s.readAnswer("measure_window", `{"datasource":"prom","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1}); string(answer.Content) != measured {

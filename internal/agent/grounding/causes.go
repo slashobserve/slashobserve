@@ -98,6 +98,8 @@ func (r *Record) signalsOf(c findings.CauseInput, ledger *Ledger, known []string
 func signalOf(f Fact) string {
 	tool, _, _ := strings.Cut(f.Of, " ")
 	switch {
+	case f.Signal != "":
+		return f.Signal
 	case f.Kind == FactTraceID, strings.HasPrefix(tool, "trace_"), tool == "get_trace":
 		return findings.SignalTraces
 	case strings.HasPrefix(tool, "log"):

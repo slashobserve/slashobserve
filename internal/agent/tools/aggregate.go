@@ -85,6 +85,7 @@ type aggregatedValue struct {
 
 type aggregateOut struct {
 	Op               string            `json:"op"`
+	Store            string            `json:"store"`
 	From             string            `json:"from"`
 	To               string            `json:"to"`
 	Query            string            `json:"query"`
@@ -304,6 +305,7 @@ func (r *Registry) aggregate(ctx context.Context, input json.RawMessage) (Result
 	}
 	out := aggregateOut{
 		Op:               in.Op,
+		Store:            string(typeOf(inst)),
 		From:             rng.From.UTC().Format(time.RFC3339),
 		To:               rng.To.UTC().Format(time.RFC3339),
 		Query:            plan.query,

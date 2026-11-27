@@ -416,7 +416,7 @@ The server enforces the guards of [SlashObserve's own agent](../concepts/agent.m
 - Stalled turns: two turns in a row in which every call was refused end the run as `no_progress`.
 - The hypothesis ledger: with `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, an investigate run has `note_hypotheses`, which a connected agent gets only in an investigate run with a run token and `get_run_brief` gives it the prompt section too, never outside a run; its calls are neither reads nor writes, so they are not refused at the call limit, and a turn with only ledger calls counts as stalled.
   The stages, the stage line after each turn and the call limit that grow with progress (`SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`) belong to the built-in agent only; a connected agent never sees a stage line and keeps the fixed limit.
-- The grounding check: with `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, a finding saved in a run is checked against what the run read, for a connected agent as for the built-in one; the measurement and trace reads then carry fact ids in `facts`, `save_finding` cites them as `{{f3}}` and lists `answers`, and the server writes the values into the text before it is stored.
+- The grounding check: with `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, a finding saved in a run is checked against what the run read, for a connected agent as for the built-in one; the measurement, trace, `log_facets` and `log_patterns` reads then carry fact ids in `facts`, `save_finding` cites them as `{{f3}}` and lists `answers`, and the server writes the values into the text before it is stored.
   With `enforce`, `save_finding` is sent back once with the figures and names that were not found, the next call may read past the call limit, and the second save is accepted; the send-back is not a rejected save.
   Each entry of an investigation's `causes` is then scored from the evidence, and `save_finding` answers with each cause's `confidence`, `band` and `stated`; see [Causes and confidence](../concepts/investigate.md#causes-and-confidence).
 - Churn: a save that changes no panel, or changes a panel for the fifth time, gets a note, and the fourth such save in a row ends the run as `no_progress`.
@@ -1147,7 +1147,8 @@ It runs one instant query at `to` over a range as long as the window, so the fig
   With `unwrap`, the numeric label or parsed field to measure (`duration(field)` and `bytes(field)` read values with units), `total` is the field's sum and `quantile`, `max`, `min` and `avg` pool every line in the window, such as `quantile_over_time(0.99, query | unwrap ms | __error__="" [W]) by ()`.
   Lines whose field does not parse are skipped.
 - `by` names up to 5 labels to group by, such as `service_name`; leave it out for one figure over everything matched.
-- The result holds `query`, the query that ran, and one entry per group in `values` (at most 20) with `value` at full precision, or `undefined` when nothing was counted, such as a ratio whose denominator did not grow.
+- The result holds `store`, the datasource type, `query`, the query that ran, and one entry per group in `values` (at most 20) with `value` at full precision, or `undefined` when nothing was counted, such as a ratio whose denominator did not grow.
+  With the grounding check on, a fact of a Loki result is the logs signal of a cause, and one of Prometheus is the metrics signal.
 - An empty result says so in `note`: no series matched, which does not show the value was zero, and the note first says why, as [Empty results](#empty-results) explains.
 - On Prometheus, `max`, `min` and `avg` are `measure_window`'s, and another datasource type answers `invalid_request`.
 
@@ -1232,12 +1233,16 @@ The built-in agent has the same tool.
 - The answer says `source` (`loki`, `elasticsearch` or `server`), `lines_sampled` and `lines_matched`.
 - Each pattern has `count`, `sample` cut to 200 bytes, `first`, `last`, `level` and `trend`.
   `trend` holds the counts of 30 equal buckets over the range, whose width in milliseconds is `trend_step_ms`.
+- With the grounding check on, each pattern's `count` and the answer's `lines_matched` carry fact ids in `facts`; with `source: server` they are sampled facts, which a finding shows as `at least` the count ([Facts](../concepts/investigate.md#facts)).
 
 #### `log_facets`
 
 Counts the top values of each label, field or column that a logs query matches on a Loki, ClickHouse, Elasticsearch or OpenSearch datasource.
 Counts are exact where the datasource can give them, and come from the newest sampled lines where it cannot.
 The built-in agent has the same tool.
+
+- With the grounding check on, each value's `count` and the answer's `lines_sampled` carry fact ids in `facts`.
+  A count of a field that does not say `exact: true` is a sampled fact, which a finding shows as `at least` the count, and a count with `unit: bytes` shows `bytes` after it ([Facts](../concepts/investigate.md#facts)).
 
 #### `logs_for_trace`
 

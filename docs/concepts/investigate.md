@@ -167,10 +167,15 @@ The server takes a name from the result's text, read as plain text even when it 
 
 With `report` or `enforce`, the values the measurement and trace reads return are numbered facts.
 Each object in such a result that holds one carries a `facts` map from the value's key to its id, such as `"facts":{"value":"f3"}`; an id is unique within the run, and the same value read again keeps its id.
-The reads that give facts are `measure_window` and `measure_aggregate` (each value, numerator and denominator), `trace_stats` (the counts and the whole-window and per-group quantiles), `trace_error_origins` (the counts, shares and example trace ids), `trace_slow_path` (each route's threshold, median, slow count and examined count, the self times, shares and counts, and the example trace id and duration), `get_trace` (the trace id, span count, duration and the slowest spans), and the `min`, `max` and `last` of each `query_range` and `query_instant` series.
+The reads that give facts are `measure_window` and `measure_aggregate` (each value, numerator and denominator), `trace_stats` (the counts and the whole-window and per-group quantiles), `trace_error_origins` (the counts, shares and example trace ids), `trace_slow_path` (each route's threshold, median, slow count and examined count, the self times, shares and counts, and the example trace id and duration), `get_trace` (the trace id, span count, duration and the slowest spans), `log_facets` (the count of each value, and the number of lines sampled), `log_patterns` (the count of each pattern, and the lines matched), and the `min`, `max` and `last` of each `query_range` and `query_instant` series.
+`log_context` and `logs_for_trace` return lines, and their only counts are how many lines they showed, so they give no facts.
 The run keeps each fact with its value at full precision, its kind (number, duration, count, ratio or trace id), its unit when the tool knows it, its labels, its window and the query that produced it.
 The ledger holds the newest 400 facts, so the oldest are dropped first, and it is stored with the run's session, never logged and never returned by the API.
 Every read also records the trace and span ids its result showed.
+
+A fact of `log_facets` or `log_patterns`, and of `measure_aggregate` on Loki, is the logs signal of a cause (see [Causes and confidence](#causes-and-confidence)), a fact of a trace read or a trace id is the traces signal, and any other fact is the metrics signal.
+A count the tool took from a sample of lines is a sampled fact: a `log_facets` count of a field that does not say `exact: true`, and the counts of `log_patterns` when it says `source: server`.
+A Loki index label's `log_facets` count is in bytes, as the tool says with `unit: bytes`, and renders with `bytes` after it.
 
 The finding cites a fact with a placeholder in place of the figure, `{{f3}}`, in its Markdown, title, impact, root cause summary, ruled-out items and next steps.
 The server writes the value into the text before the finding is stored, so the saved and shown finding holds the number and nobody downstream sees a placeholder.
@@ -185,6 +190,8 @@ A placeholder takes options after colons, in any order:
 | `bare` | No unit after the number. |
 
 A trace id fact takes no option and renders as the whole id.
+A sampled fact always renders after `at least`, because the lines a sample counted are the fewest that matched: `{{f6}}` of 37 sampled error lines is `at least 37`, with every option, `bare` included.
+Significant figures that would round a sampled count up, such as `{{f6:3}}` of 1249, are refused, because `at least 1250` would claim more than was counted.
 A placeholder naming a fact the run does not hold, or an option that does not fit the fact or would move the value by more than 1%, is a problem with the finding: with `enforce` it is sent back once naming the id, and when the finding is saved anyway, an unknown fact is written as `[figure not read]`, a broken option is ignored, and the item is stored with the finding.
 
 ### One value per quantity
