@@ -23,7 +23,9 @@ describe("MessageBody", () => {
     const { rerender, getByText } = render(
       <MessageBody body="hello **there**" mentions={mentions} markdown />
     )
-    rerender(<MessageBody body="hello **there**" mentions={mentions} markdown />)
+    rerender(
+      <MessageBody body="hello **there**" mentions={mentions} markdown />
+    )
     expect(markdownRenders).toHaveBeenCalledTimes(1)
     rerender(<MessageBody body="changed" mentions={mentions} markdown />)
     expect(markdownRenders).toHaveBeenCalledTimes(2)

@@ -107,7 +107,11 @@ export function annotationActivityQuery(dashboardId: string) {
         api
           .GET("/annotations", {
             params: {
-              query: { dashboard_id: dashboardId, limit: activityLimit, cursor },
+              query: {
+                dashboard_id: dashboardId,
+                limit: activityLimit,
+                cursor,
+              },
             },
             signal,
           })
