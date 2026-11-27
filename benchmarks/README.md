@@ -99,6 +99,38 @@ uv run --project benchmarks python -m slashobserve_bench.o11y include-flags --ta
 `include-flags --subset` prints the flags for the fixed ten-task subset in `o11y.SUBSET`: three Prometheus, two Loki, two Tempo and three investigation tasks.
 Every development run uses these ten, so results stay comparable; change the list only together with a new baseline.
 
+The judge reads `ANTHROPIC_API_KEY` from the environment of `harbor run`, because each task's `task.toml` passes `${ANTHROPIC_API_KEY}` to the verifier, and it grades with o11y-bench's `GRADING_MODEL`, `claude-haiku-5-5@high` in v1.1.
+Export it before the command above, or use the run script below, which does.
+
+### The run script
+
+`run-o11y.sh` wraps the command above for a measured job:
+
+```sh
+export SLASHOBSERVE_BENCH_LLM_KEY_FILE=/path/to/anthropic.key
+benchmarks/run-o11y.sh /path/to/o11y-bench --model anthropic/claude-haiku-5-5 --subset \
+  --attempts 3 --run-max-cost-usd 0.5 --spend-cap-usd 10 --ledger benchmarks/jobs/spend.jsonl \
+  --n-concurrent 4
+```
+
+| Argument | Default | Meaning |
+| --- | --- | --- |
+| first argument | required | The o11y-bench checkout. |
+| `--model` | required | `<provider>/<model>`, as for Harbor; `replay/replay` runs the replay model. |
+| `--subset`, `--all`, `--task <id>` | one is required | The ten tasks of `o11y.SUBSET`, all 64, or the named tasks; `--task` repeats. |
+| `--attempts` | 3 | Harbor's `--n-attempts`, the attempts per task. |
+| `--run-max-cost-usd` | unset | `--ak run_max_cost_usd`. |
+| `--spend-cap-usd`, `--ledger` | required for a real model | `--ak spend_cap_usd` and `--ak ledger_path`. |
+| `--n-concurrent` | 2 | Harbor's `--n-concurrent`. |
+| `--effort` | unset | `--ak llm_effort`. |
+| `--image` | `SLASHOBSERVE_SERVER_IMAGE`, else `slashobserve-server:local` | `--ak server_image`. |
+| `--jobs-dir`, `--job-name` | `benchmarks/jobs`, a name from the model, the scope and the time | Where Harbor writes the job. |
+
+The script reads the model key only from the file that `SLASHOBSERVE_BENCH_LLM_KEY_FILE` names, and exports its content as `ANTHROPIC_API_KEY` for the judge without printing it; Harbor masks it in the job's config files.
+It sets `O11Y_SCENARIO_TIME_ISO` once for the whole job, to the current minute unless it is already set, runs `mise run setup:sync` and `mise run setup:preflight`, and prints the job folder at the end, also when Harbor fails.
+Other loop options, such as `investigation_calls`, keep the adapter's defaults; add them to the Harbor command above when a job needs them.
+With `--model replay/replay` it needs no key: it writes a replay fixture for each task and runs with verification off, which checks the arguments and the plumbing of a whole job without a model.
+
 ### Options
 
 The adapter cannot read the server's defaults from outside, and they differ between images (see [Server defaults](#server-defaults)), so it does not rely on them.
