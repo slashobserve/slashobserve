@@ -7472,7 +7472,7 @@ components:
     PublicLink:
       type: object
       additionalProperties: false
-      required: [id, prefix, label, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, state]
+      required: [id, prefix, label, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, unusable_reason, state]
       properties:
         id:
           type: string
@@ -7519,6 +7519,14 @@ components:
         usable:
           type: boolean
           description: False when the link is expired or the dashboard's latest version reads the viewer's identity.
+        unusable_reason:
+          type: string
+          enum: [expired, user_scoped]
+          nullable: true
+          description: >-
+            Why the link does not open, set whenever `usable` is false and null otherwise:
+            `expired` when its expiry time has passed, `user_scoped` when the dashboard's latest version reads the viewer's identity.
+            An expired link reports `expired` whatever the dashboard reads.
         state:
           type: string
           enum: [expired, active]

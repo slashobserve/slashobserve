@@ -102,6 +102,7 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 		{"ConnectedAgent", "state", mcpauth.GrantStates.Names()},
 		{"Proposal", "mergeability", proposals.MergeabilityStates.Names()},
 		{"PublicLink", "state", public.LinkStates.Names()},
+		{"PublicLink", "unusable_reason", public.UnusableReasons},
 		{"MCPSource", "state", inboundmcp.SourceStates.Names()},
 	}
 	var offered []string
