@@ -41,6 +41,7 @@ var inRunReads = map[string]inRunRead{
 	nameLogsForTrace:     readsDatasource,
 	nameQueryInstant:     readsDatasource,
 	nameMeasure:          readsDatasource,
+	nameAggregate:        readsDatasource,
 	nameQueryRange:       readsDatasource,
 	nameSampleRows:       readsDatasource,
 	nameTraceStats:       readsDatasource,

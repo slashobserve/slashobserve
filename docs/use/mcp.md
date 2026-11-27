@@ -590,6 +590,7 @@ The server uses the role of the key's service account, or of the person for an O
 | `log_patterns` | Viewer |
 | `logs_for_trace` | Viewer |
 | `make_dashboard` | Viewer |
+| `measure_aggregate` | Viewer |
 | `measure_window` | Viewer |
 | `merge_proposal` | Viewer |
 | `move_dashboard` | Viewer |
@@ -1123,6 +1124,23 @@ It is read-only, and it runs through the same path and under the same limits as 
 - It returns the summary of `query_range` and `open_url`, the address of the query in Explore or of the panel in its dashboard.
 - A chart with more than 2 MiB of data is not drawn: the host gets the summary and a note to ask for a shorter range or fewer series.
 - A server built without the chart view, and a client that does not show MCP Apps, get the summary only.
+
+#### `measure_aggregate`
+
+Measures one figure pooled over a whole window: the total of a counter, a ratio of two totals or a quantile of a histogram.
+It runs one instant query at `to` over a range as long as the window, so the figure covers every sample and is never pieced together from the points of a range query.
+
+- Pass `datasource`, `op` and `query`, and optionally `denominator`, `quantile`, `by`, `from` and `to`.
+- On Prometheus, `query` is a series selector such as `http_requests_total{service_name="cart"}`; an expression is refused, because the server adds `increase` and `sum` itself.
+- `op` `total` is `sum(increase(query[W]))`, where `W` is the window.
+- `op` `ratio` divides the total of `query` by the total of `denominator`.
+  A group whose numerator has no series but whose denominator grew reads 0, not an empty result.
+  Each value also carries `numerator` and `denominator`, and the result carries the two queries that gave them.
+- `op` `quantile` with `quantile`, such as `0.99`, is `histogram_quantile(q, sum by (le) (increase(<name>_bucket{...}[W])))`.
+- `by` names up to 5 labels to group by, such as `service_name`; leave it out for one figure over everything matched.
+- The result holds `query`, the query that ran, and one entry per group in `values` (at most 20) with `value` at full precision, or `undefined` when nothing was counted, such as a ratio whose denominator did not grow.
+- An empty result says so in `note`: no series matched, which does not show the value was zero.
+- `max`, `min` and `avg` are `measure_window`'s, and another datasource type answers `invalid_request`.
 
 #### `measure_window`
 
