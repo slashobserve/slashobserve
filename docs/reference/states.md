@@ -90,6 +90,25 @@ A block is one item on an observation's page: Markdown, a live panel, a frozen s
 | `discard` | `requested` | `deleted` | `observation.block_discarded` | editor, requester |
 | `remove` | `live` | `deleted` | `observation.block_removed` | editor |
 
+## RCA revision
+
+An RCA revision is one published copy of an observation, returned by `GET /observations/{id}/rcas`; its state is computed on read from the newer revisions and the live public links, never stored.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `published` | The newest revision of the observation's RCA, with no live public link. | `share`, `withdraw` |
+| `superseded` | A newer revision was published after it, and it has no live public link. | `share`, `withdraw` |
+| `shared` | At least one public link that has not expired shows it, so it cannot be withdrawn until they are revoked. | `share`, `unshare` |
+| `withdrawn` | Gone: the revision and its frozen panels are deleted, so this state is never stored. Final. | - |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `publish` | - | `published` | `observation.published` | editor |
+| `supersede` | `published` | `superseded` | `observation.published` | server |
+| `share` | `published`, `superseded`, `shared` | `shared` | `public_link.created` | admin |
+| `unshare` | `shared` | `published`, `superseded` | `public_link.revoked` | admin |
+| `withdraw` | `published`, `superseded` | `withdrawn` | `observation.rca_withdrawn` | editor |
+
 ## Proposal
 
 A proposal is a change to a dashboard that someone who can edit merges or discards, returned by `GET /api/v1/proposals/{id}`.

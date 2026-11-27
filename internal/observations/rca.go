@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -111,26 +112,30 @@ type rcaContent struct {
 }
 
 type RCA struct {
-	ID            string
-	ObservationID string
-	Revision      int
-	Title         string
-	Summary       string
-	State         State
-	From, To      *time.Time
-	Blocks        []RCABlock
-	Actor         actor.Actor
-	CreatedAt     time.Time
+	ID             string
+	ObservationID  string
+	Revision       int
+	Title          string
+	Summary        string
+	State          State
+	RevisionState  RCAState
+	AllowedActions []RCAAction
+	From, To       *time.Time
+	Blocks         []RCABlock
+	Actor          actor.Actor
+	CreatedAt      time.Time
 }
 
 type RCASummary struct {
-	ID        string
-	Revision  int
-	Title     string
-	Summary   string
-	State     State
-	Actor     actor.Actor
-	CreatedAt time.Time
+	ID             string
+	Revision       int
+	Title          string
+	Summary        string
+	State          State
+	RevisionState  RCAState
+	AllowedActions []RCAAction
+	Actor          actor.Actor
+	CreatedAt      time.Time
 }
 
 type publishedEventData struct {
@@ -216,6 +221,18 @@ func (s *Service) Publish(ctx context.Context, by auth.Principal, observationID 
 	if err != nil {
 		return RCA{}, err
 	}
+	rca, err := s.publish(ctx, by, row, folder, abilities)
+	if err != nil {
+		viewer := actor.Of(by, origin.Origin{}, "")
+		return RCA{}, refusedPublish(err, State(row.State), observationOf(row, folder, abilities, viewer, pgtype.UUID{}, 0).AllowedActions)
+	}
+	rca.RevisionState = RCAPublished
+	rca.AllowedActions = allowedRCAActions(RCAPublished, abilities)
+	return rca, nil
+}
+
+func (s *Service) publish(ctx context.Context, by auth.Principal, row dbsqlc.Observation, folder folders.Folder, abilities folders.Abilities) (RCA, error) {
+	observationID := row.ID
 	if err := permit(Machine, State(row.State), ActionPublish, can(abilities, false)); err != nil {
 		return RCA{}, err
 	}
@@ -307,7 +324,8 @@ func (s *Service) panelFailure(ctx context.Context, observationID pgtype.UUID, b
 }
 
 func (s *Service) ListRCAs(ctx context.Context, by auth.Principal, observationID pgtype.UUID) ([]RCASummary, error) {
-	if _, _, _, err := s.open(ctx, by, observationID); err != nil {
+	_, _, abilities, err := s.open(ctx, by, observationID)
+	if err != nil {
 		return nil, err
 	}
 	rows, err := s.store.db.Queries().ListRCAs(ctx, observationID)
@@ -316,14 +334,17 @@ func (s *Service) ListRCAs(ctx context.Context, by auth.Principal, observationID
 	}
 	out := make([]RCASummary, len(rows))
 	for i, r := range rows {
+		state := rcaState(int(r.LiveLinks), int(r.Revision), int(rows[0].Revision))
 		out[i] = RCASummary{
-			ID:        r.ID.String(),
-			Revision:  int(r.Revision),
-			Title:     r.Title,
-			Summary:   r.Summary.String,
-			State:     State(r.ObservationState),
-			Actor:     actorOf(r.CreatedByKind, r.CreatedByID, r.CreatedByName, r.Origin, r.OriginClient, r.RunID),
-			CreatedAt: r.CreatedAt.Time.UTC(),
+			ID:             r.ID.String(),
+			Revision:       int(r.Revision),
+			Title:          r.Title,
+			Summary:        r.Summary.String,
+			State:          State(r.ObservationState),
+			RevisionState:  state,
+			AllowedActions: allowedRCAActions(state, abilities),
+			Actor:          actorOf(r.CreatedByKind, r.CreatedByID, r.CreatedByName, r.Origin, r.OriginClient, r.RunID),
+			CreatedAt:      r.CreatedAt.Time.UTC(),
 		}
 	}
 	return out, nil
@@ -334,7 +355,7 @@ func (s *Service) WithdrawRCA(ctx context.Context, by auth.Principal, observatio
 		return ErrRevisionNotFound
 	}
 	err := s.write(ctx, by, observationID, pgtype.UUID{}, func(q *dbsqlc.Queries, row dbsqlc.Observation, abilities folders.Abilities, who actor.Actor) error {
-		if err := permit(Machine, State(row.State), ActionPublish, can(abilities, false)); err != nil {
+		if err := withdrawable(RCAPublished, abilities); err != nil {
 			return err
 		}
 		rcaID, err := q.LockRCAByRevision(ctx, dbsqlc.LockRCAByRevisionParams{ObservationID: observationID, Revision: httpapi.Int32(revision)})
@@ -348,8 +369,12 @@ func (s *Service) WithdrawRCA(ctx context.Context, by auth.Principal, observatio
 		if err != nil {
 			return fmt.Errorf("count RCA public links: %w", err)
 		}
-		if links > 0 {
-			return ErrRCAShared
+		next, err := q.NextRCARevision(ctx, observationID)
+		if err != nil {
+			return fmt.Errorf("read the newest RCA revision: %w", err)
+		}
+		if err := withdrawable(rcaState(int(links), revision, int(next.Revision)-1), abilities); err != nil {
+			return err
 		}
 		if _, err := q.DeleteRCA(ctx, rcaID); err != nil {
 			return fmt.Errorf("delete RCA revision: %w", err)
@@ -365,14 +390,30 @@ func (s *Service) WithdrawRCA(ctx context.Context, by auth.Principal, observatio
 }
 
 func (s *Service) GetRCA(ctx context.Context, by auth.Principal, observationID pgtype.UUID, revision int) (RCA, error) {
-	if _, _, _, err := s.open(ctx, by, observationID); err != nil {
+	_, _, abilities, err := s.open(ctx, by, observationID)
+	if err != nil {
 		return RCA{}, err
 	}
 	row, err := s.store.rca(ctx, observationID, revision)
 	if err != nil {
 		return RCA{}, err
 	}
-	return rcaOf(row)
+	rca, err := rcaOf(row)
+	if err != nil {
+		return RCA{}, err
+	}
+	q := s.store.db.Queries()
+	links, err := q.LiveRCALinkCount(ctx, row.ID)
+	if err != nil {
+		return RCA{}, fmt.Errorf("count RCA public links: %w", err)
+	}
+	next, err := q.NextRCARevision(ctx, observationID)
+	if err != nil {
+		return RCA{}, fmt.Errorf("read the newest RCA revision: %w", err)
+	}
+	rca.RevisionState = rcaState(int(links), revision, int(next.Revision)-1)
+	rca.AllowedActions = allowedRCAActions(rca.RevisionState, abilities)
+	return rca, nil
 }
 
 func (s *Service) RCASnapshotFrames(ctx context.Context, observationID pgtype.UUID, revision int, snapshotID pgtype.UUID) (json.RawMessage, error) {

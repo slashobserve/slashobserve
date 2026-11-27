@@ -3213,7 +3213,7 @@ export interface paths {
         post?: never;
         /**
          * Withdraw one published revision of an observation's RCA.
-         * @description Needs Edit on the folder, and the same states as publishing. A revision with a live public link is refused with 409 `rca_shared`, because a public link is a person's decision: a person revokes the links first, with Manage on the folder, and then withdraws it. Withdrawing deletes the revision and cannot be undone; the activity log keeps `observation.rca_withdrawn` with the title and the revision. No MCP tool deletes anything, so an agent cannot call this.
+         * @description Needs Edit on the folder; a revision offers it as `withdraw` in its `allowed_actions`. A revision with a live public link is refused with 409 `rca_shared`, because a public link is a person's decision: a person revokes the links first, with Manage on the folder, and then withdraws it. Withdrawing deletes the revision and cannot be undone; the activity log keeps `observation.rca_withdrawn` with the title and the revision. No MCP tool deletes anything, so an agent cannot call this.
          */
         delete: operations["withdrawRca"];
         options?: never;
@@ -8729,6 +8729,9 @@ export interface components {
             title: string;
             summary: string | null;
             observation_state: components["schemas"]["ObservationState"];
+            state: components["schemas"]["RCARevisionState"];
+            /** @description The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links. */
+            allowed_actions: components["schemas"]["RCARevisionAction"][];
             /** Format: date-time */
             from: string | null;
             /** Format: date-time */
@@ -8745,9 +8748,29 @@ export interface components {
             title: string;
             summary: string | null;
             observation_state: components["schemas"]["ObservationState"];
+            state: components["schemas"]["RCARevisionState"];
+            /** @description The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links. */
+            allowed_actions: components["schemas"]["RCARevisionAction"][];
             created_by: components["schemas"]["Actor"];
             /** Format: date-time */
             created_at: string;
+        };
+        /**
+         * @description Computed on read, never stored. `shared` while a public link that has not expired shows the revision, else `superseded` when a newer revision exists, else `published`.
+         * @enum {string}
+         */
+        RCARevisionState: "published" | "superseded" | "shared";
+        /** @enum {string} */
+        RCARevisionAction: "share" | "unshare" | "withdraw";
+        /** @description The answer to a publish or a withdraw that is refused. `state` and `allowed_actions` describe what the route addresses, the observation for a publish and the revision for a withdraw. */
+        RCARefusal: {
+            error: string;
+            /** @enum {string} */
+            code: "rca_limit" | "rca_unchanged" | "observation_changed" | "rca_shared";
+            /** @description The observation's state for a refused publish, and the revision's state for a refused withdraw. */
+            state: string;
+            /** @description The actions the caller may take in that state, as in the observation's or the revision's own `allowed_actions`. */
+            allowed_actions: string[];
         };
         RCAPublicLink: {
             /** Format: uuid */
@@ -17637,13 +17660,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), it changed while it was being published (`observation_changed`), or nothing changed since the latest revision (`rca_unchanged`). Or a panel froze data from a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), it changed while it was being published (`observation_changed`), or nothing changed since the latest revision (`rca_unchanged`). `rca_limit`, `observation_changed` and `rca_unchanged` carry the observation's `state` and the caller's `allowed_actions` on it. Or a panel froze data from a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
+                    "application/json": components["schemas"]["RCARefusal"] | components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             422: components["responses"]["ObservationInvalid"];
@@ -17702,13 +17725,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The revision still has public links (`rca_shared`), or the observation's state does not allow it (`invalid_transition`). */
+            /** @description The revision still has public links (`rca_shared`); the answer carries the revision's `state` and the caller's `allowed_actions` on it. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["RCARefusal"] | components["schemas"]["Error"];
                 };
             };
             500: components["responses"]["Internal"];

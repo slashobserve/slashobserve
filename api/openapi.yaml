@@ -8330,7 +8330,7 @@ components:
     ObservationRCA:
       type: object
       additionalProperties: false
-      required: [id, observation_id, revision, title, summary, observation_state, from, to, blocks, created_by, created_at]
+      required: [id, observation_id, revision, title, summary, observation_state, state, allowed_actions, from, to, blocks, created_by, created_at]
       properties:
         id:
           type: string
@@ -8349,6 +8349,13 @@ components:
           nullable: true
         observation_state:
           $ref: "#/components/schemas/ObservationState"
+        state:
+          $ref: "#/components/schemas/RCARevisionState"
+        allowed_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/RCARevisionAction"
+          description: The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links.
         from:
           type: string
           format: date-time
@@ -8369,7 +8376,7 @@ components:
     ObservationRCASummary:
       type: object
       additionalProperties: false
-      required: [id, revision, title, summary, observation_state, created_by, created_at]
+      required: [id, revision, title, summary, observation_state, state, allowed_actions, created_by, created_at]
       properties:
         id:
           type: string
@@ -8384,11 +8391,44 @@ components:
           nullable: true
         observation_state:
           $ref: "#/components/schemas/ObservationState"
+        state:
+          $ref: "#/components/schemas/RCARevisionState"
+        allowed_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/RCARevisionAction"
+          description: The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links.
         created_by:
           $ref: "#/components/schemas/Actor"
         created_at:
           type: string
           format: date-time
+    RCARevisionState:
+      type: string
+      enum: [published, superseded, shared]
+      description: Computed on read, never stored. `shared` while a public link that has not expired shows the revision, else `superseded` when a newer revision exists, else `published`.
+    RCARevisionAction:
+      type: string
+      enum: [share, unshare, withdraw]
+    RCARefusal:
+      type: object
+      additionalProperties: false
+      required: [error, code, state, allowed_actions]
+      description: The answer to a publish or a withdraw that is refused. `state` and `allowed_actions` describe what the route addresses, the observation for a publish and the revision for a withdraw.
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [rca_limit, rca_unchanged, observation_changed, rca_shared]
+        state:
+          type: string
+          description: The observation's state for a refused publish, and the revision's state for a refused withdraw.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+          description: The actions the caller may take in that state, as in the observation's or the revision's own `allowed_actions`.
     RCAPublicLink:
       type: object
       additionalProperties: false
