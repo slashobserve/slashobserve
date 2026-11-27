@@ -187,10 +187,7 @@ func (g *Guard) MoveObservation(ctx context.Context, q *dbsqlc.Queries, id, to p
 	if err := refuseLinkedObservationMove(ctx, q, id, to); err != nil {
 		return err
 	}
-	if err := refuseRestrictedAnswerMove(ctx, q, folders.ContentObservation, to, func() (keptWithAdmins, error) {
-		row, err := q.ObservationKeptWithAdmins(ctx, id)
-		return keptWithAdmins(row), err
-	}, func() (folders.AnswerRef, error) {
+	if err := refuseRestrictedAnswerMove(ctx, q, folders.ContentObservation, to, observationKept(ctx, q, id), func() (folders.AnswerRef, error) {
 		row, err := q.ObservationRestrictedRun(ctx, id)
 		return answerRef(ctx, answerRun{row.ID, row.Prompt, row.RequestedByKind, row.RequestedByID}, err)
 	}); err != nil {

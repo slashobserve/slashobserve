@@ -10,6 +10,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/lifecycle"
 )
 
 const (
@@ -27,11 +28,45 @@ var (
 		"keep it in the private chat, or save it in a folder only Admins can read")
 )
 
-type restrictedAnswerError struct{ message string }
+type Confinement string
+
+const (
+	NotConfined         Confinement = ""
+	ConfinedPermanent   Confinement = "permanent"
+	ConfinedRunInFlight Confinement = "run_in_flight"
+)
+
+var Confinements = lifecycle.Derived{Name: "confinement", States: []lifecycle.DerivedState{
+	{Name: string(ConfinedPermanent), When: "It holds an answer that read data only Admins can query, such as the audit trail. That does not change, so waiting does not help."},
+	{Name: string(ConfinedRunInFlight), When: "It is in a folder only Admins can read and an agent run about it has not ended. Try again once the run ends."},
+}}
+
+func ConfinementOf(holdsKeptAnswer, runInFlight bool) Confinement {
+	switch {
+	case holdsKeptAnswer:
+		return ConfinedPermanent
+	case runInFlight:
+		return ConfinedRunInFlight
+	}
+	return NotConfined
+}
+
+type restrictedAnswerError struct {
+	message string
+	reason  Confinement
+}
 
 func (e restrictedAnswerError) Error() string { return e.message }
 
 func (restrictedAnswerError) Is(target error) bool { return target == ErrRestrictedAnswer }
+
+func RestrictedAnswerReason(err error) Confinement {
+	var refusal restrictedAnswerError
+	if errors.As(err, &refusal) {
+		return refusal.reason
+	}
+	return ConfinedPermanent
+}
 
 type AnswerRef struct {
 	RunID  string
@@ -52,12 +87,12 @@ func (a AnswerRef) described() string {
 }
 
 func RestrictedAnswerMove(kind ContentKind, answer AnswerRef) error {
-	return restrictedAnswerError{fmt.Sprintf(
+	return restrictedAnswerError{reason: ConfinedPermanent, message: fmt.Sprintf(
 		"this %s holds %s that read data only Admins can query, such as the audit trail, so it can only move to another folder only Admins can read", kind.Noun(), answer.described())}
 }
 
 func RestrictedAnswerCopy(kind ContentKind) error {
-	return restrictedAnswerError{fmt.Sprintf(
+	return restrictedAnswerError{reason: ConfinedPermanent, message: fmt.Sprintf(
 		"this %s holds an answer that read data only Admins can query, such as the audit trail, so a copy of it can only go in a folder only Admins can read", kind.Noun())}
 }
 
@@ -67,11 +102,11 @@ func RestrictedAnswerOpening(items []ContentItem) error {
 	if len(items) > 1 {
 		message = fmt.Sprintf("%d items in this folder, such as the %s %q, hold answers that read data only Admins can query, such as the audit trail; move them to another folder only Admins can read before you share this one", len(items), first.Kind.Noun(), first.Title)
 	}
-	return restrictedAnswerError{message}
+	return restrictedAnswerError{reason: ConfinedPermanent, message: message}
 }
 
 func RunInFlightMove(kind ContentKind) error {
-	return restrictedAnswerError{fmt.Sprintf(
+	return restrictedAnswerError{reason: ConfinedRunInFlight, message: fmt.Sprintf(
 		"an agent run on this %s has not finished, and what it writes may read data only Admins can query, such as the audit trail; wait for it to end before you move the %s out of folders only Admins can read", kind.Noun(), kind.Noun())}
 }
 
@@ -81,7 +116,7 @@ func RunInFlightOpening(items []ContentItem) error {
 	if len(items) > 1 {
 		message = fmt.Sprintf("agent runs on %d items in this folder, such as the %s %q, have not finished, and what they write may read data only Admins can query, such as the audit trail; wait for them to end before you share this folder", len(items), first.Kind.Noun(), first.Title)
 	}
-	return restrictedAnswerError{message}
+	return restrictedAnswerError{reason: ConfinedRunInFlight, message: message}
 }
 
 func ShowAnswer(readRestricted, adminsOnly bool) error {
@@ -188,9 +223,15 @@ type contentItemJSON struct {
 	FolderTitle string      `json:"folder_title"`
 }
 
+type restrictedAnswerJSON struct {
+	Error  string      `json:"error"`
+	Code   string      `json:"code"`
+	Reason Confinement `json:"reason"`
+}
+
 func AbortRestricted(c *gin.Context, err error) bool {
 	if errors.Is(err, ErrRestrictedAnswer) {
-		httpapi.AbortError(c, http.StatusConflict, CodeRestrictedAnswer, err.Error())
+		c.AbortWithStatusJSON(http.StatusConflict, restrictedAnswerJSON{Error: err.Error(), Code: CodeRestrictedAnswer, Reason: RestrictedAnswerReason(err)})
 		return true
 	}
 	if errors.Is(err, ErrProvisioned) {

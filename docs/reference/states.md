@@ -176,6 +176,16 @@ This state is computed from stored fields on every read; nothing stores it.
 | `expired` | Its expiry time has passed; the link no longer opens. |
 | `active` | None of the above; usable says whether the dashboard's latest version can be shown publicly. |
 
+## Content confined to Admins-only folders
+
+`GET /observations/{id}` returns `confined` with a `reason` while an answer or a run keeps the observation in folders only Admins can read, and leaves it out otherwise; a `restricted_answer` refusal carries the same `reason`.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `permanent` | It holds an answer that read data only Admins can query, such as the audit trail. That does not change, so waiting does not help. |
+| `run_in_flight` | It is in a folder only Admins can read and an agent run about it has not ended. Try again once the run ends. |
+
 ## Grafana import
 
 A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /grafana/{id}/imports/{sync_id}`; its moves write server log lines with these names, not activity events, because a Grafana connection is Admin only.

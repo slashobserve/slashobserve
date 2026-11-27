@@ -290,6 +290,19 @@ The copy then holds the answer too, so it stays in Admins-only folders as well.
 While a run about a dashboard or observation in an Admins-only folder has not ended, the same two are refused with `409 restricted_answer` and a message to wait for the run to end.
 What the run writes may still read Admin-only data.
 
+A `restricted_answer` refusal of a move, a copy, a save or a folder change says whether waiting helps in `reason`.
+
+| `reason` | Meaning |
+| --- | --- |
+| `permanent` | The content holds an answer that read Admin-only data, or the run that is writing read such data. That does not change, so the same request is refused again. |
+| `run_in_flight` | An agent run about the content has not ended. The same request can succeed once the run ends. |
+
+`GET /api/v1/observations/{id}` says the same before a move is tried.
+Its answer carries `confined` with that `reason` while an answer or a run keeps the observation in Admins-only folders, and leaves `confined` out otherwise.
+The observation's **Move to folder** panel shows it as a note above the folder field.
+`confined` does not cover an Admins-only datasource: a move of content that reads one is refused with `restricted_content`, which names the datasource.
+Lists of observations and the dashboard routes do not return `confined`.
+
 An Admins-only folder has no [public links](../use/public-links.md).
 Choosing **Admins only** for a folder that holds a dashboard or an RCA with an unexpired public link, or moving such a dashboard or observation into it, is refused with `409 admins_only_folder`.
 Revoke the links first.

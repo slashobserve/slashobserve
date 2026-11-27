@@ -240,6 +240,8 @@ The page and a published RCA show it only while the observation is resolved.
 **More actions**, then **Move to folder**, opens a panel that searches the shared folders you can edit.
 My Dashboards is not a choice.
 Resolving, reopening and moving need edit access, and moving needs it on the target folder too.
+An observation that an answer or an agent run keeps in [Admins-only folders](../teams/folders.md#admins-only-folders-in-detail) says so in a note at the top of the panel, with whether it can move once the run ends.
+`GET /api/v1/observations/{id}` returns the same as `confined`.
 The state line also shows who started the observation and when, and links to its folder.
 
 ## Pin it to a dashboard or make a dashboard from it

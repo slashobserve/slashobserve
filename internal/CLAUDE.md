@@ -164,6 +164,9 @@ This lists only the packages whose purpose the name does not make obvious.
   Deleting a user deletes their personal folder and its dashboards, findings and saved searches (`users_personal_folder_contents` trigger and `ON DELETE CASCADE`), as it does their saved prompts.
 - A dashboard or finding in a personal folder is private, and publishing it is a move out; `folders.MayMoveInto` is the one rule that a personal folder takes no moves for every move (`dashboards.Service.move`, `observations.Service.Move` and saved searches), and `ErrMoveIntoPersonal` maps to `409 personal_folder` with the wording of what moved.
   The web row menu hides personal folders as move targets as a display copy.
+- `folders.ConfinementOf` is the one decision of what keeps content in Admins-only folders besides a datasource: `permanent` for a kept answer, else `run_in_flight` for a run in flight in such a folder; the move refusal (`placement.refuseRestrictedAnswerMove`) and the observation read (`placement.ObservationConfinement`, sent as `confined` on the envelope only, so MCP tool results do not carry it) both read it.
+  Every `restrictedAnswerError` names its reason, `folders.AbortRestricted` sends it as `reason` on `restricted_answer`, and a bare `ErrRestrictedAnswer` is `permanent`.
+  No list returns `confined`, because it costs the `*_kept_with_admins` query per item, and the dashboard read does not return it yet.
 - `pickCreationFolder` is the one default folder for every create, agent commits and Save what was built included: requested, else the caller's personal folder, else General, else 403.
   A key's default is therefore General; nothing remembers where a caller created before.
 - Folders sort by `(NOT personal, general, lower(title), id)` in `FolderFacts`, `ListFolderDetails`, `ListDashboardsByFolder` and `folderCursor`; change them together.
