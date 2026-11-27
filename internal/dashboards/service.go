@@ -149,8 +149,8 @@ func (s *Service) CreateImported(ctx context.Context, by auth.Principal, folderI
 	if err != nil {
 		return Dashboard{}, Version{}, nil, false, err
 	}
-	unverified, _ := UnverifiedOf(parsed, issues)
-	in := newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx), unverified: unverified, folder: target.folder}
+	failing, _ := UnverifiedOf(parsed, issues)
+	in := newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx), unverified: failing.because(ReasonImported), folder: target.folder}
 	var inTx func(q *dbsqlc.Queries, dash Dashboard, ver Version) error
 	if hook != nil {
 		inTx = func(q *dbsqlc.Queries, dash Dashboard, ver Version) error {
@@ -285,7 +285,7 @@ func (s *Service) restore(ctx context.Context, by auth.Principal, id pgtype.UUID
 	if err != nil {
 		return Dashboard{}, Version{}, fmt.Errorf("marshal spec: %w", err)
 	}
-	dash, ver, err := s.store.addVersion(ctx, newVersion{dashboardID: id, parent: parent, restoredFrom: &from, spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), origin: origin.From(ctx), unverified: unverified})
+	dash, ver, err := s.store.addVersion(ctx, newVersion{dashboardID: id, parent: parent, restoredFrom: &from, spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), origin: origin.From(ctx), unverified: unverified.because(ReasonRestored)})
 	if errors.Is(err, errStaleParent) {
 		return Dashboard{}, Version{}, s.conflict(ctx, id)
 	}

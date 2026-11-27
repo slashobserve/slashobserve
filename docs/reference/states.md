@@ -52,6 +52,23 @@ A comment thread is a conversation on a dashboard, an observation, an annotation
 | `resolve` | `open` | `resolved` | `thread.resolved` | requester, editor, server |
 | `reopen` | `resolved` | `open` | `thread.reopened` | commenter |
 
+## Thread's agent
+
+A thread's agent is the one a plain reply asks, returned as `agent` with its `state` by `GET /threads`. No route takes these moves by name today, so the thread's `allowed_actions` do not list them: a message that mentions an agent or is sent to the agent makes `set_agent`, and a message sent to everyone makes `turn_agent_off`. Each move is recorded as the audit action `thread.agent_set`, not as an activity event.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `none` | No message has asked an agent yet, or the thread's agent can no longer take runs; a plain reply asks nobody. | `set_agent` |
+| `following` | The thread has an agent and a plain reply asks it. | `set_agent`, `turn_agent_off` |
+| `off` | The thread keeps its agent, but a message was sent to everyone, so a plain reply asks nobody until the agent is set again. | `set_agent` |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `open` | - | `none` | `thread.opened` | commenter |
+| `set_agent` | `none`, `following`, `off` | `following` | `thread.agent_set` | commenter |
+| `turn_agent_off` | `following` | `off` | `thread.agent_set` | commenter |
+| `clear_agent` | `following`, `off` | `none` | `thread.agent_set` | server |
+
 ## Observation
 
 An observation is a page of blocks in a folder, started by POST /observations or by an investigation.
@@ -89,6 +106,25 @@ A block is one item on an observation's page: Markdown, a live panel, a frozen s
 | `keep` | `requested` | `live` | `observation.block_kept` | editor |
 | `discard` | `requested` | `deleted` | `observation.block_discarded` | editor, requester |
 | `remove` | `live` | `deleted` | `observation.block_removed` | editor |
+
+## RCA revision
+
+An RCA revision is one published copy of an observation, returned by `GET /observations/{id}/rcas`; its state is computed on read from the newer revisions and the live public links, never stored.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `published` | The newest revision of the observation's RCA, with no live public link. | `share`, `withdraw` |
+| `superseded` | A newer revision was published after it, and it has no live public link. | `share`, `withdraw` |
+| `shared` | At least one public link that has not expired shows it, so it cannot be withdrawn until they are revoked. | `share`, `unshare` |
+| `withdrawn` | Gone: the revision and its frozen panels are deleted, so this state is never stored. Final. | - |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `publish` | - | `published` | `observation.published` | editor |
+| `supersede` | `published` | `superseded` | `observation.published` | server |
+| `share` | `published`, `superseded`, `shared` | `shared` | `public_link.created` | admin |
+| `unshare` | `shared` | `published`, `superseded` | `public_link.revoked` | admin |
+| `withdraw` | `published`, `superseded` | `withdrawn` | `observation.rca_withdrawn` | editor |
 
 ## Proposal
 
@@ -266,6 +302,16 @@ This state is computed from stored fields on every read; nothing stores it.
 | `unchecked` | No discovery has run since the source was added or its address changed. |
 | `unreachable` | The last discovery failed, or an agent's call could not reach the server since; failure says why, such as the domain not being on the outbound allowlist, the secret being refused or the server not answering. |
 | `ready` | None of the above: the last discovery listed the server's tools, or the server has answered an agent's call since it last failed. |
+
+## Panel and variable verification
+
+`GET /dashboards/{id}` returns the panels and variables of a version that are not verified in `unverified`, each with the `reason` the save kept it.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `unverified` | The version lists it in `unverified`: its query failed or returned nothing when the version was saved and the save kept it, with a `reason` of `empty` (it returned no data), `timeout` (it timed out and the save did not change it), `carried` (the parent version already listed it and it is unchanged), `restored` (the restored version listed it) or `imported` (a Grafana import keeps every failing panel). |
+| `verified` | None of the above; its query ran when the version was saved, or when the last version that changed it was. |
 
 ## Agent presence
 
