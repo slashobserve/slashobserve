@@ -86,7 +86,7 @@ def test_one_attempt_per_task(tmp_path):
         "investigation_calls": None,
         "investigation_loop": False,
         "investigation_calls_max": 12,
-        "finding_grounding": "off",
+        "finding_grounding": "enforce",
         "llm_effort": None,
         "run_max_cost_usd": 0.5,
         "wall_timeout_sec": None,
@@ -238,17 +238,17 @@ def test_loop_settings_are_recorded_with_their_effective_values(tmp_path):
     assert settings["run_max_cost_usd"] == 0.5
 
 
-def test_unset_loop_settings_record_the_server_defaults(tmp_path):
+def test_unset_loop_settings_record_the_defaults_the_server_ran_with(tmp_path):
     job = write_job(tmp_path)
     write_trial(job, "task-a", "AAA", 1.0, kwargs={"investigation_calls": 20})
     settings = build_from([job])["settings"]
-    assert (settings["investigation_loop"], settings["investigation_calls_max"], settings["finding_grounding"]) == (False, 20, "off")
+    assert (settings["investigation_loop"], settings["investigation_calls_max"], settings["finding_grounding"]) == (False, 20, "enforce")
 
 
 def test_jobs_that_set_the_defaults_explicitly_agree_with_jobs_that_leave_them_unset(tmp_path):
     job = write_job(tmp_path)
     write_trial(job, "task-a", "AAA", 1.0)
-    write_trial(job, "task-b", "BBB", 1.0, kwargs={"run_max_cost_usd": 0.5, "investigation_loop": False, "investigation_calls_max": 12, "finding_grounding": "off"})
+    write_trial(job, "task-b", "BBB", 1.0, kwargs={"run_max_cost_usd": 0.5, "investigation_loop": False, "investigation_calls_max": 12, "finding_grounding": "enforce"})
     build_from([job])
     other = write_job(tmp_path, "other")
     write_trial(other, "task-a", "AAA", 1.0)

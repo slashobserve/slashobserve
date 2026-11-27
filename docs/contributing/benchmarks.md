@@ -38,6 +38,8 @@ Set `SLASHOBSERVE_SERVER_IMAGE` to use another image than `slashobserve-server:l
 
 A real run spends tokens, so start with one task and a cost cap.
 Every one of the 64 o11y-bench tasks runs, the Grafana API and dashboard tasks included.
+Every adapter starts the server with `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `enforce` unless `finding_grounding` is given, because only with grounding on does the server score a finding's causes and mark the unconfirmed ones, and an older image's default is `off`.
+The results file and each trial's notes record the value the server ran with.
 For a real model, a subset of tasks, the options, the spend cap and how the Grafana tasks run, read [`benchmarks/README.md`](https://github.com/slashobserve/slashobserve/blob/main/benchmarks/README.md) in the repository.
 
 ## Run ORCA-bench tasks

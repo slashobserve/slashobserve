@@ -24,7 +24,7 @@ Harbor starts the task, and `slashobserve_bench.agent:SlashObserveAgent` does th
 
 The answer is the finding's Markdown text, led by one line per structured field when the finding has them.
 A finding from a server built from `agent-rca-accuracy` or later leads with one line per cause, with its confidence band, whether it is stated or unconfirmed, the cause it is a knock-on of, its component, mechanism and trigger; an older server's finding leads with its root cause line.
-The bands mean something only with finding grounding on.
+The bands mean something only with finding grounding on, which the adapter turns on (see [Finding grounding](#finding-grounding)).
 o11y-bench grades the last agent message of `agent/trajectory.json`, so the last step of the trajectory is that text with no tool calls.
 Full trace ids in the answer are the agent's job, not the adapter's.
 
@@ -97,8 +97,9 @@ Every development run uses these ten, so results stay comparable; change the lis
 
 ### Options
 
-The three loop settings are sent to the server only when given, so one image can be measured with the loop off and then on.
-The results file records the settings under `settings` with the values the server ran with (loop `false`, `investigation_calls_max` equal to the effective calls and grounding `off` when unset), so a job that leaves them unset agrees with one that sets the defaults; a job whose trials disagree on them is refused.
+The loop and the calls limit are sent to the server only when given, so one image can be measured with the loop off and then on.
+Finding grounding is always sent, `enforce` unless given; see [Finding grounding](#finding-grounding).
+The results file records the settings under `settings` with the values the server ran with (loop `false`, `investigation_calls_max` equal to the effective calls and grounding `enforce` when unset), so a job that leaves them unset agrees with one that sets the defaults; a job whose trials disagree on them is refused.
 
 | `--ak` | Default | Meaning |
 | --- | --- | --- |
@@ -109,13 +110,23 @@ The results file records the settings under `settings` with the values the serve
 | `investigation_calls` | server default (12) | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`, 6 to 60. |
 | `investigation_loop` | server default (`false`) | `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`: `true` or `false`. |
 | `investigation_calls_max` | server default (the value of `investigation_calls`) | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`, 6 to 60; the adapter refuses a value below the effective `investigation_calls` (the given value or 12), as the server does. |
-| `finding_grounding` | server default (`off`) | `SLASHOBSERVE_AGENT_FINDING_GROUNDING`: `off`, `report` or `enforce`. |
+| `finding_grounding` | `enforce` | `SLASHOBSERVE_AGENT_FINDING_GROUNDING`: `off`, `report` or `enforce`, always sent. |
 | `run_max_cost_usd` | unset | `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD`: the server fails a run with `budget_exhausted` once its cost reaches it. The server refuses to start with it set when the model has no price, the replay model included. |
 | `spend_cap_usd`, `ledger_path` | unset | The job cap and its ledger file, which go together; see below. |
 | `wall_timeout_sec` | 540 | How long a trial may take from the start of `run`, server start-up included, under Harbor's 600 second agent timeout. |
 | `grafana_url` | unset | Reach Grafana from the host at this address instead of through the task's `main` container. |
 | `grafana_user`, `grafana_password` | unset | Grafana basic auth, used only when the task environment carries no Grafana credentials. |
 | `grafana_write_sec` | 150 | For a dashboard task, the seconds at the end of `wall_timeout_sec` kept for writing the dashboard to Grafana. |
+
+### Finding grounding
+
+The server scores each cause of a finding and decides whether the finding states it only with `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`.
+With `off` every cause counts as stated, so the ORCA-bench report and the SREGym diagnosis would name every guess as a cause, and both benchmarks take points for an extra cause.
+The server default is `off` on images before the change that makes it `enforce`, so the adapters do not rely on it: every adapter sends `enforce` unless `finding_grounding` is given, and a run behaves the same on any image that has the setting.
+`enforce` also sends a finding back once when an item in it does not match what the run read, which is what a person gets from the product's default.
+An image older than the setting ignores it, has no causes and no scoring, and its findings are written from `root_cause` or the Markdown.
+The results file and the ORCA-bench and SREGym `notes.txt` record the value the server ran with.
+A Harbor job folder from before the adapter sent the setting recorded it unset, and its trials ran with the image's default; rebuilding a results file from such a folder records `enforce` for them, so keep the file written at the time.
 
 ## Cost
 
@@ -278,7 +289,7 @@ It runs on Harbor 0.20.0 with a patched `Task.checksum`, while o11y-bench pins H
 | `report.md` | The report that was written to `/app/report.md`. |
 | `trajectory.json`, `run.json`, `server.log` | As for o11y-bench. |
 | `codeserver.log` | The code server's log, when the trial started one. |
-| `notes.txt` | How traces were read, which code context applied, and the judge caveat. |
+| `notes.txt` | How traces were read, the finding grounding the server ran with, which code context applied, and the judge caveat. |
 
 The options are those of o11y-bench without `network`, plus `code_context`, `codeserver_image` (default `slashobserve-codeserver:local`), `source_names` (`mcp`, the default, or `context`) and `span_index` (`true`, the default, or `false`), and `wall_timeout_sec` defaults to 3300 under the task's 3600 second agent timeout.
 Leaderboard rules forbid a timeout or resource override, so leave Harbor's at their defaults.
@@ -295,7 +306,7 @@ ORCA-bench grades a report against every plausible cause of the task, takes poin
 - With no stated cause, the Markdown fills the sections as for an older server, and the unconfirmed causes still go under Unexplored branches.
 
 The server sends `causes` from branch `agent-rca-accuracy` on, so build the image under test from that branch or later.
-It scores and bands the causes only with `finding_grounding` set to `report` or `enforce`; with `off` every cause counts as stated, so an unsupported guess reaches the report as a root cause.
+It scores and bands the causes only with finding grounding on, which the adapter sends as `enforce` unless told otherwise (see [Finding grounding](#finding-grounding)); with `off` every cause counts as stated, so an unsupported guess reaches the report as a root cause.
 
 ### Spans
 
@@ -462,7 +473,7 @@ A cause with `stated: false`, and a knock-on of one, is left out entirely, becau
 The finding's `impact` follows, and nothing else: `ruled_out`, `next_steps` and the Markdown are left out, because a component they mention could read as another suspect.
 On an older server without `causes`, `root_cause.component` (`namespace/Kind/name`) and `root_cause.summary` give the origin and the mechanism.
 Without a stated cause or a root cause the Markdown is submitted as it is.
-The causes need a server image built from `agent-rca-accuracy` or later, which the kubectl tool needs anyway, and are scored only with `finding_grounding` set to `report` or `enforce`; with `off` every cause counts as stated.
+The causes need a server image built from `agent-rca-accuracy` or later, which the kubectl tool needs anyway, and are scored only with finding grounding on, which `--finding-grounding` sets and which is `enforce` when it is not given (see [Finding grounding](#finding-grounding)); with `off` every cause counts as stated.
 A finding with `no_incident` submits that no faulty component was found, and a run without a finding submits that no diagnosis was produced, so the attempt is scored as a miss and not lost.
 A run that stops before the investigation (no `diagnosis` stage, the tool not approved, a port-forward or the server failing) submits nothing, and SREGym records the attempt as incomplete.
 
@@ -471,7 +482,7 @@ A run that stops before the investigation (no `diagnosis` stage, the tool not ap
 | `diagnosis.txt` | The text submitted. |
 | `submission.json` | The conductor's answer to the submission, or the error. |
 | `trajectory.json`, `run.json`, `server.log` | As for o11y-bench; SREGym keeps this `trajectory.json`, because it has no converter for this agent. |
-| `notes.txt` | How each store was reached, whether kubectl was approved and marked read-only, and that no mitigation was submitted. |
+| `notes.txt` | How each store was reached, the finding grounding the server ran with, whether kubectl was approved and marked read-only, and that no mitigation was submitted. |
 
 The options are those of ORCA-bench without `code_context`, as `--` flags, plus `--conductor-url`, `--mcp-url`, `--prometheus-url`, `--loki-url`, `--kubectl-wait-sec`, `--without-kubectl` and `--out`.
 `--without-kubectl` is for a telemetry-only baseline, or for a run on an image older than `agent-rca-accuracy`, which cannot approve the tool.

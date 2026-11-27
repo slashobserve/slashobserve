@@ -244,7 +244,7 @@ class OrcaAgent(BaseAgent):
             investigation_calls=options.investigation_calls,
             investigation_loop=options.investigation_loop,
             investigation_calls_max=options.investigation_calls_max,
-            finding_grounding=options.finding_grounding,
+            finding_grounding=options.effective_grounding,
             run_max_cost_usd=options.run_max_cost_usd,
             replay_dir=Path(options.replay_dir) if options.replay_dir else None,
             extra_env=orca.code_settings(options.names) if served else (),
@@ -258,6 +258,7 @@ class OrcaAgent(BaseAgent):
         )
         notes = [
             orca.spans_note_line(options.span_index),
+            options.grounding_note(),
             "scores: judged outside the published ORCA-bench judge, so not comparable with leaderboard numbers",
         ]
         workdir = tempfile.TemporaryDirectory(prefix="orca-code-")

@@ -50,6 +50,16 @@ def test_loop_settings_are_accepted_from_the_command_line(tmp_path):
     assert unset._options.investigation_loop is None
 
 
+def test_finding_grounding_is_enforced_unless_given(tmp_path):
+    unset = bench_agent.SlashObserveAgent(logs_dir=tmp_path, model_name="replay/replay")._options
+    assert unset.finding_grounding is None
+    assert unset.effective_grounding == "enforce"
+    assert unset.grounding_note().startswith("finding grounding: enforce (the adapter's default)")
+    given = bench_agent.SlashObserveAgent(logs_dir=tmp_path, model_name="replay/replay", finding_grounding="off")._options
+    assert given.effective_grounding == "off"
+    assert given.grounding_note().startswith("finding grounding: off (as given)")
+
+
 @pytest.mark.parametrize(
     "kwargs",
     [{"investigation_calls_max": 11}, {"investigation_calls_max": 5}, {"investigation_calls_max": 61}, {"finding_grounding": "strict"}, {"investigation_loop": "maybe"}, {"investigation_calls": 30, "investigation_calls_max": 20}],
