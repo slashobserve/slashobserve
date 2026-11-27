@@ -56,38 +56,20 @@ func (f *metricsFake) run(args ...string) (string, string, int) {
 	return runCLI(append([]string{"--server", f.server.URL, "--token", "k", "metrics"}, args...)...)
 }
 
-func TestMetricsQuerySendsARangeQuery(t *testing.T) {
+func TestMetricsQuerySendsARangeQueryAndPrintsOneLinePerSeries(t *testing.T) {
 	f := newMetricsFake(t, promFrames)
-	if _, stderr, code := f.run("query", "up", "--datasource", "prom", "--from", "now-6h"); code != 0 {
+	stdout, stderr, code := f.run("query", "up", "--datasource", "prom", "--from", "now-6h")
+	if code != 0 {
 		t.Fatalf("exit %d, stderr %q", code, stderr)
 	}
-	got := f.requests[0]
-	if got["query"] != "up" || got["kind"] != "range" || got["from"] != "now-6h" || got["to"] != "now" {
+	if got := f.requests[0]; got["query"] != "up" || got["kind"] != "range" || got["from"] != "now-6h" || got["to"] != "now" {
 		t.Fatalf("request %v", got)
 	}
-}
-
-func TestMetricsQueryInstantSendsAnInstantQuery(t *testing.T) {
-	f := newMetricsFake(t, promFrames)
-	if _, _, code := f.run("query", "up", "--datasource", "prom", "--instant"); code != 0 {
-		t.Fatalf("exit %d", code)
-	}
-	if f.requests[0]["kind"] != "instant" {
-		t.Fatalf("request %v", f.requests[0])
-	}
-}
-
-func TestMetricsQueryPrintsOneLinePerSeries(t *testing.T) {
-	f := newMetricsFake(t, promFrames)
-	stdout, _, code := f.run("query", "up", "--datasource", "prom")
 	want := strings.Join([]string{
 		`SERIES                                                POINTS  LAST  MIN  MAX  MEAN`,
 		`http_requests_total{code="200", service="cart"}      3       10    1    10   5`,
 		`{service="cart"}                                      1       0.5   0.5  0.5  0.5`,
 	}, "\n")
-	if code != 0 {
-		t.Fatalf("exit %d", code)
-	}
 	lines := strings.Split(strings.TrimSpace(stdout), "\n")
 	if len(lines) != 3 {
 		t.Fatalf("stdout %q", stdout)
@@ -99,9 +81,12 @@ func TestMetricsQueryPrintsOneLinePerSeries(t *testing.T) {
 	}
 }
 
-func TestMetricsQueryInstantPrintsValues(t *testing.T) {
+func TestMetricsQueryInstantSendsAnInstantQueryAndPrintsValues(t *testing.T) {
 	f := newMetricsFake(t, promFrames)
-	stdout, _, _ := f.run("query", "up", "--datasource", "prom", "--instant")
+	stdout, _, code := f.run("query", "up", "--datasource", "prom", "--instant")
+	if code != 0 || f.requests[0]["kind"] != "instant" {
+		t.Fatalf("exit %d, request %v", code, f.requests[0])
+	}
 	if !strings.HasPrefix(stdout, "SERIES") || strings.Contains(stdout, "POINTS") || !strings.Contains(stdout, "VALUE") {
 		t.Fatalf("stdout %q", stdout)
 	}

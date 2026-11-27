@@ -65,17 +65,6 @@ func (f *tracesFake) run(args ...string) (string, string, int) {
 	return runCLI(append([]string{"--server", f.server.URL, "--token", "k", "traces"}, args...)...)
 }
 
-func TestTracesTempoSendsTheID(t *testing.T) {
-	f := newTracesFake(t, "tempo")
-	if _, stderr, code := f.run(strings.ToUpper(traceID), "--datasource", "traces"); code != 0 {
-		t.Fatalf("exit %d, stderr %q", code, stderr)
-	}
-	q := f.queries[0]
-	if q["query"] != traceID || q["kind"] != "range" || q["from"] != "now-24h" || q["to"] != "now" || q["limit"] != float64(1000) {
-		t.Fatalf("query %v", q)
-	}
-}
-
 func TestTracesClickHouseSendsSQLWithTheID(t *testing.T) {
 	f := newTracesFake(t, "clickhouse")
 	if _, _, code := f.run(traceID[:16], "--datasource", "traces", "--from", "now-7d"); code != 0 {
@@ -113,11 +102,14 @@ func TestTracesRefusesBadInputBeforeQuerying(t *testing.T) {
 	}
 }
 
-func TestTracesPrintsTheTree(t *testing.T) {
+func TestTracesTempoSendsTheIDAndPrintsTheTree(t *testing.T) {
 	f := newTracesFake(t, "tempo")
-	stdout, _, code := f.run(traceID, "--datasource", "traces")
+	stdout, stderr, code := f.run(strings.ToUpper(traceID), "--datasource", "traces")
 	if code != 0 {
-		t.Fatalf("exit %d", code)
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	if q := f.queries[0]; q["query"] != traceID || q["kind"] != "range" || q["from"] != "now-24h" || q["to"] != "now" || q["limit"] != float64(1000) {
+		t.Fatalf("query %v", q)
 	}
 	lines := strings.Split(strings.TrimRight(stdout, "\n"), "\n")
 	if lines[0] != "Trace "+traceID+"  5 spans  1.23s  checkout POST /checkout" {

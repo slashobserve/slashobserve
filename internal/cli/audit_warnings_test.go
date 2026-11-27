@@ -27,9 +27,9 @@ func TestAuditCommandsPrintTheQueryWarningsOnStandardError(t *testing.T) {
 
 func TestAuditJSONKeepsTheWarningsInTheBody(t *testing.T) {
 	reply := `{"events":[],"next_cursor":null,"warnings":["` + strings.ReplaceAll(andWarning, `"`, `\"`) + `"]}`
-	_, stdout, _, code := runAudit(t, http.StatusOK, nil, reply, "--json", "audit", "search")
-	if code != 0 || strings.TrimSpace(stdout) != reply {
-		t.Fatalf("exit %d, stdout %q", code, stdout)
+	call, stdout, _, code := runAudit(t, http.StatusOK, nil, reply, "--json", "audit", "search")
+	if code != 0 || strings.TrimSpace(stdout) != reply || call.query.Has("q") || call.query.Has("since") {
+		t.Fatalf("exit %d, call %+v, stdout %q", code, call, stdout)
 	}
 }
 

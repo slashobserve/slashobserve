@@ -61,14 +61,6 @@ func TestAuditSearchSendsTheWindowAndPrintsATable(t *testing.T) {
 	}
 }
 
-func TestAuditSearchPrintsTheBodyWithJSON(t *testing.T) {
-	reply := `{"events":[],"next_cursor":null}`
-	call, stdout, _, code := runAudit(t, http.StatusOK, nil, reply, "--json", "audit", "search")
-	if code != 0 || strings.TrimSpace(stdout) != reply || call.query.Has("q") || call.query.Has("since") {
-		t.Fatalf("exit %d, call %+v, stdout %q", code, call, stdout)
-	}
-}
-
 func TestAuditSearchSaysWhenNothingMatches(t *testing.T) {
 	_, stdout, stderr, code := runAudit(t, http.StatusOK, nil, `{"events":[],"next_cursor":null}`, "audit", "search")
 	if code != 0 || !strings.Contains(stdout+stderr, "No audit events match in the window.") {

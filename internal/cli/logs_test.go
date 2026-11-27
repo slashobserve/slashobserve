@@ -78,22 +78,14 @@ func (f *logsFake) run(args ...string) (string, string, int) {
 	return runCLI(append([]string{"--server", f.server.URL, "--token", "k", "logs"}, args...)...)
 }
 
-func TestLogsSendsARangeQuery(t *testing.T) {
+func TestLogsSendsARangeQueryAndPrintsLokiLinesOldestFirstWithVaryingLabels(t *testing.T) {
 	f := newLogsFake(t, lokiFrames)
-	if _, stderr, code := f.run(`{app="shop"}`, "--datasource", "loki", "--from", "now-15m", "--limit", "50"); code != 0 {
+	stdout, stderr, code := f.run(`{app="shop"}`, "--datasource", "loki", "--from", "now-15m", "--limit", "50")
+	if code != 0 {
 		t.Fatalf("exit %d, stderr %q", code, stderr)
 	}
-	got := f.requests[0]
-	if got["query"] != `{app="shop"}` || got["kind"] != "range" || got["from"] != "now-15m" || got["to"] != "now" || got["limit"] != float64(50) {
+	if got := f.requests[0]; got["query"] != `{app="shop"}` || got["kind"] != "range" || got["from"] != "now-15m" || got["to"] != "now" || got["limit"] != float64(50) {
 		t.Fatalf("request %v", got)
-	}
-}
-
-func TestLogsPrintsLokiLinesOldestFirstWithVaryingLabels(t *testing.T) {
-	f := newLogsFake(t, lokiFrames)
-	stdout, _, code := f.run(`{app="shop"}`, "--datasource", "loki")
-	if code != 0 {
-		t.Fatalf("exit %d", code)
 	}
 	want := strings.Join([]string{
 		`2025-11-01T12:26:40.000Z  info   {pod="checkout-1"}  cart loaded`,

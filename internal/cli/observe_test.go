@@ -120,13 +120,6 @@ func pollAgainst(ctx context.Context, t *testing.T, statuses []int, timeout time
 	return stub, req, err
 }
 
-func TestPollRidesOutTwoServerErrors(t *testing.T) {
-	stub, req, err := pollAgainst(context.Background(), t, []int{503, 503, 200}, 5*time.Second)
-	if err != nil || req.Status != "succeeded" || stub.calls.Load() != 3 {
-		t.Fatalf("got %v, %q after %d calls", err, req.Status, stub.calls.Load())
-	}
-}
-
 func TestPollResetsTheFailureCountOnSuccess(t *testing.T) {
 	stub, req, err := pollAgainst(context.Background(), t, []int{503, 503, 202, 503, 503, 200}, 5*time.Second)
 	if err != nil || req.Status != "succeeded" || stub.calls.Load() != 6 {
