@@ -35,6 +35,7 @@ func statesReference() string {
 		observations.Machine.Doc("Observation", "An observation is a page of blocks in a folder, started by POST /observations or by an investigation."),
 		observations.BlockMachine.Doc("Observation block", "A block is one item on an observation's page: Markdown, a live panel, a frozen snapshot or an agent run."),
 		proposals.ProposalMachine.Doc("Proposal", "A proposal is a change to a dashboard that someone who can edit merges or discards, returned by `GET /api/v1/proposals/{id}`."),
+		proposals.MergeabilityStates.Doc("Proposal mergeability", "`GET /proposals/{id}` returns the `mergeability` of an open proposal, which says what a merge would meet on the dashboard's latest version, and null once the proposal is merged or discarded."),
 		health.ItemStates.Doc("Dashboard health", "`GET /health` returns the `state` of each dashboard that has a problem."),
 		health.RepairOutcomes.Doc("Health repair", "`GET /health` returns the `outcome` of a dashboard's latest repair beside the repair run's own `state`."),
 		webhooks.States.Doc("Webhook", "`GET /webhooks` returns the `state` of each webhook."),
@@ -97,6 +98,7 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 		{"Webhook", "state", webhooks.States.Names()},
 		{"ServiceAccountKey", "state", auth.KeyStates.Names()},
 		{"ConnectedAgent", "state", mcpauth.GrantStates.Names()},
+		{"Proposal", "mergeability", proposals.MergeabilityStates.Names()},
 		{"PublicLink", "state", public.LinkStates.Names()},
 		{"MCPSource", "state", inboundmcp.SourceStates.Names()},
 	}

@@ -107,6 +107,18 @@ A proposal is a change to a dashboard that someone who can edit merges or discar
 | `merge` | `open` | `merged` | `proposal.merged` | editor |
 | `discard` | `open` | `discarded` | `proposal.discarded` | requester, editor |
 
+## Proposal mergeability
+
+`GET /proposals/{id}` returns the `mergeability` of an open proposal, which says what a merge would meet on the dashboard's latest version, and null once the proposal is merged or discarded.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `current` | It builds on the dashboard's latest version; a merge saves it as it is. |
+| `behind_clean` | The dashboard has newer versions that changed other panels, variables and settings; a merge combines them without a choice. |
+| `behind_conflicting` | The dashboard has newer versions that changed the same panel, variable or setting; a merge needs a choice for each conflict. |
+| `blocked` | Combined with the latest version it is not a valid dashboard (a conflict whose reason is `invalid`); no choice fixes that, so every merge is refused until its author saves a new revision. |
+
 ## Dashboard health
 
 `GET /health` returns the `state` of each dashboard that has a problem.

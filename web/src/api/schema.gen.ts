@@ -6005,6 +6005,11 @@ export interface components {
             diff: components["schemas"]["SpecChange"][];
             /** @description While the proposal is open and behind, the units that both it and the newer versions changed, which a merge needs a choice for; empty otherwise. */
             conflicts: components["schemas"]["MergeConflict"][];
+            /**
+             * @description What a merge would meet now, computed on every read from `behind` and `conflicts`; null once the proposal is merged or discarded. `current` builds on the latest version, `behind_clean` merges onto newer versions without a choice, `behind_conflicting` needs a choice for each conflict, and `blocked` has a conflict whose reason is `invalid`, which no choice resolves: a merge answers 409 `version_conflict` until the author saves a new revision. `allowed_actions` still lists `merge` in every one of them. See docs/reference/states.md.
+             * @enum {string|null}
+             */
+            mergeability: "current" | "behind_clean" | "behind_conflicting" | "blocked" | null;
         };
         ProposalChange: {
             /** @enum {string} */
