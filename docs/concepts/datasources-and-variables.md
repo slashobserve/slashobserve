@@ -51,6 +51,7 @@ So renaming or removing a uid breaks the next save of every dashboard that uses 
 
 1. As an Admin, open the Datasources page.
    Each row shows the datasource's health and, when it is unhealthy, the cause the server knows, such as the HTTP status the datasource answered.
+   A line under the cause says what to do: try again in a moment, check the credentials, change a setting, or connect a supported version.
 2. Choose **Recheck** on a row to run a fresh check.
 3. Over the API, `GET /api/v1/datasources` returns each uid with its type, health and `source`.
    An unhealthy one carries `message` and `detail`.

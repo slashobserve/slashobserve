@@ -106,7 +106,7 @@ Over HTTP, `PATCH /api/v1/datasources/{uid}` takes the same fields, and a field 
 
 **Test connection** runs a health check against the values in the form, before anything is saved.
 When you edit, a credential you leave empty is taken from the saved datasource, so the test reflects what saving would do, unless you changed the address or username: then every credential must be entered again or cleared.
-A failed test shows the same fixed message and cause as the Datasources page.
+A failed test shows the same fixed message and cause as the Datasources page, and the same line saying what to do about it.
 The check times out after 10 seconds.
 
 A test never changes the outbound allowlist.

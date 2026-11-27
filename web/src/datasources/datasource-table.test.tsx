@@ -96,6 +96,34 @@ describe("DatasourceTable rows", () => {
   })
 })
 
+describe("DatasourceTable status", () => {
+  it("says what to do about a failing datasource under its message and cause", async () => {
+    renderTable([
+      status({
+        uid: "logs",
+        healthy: false,
+        health_state: "rechecking",
+        failure_kind: "transient",
+        message: "The datasource is not answering",
+        detail: "The server could not connect to the datasource's address",
+      }),
+      status({ uid: "metrics" }),
+    ])
+    const failing = (
+      await screen.findByText("Unavailable: The datasource is not answering")
+    ).closest("[data-uid]")
+    expect(failing).toHaveTextContent(
+      "The server could not connect to the datasource's address"
+    )
+    expect(failing).toHaveTextContent(
+      "This is usually temporary. Try again in a moment."
+    )
+    expect(
+      screen.getByText("Healthy").closest("[data-uid]")
+    ).not.toHaveTextContent("Try again")
+  })
+})
+
 describe("DatasourceTable row labels", () => {
   it("names a row by its name, and adds the id only when names collide", async () => {
     renderTable([

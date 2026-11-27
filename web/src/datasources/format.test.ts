@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest"
 
 import {
   exploreTargets,
+  failureAdvice,
   rowLabel,
   sourceLabel,
   statusOf,
@@ -107,6 +108,51 @@ describe("statusOf", () => {
       tone: "critical",
       text: "Unavailable",
     })
+  })
+
+  test("a failing datasource carries the advice of its failure kind", () => {
+    expect(
+      statusOf(
+        makeDatasource({
+          healthy: false,
+          health_state: "failing",
+          failure_kind: "credentials",
+          message: "The datasource refused the credentials",
+        })
+      )
+    ).toEqual({
+      tone: "critical",
+      text: "Unavailable: The datasource refused the credentials",
+      advice: "Check the username, password or token.",
+    })
+  })
+
+  test("an unchecked or healthy datasource carries no advice", () => {
+    expect(
+      statusOf(makeDatasource({ healthy: false, health_state: "unchecked" }))
+        .advice
+    ).toBeUndefined()
+    expect(
+      statusOf(makeDatasource({ failure_kind: "transient" })).advice
+    ).toBeUndefined()
+  })
+})
+
+describe("failureAdvice", () => {
+  test("has one fixed sentence per failure kind", () => {
+    expect(failureAdvice("transient")).toBe(
+      "This is usually temporary. Try again in a moment."
+    )
+    expect(failureAdvice("credentials")).toBe(
+      "Check the username, password or token."
+    )
+    expect(failureAdvice("configuration")).toBe(
+      "A setting needs to change before this works."
+    )
+    expect(failureAdvice("unsupported")).toBe(
+      "Connect a version the server supports."
+    )
+    expect(failureAdvice(undefined)).toBeUndefined()
   })
 })
 
