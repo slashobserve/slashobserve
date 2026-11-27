@@ -106,7 +106,7 @@ Over HTTP, `PATCH /api/v1/datasources/{uid}` takes the same fields, and a field 
 
 **Test connection** runs a health check against the values in the form, before anything is saved.
 When you edit, a credential you leave empty is taken from the saved datasource, so the test reflects what saving would do, unless you changed the address or username: then every credential must be entered again or cleared.
-A failed test shows the same fixed message and cause as the Datasources page.
+A failed test shows the same fixed message and cause as the Datasources page, and the same line saying what to do about it.
 The check times out after 10 seconds.
 
 A test never changes the outbound allowlist.
@@ -115,7 +115,7 @@ A domain that is not listed can be tested only while the allowlist is unlocked, 
 From the CLI, `observe datasources test prom --saved --address https://prom2.example.com` starts from the saved datasource and changes only what the flags name, and with a new address it needs the credentials again like `edit`.
 Without `--saved` it tests a draft you describe in full.
 Over HTTP, it is `POST /api/v1/datasources/test`, with `?base=<uid>` to start from a saved datasource.
-It answers `{"healthy": true}`, or `healthy: false` with a `message` and a `detail`.
+It answers `{"healthy": true}`, or `healthy: false` with a `message`, a `detail` and the [`failure_kind`](../concepts/datasources-and-variables.md#check-that-a-datasource-is-healthy) of the failure.
 A test is recorded in the audit trail with the type, the host and the result.
 
 ## Remove a datasource

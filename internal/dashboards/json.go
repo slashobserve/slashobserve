@@ -119,12 +119,14 @@ type conflictJSON struct {
 type versionSavedJSON struct {
 	DashboardVersionJSON
 	MergedFrom *MergedFrom `json:"merged_from,omitempty"`
+	Outcome    string      `json:"outcome"`
 }
 
 type proposalCreatedJSON struct {
 	ProposalID string `json:"proposal_id"`
 	Revision   int    `json:"revision"`
 	Opened     bool   `json:"opened"`
+	Outcome    string `json:"outcome"`
 }
 
 func newAuthorJSON(a Author) authorJSON {

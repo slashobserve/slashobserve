@@ -438,6 +438,7 @@ components:
           description: >-
             Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`.
             The `error` message names the field and says what to change.
+            On a `too_many_streams` refusal of an event stream, whose limit was reached: `per_caller` for the caller's own open streams or `server_capacity` for the server process's.
             On a `restricted_answer` refusal of a move, a copy, a save or a folder change it says whether waiting helps: `permanent` when the content holds an answer that read Admin-only data, or the run that writes read such data, and `run_in_flight` when an agent run about the content has not ended, so the same request can succeed once the run ends.
         needed_role:
           type: string
@@ -1637,7 +1638,7 @@ components:
     DatasourceStatus:
       type: object
       additionalProperties: false
-      required: [uid, type, name, source, healthy, checked_at, dashboard_count]
+      required: [uid, type, name, source, healthy, health_state, checked_at, dashboard_count]
       properties:
         uid:
           type: string
@@ -1668,6 +1669,24 @@ components:
           description: Who can query the datasource, for an Admin caller only; absent for everyone else.
         healthy:
           type: boolean
+        health_state:
+          type: string
+          enum: [unchecked, healthy, failing, rechecking]
+          description: >-
+            What the server knows about the datasource, computed on every read from the last check this server ran; the states are listed in the States reference.
+            `healthy` is `true` only in `healthy`.
+            `unchecked` means no check answered, because the caller left before it did or the check was cancelled, so it says nothing against the datasource.
+            `rechecking` is a failing datasource whose next check is already running.
+        failure_kind:
+          type: string
+          enum: [transient, credentials, configuration, unsupported, unknown]
+          description: >-
+            What to do about a failed check; present only when `health_state` is `failing` or `rechecking`.
+            `transient`: the datasource did not answer, timed out or hit a limit; the server keeps checking, so try again later.
+            `credentials`: the datasource refused the saved credentials or the server cannot read them; set them again.
+            `configuration`: the datasource's settings, its user's grants or the server's settings must change before a check can pass.
+            `unsupported`: the datasource runs a version the server does not support.
+            `unknown`: the check failed for a reason the server could not classify, so nothing says whether trying again will help; try a few times, then report it.
         message:
           type: string
           description: A fixed sentence naming the kind of failure; absent when healthy.
@@ -1885,6 +1904,10 @@ components:
         detail:
           type: string
           description: The cause when the server knows it; never an address, user or secret.
+        failure_kind:
+          type: string
+          enum: [transient, credentials, configuration, unsupported, unknown]
+          description: What to do about the failed check, with the meanings `GET /datasources` gives them; absent when healthy or when the check was cancelled.
     InvalidDatasourceError:
       type: object
       additionalProperties: false
@@ -1958,15 +1981,16 @@ components:
         state:
           type: string
           enum: [unchecked, unreachable, ready]
-          description: "`unchecked` until discovery runs, `unreachable` when the last discovery failed, `ready` otherwise."
+          description: "`unchecked` until discovery runs, `unreachable` when the last discovery failed or an agent's call could not reach the server since, `ready` otherwise."
         failure:
           type: string
           nullable: true
-          description: Why the last discovery failed, as a code such as `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
+          description: Why the last discovery failed, or why an agent's call could not reach the server since, as a code such as `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`. The next call the server answers clears it.
         checked_at:
           type: string
           format: date-time
           nullable: true
+          description: When the last discovery ran, or when an agent's call last moved the source between `ready` and `unreachable`.
         tools:
           $ref: "#/components/schemas/MCPSourceToolCounts"
         created_at:
@@ -2980,6 +3004,8 @@ components:
       properties:
         panel_id:
           type: string
+        reason:
+          $ref: "#/components/schemas/UnverifiedReason"
         issues:
           type: array
           minItems: 1
@@ -2997,6 +3023,16 @@ components:
           minItems: 1
           items:
             $ref: "#/components/schemas/Issue"
+        reason:
+          $ref: "#/components/schemas/UnverifiedReason"
+    UnverifiedReason:
+      type: string
+      enum: [empty, timeout, carried, restored, imported]
+      description: >-
+        Why the save kept the item although its query did not verify:
+        `empty` (it returned no data), `timeout` (it timed out and the save did not change it), `carried` (the parent version already listed it and it is unchanged),
+        `restored` (the restored version listed it) or `imported` (a Grafana import keeps every failing panel and variable).
+        Absent on a version saved before reasons were kept, and a copy made by duplicating keeps the reasons of its source.
     DashboardWithVersion:
       type: object
       additionalProperties: false
@@ -3009,7 +3045,7 @@ components:
     DashboardVersionSaved:
       type: object
       additionalProperties: false
-      required: [dashboard, version]
+      required: [dashboard, version, outcome]
       properties:
         dashboard:
           $ref: "#/components/schemas/DashboardSummary"
@@ -3017,6 +3053,12 @@ components:
           $ref: "#/components/schemas/Version"
         merged_from:
           $ref: "#/components/schemas/MergedFrom"
+        outcome:
+          type: string
+          enum: [replayed, merged, created]
+          description: >-
+            What the save did: `created` made the new version from the request, `merged` made it by merging a stale save onto the latest version,
+            and `replayed` made no version because the request repeats one that exists (the answer also has `Idempotent-Replay: true`).
     MergedFrom:
       type: object
       additionalProperties: false
@@ -3174,7 +3216,7 @@ components:
     Proposal:
       type: object
       additionalProperties: false
-      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, close_reason, merged_version, behind, latest_version, allowed_actions, spec, changes, diff, conflicts]
+      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, close_reason, merged_version, behind, latest_version, allowed_actions, spec, changes, diff, conflicts, mergeability]
       description: A proposed change to a dashboard with its head revision's document and what it changes.
       properties:
         id:
@@ -3281,6 +3323,16 @@ components:
             $ref: "#/components/schemas/MergeConflict"
           description: >-
             While the proposal is open and behind, the units that both it and the newer versions changed, which a merge needs a choice for; empty otherwise.
+        mergeability:
+          type: string
+          enum: [current, behind_clean, behind_conflicting, blocked]
+          nullable: true
+          description: >-
+            What a merge would meet now, computed on every read from `behind` and `conflicts`; null once the proposal is merged or discarded.
+            `current` builds on the latest version, `behind_clean` merges onto newer versions without a choice,
+            `behind_conflicting` needs a choice for each conflict, and `blocked` has a conflict whose reason is `invalid`,
+            which no choice resolves: a merge answers 409 `version_conflict` until the author saves a new revision.
+            `allowed_actions` still lists `merge` in every one of them. See docs/reference/states.md.
     ProposalChange:
       type: object
       additionalProperties: false
@@ -3310,9 +3362,13 @@ components:
     ProposalCreated:
       type: object
       additionalProperties: false
-      required: [proposal_id, revision, opened]
+      required: [proposal_id, revision, opened, outcome]
       description: The answer to a save that became a proposal.
       properties:
+        outcome:
+          type: string
+          enum: [proposed]
+          description: Always `proposed`, the save outcome that made no version.
         proposal_id:
           type: string
           format: uuid
@@ -3626,12 +3682,16 @@ components:
           type: object
           nullable: true
           additionalProperties: false
-          required: [kind, id]
-          description: The thread's agent, the one a plain reply asks; null until a message asks an agent, and cleared when that agent can no longer take runs.
+          required: [kind, id, state]
+          description: The thread's agent, the one a plain reply asks; null until a message asks an agent, and cleared when that agent can no longer take runs. A null agent is the `none` state of `docs/reference/states.md`.
           properties:
             kind:
               type: string
               enum: [builtin, grant, service_account]
+            state:
+              type: string
+              enum: [following, off]
+              description: "`following` while a plain reply asks the agent, and `off` after a message was sent to everyone, which is when `agent_off` is true."
             id:
               type: string
               format: uuid
@@ -6839,6 +6899,20 @@ components:
         message:
           type: string
           description: A fixed sentence chosen by the outcome, such as the folder and dashboard counts or why Grafana could not be read.
+    GrafanaConnectionTestState:
+      type: object
+      additionalProperties: false
+      required: [state, failure_kind]
+      properties:
+        state:
+          type: string
+          enum: [untested, failing, ok]
+          description: "`untested` while `last_test` is null, `failing` when the last test could not read Grafana, `ok` otherwise."
+        failure_kind:
+          type: string
+          nullable: true
+          enum: [transient, credentials, configuration, unsupported, unknown]
+          description: Who can fix a `failing` test, and null in every other state. `transient` means Grafana did not answer or answered 429 or 5xx, so testing again may pass; `credentials` means it refused the token; `configuration` means the URL, the outbound allowlist or what answers at the address is wrong; `unsupported` means an answer this server cannot take; `unknown` covers the rest, and every failure stored before the cause was kept.
     GrafanaImportSummary:
       type: object
       additionalProperties: false
@@ -6959,7 +7033,7 @@ components:
     GrafanaConnection:
       type: object
       additionalProperties: false
-      required: [id, name, url, created_by, created_at, updated_at, last_test, last_sync]
+      required: [id, name, url, created_by, created_at, updated_at, last_test, test, last_sync]
       properties:
         id:
           type: string
@@ -6985,6 +7059,10 @@ components:
           description: Null until the connection is tested, and again after its URL or token changes.
           allOf:
             - $ref: "#/components/schemas/GrafanaConnectionTest"
+        test:
+          description: The state of the connection's test, derived from `last_test`, so a reader does not parse `last_test.message`.
+          allOf:
+            - $ref: "#/components/schemas/GrafanaConnectionTestState"
         last_sync:
           nullable: true
           description: The summary of the last finished import, or null before the first one.
@@ -7168,8 +7246,8 @@ components:
         error_code:
           type: string
           nullable: true
-          enum: [status, unreachable, blocked_address, domain_not_allowed, too_large, skipped_by_admin]
-          description: Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit; `skipped_by_admin` is `skipped`, because an Admin chose to pass the event over.
+          enum: [status, unreachable, blocked_address, domain_not_allowed, too_large, skipped_by_admin, expired]
+          description: Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit; `skipped_by_admin` is `skipped`, because an Admin chose to pass the event over; `expired` is `skipped`, because the event was more than 24 hours old when its turn came, and nothing was sent.
     WebhookSkipResult:
       type: object
       additionalProperties: false
@@ -7463,7 +7541,7 @@ components:
     PublicLink:
       type: object
       additionalProperties: false
-      required: [id, prefix, label, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, state]
+      required: [id, prefix, label, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, unusable_reason, state]
       properties:
         id:
           type: string
@@ -7509,7 +7587,16 @@ components:
           type: boolean
         usable:
           type: boolean
-          description: False when the link is expired or the dashboard's latest version reads the viewer's identity.
+          description: Whether the public address opens the dashboard now. False in each case `unusable_reason` names.
+        unusable_reason:
+          type: string
+          enum: [expired, admins_only_folder, user_scoped, restricted_datasource]
+          nullable: true
+          description: >-
+            Why the link does not open, set whenever `usable` is false and null otherwise, the first that applies:
+            `expired` when its expiry time has passed, `admins_only_folder` when the dashboard is in a folder only Admins can read,
+            `user_scoped` when the dashboard's latest version reads the viewer's identity,
+            and `restricted_datasource` when it reads a datasource only Admins can query.
         state:
           type: string
           enum: [expired, active]
@@ -8347,7 +8434,7 @@ components:
     ObservationRCA:
       type: object
       additionalProperties: false
-      required: [id, observation_id, revision, title, summary, observation_state, from, to, blocks, created_by, created_at]
+      required: [id, observation_id, revision, title, summary, observation_state, state, allowed_actions, from, to, blocks, created_by, created_at]
       properties:
         id:
           type: string
@@ -8366,6 +8453,13 @@ components:
           nullable: true
         observation_state:
           $ref: "#/components/schemas/ObservationState"
+        state:
+          $ref: "#/components/schemas/RCARevisionState"
+        allowed_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/RCARevisionAction"
+          description: The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links. `share` is left out in a folder only Admins can read and in My Dashboards, where a public link cannot be created.
         from:
           type: string
           format: date-time
@@ -8386,7 +8480,7 @@ components:
     ObservationRCASummary:
       type: object
       additionalProperties: false
-      required: [id, revision, title, summary, observation_state, created_by, created_at]
+      required: [id, revision, title, summary, observation_state, state, allowed_actions, created_by, created_at]
       properties:
         id:
           type: string
@@ -8401,11 +8495,44 @@ components:
           nullable: true
         observation_state:
           $ref: "#/components/schemas/ObservationState"
+        state:
+          $ref: "#/components/schemas/RCARevisionState"
+        allowed_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/RCARevisionAction"
+          description: The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links. `share` is left out in a folder only Admins can read and in My Dashboards, where a public link cannot be created.
         created_by:
           $ref: "#/components/schemas/Actor"
         created_at:
           type: string
           format: date-time
+    RCARevisionState:
+      type: string
+      enum: [published, superseded, shared]
+      description: Computed on read, never stored. `shared` while a public link that has not expired shows the revision, else `superseded` when a newer revision exists, else `published`.
+    RCARevisionAction:
+      type: string
+      enum: [share, unshare, withdraw]
+    RCARefusal:
+      type: object
+      additionalProperties: false
+      required: [error, code, state, allowed_actions]
+      description: The answer to a publish or a withdraw that is refused. `state` and `allowed_actions` describe what the route addresses, the observation for a publish and the revision for a withdraw.
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [rca_limit, rca_unchanged, observation_changed, rca_shared]
+        state:
+          type: string
+          description: The observation's state for a refused publish, and the revision's state for a refused withdraw.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+          description: The actions the caller may take in that state, as in the observation's or the revision's own `allowed_actions`.
     RCAPublicLink:
       type: object
       additionalProperties: false

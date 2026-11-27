@@ -51,9 +51,23 @@ So renaming or removing a uid breaks the next save of every dashboard that uses 
 
 1. As an Admin, open the Datasources page.
    Each row shows the datasource's health and, when it is unhealthy, the cause the server knows, such as the HTTP status the datasource answered.
+   A line under the cause says what to do: try again in a moment, check the credentials, change a setting, or connect a supported version.
+   When the server could not classify the failure, the line says only that.
 2. Choose **Recheck** on a row to run a fresh check.
 3. Over the API, `GET /api/v1/datasources` returns each uid with its type, health and `source`.
    An unhealthy one carries `message` and `detail`.
+   Each one also carries `health_state`: `unchecked`, `healthy`, `failing` or `rechecking`, as the [States reference](../reference/states.md#datasource-health) lists them.
+   A failing or rechecking one carries `failure_kind`, so a script or an agent can decide without reading `message`:
+
+   | `failure_kind` | What it means | What to do |
+   | --- | --- | --- |
+   | `transient` | The datasource did not answer, timed out or hit a limit. | Try again later; the server keeps checking. |
+   | `credentials` | The datasource refused the saved credentials, or the server cannot read them. | Set the credentials again. |
+   | `configuration` | The datasource's settings, its user's grants or the server's settings do not fit. | Change what `message` names, then recheck. |
+   | `unsupported` | The datasource runs a version the server does not support. | Connect a supported version. |
+   | `unknown` | The check failed for a reason the server could not classify. | Try again a few times, then report it; nothing says a retry will help. |
+
+   A check that was cancelled, or a caller that left before the check answered, reads `unchecked` with `healthy: false` and no `failure_kind`, and the server does not keep that result.
    `POST /api/v1/datasources/{uid}/recheck` runs a fresh check.
 
 `list_datasources` does the same over MCP and in the built-in agent, `recheck_datasource` over MCP, and `observe datasources recheck` from the CLI.

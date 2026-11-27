@@ -126,6 +126,17 @@ export function choicesFrom(
   return { choices, missing }
 }
 
+export function mergeHint(
+  proposal: Pick<Proposal, "mergeability">,
+  missing: readonly string[]
+): string | null {
+  if (proposal.mergeability === "blocked") {
+    return "Some changes cannot be merged; discard this proposal or ask its author to fix it"
+  }
+  if (missing.length > 0) return "Choose a side for each conflict first"
+  return null
+}
+
 export function droppedText(
   proposal: Pick<Proposal, "spec" | "conflicts">,
   picks: Picks

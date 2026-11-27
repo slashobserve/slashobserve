@@ -169,7 +169,7 @@ func (s *Service) Release(ctx context.Context, row dbsqlc.AgentRequest) {
 
 func (s *Service) RenewLease(ctx context.Context, row dbsqlc.AgentRequest) (canceled bool, err error) {
 	cancelRequestedAt, err := s.db.Queries().RenewAgentRequestLease(ctx, dbsqlc.RenewAgentRequestLeaseParams{
-		LeaseSeconds: s.leaseTTL.Seconds(), ID: row.ID, Attempts: row.Attempts,
+		LeaseSeconds: s.leaseTTL.Seconds(), ID: row.ID, ClaimEpoch: row.ClaimEpoch,
 	})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
@@ -351,6 +351,7 @@ func RequestOf(row dbsqlc.AgentRequest) Request {
 		BaseVersion:  int(row.BaseVersion.Int32),
 		Draft:        row.Draft,
 		Attempt:      int(row.Attempts),
+		ClaimEpoch:   int(row.ClaimEpoch),
 		RequestedBy:  requesterOf(row),
 		Origin:       origin.Origin{Kind: origin.Kind(row.Origin.String), Client: row.OriginClient.String},
 		Assignee:     AssigneeKind(row.AssignedKind),

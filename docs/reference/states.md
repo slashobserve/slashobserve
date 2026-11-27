@@ -52,6 +52,23 @@ A comment thread is a conversation on a dashboard, an observation, an annotation
 | `resolve` | `open` | `resolved` | `thread.resolved` | requester, editor, server |
 | `reopen` | `resolved` | `open` | `thread.reopened` | commenter |
 
+## Thread's agent
+
+A thread's agent is the one a plain reply asks, returned as `agent` with its `state` by `GET /threads`. No route takes these moves by name today, so the thread's `allowed_actions` do not list them: a message that mentions an agent or is sent to the agent makes `set_agent`, and a message sent to everyone makes `turn_agent_off`. Each move is recorded as the audit action `thread.agent_set`, not as an activity event.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `none` | No message has asked an agent yet, or the thread's agent can no longer take runs; a plain reply asks nobody. | `set_agent` |
+| `following` | The thread has an agent and a plain reply asks it. | `set_agent`, `turn_agent_off` |
+| `off` | The thread keeps its agent, but a message was sent to everyone, so a plain reply asks nobody until the agent is set again. | `set_agent` |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `open` | - | `none` | `thread.opened` | commenter |
+| `set_agent` | `none`, `following`, `off` | `following` | `thread.agent_set` | commenter |
+| `turn_agent_off` | `following` | `off` | `thread.agent_set` | commenter |
+| `clear_agent` | `following`, `off` | `none` | `thread.agent_set` | server |
+
 ## Observation
 
 An observation is a page of blocks in a folder, started by POST /observations or by an investigation.
@@ -90,6 +107,25 @@ A block is one item on an observation's page: Markdown, a live panel, a frozen s
 | `discard` | `requested` | `deleted` | `observation.block_discarded` | editor, requester |
 | `remove` | `live` | `deleted` | `observation.block_removed` | editor |
 
+## RCA revision
+
+An RCA revision is one published copy of an observation, returned by `GET /observations/{id}/rcas`; its state is computed on read from the newer revisions and the live public links, never stored.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `published` | The newest revision of the observation's RCA, with no live public link. | `share`, `withdraw` |
+| `superseded` | A newer revision was published after it, and it has no live public link. | `share`, `withdraw` |
+| `shared` | At least one public link that has not expired shows it, so it cannot be withdrawn until they are revoked. | `share`, `unshare` |
+| `withdrawn` | Gone: the revision and its frozen panels are deleted, so this state is never stored. Final. | - |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `publish` | - | `published` | `observation.published` | editor |
+| `supersede` | `published` | `superseded` | `observation.published` | server |
+| `share` | `published`, `superseded`, `shared` | `shared` | `public_link.created` | admin |
+| `unshare` | `shared` | `published`, `superseded` | `public_link.revoked` | admin |
+| `withdraw` | `published`, `superseded` | `withdrawn` | `observation.rca_withdrawn` | editor |
+
 ## Proposal
 
 A proposal is a change to a dashboard that someone who can edit merges or discards, returned by `GET /api/v1/proposals/{id}`.
@@ -106,6 +142,18 @@ A proposal is a change to a dashboard that someone who can edit merges or discar
 | `update` | `open` | - | `proposal.updated` | requester |
 | `merge` | `open` | `merged` | `proposal.merged` | editor |
 | `discard` | `open` | `discarded` | `proposal.discarded` | requester, editor |
+
+## Proposal mergeability
+
+`GET /proposals/{id}` returns the `mergeability` of an open proposal, which says what a merge would meet on the dashboard's latest version, and null once the proposal is merged or discarded.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `current` | It builds on the dashboard's latest version; a merge saves it as it is. |
+| `behind_clean` | The dashboard has newer versions that changed other panels, variables and settings; a merge combines them without a choice. |
+| `behind_conflicting` | The dashboard has newer versions that changed the same panel, variable or setting; a merge needs a choice for each conflict. |
+| `blocked` | Combined with the latest version it is not a valid dashboard (a conflict whose reason is `invalid`); no choice fixes that, so every merge is refused until its author saves a new revision. |
 
 ## Dashboard health
 
@@ -166,6 +214,18 @@ This state is computed from stored fields on every read; nothing stores it.
 | `revoked` | The person or an admin revoked it; it leaves the list. |
 | `active` | It may call /mcp as its person until expires_at. |
 
+## Dashboard save
+
+`POST /dashboards/{id}/versions` and `PATCH /dashboards/{id}/panels` return the `outcome` of the save, and so do the `update_dashboard` and `update_panels` tools.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `proposed` | The caller may not save here, so the change became a proposal, or a revision of the caller's open one; no version was saved. |
+| `replayed` | The save repeats a version that already exists, so that version is returned and no version was saved. |
+| `merged` | The save was stale and the server merged it onto the latest version; the merge is the new version and merged_from names both ends. |
+| `created` | None of the above; the save is the new version. |
+
 ## Public link
 
 `GET /dashboards/{id}/public-links` returns the `state` of each link.
@@ -174,7 +234,7 @@ This state is computed from stored fields on every read; nothing stores it.
 | State | When |
 | --- | --- |
 | `expired` | Its expiry time has passed; the link no longer opens. |
-| `active` | None of the above; usable says whether the dashboard's latest version can be shown publicly. |
+| `active` | None of the above; usable says whether the link opens, and unusable_reason says why it does not. |
 
 ## Content confined to Admins-only folders
 
@@ -206,6 +266,17 @@ A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /g
 | `fail` | `running` | `failed` | `grafana sync failed` | server |
 | `exhaust` | `running` | `failed` | `grafana sync lease expired twice` | server |
 | `cancel` | `running` | `canceled` | `grafana sync canceled` | admin |
+
+## Grafana connection test
+
+`GET /grafana` returns the `test.state` of each connection.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `untested` | The connection has not been tested since it was added or its URL or token changed; last_test is null. |
+| `failing` | The last test could not read Grafana; failure_kind says who can fix it: transient (Grafana did not answer, try again), credentials (the token was refused), configuration (the URL, the outbound allowlist or what answers at the address), unsupported (an answer this server cannot take) or unknown. |
+| `ok` | None of the above: the last test read Grafana's health, folders and dashboards. |
 
 ## MCP source tool
 
@@ -239,8 +310,18 @@ This state is computed from stored fields on every read; nothing stores it.
 | State | When |
 | --- | --- |
 | `unchecked` | No discovery has run since the source was added or its address changed. |
-| `unreachable` | The last discovery failed; failure says why, such as the domain not being on the outbound allowlist, the secret being refused or the server not answering. |
-| `ready` | None of the above: the last discovery listed the server's tools. |
+| `unreachable` | The last discovery failed, or an agent's call could not reach the server since; failure says why, such as the domain not being on the outbound allowlist, the secret being refused or the server not answering. |
+| `ready` | None of the above: the last discovery listed the server's tools, or the server has answered an agent's call since it last failed. |
+
+## Panel and variable verification
+
+`GET /dashboards/{id}` returns the panels and variables of a version that are not verified in `unverified`, each with the `reason` the save kept it.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `unverified` | The version lists it in `unverified`: its query failed or returned nothing when the version was saved and the save kept it, with a `reason` of `empty` (it returned no data), `timeout` (it timed out and the save did not change it), `carried` (the parent version already listed it and it is unchanged), `restored` (the restored version listed it) or `imported` (a Grafana import keeps every failing panel). |
+| `verified` | None of the above; its query ran when the version was saved, or when the last version that changed it was. |
 
 ## Agent presence
 
@@ -252,3 +333,37 @@ This state is computed from stored fields on every read; nothing stores it.
 | `working` | It holds the lease of a run it claimed. |
 | `listening` | It asked for work in the last 40 seconds. |
 | `offline` | It has not asked for work in 40 seconds and holds no run. |
+
+## Datasource health
+
+`GET /datasources` and `POST /datasources/{uid}/recheck` return the `health_state` of each datasource, from the last check the answering server ran.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `unchecked` | No check has answered: the caller left before it did, or the check was cancelled. `healthy` is `false`, and nothing says the datasource is failing. |
+| `healthy` | The last check passed, or the datasource answered a query after a check it did not answer. |
+| `failing` | The last check failed, and `failure_kind` says whether to wait or to change something. |
+| `rechecking` | The last check failed 2 seconds ago or more and a new one is running; `message`, `detail` and `failure_kind` are still those of the failed check. |
+
+## Server process
+
+A server process moves through these phases from start to exit: `GET /readyz` returns the current one as `phase`, the `slashobserve_server_phase` series is 1 for it, and each move writes one server log line with the name in the Event column and the new phase as its `phase` attribute, not an activity event.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `booting` | It reads its settings and connects to Postgres. | - |
+| `migrating` | It applies the pending database migrations. | - |
+| `provisioning` | It reconciles roles, applies the service-account and MCP source files and builds its services; it does not listen yet. | - |
+| `ready` | It listens and serves requests, and `/readyz` answers 200 while its checks pass. | - |
+| `stopping` | It got the shutdown signal: `/readyz` answers 503 while it keeps serving for 5 seconds, then it stops accepting requests and finishes the open ones. The 503 code `shutting_down` of the event streams is this phase. | - |
+| `stopped` | It serves nothing more and exits. Final. | - |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `boot` | - | `booting` | `starting slashobserve-server` | server |
+| `migrate` | `booting` | `migrating` | `migrating database` | server |
+| `provision` | `migrating` | `provisioning` | `provisioning` | server |
+| `serve` | `provisioning` | `ready` | `listening` | server |
+| `stop` | `ready` | `stopping` | `shutting down` | server |
+| `exit` | `booting`, `migrating`, `provisioning`, `ready`, `stopping` | `stopped` | `server stopped` | server |
