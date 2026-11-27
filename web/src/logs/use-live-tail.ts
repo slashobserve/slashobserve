@@ -17,6 +17,7 @@ import {
 export const tailRows = 1000
 const tailWindowMs = 300_000
 const streamErrorStatus = 502
+const hiddenGraceMs = 15_000
 
 function oldestKept(now: number): number {
   return now - tailWindowMs
@@ -66,6 +67,8 @@ export function useLiveTail({
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let disposed = false
     let failed = false
+    let suspended = false
+    let hiddenTimer: ReturnType<typeof setTimeout> | undefined
     let attempt = 0
     let resumeFrom: string | undefined
 
@@ -172,18 +175,39 @@ export function useLiveTail({
       source = undefined
     }
 
-    const stopWatchingCache = closeWhileCached(
-      () => {
-        close()
-        update({ connected: false })
-      },
-      () => {
-        if (!failed && source === undefined && retryTimer === undefined) open()
+    function suspend() {
+      suspended = true
+      close()
+      update({ connected: false })
+    }
+
+    function resume() {
+      if (failed || source !== undefined || retryTimer !== undefined) return
+      suspended = false
+      open()
+    }
+
+    function onVisibilityChange() {
+      if (document.hidden) {
+        hiddenTimer ??= setTimeout(() => {
+          hiddenTimer = undefined
+          suspend()
+        }, hiddenGraceMs)
+        return
       }
-    )
+      clearTimeout(hiddenTimer)
+      hiddenTimer = undefined
+      if (suspended) resume()
+    }
+
+    document.addEventListener("visibilitychange", onVisibilityChange)
+    const stopWatchingCache = closeWhileCached(suspend, resume)
     open()
+    if (document.hidden) onVisibilityChange()
     return () => {
       disposed = true
+      document.removeEventListener("visibilitychange", onVisibilityChange)
+      clearTimeout(hiddenTimer)
       stopWatchingCache()
       close()
     }
