@@ -19,8 +19,6 @@ const (
 	traceStatsFrom = "FROM otel_traces WHERE $__timeFilter(Timestamp)"
 	errorStatus    = "lower(StatusCode) IN ('error','status_code_error')"
 	nanosPerMilli  = 1e6
-
-	unsupportedWindowNote = "ClickHouse trace stats give p50, p95 and p99 per time bucket only; whole-window and group_by quantiles are not available here, so run a SQL query with quantiles(0.5, 0.95, 0.99)(Duration) and GROUP BY ServiceName instead."
 )
 
 func TraceStatsQuery(expr string, step time.Duration) string {
@@ -81,14 +79,17 @@ func significantAndComments(tokens []macros.Token) []macros.Token {
 	return kept
 }
 
-var generatedSQL = regexp.MustCompile(`(?s)(SELECT (?:toStartOfInterval|exp2)\(|\(line \d+, col \d+\): ).*?GROUP BY (?:Time ORDER BY Time|Le ORDER BY Le)`)
+var (
+	generatedSQL         = regexp.MustCompile(`(?s)(SELECT (?:toStartOfInterval|exp2)\(|\(line \d+, col \d+\): ).*?GROUP BY (?:Time ORDER BY Time|Le ORDER BY Le)`)
+	generatedDurationSQL = regexp.MustCompile(`(?s)SELECT (?:\S+ AS Value, )?count\(\) AS Spans, countIf\(.*?quantilesExact\(0\.5,0\.95,0\.99\)\(Duration\)|GROUP BY Value HAVING Value != '' ORDER BY Spans DESC, Value LIMIT \d+`)
+)
 
 func trimGeneratedSQL(err error) error {
 	var ue *datasource.UpstreamError
 	if !errors.As(err, &ue) || !errors.Is(ue.Kind, datasource.ErrInvalidQuery) {
 		return err
 	}
-	trimmed := generatedSQL.ReplaceAllStringFunc(ue.Message, func(m string) string {
+	trimmed := generatedSQL.ReplaceAllStringFunc(generatedDurationSQL.ReplaceAllString(ue.Message, "the query"), func(m string) string {
 		if strings.HasPrefix(m, "(line ") {
 			return m[:strings.Index(m, "): ")+3] + "..."
 		}
@@ -133,9 +134,7 @@ func (d *Datasource) TraceStats(ctx context.Context, req datasource.TraceStatsRe
 	if err != nil {
 		return datasource.TraceStats{}, trimGeneratedSQL(err)
 	}
-	stats := foldTraceStats(req.Range, req.Step, results[0], results[1])
-	stats.Note = unsupportedWindowNote
-	return stats, nil
+	return foldTraceStats(req.Range, req.Step, results[0], results[1]), nil
 }
 
 func foldTraceStats(r datasource.TimeRange, step time.Duration, grouped, histogram *resultSet) datasource.TraceStats {

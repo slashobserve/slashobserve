@@ -29,7 +29,7 @@ var plainWords = map[string]bool{
 }
 
 var dataReads = map[string]bool{
-	"trace_stats": true, "sample_rows": true, "get_trace": true, "compare_traces": true,
+	"trace_stats": true, "sample_rows": true, "get_trace": true, "compare_traces": true, "trace_error_origins": true, "trace_slow_path": true,
 	"log_context": true, "log_patterns": true, "log_facets": true, "logs_for_trace": true, "call_mcp_tool": true,
 }
 

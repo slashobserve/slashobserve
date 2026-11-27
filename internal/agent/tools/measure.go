@@ -32,7 +32,7 @@ const (
 	measureMaxSteps    = 11000
 	everySample        = "every sample"
 
-	descMeasure = "Measure one figure of a PromQL expression over a whole window on a Prometheus datasource, computed from every sample or step, never read off the sampled points of a range query. Use it for every peak, minimum, average and duration you report. stat is max, min, avg or last; first_time or last_time give when a condition first or last held, such as where \"== 0\" for when a queue emptied. A plain selector is measured over every stored sample; any other expression is evaluated every step, 1m unless you pass one, so pass the step the question names. max and min of one series also say when the value was reached. Cite the query in the result. To time a drain, set from to the peak's time and ask first_time where \"== 0\": seconds_after_from is the duration."
+	descMeasure = "Measure one figure of a PromQL expression over a whole window on a Prometheus datasource, computed from every sample or step, never read off the sampled points of a range query. Use it for every peak, minimum, average and duration you report. stat is max, min, avg or last; first_time or last_time give when a condition first or last held, such as where \"== 0\" for when a queue emptied. A plain selector is measured over every stored sample; any other expression is evaluated every step, 1m unless you pass one, so pass the step the question names. max and min of one series also say when the value was reached. For a total, ratio or quantile use measure_aggregate. Cite the query in the result. To time a drain, set from to the peak's time and ask first_time where \"== 0\": seconds_after_from is the duration."
 
 	propMeasureStat  = `"stat":{"type":"string","enum":["max","min","avg","last","first_time","last_time"],"description":"What to measure over the window."}`
 	propMeasureStep  = `"step":{"type":"string","pattern":"^[1-9][0-9]{0,4}(s|m|h)$","description":"How often the expression is evaluated, such as 15s or 5m."}`
@@ -231,7 +231,7 @@ func (r *Registry) measure(ctx context.Context, input json.RawMessage) (Result, 
 	case out.Empty && plan.times:
 		out.Note = "The condition never held at a step of this window. That is a finding about these steps only: check the value with stat last, or pass a shorter step."
 	case out.Empty:
-		out.Note = "No series matched in this window. An empty result does not show the value was zero: check the metric and label names with list_metrics and list_label_values."
+		out.Note = explainedNote(r.explainEmpty(ctx, inst, plan.query, rng), "No series matched in this window. An empty result does not show the value was zero: check the metric and label names with list_metrics and list_label_values.")
 	case !plan.times && (in.Stat == statMax || in.Stat == statMin) && len(out.Values) == 1:
 		r.measureWhen(ctx, inst, in, &out, rng, target.window)
 	}
