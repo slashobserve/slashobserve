@@ -23,6 +23,7 @@ function source(uid: string, name: string, type = "loki"): DatasourceStatus {
     name,
     source: "file",
     healthy: true,
+    health_state: "healthy",
     checked_at: "2026-11-19T00:00:00Z",
     dashboard_count: 0,
   }

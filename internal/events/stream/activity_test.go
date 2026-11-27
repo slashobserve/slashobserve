@@ -568,11 +568,11 @@ func TestSlotsRefuseBeyondTheLimitsAndFreeOnRelease(t *testing.T) {
 			t.Fatalf("acquire %s refused with %d", key, status)
 		}
 	}
-	if status, code := s.acquire("a"); status != http.StatusTooManyRequests || code != "too_many_streams" {
-		t.Errorf("third slot of one principal: %d %q, want 429", status, code)
+	if status, reason := s.acquire("a"); status != http.StatusTooManyRequests || reason != "per_caller" {
+		t.Errorf("third slot of one principal: %d %q, want 429 per_caller", status, reason)
 	}
-	if status, code := s.acquire("c"); status != http.StatusServiceUnavailable || code != "too_many_streams" {
-		t.Errorf("fourth slot of the process: %d %q, want 503", status, code)
+	if status, reason := s.acquire("c"); status != http.StatusServiceUnavailable || reason != "server_capacity" {
+		t.Errorf("fourth slot of the process: %d %q, want 503 server_capacity", status, reason)
 	}
 	s.release("a")
 	if status, _ := s.acquire("c"); status != 0 {

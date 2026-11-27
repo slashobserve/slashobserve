@@ -215,6 +215,18 @@ Later saves keep a failing panel or variable unverified for as long as these sta
 
 A new or changed query must return data, and a panel whose queries pass again is no longer unverified.
 
+Over the API each item of a version's `unverified` list carries a `reason` that says why the save kept it:
+
+| `reason` | The save kept it because |
+|---|---|
+| `imported` | a Grafana import keeps every failing panel and variable |
+| `carried` | the parent version already listed it and it is unchanged |
+| `timeout` | its query timed out and the save did not change it |
+| `empty` | its query returned no data, on a new dashboard or after the dashboard's time range grew |
+| `restored` | the version that was restored listed it |
+
+A version saved before reasons were kept has none, and a duplicate keeps the reasons of its source.
+
 A save with the `update_dashboard` tool runs every query.
 A save with the `update_panels` tool runs only the queries it changed.
 It runs every query when it changes the dashboard's default `time`, or its title while a query or variable uses the `__dashboard` macro.

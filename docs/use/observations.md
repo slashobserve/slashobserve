@@ -501,10 +501,12 @@ Details of these refusals:
 
 A revision never changes, so a slip in one cannot be edited, but the revision can be withdrawn.
 **Withdraw** asks for confirmation and then deletes the revision and its frozen panels for everyone.
-It needs Edit on the observation's folder and the same states as publishing.
+It needs Edit on the observation's folder.
+Over the API each revision carries its own `state` (`published`, `superseded` or `shared`) and `allowed_actions`, and `withdraw` is listed only while no live public link shows it; the [states reference](../reference/states.md) has the moves.
 The activity log keeps `observation.rca_withdrawn` with the title and the revision number.
 
-A revision that still has a live public link answers `rca_shared` (409).
+A revision that still has a live public link answers `rca_shared` (409), with the revision's `state` and the `allowed_actions` the caller still has on it.
+A refused publish (`rca_limit`, `rca_unchanged`, `observation_changed`) carries the observation's `state` and `allowed_actions` the same way.
 A public link is a person's decision, so a person with Manage on the folder revokes its links first and then withdraws the revision.
 Links that have already expired go with the revision.
 Withdrawing the newest revision frees its number, so the next publish takes it again.

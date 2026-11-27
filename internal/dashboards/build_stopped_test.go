@@ -8,6 +8,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -298,4 +299,40 @@ func TestACommittedRevisionBuildKeepsItsLines(t *testing.T) {
 			t.Errorf("panel %s is %d wide, want its 12", p.ID, p.GridPos.W)
 		}
 	}
+}
+
+func TestAReplayOfABuildSaveNamesWhatManagesTheDashboardLikeTheFirstAnswer(t *testing.T) {
+	t.Run("a stopped build", func(t *testing.T) {
+		r, _ := newProbeRig(t)
+		dash := r.createDashboard(t, "rps")
+		r.bindToAppliedFile(t, dash)
+		id := r.runningRequest(t, dash)
+		r.saveBuild(t, id, dash, 1, "rps", "p99")
+		r.failRequest(t, id)
+		first, _, _, err := r.service.SaveStoppedBuild(reading(t.Context()), testUser, id)
+		if err != nil || first.ManagedBy != folders.ManagedByApply {
+			t.Fatalf("first save: managed by %s, err %v", first.ManagedBy, err)
+		}
+
+		again, _, replayed, err := r.service.SaveStoppedBuild(reading(t.Context()), testUser, id)
+		if err != nil || !replayed || again.ManagedBy != first.ManagedBy || again.Abilities != first.Abilities {
+			t.Fatalf("second save: replayed %v, managed by %s with %+v, want %s with %+v, err %v", replayed, again.ManagedBy, again.Abilities, first.ManagedBy, first.Abilities, err)
+		}
+	})
+	t.Run("a commit", func(t *testing.T) {
+		r, _ := newProbeRig(t)
+		dash := r.createDashboard(t, "rps")
+		r.bindToAppliedFile(t, dash)
+		id := r.runningRequest(t, dash)
+		r.saveBuild(t, id, dash, 1, "rps", "p99")
+		first, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildEpoch)
+		if err != nil || first.Dashboard.ManagedBy != folders.ManagedByApply {
+			t.Fatalf("first commit: managed by %s, err %v", first.Dashboard.ManagedBy, err)
+		}
+
+		again, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildEpoch)
+		if err != nil || !again.Replayed || again.Dashboard.ManagedBy != first.Dashboard.ManagedBy || again.Dashboard.Abilities != first.Dashboard.Abilities {
+			t.Fatalf("second commit: replayed %v, managed by %s with %+v, want %s with %+v, err %v", again.Replayed, again.Dashboard.ManagedBy, again.Dashboard.Abilities, first.Dashboard.ManagedBy, first.Dashboard.Abilities, err)
+		}
+	})
 }

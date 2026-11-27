@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/scheduler"
 )
 
 var (
@@ -255,7 +256,7 @@ func (s *Service) jobStatus(ctx context.Context, now time.Time) (JobStatus, erro
 		LastStartedAt:  timeOf(row.LastStartedAt),
 		LastFinishedAt: timeOf(row.LastFinishedAt),
 		LastOutcome:    row.LastOutcome,
-		Running:        row.LeaseUntil.Valid && row.LeaseUntil.Time.After(now),
+		Running:        scheduler.RowState(row, now) == scheduler.StateRunning,
 	}, nil
 }
 

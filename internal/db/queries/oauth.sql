@@ -89,7 +89,7 @@ VALUES (@token_hash, @grant_id, @kind, @expires_at);
 UPDATE oauth_grants SET expires_at = @expires_at WHERE id = @id;
 
 -- name: GetOAuthRefresh :one
-SELECT t.grant_id, t.expires_at, t.rotated_at, g.client_id, g.user_id, g.resource, g.created_at, g.revoked_at, now()::timestamptz AS db_now
+SELECT t.grant_id, t.expires_at, t.rotated_at, g.client_id, g.user_id, g.resource, g.created_at, g.revoked_at, g.revoked_reason, now()::timestamptz AS db_now
 FROM oauth_tokens t
 JOIN oauth_grants g ON g.id = t.grant_id
 WHERE t.token_hash = $1 AND t.kind = 'refresh'
@@ -139,7 +139,7 @@ WHERE id = @id AND user_id = @user_id AND revoked_at IS NULL;
 SELECT g.id, g.client_id, c.name AS client_name, c.redirect_uris AS client_redirect_uris,
        g.user_id, u.name AS user_name, u.email AS user_email,
        g.created_at, g.last_used_at, g.expires_at,
-       g.mode,
+       g.mode, g.revoked_at, g.revoked_reason,
        w.seen_at AS worker_seen_at,
        EXISTS (
          SELECT 1 FROM agent_requests r
@@ -151,8 +151,7 @@ JOIN oauth_clients c ON c.id = g.client_id
 JOIN users u ON u.id = g.user_id
 LEFT JOIN agent_workers w ON w.id = 'grant:' || g.id::text
 WHERE g.user_id = @user_id
-  AND g.revoked_at IS NULL
-  AND g.expires_at > now()
+  AND (@include_ended::boolean OR (g.revoked_at IS NULL AND g.expires_at > now()))
   AND (sqlc.narg('before_created')::timestamptz IS NULL
        OR (g.created_at, g.id) < (sqlc.narg('before_created')::timestamptz, sqlc.narg('before_id')::uuid))
 ORDER BY g.created_at DESC, g.id DESC
@@ -167,7 +166,7 @@ WITH g AS (
 SELECT g.id, g.client_id, c.name AS client_name, c.redirect_uris AS client_redirect_uris,
        g.user_id, u.name AS user_name, u.email AS user_email,
        g.created_at, g.last_used_at, g.expires_at,
-       g.mode,
+       g.mode, g.revoked_at, g.revoked_reason,
        w.seen_at AS worker_seen_at,
        EXISTS (
          SELECT 1 FROM agent_requests r
@@ -183,7 +182,7 @@ LEFT JOIN agent_workers w ON w.id = 'grant:' || g.id::text;
 SELECT g.id, g.client_id, c.name AS client_name, c.redirect_uris AS client_redirect_uris,
        g.user_id, u.name AS user_name, u.email AS user_email,
        g.created_at, g.last_used_at, g.expires_at,
-       g.mode,
+       g.mode, g.revoked_at, g.revoked_reason,
        w.seen_at AS worker_seen_at,
        EXISTS (
          SELECT 1 FROM agent_requests r
@@ -194,8 +193,7 @@ FROM oauth_grants g
 JOIN oauth_clients c ON c.id = g.client_id
 JOIN users u ON u.id = g.user_id
 LEFT JOIN agent_workers w ON w.id = 'grant:' || g.id::text
-WHERE g.revoked_at IS NULL
-  AND g.expires_at > now()
+WHERE (@include_ended::boolean OR (g.revoked_at IS NULL AND g.expires_at > now()))
   AND (sqlc.narg('before_created')::timestamptz IS NULL
        OR (g.created_at, g.id) < (sqlc.narg('before_created')::timestamptz, sqlc.narg('before_id')::uuid))
 ORDER BY g.created_at DESC, g.id DESC

@@ -14,6 +14,7 @@ function status(overrides: Partial<DatasourceStatus>): DatasourceStatus {
     name: "metrics",
     source: "app",
     healthy: true,
+    health_state: "healthy",
     checked_at: "2026-11-19T00:00:00Z",
     dashboard_count: 0,
     ...overrides,
@@ -92,6 +93,34 @@ describe("DatasourceTable rows", () => {
       await screen.findByRole("button", { name: "Edit metrics" })
     )
     expect(onEdit).toHaveBeenCalledWith("metrics", expect.any(HTMLElement))
+  })
+})
+
+describe("DatasourceTable status", () => {
+  it("says what to do about a failing datasource under its message and cause", async () => {
+    renderTable([
+      status({
+        uid: "logs",
+        healthy: false,
+        health_state: "rechecking",
+        failure_kind: "transient",
+        message: "The datasource is not answering",
+        detail: "The server could not connect to the datasource's address",
+      }),
+      status({ uid: "metrics" }),
+    ])
+    const failing = (
+      await screen.findByText("Unavailable: The datasource is not answering")
+    ).closest("[data-uid]")
+    expect(failing).toHaveTextContent(
+      "The server could not connect to the datasource's address"
+    )
+    expect(failing).toHaveTextContent(
+      "This is usually temporary. Try again in a moment."
+    )
+    expect(
+      screen.getByText("Healthy").closest("[data-uid]")
+    ).not.toHaveTextContent("Try again")
   })
 })
 

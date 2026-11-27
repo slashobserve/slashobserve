@@ -21,6 +21,7 @@ const datasource: DatasourceStatus = {
   name: "prom",
   source: "file",
   healthy: true,
+  health_state: "healthy",
   checked_at: "2026-11-19T12:00:00Z",
   dashboard_count: 0,
 }

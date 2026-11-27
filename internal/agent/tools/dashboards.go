@@ -70,6 +70,7 @@ type dashboardItemOut struct {
 	ViewCount     int      `json:"view_count"`
 	URL           string   `json:"url"`
 	Folder        string   `json:"folder"`
+	ManagedBy     string   `json:"managed_by"`
 }
 
 type dashboardListOut struct {
@@ -155,6 +156,7 @@ func (r *Registry) dashboardItems(list []dashboards.ListItem) []dashboardItemOut
 			ViewCount:     d.ViewCount,
 			URL:           links.Dashboard(r.deps.PublicURL, d.ID, d.Title),
 			Folder:        d.Folder.Title,
+			ManagedBy:     d.ManagedBy.String(),
 		}
 	}
 	return items
@@ -185,6 +187,7 @@ type dashboardOut struct {
 	WindowDays               int             `json:"window_days,omitempty"`
 	SavedBy                  string          `json:"saved_by"`
 	Origin                   string          `json:"origin"`
+	ManagedBy                string          `json:"managed_by"`
 	SavedAt                  string          `json:"saved_at"`
 	Summary                  string          `json:"summary"`
 	Spec                     *spec.Dashboard `json:"spec"`
@@ -274,7 +277,7 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	if err != nil {
 		return Result{}, err
 	}
-	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, SavedBy: ver.Author.Name, Origin: ver.Origin, SavedAt: ver.CreatedAt.UTC().Format(time.RFC3339), Summary: ver.Summary, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified.Shown(access.Provisioned))}
+	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, SavedBy: ver.Author.Name, Origin: ver.Origin, ManagedBy: access.ManagedBy().String(), SavedAt: ver.CreatedAt.UTC().Format(time.RFC3339), Summary: ver.Summary, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified.Shown(access.Provisioned))}
 	if out.ImportAttention, out.ImportAttentionTruncated, err = r.importAttention(ctx, id, ver.Number); err != nil {
 		return Result{}, err
 	}
@@ -333,6 +336,8 @@ type savedOut struct {
 	URL              string                 `json:"url"`
 	Replayed         *bool                  `json:"replayed,omitempty"`
 	MergedFrom       *dashboards.MergedFrom `json:"merged_from,omitempty"`
+	ManagedBy        string                 `json:"managed_by"`
+	Warning          string                 `json:"warning,omitempty"`
 	Outcome          string                 `json:"outcome,omitempty"`
 	Panels           []panelOut             `json:"panels"`
 	Truncated        bool                   `json:"truncated,omitempty"`
@@ -610,7 +615,7 @@ func (r *Registry) saveSucceeded(ctx context.Context, saved dashboards.SaveResul
 	if saved.Proposal != nil {
 		return r.proposed(saved)
 	}
-	out := r.savedOut(saved.Dashboard, saved.Version, &saved.Replayed)
+	out := r.editedOut(saved.Dashboard, saved.Version, &saved.Replayed)
 	out.MergedFrom = saved.MergedFrom
 	out.Outcome = saved.Outcome()
 	out = withAdvice(ctx, out, saved.Version.Spec)
@@ -754,6 +759,12 @@ func summaryOr(summary, fallback string) string {
 	return summary
 }
 
+func (r *Registry) editedOut(dash dashboards.Dashboard, ver dashboards.Version, replayed *bool) savedOut {
+	out := r.savedOut(dash, ver, replayed)
+	out.Warning = dash.ManagedBy.EditWarning()
+	return out
+}
+
 func (r *Registry) savedOut(dash dashboards.Dashboard, ver dashboards.Version, replayed *bool) savedOut {
 	entries := ver.Spec.AllPanels()
 	panels := make([]panelOut, len(entries))
@@ -770,6 +781,7 @@ func (r *Registry) savedOut(dash dashboards.Dashboard, ver dashboards.Version, r
 		Version:          ver.Number,
 		URL:              links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title),
 		Replayed:         replayed,
+		ManagedBy:        dash.ManagedBy.String(),
 		Panels:           panels,
 		Truncated:        truncated,
 		UnverifiedPanels: unverified,

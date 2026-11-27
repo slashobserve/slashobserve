@@ -64,6 +64,7 @@ type importedOut struct {
 	Attention   []Attention    `json:"attention"`
 	Truncated   bool           `json:"truncated"`
 	FolderNote  *string        `json:"folder_note,omitempty"`
+	Warning     string         `json:"warning,omitempty"`
 }
 
 type importErrorOut struct {
@@ -282,6 +283,7 @@ func newImportedOut(publicURL *url.URL, imported imports.Imported) importedOut {
 		Counts:      imported.Record.Report.Counts,
 		Attention:   []Attention{},
 		FolderNote:  httpapi.OptionalString(imported.FolderNote),
+		Warning:     imported.Dashboard.ManagedBy.EditWarning(),
 	}
 	envelope, err := json.Marshal(out)
 	if err != nil {
