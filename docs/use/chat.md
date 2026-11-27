@@ -345,6 +345,7 @@ The new run is yours, whoever started the one you retry.
 You can try your own failed or stopped run again once.
 The old turn then reads "Tried again in a new run" with a link to the new one, its `retried_by`.
 A second retry is refused with 409 `invalid_transition`, and a **Continue** of the old build with 409 `not_continuable`, instead of starting a duplicate.
+Every refused cancel, continue or retry carries the request's `state`, the `allowed_actions` you still have, and a `reason` such as `retried`, `continued`, `kept` or `no_build` when the state alone does not explain it.
 Someone else who retries your run starts a request of their own, which leaves your turn and your retry as they were.
 When the person who asked retries, the new request stays in the same chat, so the chat lists keep one row for it.
 

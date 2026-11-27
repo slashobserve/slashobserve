@@ -5715,6 +5715,36 @@ components:
           items:
             type: string
           description: The actions the caller may take in that state, as in the object's own `allowed_actions`.
+    RunRefusal:
+      type: object
+      additionalProperties: false
+      required: [error, code, state, allowed_actions]
+      description: The answer to a cancel, continue or retry the request's state or history does not allow.
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [request_finished, not_continuable, invalid_transition]
+          description: "`request_finished` for a cancel, `not_continuable` for a continue and `invalid_transition` for a retry."
+        state:
+          type: string
+          enum: [queued, running, canceling, succeeded, failed, canceled]
+          description: The state the request is in.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+          description: The actions the caller may take now, as in the request's own `allowed_actions`.
+        reason:
+          type: string
+          enum: [no_build, kept, continued, retried, investigation, lost_race]
+          description: >-
+            Why the action is refused when the state alone does not say; absent otherwise.
+            `no_build`: the request left no build. `kept`: its build was saved as a version.
+            `continued`: another request already continues it. `retried`: it was already retried.
+            `investigation`: an investigation has no build to continue.
+            `lost_race`: another continue, retry or save took the build while this call ran.
     AgentRequestEnvelope:
       type: object
       additionalProperties: false
