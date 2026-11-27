@@ -254,6 +254,8 @@ func describe(kind string) string {
 		return "cited fact"
 	case findings.UnverifiedTraceID:
 		return "trace id"
+	case kindAnswers:
+		return "answer"
 	}
 	return "figure"
 }

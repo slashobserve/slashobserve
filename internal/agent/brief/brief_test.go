@@ -56,7 +56,7 @@ func TestRenderUserMessageIsTheJoinedContextAndPromptForEveryModeAndReason(t *te
 func TestRenderPicksTheSystemTextOfTheMode(t *testing.T) {
 	cases := renderCases(t)
 	build := prompts.Build([]spec.DatasourceType{spec.Prometheus})
-	for name, want := range map[string]string{"create": build, "revise": build, "suggest": build, "investigate": prompts.Investigate()} {
+	for name, want := range map[string]string{"create": build, "revise": build, "suggest": build, "investigate": investigateText(prompts.Variant{})} {
 		tc := cases[name]
 		got, err := Render(statuses, tc.task, tc.views[0], Fresh, "")
 		if err != nil {

@@ -13,7 +13,7 @@ const (
 func ParseMode(raw string) (Mode, error) {
 	switch mode := Mode(raw); mode {
 	case "":
-		return Off, nil
+		return Enforce, nil
 	case Off, Report, Enforce:
 		return mode, nil
 	}

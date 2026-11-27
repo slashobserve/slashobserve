@@ -11,6 +11,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -27,8 +28,20 @@ func readTurn(s *State, name, input string, isError bool) Admission {
 }
 
 func TestBudgetLimits(t *testing.T) {
-	if MaxRejectionsInRow != 3 || maxIdenticalReads != 3 || maxCallsBeforeSave != 6 || maxCallsBeforeProposal != 12 || DefaultInvestigationCalls != 12 || maxStalledTurns != 2 {
-		t.Fatalf("budgets = %d %d %d %d %d %d", MaxRejectionsInRow, maxIdenticalReads, maxCallsBeforeSave, maxCallsBeforeProposal, DefaultInvestigationCalls, maxStalledTurns)
+	if MaxRejectionsInRow != 3 || maxIdenticalReads != 3 || maxCallsBeforeSave != 6 || maxCallsBeforeProposal != 12 || DefaultInvestigationCalls != 30 || DefaultChatCalls != 12 || DefaultInvestigationCallsMax != 40 || maxStalledTurns != 2 {
+		t.Fatalf("budgets = %d %d %d %d %d %d %d %d", MaxRejectionsInRow, maxIdenticalReads, maxCallsBeforeSave, maxCallsBeforeProposal, DefaultInvestigationCalls, DefaultChatCalls, DefaultInvestigationCallsMax, maxStalledTurns)
+	}
+}
+
+func TestEachTaskTypeHasItsOwnDefaultCallLimit(t *testing.T) {
+	want := map[route.Task]int{route.Full: 30, route.Measure: 16, route.Logs: 20, route.Traces: 20, route.Incident: 30, route.Inventory: 12, route.Explain: 12}
+	for task, n := range want {
+		if got := InvestigationCallsFor(task); got != n {
+			t.Errorf("%s: %d calls, want %d", task.Name(), got, n)
+		}
+		if got := InvestigationCallsFor(task); got > DefaultInvestigationCallsMax {
+			t.Errorf("%s: %d calls is over the default ceiling", task.Name(), got)
+		}
 	}
 }
 
@@ -130,8 +143,8 @@ func TestAnInvestigationReadsUpToItsConfiguredCalls(t *testing.T) {
 		window Window
 		want   string
 	}{
-		{"unset keeps twelve", 0, Window{Calls: 11}, ""},
-		{"unset refuses the twelfth", 0, Window{Calls: 12}, guardFindingNow},
+		{"unset runs the twenty-ninth", 0, Window{Calls: 29}, ""},
+		{"unset refuses the thirtieth", 0, Window{Calls: 30}, guardFindingNow},
 		{"raised runs the twelfth", 20, Window{Calls: 12}, ""},
 		{"raised runs the nineteenth", 20, Window{Calls: 19}, ""},
 		{"raised refuses the twentieth", 20, Window{Calls: 20}, guardFindingNow},
@@ -184,7 +197,7 @@ func TestAQuestionRunReadsUpToTheConfiguredCallsAndABuildingRunUpToSix(t *testin
 func TestAQuestionRunBudgetBecomesSixOnceItSavesAPanel(t *testing.T) {
 	s := New(tools.ModeCreate)
 	s.Window.Calls = 8
-	if got := s.windowLimit(); got != DefaultInvestigationCalls {
+	if got := s.windowLimit(); got != DefaultChatCalls {
 		t.Fatalf("limit before a build = %d", got)
 	}
 	save := jsonCall("update_panels", `{"n": 1}`)
@@ -244,7 +257,8 @@ func TestNudgeFor(t *testing.T) {
 		{"suggest fifth call", tools.ModeSuggest, Window{Calls: 5}, ""},
 		{"suggest eleventh call", tools.ModeSuggest, Window{Calls: 11}, messageProposeNext},
 		{"suggest twelfth call", tools.ModeSuggest, Window{Calls: 12}, ""},
-		{"investigation eleventh call", tools.ModeInvestigate, Window{Calls: 11}, messageFindingNext},
+		{"investigation eleventh call", tools.ModeInvestigate, Window{Calls: 11}, ""},
+		{"investigation twenty-ninth call", tools.ModeInvestigate, Window{Calls: 29}, messageFindingNext},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			s := State{Mode: c.mode, Window: c.window}
@@ -885,7 +899,7 @@ func TestThePanelIDPatternIsTheSchemasOwn(t *testing.T) {
 
 func TestAFindingAfterANewSessionCountsOnlyTheReadsRefusedSince(t *testing.T) {
 	s := New(tools.ModeInvestigate)
-	s.Window.Calls = maxCallsBeforeProposal - 1
+	s.Window.Calls = DefaultInvestigationCalls - 1
 	s.BeginTurn(false)
 	s.Admit(0, jsonCall("query_range", `{"q": 1}`))
 	s.Admit(1, jsonCall("log_patterns", `{"q": 2}`))

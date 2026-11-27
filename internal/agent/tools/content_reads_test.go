@@ -63,6 +63,7 @@ var inRunReads = map[string]inRunRead{
 	nameImportGrafana:     readsRunOnly,
 	nameSaveFinding:       readsRunOnly,
 	nameGetSpecGuide:      readsNothing,
+	nameListMoreTools:     readsNothing,
 	nameListMCPSources:    readsContextSrc,
 	nameCallMCPTool:       readsContextSrc,
 	nameFindMCPTools:      readsContextSrc,

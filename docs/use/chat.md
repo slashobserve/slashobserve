@@ -609,7 +609,7 @@ An administrator can set a time limit and a cost limit (`SLASHOBSERVE_AGENT_RUN_
 When a run stops early, the conversation ends with "The dashboard could not be built" and a **Try again** button, or with "The question could not be answered" when you asked a question in a chat and no dashboard was started; when it kept a build, you can also continue it.
 
 When the agent answers a question after its reads were refused at its limit of model calls, the answer ends with a line saying reading stopped early and the counts may be partial.
-The limit is twelve calls for a message in a chat with no dashboard or observation until it saves its first panel, for an investigation and for a question about a dashboard or an observation, unless `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` (6 to 60) sets another number for those.
+The limit is twelve calls for a message in a chat with no dashboard or observation until it saves its first panel, and for an investigation or a question about a dashboard or an observation it depends on the kind of question, from twelve to thirty, unless `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` (6 to 60) sets one number for all of those.
 It is six calls for a revision and for each panel once a chat message has started building a dashboard.
 
 When a read timed out, its datasource did not answer or the server was too busy to ask it, and no later read of the same kind on that datasource succeeded, the answer ends with a line naming each datasource it could not check and why.

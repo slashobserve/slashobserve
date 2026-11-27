@@ -1,8 +1,11 @@
 package runsession
 
 import (
+	"slices"
+
 	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/findings"
 )
@@ -11,6 +14,10 @@ const (
 	toolSaveFinding = "save_finding"
 	toolCallMCPTool = "call_mcp_tool"
 )
+
+func answersAFigure(task route.Task) bool {
+	return task == route.Measure || task == route.Logs || task == route.Traces
+}
 
 func groundsFindings(c guard.Call, res tools.Result) bool {
 	return guard.ReadsData(c.Name) || res.Discovered != nil
@@ -28,8 +35,12 @@ func (s *State) checkGrounding(c *guard.Call, question string) groundingCheck {
 		return groundingCheck{}
 	}
 	problems := s.Grounding.Review(c.Input, question)
-	if len(problems) > 0 && s.Grounding.Enforced() {
-		c.Ungrounded = grounding.SendBackProblems(problems)
+	sendBack := problems
+	if missing, ok := grounding.MissingAnswers(c.Input, question); ok && answersAFigure(s.Task) {
+		sendBack = append(slices.Clone(problems), missing)
+	}
+	if len(sendBack) > 0 && s.Grounding.Enforced() {
+		c.Ungrounded = grounding.SendBackProblems(sendBack)
 	}
 	return groundingCheck{
 		unverified: grounding.Unverified(problems),

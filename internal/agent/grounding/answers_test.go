@@ -1,6 +1,7 @@
 package grounding
 
 import (
+	"encoding/json"
 	"slices"
 	"strings"
 	"testing"
@@ -85,5 +86,28 @@ func TestTheSendBackSaysHowToFixEachItem(t *testing.T) {
 	got := SendBackProblems(answerLedger().AnswerProblems([]Answer{{"peak p99", "f1"}, {"peak p99", "f2"}}))
 	if !strings.HasPrefix(got, reviewLead+"\n- cited fact \"answers: peak p99 = f1 or f2\": one quantity takes one fact") {
 		t.Errorf("send-back =\n%s", got)
+	}
+}
+
+func TestMissingAnswersNeedsAFigureAndNoAnswers(t *testing.T) {
+	for _, c := range []struct {
+		input string
+		want  bool
+	}{
+		{`{"markdown":"p99 was 523 ms."}`, true},
+		{`{"markdown":"p99 was {{f3}}."}`, true},
+		{`{"markdown":"Fine.","impact":"2,950 orders failed"}`, true},
+		{`{"markdown":"p99 was {{f3}}.","answers":[{"quantity":"p99","fact":"f3"}]}`, false},
+		{`{"markdown":"Checkout is healthy."}`, false},
+		{`{"markdown":"The last 15 minutes look fine."}`, false},
+		{`not json`, false},
+	} {
+		p, got := MissingAnswers(json.RawMessage(c.input), "is checkout fine over the last 15 minutes")
+		if got != c.want {
+			t.Errorf("%s: missing = %v, want %v", c.input, got, c.want)
+		}
+		if got && (p.Kind != kindAnswers || !strings.Contains(SendBackProblems([]Problem{p}), "- answer ")) {
+			t.Errorf("%s: problem = %+v", c.input, p)
+		}
 	}
 }

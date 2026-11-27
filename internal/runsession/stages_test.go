@@ -96,6 +96,7 @@ func newStagesScript(t *testing.T, callsMax int) *script {
 	t.Helper()
 	s := newScript(t, true)
 	s.sess.s.investigationMax = callsMax
+	s.sess.state.Guard.InvestigationCalls = 12
 	s.sess.state.Guard.StartLoop(callsMax)
 	return s
 }

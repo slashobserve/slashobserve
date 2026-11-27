@@ -90,8 +90,8 @@ func TestRenderSendsTheLedgerSectionOnlyInInvestigateRunsWithTheLoopOn(t *testin
 			}
 			continue
 		}
-		if off.System != prompts.Investigate() || on.System != prompts.InvestigateWithLedger() || off.System == on.System {
-			t.Fatalf("investigate: system text off %t, on %t", off.System == prompts.Investigate(), on.System == prompts.InvestigateWithLedger())
+		if off.System != investigateText(prompts.Variant{}) || on.System != investigateText(prompts.Variant{Ledger: true}) || off.System == on.System {
+			t.Fatalf("investigate: system text off %t, on %t", off.System == investigateText(prompts.Variant{}), on.System == investigateText(prompts.Variant{Ledger: true}))
 		}
 		if on.Context != off.Context || on.User != off.User {
 			t.Fatal("investigate: the loop changed the context of a run with no ledger yet")

@@ -37,7 +37,7 @@ Choose a provider whose data handling fits what your datasources contain.
 
 Set `SLASHOBSERVE_LLM_MODEL`, for example `claude-opus-5-5` for harder prompts or `claude-haiku-5-5` for lower cost.
 The server does not check the model name.
-`SLASHOBSERVE_LLM_EFFORT` sets the effort level: `low`, `medium`, `high`, `xhigh` or `max`, and `medium` when unset.
+`SLASHOBSERVE_LLM_EFFORT` sets the effort level: `low`, `medium`, `high`, `xhigh` or `max`; unset, an investigation and a question about a dashboard or an observation run at `high` and every other run at `medium`.
 To read the key from a file, such as a Docker or Kubernetes secret, use `SLASHOBSERVE_LLM_API_KEY_FILE` instead.
 Set only one of the two.
 
@@ -158,7 +158,7 @@ It also holds a `replay` model, priced at zero, for the replay provider that tes
 | `SLASHOBSERVE_LLM_API_KEY` | none | Required for `anthropic`. |
 | `SLASHOBSERVE_LLM_API_KEY_FILE` | none | A file holding the key. Not with `SLASHOBSERVE_LLM_API_KEY`. |
 | `SLASHOBSERVE_LLM_BASE_URL` | the provider's own | Without `/v1` for `anthropic`, with it for `openai`. |
-| `SLASHOBSERVE_LLM_EFFORT` | `medium` for `anthropic` | Values depend on the provider. |
+| `SLASHOBSERVE_LLM_EFFORT` | `high` for investigations and `medium` for other runs on `anthropic` | Values depend on the provider. |
 | `SLASHOBSERVE_LLM_PRICES_FILE` | the built-in table | Replaces the price table. |
 
 The provider is lower-cased, so `Anthropic` works.

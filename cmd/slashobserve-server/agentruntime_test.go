@@ -53,7 +53,7 @@ func TestModelSettingsCarryTheConfiguredModelAndAFreshCopyEachCall(t *testing.T)
 		Provider: "anthropic", Model: "m", APIKey: datasource.NewSecret("k"), BaseURL: base, Effort: "high", MaxTokens: 4096,
 		RequestTimeout: 90 * time.Second, IdleTimeout: 30 * time.Second, ReplayDir: "/replay", LogProviderErrors: true,
 	}, 262144)
-	got := settings()
+	got := settings(false)
 	want := struct {
 		provider, model, key, baseURL, effort, replay string
 		maxTokens, request, idle, renew               int
@@ -66,14 +66,24 @@ func TestModelSettingsCarryTheConfiguredModelAndAFreshCopyEachCall(t *testing.T)
 		t.Fatalf("settings = %+v", got)
 	}
 	got.Model = "changed"
-	if settings().Model != "m" {
+	if settings(false).Model != "m" {
 		t.Error("a caller changed the shared settings")
 	}
 }
 
 func TestModelSettingsWithoutABaseURLSendAnEmptyOne(t *testing.T) {
-	if got := modelSettingsOf(config.LLM{Provider: "replay"}, 0)(); got.BaseURL != "" || got.Provider != "replay" {
+	if got := modelSettingsOf(config.LLM{Provider: "replay"}, 0)(false); got.BaseURL != "" || got.Provider != "replay" {
 		t.Fatalf("settings = %+v", got)
+	}
+}
+
+func TestAQuestionRunsAtTheQuestionEffort(t *testing.T) {
+	settings := modelSettingsOf(config.LLM{Provider: "anthropic", Effort: "", QuestionEffort: "high"}, 0)
+	if got := settings(true).Effort; got != "high" {
+		t.Errorf("a question runs at %q", got)
+	}
+	if got := settings(false).Effort; got != "" {
+		t.Errorf("a build runs at %q, want the provider default", got)
 	}
 }
 

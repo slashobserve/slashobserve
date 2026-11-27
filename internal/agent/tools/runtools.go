@@ -320,6 +320,9 @@ func runViolation(run Run, id string, inChat func(runID string) bool) string {
 }
 
 func (r *Registry) admitted(ctx context.Context, tool Tool, run Run, inRun bool, input json.RawMessage) (Result, bool) {
+	if inRun && tool.OfferedInMode(run) && !tool.InTask(run) {
+		return r.notInTask(tool, run), false
+	}
 	if res, ok := offered(tool, run, inRun); !ok {
 		return res, false
 	}

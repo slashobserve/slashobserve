@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/agent/prompts"
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -36,6 +37,8 @@ type Task struct {
 	Loop          bool
 	Facts         bool
 	Hypotheses    string
+	Triage        string
+	Route         route.Task
 }
 
 type View struct {
@@ -53,7 +56,7 @@ func Render(statuses []datasource.Status, t Task, v View, r Reason, digest strin
 	sd := seed{build: v.Build, reason: r, note: t.ContinueNote}
 	var m Message
 	if t.Mode == tools.ModeInvestigate {
-		m.System = investigateSystem(t)
+		m.System = investigateSystem(statuses, t)
 		m.Context = investigateContext(statuses, t, v.Current, sd)
 	} else {
 		view := v.Current
@@ -94,14 +97,8 @@ func Render(statuses []datasource.Status, t Task, v View, r Reason, digest strin
 	return m, nil
 }
 
-func investigateSystem(t Task) string {
-	switch {
-	case t.Facts:
-		return prompts.InvestigateWithFacts(t.Loop)
-	case t.Loop:
-		return prompts.InvestigateWithLedger()
-	}
-	return prompts.Investigate()
+func investigateSystem(statuses []datasource.Status, t Task) string {
+	return prompts.InvestigateFor(prompts.Variant{Task: t.Route, Facts: t.Facts, Ledger: t.Loop}, guideTypes(statuses))
 }
 
 func userMessage(context, prompt string) string {

@@ -297,6 +297,9 @@ func (s *Service) Brief(ctx context.Context, req revisions.Request, reason strin
 		return tools.BriefAnswer{}, err
 	}
 	access := tools.RunAccess(req, writes)
+	if err := s.preflightOnFirstBrief(ctx, req, why, access); err != nil {
+		return tools.BriefAnswer{}, err
+	}
 	health := s.statuses.Health(datasource.WithAccess(ctx, access))
 	var answer tools.BriefAnswer
 	ended := false
@@ -317,6 +320,8 @@ func (sess *session) brief(ctx context.Context, why brief.Reason, health []datas
 	task := briefTask(sess.req, mode)
 	task.Withheld = tools.Withheld(sess.access)
 	task.Facts = sess.state.Grounding != nil
+	task.Triage = sess.triageBlock()
+	task.Route = sess.state.Task
 	if sess.state.Loop {
 		task.Loop, task.Hypotheses = true, brief.Hypotheses(sess.state.Ledger)
 	}
