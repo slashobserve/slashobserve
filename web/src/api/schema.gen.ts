@@ -5705,6 +5705,11 @@ export interface components {
              */
             reason: "proposal" | "requested_block" | "mention" | "reply" | "run_failed" | "repaired" | "proposal_closed" | "access_request" | null;
             unread: boolean;
+            /**
+             * @description Where the item stands for the caller: `done` once they marked it done, else `unread` while `unread` is true, else `read`. The `open` filter lists `unread` and `read` items, the `unread` filter `unread` ones and the `done` filter `done` ones. See docs/reference/states.md.
+             * @enum {string}
+             */
+            state: "done" | "unread" | "read";
             /** @description The title of the dashboard, observation or proposal the event is about, or null when it has none, no longer exists, or the caller can no longer read it. */
             target_title: string | null;
             /** @description The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, or the note of an `access_request`, as plain text of at most 200 characters; null for other items, and for a comment in a thread the caller can no longer read. */
