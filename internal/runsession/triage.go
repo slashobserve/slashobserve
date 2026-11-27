@@ -25,9 +25,10 @@ type Sweeper interface {
 }
 
 type Triage struct {
-	Block      string `json:"block"`
-	Calls      int    `json:"calls"`
-	DurationMS int64  `json:"duration_ms"`
+	Block      string        `json:"block"`
+	Leads      []triage.Lead `json:"leads,omitempty"`
+	Calls      int           `json:"calls"`
+	DurationMS int64         `json:"duration_ms"`
 }
 
 func (s *Service) SweepWith(sw Sweeper) { s.sweeper = sw }
@@ -69,7 +70,8 @@ func (s *Service) preflight(ctx context.Context, req revisions.Request, access d
 		if sess.state.Triage != nil {
 			return nil
 		}
-		sess.state.Triage = &Triage{Block: out.Block, Calls: out.Calls, DurationMS: out.Duration.Milliseconds()}
+		sess.state.Triage = &Triage{Block: out.Block, Leads: out.Leads, Calls: out.Calls, DurationMS: out.Duration.Milliseconds()}
+		sess.state.seedLedger()
 		sess.record(revisions.Step{
 			At: time.Now(), Phase: tools.PhaseQuery, Tool: stopTool, Status: "ok", DurationMS: out.Duration.Milliseconds(),
 			Message: fmt.Sprintf("Swept the datasources before the first model call: %d reads in %s", out.Calls, out.Duration.Round(100*time.Millisecond)),

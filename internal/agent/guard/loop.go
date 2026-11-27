@@ -43,6 +43,12 @@ func (s *State) StartLoop(callsMax int) {
 	s.Loop = &Loop{Limit: limit, Max: max(callsMax, limit)}
 }
 
+func (s *State) SeedLedger(ledger []revisions.Hypothesis) {
+	if s.Loop != nil {
+		s.Loop.Base = baseStage(ledger)
+	}
+}
+
 func SameLedger(a, b []revisions.Hypothesis) bool {
 	return slices.EqualFunc(a, b, func(x, y revisions.Hypothesis) bool {
 		return x.ID == y.ID && x.Text == y.Text && x.Status == y.Status && x.Closing == y.Closing && x.KnockOnOf == y.KnockOnOf && x.Next == y.Next && slices.Equal(x.Evidence, y.Evidence)
