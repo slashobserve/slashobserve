@@ -31,7 +31,32 @@ func (s source) audience(ctx context.Context, reader auth.Principal) (audience, 
 	return audience{inner: inner}, err
 }
 
-func (s source) next(ctx context.Context, a audience, types []string, since time.Time, from cursor, limit int) ([]activity.Event, cursor, error) {
-	page, to, _, err := s.store.Next(ctx, a.inner, activity.Filter{Types: types, Since: since}, activity.At(from.xid, from.seq), limit)
+func (s source) next(ctx context.Context, a audience, types []string, from cursor, limit int) ([]activity.Event, cursor, error) {
+	return s.read(ctx, a, activity.Filter{Types: types}, from, limit)
+}
+
+func (s source) unexpired(ctx context.Context, a audience, types []string, now time.Time, from cursor, limit int) ([]activity.Event, error) {
+	page, _, err := s.read(ctx, a, activity.Filter{Types: types, Since: expiresBefore(now)}, from, limit)
+	return page, err
+}
+
+func (s source) read(ctx context.Context, a audience, f activity.Filter, from cursor, limit int) ([]activity.Event, cursor, error) {
+	page, to, _, err := s.store.Next(ctx, a.inner, f, activity.At(from.xid, from.seq), limit)
 	return page, cursor{xid: to.Xid(), seq: to.Seq()}, err
+}
+
+func expiresBefore(now time.Time) time.Time {
+	return now.Add(-expiry)
+}
+
+func expired(e activity.Event, now time.Time) bool {
+	return e.CreatedAt.Before(expiresBefore(now))
+}
+
+func expiredRun(page []activity.Event, now time.Time) int {
+	n := 0
+	for n < len(page) && expired(page[n], now) {
+		n++
+	}
+	return n
 }

@@ -1,7 +1,15 @@
-import { useEffect, useRef, useState, type RefObject } from "react"
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react"
 import { onlineManager, useQueryClient } from "@tanstack/react-query"
 import { useRouteContext } from "@tanstack/react-router"
 import { toast } from "sonner"
+import { createStore, useStore } from "zustand"
 
 import { ApiError } from "@/api/errors"
 import {
@@ -71,6 +79,14 @@ import {
   type SpotTarget,
   type Subject,
 } from "./send-plan"
+import {
+  delivering,
+  reduceSend,
+  sendAt,
+  sendIn,
+  type PlacedSend,
+  type SendEvent,
+} from "./send-state"
 
 export type SentResult =
   | { via: "thread"; sent: SentMessage }
@@ -91,7 +107,7 @@ export type ComposerInput = {
   runningRequestId?: string
 }
 
-type Failure = { text: string; invalid: boolean }
+export type Failure = { text: string; invalid: boolean }
 
 export type ComposerModel = {
   text: string
@@ -298,13 +314,25 @@ export function useComposer(input: ComposerInput): ComposerModel {
   const [command, setCommand] = useState<PageCommand | null>(null)
   const [chosen, setChosen] = useState<Partial<Delivery>>({})
   const [clientId, setClientId] = useState(newClientId)
-  const [failure, setFailure] = useState<Failure | null>(null)
-  const [started, setStarted] = useState<ComposerModel["started"]>(null)
   const [cursor, setCursor] = useState<HistoryCursor>(freshCursor)
   const [announcement, setAnnouncement] = useState({ text: "", count: 0 })
-  const [sending, setSending] = useState(false)
-  const inFlight = useRef(false)
   const key = placeKey(place)
+  const [store] = useState(() => createStore<PlacedSend>(() => sendAt(key)))
+  const send = sendIn(useStore(store), key)
+  const dispatch = useCallback(
+    (event: SendEvent) =>
+      store.setState(reduceSend(store.getState(), event), true),
+    [store]
+  )
+  const sendNow = () => sendIn(store.getState(), key)
+  useLayoutEffect(() => {
+    dispatch({ type: "placed", place: key })
+  }, [dispatch, key])
+  useEffect(
+    () => () =>
+      dispatch({ type: "hold_cancelled", place: store.getState().place }),
+    [dispatch, store]
+  )
   const [seenKey, setSeenKey] = useState(key)
   if (seenKey !== key) {
     setSeenKey(key)
@@ -316,8 +344,7 @@ export function useComposer(input: ComposerInput): ComposerModel {
   const history = usePromptHistory()
   const agents = useMentionableAgents(place.kind !== "chat")
   const mentionTarget = subject === null ? null : threadTargetOf(subject)
-  const delivering = useDeliver(subject, input.timeZone)
-  const { deliver } = delivering
+  const { deliver } = useDeliver(subject, input.timeZone)
 
   const commands =
     place.kind === "chat"
@@ -327,24 +354,14 @@ export function useComposer(input: ComposerInput): ComposerModel {
   const delivery = chosenDelivery(place, wire, chosen)
   const gate = deliveryGate(input.gate, delivery)
   const sendBlock = sendBlockOf(wire, delivery, gate)
-  const pending = sending || delivering.pending
+  const pending = delivering(send)
   const queryClient = useQueryClient()
   const holdsForAgent =
     place.kind === "chat" || (place.kind === "canvas" && place.tool === "ask")
-  const [holding, setHolding] = useState(false)
-  const held = useRef<number | null>(null)
-  const holds = useRef(0)
   const submitNow = useRef<() => Promise<void>>(async () => undefined)
-  useEffect(() => {
-    const active = held
-    return () => {
-      active.current = null
-    }
-  }, [])
 
   function cancelHold() {
-    held.current = null
-    setHolding(false)
+    dispatch({ type: "hold_cancelled", place: key })
   }
 
   function liveAgent(): { load: AgentLoad; available: boolean | undefined } {
@@ -360,10 +377,14 @@ export function useComposer(input: ComposerInput): ComposerModel {
       fail({ text: agentFailedText, invalid: false })
       return
     }
-    const mine = ++holds.current
-    held.current = mine
-    setHolding(true)
-    setFailure(null)
+    dispatch({ type: "hold_started", place: key })
+    const begun = sendNow()
+    if (begun.status !== "holding") return
+    const mine = begun.hold
+    const stillHeld = () => {
+      const now = sendNow()
+      return now.status === "holding" && now.hold === mine
+    }
     let timer: ReturnType<typeof setTimeout> | undefined
     const timedOut = new Promise<never>((_, reject) => {
       timer = setTimeout(() => reject(new Error("agent wait")), agentWaitMs)
@@ -371,15 +392,12 @@ export function useComposer(input: ComposerInput): ComposerModel {
     void Promise.race([queryClient.ensureQueryData(agentInfoQuery()), timedOut])
       .then(
         () => {
-          if (held.current !== mine) return
-          held.current = null
-          setHolding(false)
+          if (!stillHeld()) return
+          dispatch({ type: "hold_ended", place: key, hold: mine })
           void submitNow.current()
         },
         () => {
-          if (held.current !== mine) return
-          held.current = null
-          setHolding(false)
+          if (!stillHeld()) return
           fail({ text: agentFailedText, invalid: false })
         }
       )
@@ -402,13 +420,13 @@ export function useComposer(input: ComposerInput): ComposerModel {
     }
     if (cleanText(value) === "") cancelHold()
     setCursor(freshCursor)
-    setFailure(null)
+    dispatch({ type: "edited", place: key })
   }
 
   function replaceText(value: string) {
     writeText(value)
     if (cleanText(value) === "") cancelHold()
-    setFailure(null)
+    dispatch({ type: "edited", place: key })
   }
 
   function clearCommand() {
@@ -444,7 +462,7 @@ export function useComposer(input: ComposerInput): ComposerModel {
     const taken = takeCommand(restored, commands)
     if (taken !== null) setCommand(taken.command)
     writeText(taken?.rest ?? restored)
-    setFailure(null)
+    dispatch({ type: "edited", place: key })
     requestAnimationFrame(() => {
       const element = field.current
       if (element === null) return
@@ -463,8 +481,8 @@ export function useComposer(input: ComposerInput): ComposerModel {
     if (!elsewhere) field.current?.focus()
   }
 
-  function fail(next: Failure | null) {
-    setFailure(next)
+  function fail(failure: Failure | null) {
+    dispatch({ type: "failed", place: key, failure })
     returnFocus()
   }
 
@@ -479,7 +497,7 @@ export function useComposer(input: ComposerInput): ComposerModel {
   }
 
   async function submit() {
-    if (pending || inFlight.current) return
+    if (delivering(sendNow())) return
     if (wire === "") {
       if (place.kind === "chat") {
         fail({
@@ -510,7 +528,7 @@ export function useComposer(input: ComposerInput): ComposerModel {
       delivery
     )
     if (liveGate.kind === "hold" || liveGate.kind === "unreachable") {
-      if (held.current === null) holdForAgent()
+      if (sendNow().status !== "holding") holdForAgent()
       return
     }
     if (liveGate.kind === "no-model" && agentNow !== null) {
@@ -535,17 +553,12 @@ export function useComposer(input: ComposerInput): ComposerModel {
       fail({ text: plan.error, invalid: true })
       return
     }
-    setFailure(null)
-    setStarted(null)
-    inFlight.current = true
-    setSending(true)
+    dispatch({ type: "send_started", place: key })
     const agentName = recipientName(place, wire, agents)
     let result: SentResult
     try {
       result = await deliver(plan)
     } catch (error) {
-      inFlight.current = false
-      setSending(false)
       fail(
         plan.via === "chat.turn"
           ? chatFailureText(error)
@@ -554,8 +567,15 @@ export function useComposer(input: ComposerInput): ComposerModel {
       return
     }
     sent()
+    dispatch({
+      type: "delivered",
+      place: key,
+      started:
+        result.via === "thread" && askedAgent(result.sent)
+          ? { sent: result.sent, agentName }
+          : null,
+    })
     if (result.via === "thread") {
-      if (askedAgent(result.sent)) setStarted({ sent: result.sent, agentName })
       announce(
         result.sent.to === "agent" ? "Sent to the agent" : "Comment added"
       )
@@ -567,8 +587,7 @@ export function useComposer(input: ComposerInput): ComposerModel {
     } catch {
       toast.error(openFailedText)
     } finally {
-      inFlight.current = false
-      setSending(false)
+      dispatch({ type: "opened", place: key })
     }
   }
 
@@ -598,11 +617,14 @@ export function useComposer(input: ComposerInput): ComposerModel {
     agents,
     people: input.people ?? [],
     mentionTarget,
-    failure,
-    started,
+    failure: send.status === "failed" ? send.failure : null,
+    started:
+      send.status === "started" || send.status === "opening"
+        ? send.started
+        : null,
     announcement,
     pending,
-    holding,
+    holding: send.status === "holding",
     cancelHold,
     sendBlock,
     runningRequestId: input.runningRequestId,

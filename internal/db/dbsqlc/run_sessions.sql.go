@@ -56,7 +56,9 @@ func (q *Queries) GetPriorRunSession(ctx context.Context, arg GetPriorRunSession
 }
 
 const getRunSessionForUpdate = `-- name: GetRunSessionForUpdate :one
-SELECT state FROM run_sessions WHERE agent_request_id = $1 AND attempt = $2 FOR UPDATE
+SELECT s.state, r.claim_epoch
+FROM run_sessions s JOIN agent_requests r ON r.id = s.agent_request_id
+WHERE s.agent_request_id = $1 AND s.attempt = $2 FOR UPDATE OF s
 `
 
 type GetRunSessionForUpdateParams struct {
@@ -64,11 +66,16 @@ type GetRunSessionForUpdateParams struct {
 	Attempt        int32
 }
 
-func (q *Queries) GetRunSessionForUpdate(ctx context.Context, arg GetRunSessionForUpdateParams) ([]byte, error) {
+type GetRunSessionForUpdateRow struct {
+	State      []byte
+	ClaimEpoch int32
+}
+
+func (q *Queries) GetRunSessionForUpdate(ctx context.Context, arg GetRunSessionForUpdateParams) (GetRunSessionForUpdateRow, error) {
 	row := q.db.QueryRow(ctx, getRunSessionForUpdate, arg.AgentRequestID, arg.Attempt)
-	var state []byte
-	err := row.Scan(&state)
-	return state, err
+	var i GetRunSessionForUpdateRow
+	err := row.Scan(&i.State, &i.ClaimEpoch)
+	return i, err
 }
 
 const getRunWrites = `-- name: GetRunWrites :one

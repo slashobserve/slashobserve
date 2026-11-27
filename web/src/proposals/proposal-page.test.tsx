@@ -67,6 +67,7 @@ function proposal(over: Partial<Proposal> = {}): Proposal {
     changes: [{ kind: "panel", id: "p-errors", change: "changed" }],
     diff: [],
     conflicts: [clash],
+    mergeability: "behind_conflicting",
     ...over,
   }
 }
@@ -301,6 +302,7 @@ describe("ProposalPage", () => {
           conflicts: [
             { ...clash, reason: "invalid", message: "Its query is invalid." },
           ],
+          mergeability: "blocked",
         }),
       ],
     })

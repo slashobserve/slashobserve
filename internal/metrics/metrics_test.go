@@ -99,6 +99,34 @@ func TestScrapeServesEverySeries(t *testing.T) {
 	}
 }
 
+func TestServerPhaseIsOneForTheCurrentPhaseOnly(t *testing.T) {
+	r := metrics.New()
+	now := "ready"
+	r.ServerPhase([]string{"booting", "ready", "stopping"}, func() string { return now })
+
+	body := scrape(t, r)
+	for _, want := range []string{
+		`slashobserve_server_phase{phase="booting"} 0`,
+		`slashobserve_server_phase{phase="ready"} 1`,
+		`slashobserve_server_phase{phase="stopping"} 0`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("scrape lacks %q", want)
+		}
+	}
+
+	now = "stopping"
+	body = scrape(t, r)
+	for _, want := range []string{
+		`slashobserve_server_phase{phase="ready"} 0`,
+		`slashobserve_server_phase{phase="stopping"} 1`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("scrape after the move lacks %q", want)
+		}
+	}
+}
+
 func TestAuditSeriesAreServedOnceTheRecorderIsWired(t *testing.T) {
 	r := metrics.New()
 	a := r.Audit()

@@ -21,6 +21,7 @@ Only a signed-in Admin can create service accounts and keys.
 5. Pick an expiry: **In 90 days** (the default), **In 30 days**, **In 1 year** or **Never**.
 6. Choose **Create key** in the panel and copy the key.
    The panel shows the key once, with an `export OBSERVE_TOKEN=...` line to paste into your shell.
+   If the new service account was created but the key was not, the panel says so and keeps the account picked: choose **Issue the key again**, which never creates a second account.
 
 The server stores only a hash of the key, so a lost key cannot be recovered.
 Create a new one and revoke the old one.

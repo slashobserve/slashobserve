@@ -6,7 +6,7 @@ SELECT @agent_request_id::uuid, sqlc.narg('dashboard_id')::uuid, sqlc.narg('base
   sqlc.narg('unverified')::jsonb, @planned_panels::integer, @summary::text, @panels::integer
 WHERE EXISTS (
   SELECT 1 FROM agent_requests r
-  WHERE r.id = @agent_request_id::uuid AND r.status = 'running' AND r.attempts = @attempt::integer
+  WHERE r.id = @agent_request_id::uuid AND r.status = 'running' AND r.claim_epoch = @claim_epoch::integer
 )
 ON CONFLICT (agent_request_id) DO UPDATE
 SET spec = EXCLUDED.spec,
@@ -27,7 +27,7 @@ SET base_version = @base_version::integer,
   updated_at = clock_timestamp()
 FROM agent_requests r
 WHERE b.agent_request_id = @agent_request_id::uuid
-  AND r.id = b.agent_request_id AND r.status = 'running' AND r.attempts = @attempt::integer;
+  AND r.id = b.agent_request_id AND r.status = 'running' AND r.claim_epoch = @claim_epoch::integer;
 
 -- name: GetAgentRequestBuild :one
 SELECT * FROM agent_request_builds WHERE agent_request_id = @agent_request_id;
@@ -55,7 +55,7 @@ LEFT JOIN agent_request_builds b ON b.agent_request_id = q.id;
 DELETE FROM agent_request_builds b
 USING agent_requests r
 WHERE b.agent_request_id = @agent_request_id::uuid
-  AND r.id = b.agent_request_id AND r.status = 'running' AND r.attempts = @attempt::integer;
+  AND r.id = b.agent_request_id AND r.status = 'running' AND r.claim_epoch = @claim_epoch::integer;
 
 -- name: DeleteExpiredAgentRequestBuilds :execrows
 DELETE FROM agent_request_builds b

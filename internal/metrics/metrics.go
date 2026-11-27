@@ -207,6 +207,30 @@ func (r *Registry) Fleet(live func() int) {
 	}, func() float64 { return float64(live()) }))
 }
 
+func (r *Registry) ServerPhase(phases []string, current func() string) {
+	r.registry.MustRegister(phaseCollector{phases: phases, current: current})
+}
+
+var serverPhase = prometheus.NewDesc("slashobserve_server_phase", "The phase this server process is in: 1 for that phase and 0 for every other.", []string{"phase"}, nil)
+
+type phaseCollector struct {
+	phases  []string
+	current func() string
+}
+
+func (phaseCollector) Describe(ch chan<- *prometheus.Desc) { ch <- serverPhase }
+
+func (c phaseCollector) Collect(ch chan<- prometheus.Metric) {
+	now := c.current()
+	for _, phase := range c.phases {
+		in := 0.0
+		if phase == now {
+			in = 1
+		}
+		ch <- prometheus.MustNewConstMetric(serverPhase, prometheus.GaugeValue, in, phase)
+	}
+}
+
 type SlotUsage struct {
 	Datasource string
 	InUse      int

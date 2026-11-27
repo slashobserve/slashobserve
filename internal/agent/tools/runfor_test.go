@@ -25,24 +25,24 @@ func TestRunForMapsEachSourceToItsMode(t *testing.T) {
 		want Run
 	}{
 		"a new dashboard request builds a new dashboard": {
-			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceObserve, Prompt: "shop", Attempt: 2},
-			want: Run{Mode: ModeCreate, Build: true, RequestID: runForRequestID, Attempt: 2, Prompt: "shop"},
+			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceObserve, Prompt: "shop", Attempt: 2, ClaimEpoch: 5},
+			want: Run{Mode: ModeCreate, Build: true, RequestID: runForRequestID, ClaimEpoch: 5, Prompt: "shop"},
 		},
 		"an investigate ask that lost its observation stays read-only": {
-			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, Prompt: "why", Attempt: 1},
-			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, Attempt: 1, Prompt: "why"},
+			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, Prompt: "why", Attempt: 1, ClaimEpoch: 4},
+			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, ClaimEpoch: 4, Prompt: "why"},
 		},
 		"an investigation into an observation keeps its window and panel": {
-			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, Investigation: true, ObservationID: runForObservationID, Prompt: "why", Attempt: 1, PanelID: "p_up", From: &from, To: &to},
-			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, Attempt: 1, Prompt: "why", PanelID: "p_up", From: from, To: to, Investigation: true, Observations: []string{runForObservationID}},
+			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, Investigation: true, ObservationID: runForObservationID, Prompt: "why", Attempt: 1, ClaimEpoch: 4, PanelID: "p_up", From: &from, To: &to},
+			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, ClaimEpoch: 4, Prompt: "why", PanelID: "p_up", From: from, To: to, Investigation: true, Observations: []string{runForObservationID}},
 		},
 		"an ask is not about the observation its answer was saved into": {
-			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, ObservationID: runForObservationID, SubjectObservationID: runForSubjectID, Prompt: "why", Attempt: 2},
-			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, Attempt: 2, Prompt: "why", Observations: []string{runForSubjectID}},
+			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, ObservationID: runForObservationID, SubjectObservationID: runForSubjectID, Prompt: "why", Attempt: 2, ClaimEpoch: 5},
+			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, ClaimEpoch: 5, Prompt: "why", Observations: []string{runForSubjectID}},
 		},
 		"a private ask about an observation with half a window has none": {
-			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, SubjectObservationID: runForObservationID, Prompt: "why", Attempt: 1, From: &from},
-			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, Attempt: 1, Prompt: "why", Observations: []string{runForObservationID}},
+			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, SubjectObservationID: runForObservationID, Prompt: "why", Attempt: 1, ClaimEpoch: 4, From: &from},
+			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, ClaimEpoch: 4, Prompt: "why", Observations: []string{runForObservationID}},
 		},
 	}
 	for name, tc := range cases {
@@ -72,7 +72,7 @@ func TestRunForMapsASuggestRunAndPinsNoVersion(t *testing.T) {
 func TestRunForNamesTheDashboardOfARevisionAndPinsNoVersion(t *testing.T) {
 	for name, intent := range map[string]revisions.Intent{"revise": revisions.IntentApply, "investigate": revisions.IntentAsk} {
 		t.Run(name, func(t *testing.T) {
-			got, err := RunFor(revisions.Request{ID: runForRequestID, Intent: intent, DashboardID: runForDashboardID, Prompt: "p", Attempt: 3})
+			got, err := RunFor(revisions.Request{ID: runForRequestID, Intent: intent, DashboardID: runForDashboardID, Prompt: "p", Attempt: 3, ClaimEpoch: 6})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -80,7 +80,7 @@ func TestRunForNamesTheDashboardOfARevisionAndPinsNoVersion(t *testing.T) {
 			if intent == revisions.IntentAsk {
 				wantMode, wantBuild = ModeInvestigate, false
 			}
-			if got.Mode != wantMode || got.Build != wantBuild || got.DashboardID != runForDashboardID || got.ParentVersion != 0 || got.Attempt != 3 || got.RequestID != runForRequestID {
+			if got.Mode != wantMode || got.Build != wantBuild || got.DashboardID != runForDashboardID || got.ParentVersion != 0 || got.ClaimEpoch != 6 || got.RequestID != runForRequestID {
 				t.Fatalf("run = %+v", got)
 			}
 		})

@@ -10,6 +10,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/inboundmcp"
@@ -21,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/public"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/server"
 	"github.com/slashobserve/slashobserve/internal/threads"
 	"github.com/slashobserve/slashobserve/internal/webhooks"
 )
@@ -38,17 +40,21 @@ func statesReference() string {
 		proposals.ProposalMachine.Doc("Proposal", "A proposal is a change to a dashboard that someone who can edit merges or discards, returned by `GET /api/v1/proposals/{id}`."),
 		revisions.BuildStates.Doc("Build", "A build is what the agent assembles for a run before it becomes a version; every run read returns its `build_state`, and `build.state` while the run holds one."),
 		revisions.ReplyStates.Doc("Thread reply", "A run asked in a comment thread owes that thread one reply when it ends; `GET /observe/{id}` returns its `reply.state`."),
+		proposals.MergeabilityStates.Doc("Proposal mergeability", "`GET /proposals/{id}` returns the `mergeability` of an open proposal, which says what a merge would meet on the dashboard's latest version, and null once the proposal is merged or discarded."),
 		health.ItemStates.Doc("Dashboard health", "`GET /health` returns the `state` of each dashboard that has a problem."),
 		health.RepairOutcomes.Doc("Health repair", "`GET /health` returns the `outcome` of a dashboard's latest repair beside the repair run's own `state`."),
 		webhooks.States.Doc("Webhook", "`GET /webhooks` returns the `state` of each webhook."),
 		auth.KeyStates.Doc("Service-account key", "`GET /service-accounts/{id}/keys` returns the `state` of each key."),
 		mcpauth.GrantStates.Doc("Connected agent", "`GET /me/grants` and `GET /grants` return the `state` of each connected agent."),
+		dashboards.SaveOutcomes.Doc("Dashboard save", "`POST /dashboards/{id}/versions` and `PATCH /dashboards/{id}/panels` return the `outcome` of the save, and so do the `update_dashboard` and `update_panels` tools."),
 		public.LinkStates.Doc("Public link", "`GET /dashboards/{id}/public-links` returns the `state` of each link."),
 		grafanaconn.SyncMachine.Doc("Grafana import", "A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /grafana/{id}/imports/{sync_id}`; its moves write server log lines with these names, not activity events, because a Grafana connection is Admin only."),
+		grafanaconn.TestStates.Doc("Grafana connection test", "`GET /grafana` returns the `test.state` of each connection."),
 		inboundmcp.ToolMachine.Doc("MCP source tool", "An MCP source tool is one tool of an MCP server an Admin registered, returned by `GET /api/v1/mcp-sources/{uid}/tools`; discovery moves it between `offered`, `changed`, `gone` and `refused`, and an Admin approves or revokes it."),
 		inboundmcp.SourceStates.Doc("MCP source", "`GET /api/v1/mcp-sources` returns the `state` of each MCP source."),
 		observeagent.SupervisorMachine.Doc("Built-in agent supervisor", "The server starts the built-in agent as the `observe-agent` process and restarts it when it exits; each move writes a server log line with the state under the key `agent_state`, not an activity event."),
 		presence.States.Doc("Agent presence", "Whether an outside agent is taking runs: derived from when it last asked for work and the runs it holds."),
+		server.PhaseMachine.Doc("Server process", "A server process moves through these phases from start to exit: `GET /readyz` returns the current one as `phase`, the `slashobserve_server_phase` series is 1 for it, and each move writes one server log line with the name in the Event column and the new phase as its `phase` attribute, not an activity event."),
 	)
 }
 
@@ -106,8 +112,11 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 		{"Webhook", "state", webhooks.States.Names()},
 		{"ServiceAccountKey", "state", auth.KeyStates.Names()},
 		{"ConnectedAgent", "state", mcpauth.GrantStates.Names()},
+		{"Proposal", "mergeability", proposals.MergeabilityStates.Names()},
 		{"PublicLink", "state", public.LinkStates.Names()},
+		{"PublicLink", "unusable_reason", public.UnusableReasons},
 		{"MCPSource", "state", inboundmcp.SourceStates.Names()},
+		{"GrafanaConnectionTestState", "state", grafanaconn.TestStates.Names()},
 	}
 	var offered []string
 	for _, a := range threads.ThreadMachine.Offered() {

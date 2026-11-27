@@ -1051,32 +1051,32 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 		settle := func() (dbsqlc.AgentRequest, error) {
 			action = ActionSettle
 			return q.SettleAgentRequest(ctx, dbsqlc.SettleAgentRequestParams{
-				ID: claimed.ID, Attempts: claimed.Attempts, FromStates: RunMachine.From(ActionSettle), Message: CanceledMessage, RunUsage: usage,
+				ID: claimed.ID, ClaimEpoch: claimed.ClaimEpoch, FromStates: RunMachine.From(ActionSettle), Message: CanceledMessage, RunUsage: usage,
 			})
 		}
 		switch {
 		case o.suggestion != nil:
 			row, err = q.SucceedSuggestRequest(ctx, dbsqlc.SucceedSuggestRequestParams{
-				ID: claimed.ID, Attempts: claimed.Attempts, FromStates: RunMachine.From(ActionSucceed), Suggestion: o.suggestion, RunUsage: usage,
+				ID: claimed.ID, ClaimEpoch: claimed.ClaimEpoch, FromStates: RunMachine.From(ActionSucceed), Suggestion: o.suggestion, RunUsage: usage,
 			})
 		case o.finding:
 			row, err = q.SucceedFindingRequest(ctx, dbsqlc.SucceedFindingRequestParams{
-				ID: claimed.ID, Attempts: claimed.Attempts, FromStates: RunMachine.From(ActionSucceed), RunUsage: usage,
+				ID: claimed.ID, ClaimEpoch: claimed.ClaimEpoch, FromStates: RunMachine.From(ActionSucceed), RunUsage: usage,
 			})
 		case o.proposal:
 			row, err = q.SucceedProposalRequest(ctx, dbsqlc.SucceedProposalRequestParams{
-				ID: claimed.ID, Attempts: claimed.Attempts, FromStates: RunMachine.From(ActionSucceed), RunUsage: usage,
+				ID: claimed.ID, ClaimEpoch: claimed.ClaimEpoch, FromStates: RunMachine.From(ActionSucceed), RunUsage: usage,
 			})
 		case o.version != nil:
 			row, err = q.SucceedAgentRequest(ctx, dbsqlc.SucceedAgentRequestParams{
-				ID: claimed.ID, Attempts: claimed.Attempts, FromStates: RunMachine.From(ActionSucceed), ResultVersion: httpapi.Int32(*o.version), RunUsage: usage,
+				ID: claimed.ID, ClaimEpoch: claimed.ClaimEpoch, FromStates: RunMachine.From(ActionSucceed), ResultVersion: httpapi.Int32(*o.version), RunUsage: usage,
 			})
 		case o.failure == FailureCanceled:
 			row, err = settle()
 		default:
 			action = ActionFail
 			row, err = q.FailAgentRequest(ctx, dbsqlc.FailAgentRequestParams{
-				ID: claimed.ID, Attempts: claimed.Attempts, FromStates: RunMachine.From(ActionFail), Error: truncateError(o.message), FailureCode: failureText(o.failure), RunUsage: usage,
+				ID: claimed.ID, ClaimEpoch: claimed.ClaimEpoch, FromStates: RunMachine.From(ActionFail), Error: truncateError(o.message), FailureCode: failureText(o.failure), RunUsage: usage,
 			})
 			if errors.Is(err, pgx.ErrNoRows) {
 				row, err = settle()
@@ -1126,7 +1126,7 @@ func failureText(code FailureCode) pgtype.Text {
 func (s *Service) release(ctx context.Context, claimed dbsqlc.AgentRequest, checkFailed bool) (bool, error) {
 	released := false
 	err := s.db.InTxWithSavepoints(ctx, func(q *dbsqlc.Queries, savepoint db.Savepoint) error {
-		row, err := q.ReleaseAgentRequest(ctx, dbsqlc.ReleaseAgentRequestParams{ID: claimed.ID, Attempts: claimed.Attempts, FromStates: RunMachine.From(ActionRelease), CheckFailed: checkFailed})
+		row, err := q.ReleaseAgentRequest(ctx, dbsqlc.ReleaseAgentRequestParams{ID: claimed.ID, ClaimEpoch: claimed.ClaimEpoch, FromStates: RunMachine.From(ActionRelease), CheckFailed: checkFailed})
 		if err == nil {
 			released = true
 			return recordRun(ctx, q, row, ActionRelease)
@@ -1135,7 +1135,7 @@ func (s *Service) release(ctx context.Context, claimed dbsqlc.AgentRequest, chec
 			return fmt.Errorf("release agent request: %w", err)
 		}
 		row, err = q.SettleAgentRequest(ctx, dbsqlc.SettleAgentRequestParams{
-			ID: claimed.ID, Attempts: claimed.Attempts, FromStates: RunMachine.From(ActionSettle), Message: CanceledMessage,
+			ID: claimed.ID, ClaimEpoch: claimed.ClaimEpoch, FromStates: RunMachine.From(ActionSettle), Message: CanceledMessage,
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil

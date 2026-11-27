@@ -109,6 +109,7 @@ type AgentRequest struct {
 	Investigation          bool
 	ReadRestricted         bool
 	AsOf                   pgtype.Timestamptz
+	ClaimEpoch             int32
 	ThreadReplyAbandonedAt pgtype.Timestamptz
 }
 
@@ -431,17 +432,18 @@ type FolderPermission struct {
 }
 
 type GrafanaConnection struct {
-	ID              pgtype.UUID
-	Name            string
-	Url             string
-	TokenCiphertext []byte
-	CreatedBy       pgtype.UUID
-	CreatedAt       pgtype.Timestamptz
-	UpdatedAt       pgtype.Timestamptz
-	LastTestAt      pgtype.Timestamptz
-	LastTestOk      bool
-	LastTestMessage string
-	LastSync        []byte
+	ID                  pgtype.UUID
+	Name                string
+	Url                 string
+	TokenCiphertext     []byte
+	CreatedBy           pgtype.UUID
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+	LastTestAt          pgtype.Timestamptz
+	LastTestOk          bool
+	LastTestMessage     string
+	LastSync            []byte
+	LastTestFailureKind pgtype.Text
 }
 
 type GrafanaSync struct {
@@ -788,6 +790,7 @@ type RunToken struct {
 	AgentRequestID pgtype.UUID
 	Attempt        int32
 	ExpiresAt      pgtype.Timestamptz
+	ClaimEpoch     pgtype.Int4
 }
 
 type SavedPrompt struct {
@@ -951,6 +954,8 @@ type ThreadMessage struct {
 	ObservationBlockID pgtype.UUID
 	ClientID           pgtype.UUID
 	RunFailed          bool
+	RunRefusalCode     pgtype.Text
+	RunRefusalMessage  pgtype.Text
 }
 
 type ThreadRead struct {

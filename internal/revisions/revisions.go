@@ -235,6 +235,7 @@ type Request struct {
 	BaseVersion          int
 	Draft                json.RawMessage
 	Attempt              int
+	ClaimEpoch           int
 	RequestedBy          auth.Principal
 	Origin               origin.Origin
 	Assignee             AssigneeKind

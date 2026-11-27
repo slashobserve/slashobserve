@@ -21,6 +21,9 @@ FROM clock
 ON CONFLICT (author_kind, author_id, client_id) WHERE client_id IS NOT NULL DO NOTHING
 RETURNING *;
 
+-- name: SetMessageRunRefusal :exec
+UPDATE thread_messages SET run_refusal_code = @code::text, run_refusal_message = @message::text WHERE id = @id;
+
 -- name: GetMessageByClient :one
 SELECT * FROM thread_messages WHERE author_kind = @author_kind AND author_id = @author_id AND client_id = @client_id;
 
