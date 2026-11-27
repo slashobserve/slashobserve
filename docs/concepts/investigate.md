@@ -133,13 +133,18 @@ Details of the stages:
 ### The grounding check
 
 With `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, the server checks each finding against what the run read before it is saved.
-It looks at the figures in the Markdown and the impact, the root cause component and the onset.
+It looks at the cited facts and `answers` (see [Facts](#facts)), the figures and trace ids in the Markdown and the impact, the root cause component and the onset.
 
-- A figure passes when the run read it, rounded, within 2% or within the precision it was written with, such as `0.52 s` for a read value of 0.5234, and never more than 10% away.
+- A cited fact is a figure from a read by construction, so it always passes the figure rules.
+- A figure typed as digits passes when it is a fact's value within 1% and within the precision it was written with, such as `523 ms` for a fact of 0.5234123 s.
+  When it is within the looser tolerance below of a fact but more than 1% away, such as `0.5 s` for that fact, it does not pass, and the send-back names the fact to cite.
+- Otherwise a figure passes when the run read it, rounded, within 2% or within the precision it was written with, such as `0.52 s` for a read value of 0.5234, and never more than 10% away.
 - A figure also passes when it is the difference, sum, ratio or percentage change of two numbers from the same read, such as `+82%` from 287 ms to 523 ms; a percentage is compared as a fraction, so `82%` is never the plain difference of 300 and 382.
 - Times in a result are not numbers for this check.
 - `ms` and `s` are converted into each other, and `K` and `M` multiply a number.
 - Times, dates, whole numbers of 10 or less with no unit, code spans and links are never checked; a small number with a unit, such as `3 s` or `5%`, is checked.
+- Nor are figures that are not measurements: a number that appears in the question; a version after `version`, `release` or `v`; a port after `port` or a host and colon; an HTTP status from 100 to 599 after `HTTP`, `status`, `code` or `returned`, or in a list after one, such as `503s`; a duration in seconds after `last`, `past`, `every`, `each`, `within`, `step` or `interval`, or before `step`, `window`, `interval` or `resolution`; a quantile after or before `quantile` or `percentile`; a whole number after `top`, `first` or `bottom`; a year from 1990 to 2100 after `in`, `since`, `during` or `of`; list numbers; and percentile names such as `p99`.
+- A run of 8 to 32 hexadecimal characters with a letter and a digit is a trace or span id, never a figure: it passes when it is a whole id a result of the run showed, it does not pass when it is the start of such an id cut short, and a 16 or 32 character id the run never read does not pass; link targets and fenced code are not checked.
 - The root cause component passes when it is a name the run discovered or saw as a label value or a trace's service, as a whole or as whole words of it, so `checkout service` passes on `checkout` and `payment-error-handler` does not.
 - The onset passes when it falls inside a time range the run queried, or next to a time a result showed, such as a log line's, give or take a minute.
 
@@ -181,7 +186,7 @@ These are problems with the finding, handled like any other item of the check:
 The check runs on a finding saved in any run that can save one, so a question asked on Home or in a revision's chat is checked like an investigation, and a suggestion has none.
 
 With `report`, the items that did not pass are stored with the finding and nothing else changes.
-With `enforce`, the first save with such items is sent back once with a line per item that says "read it, correct it, or remove it".
+With `enforce`, the first save with such items is sent back once with a line per item that says how to fix it: "read it, correct it, or remove it" for a figure or name no read gave, the fact to cite for a rounded figure, the whole id for a cut one, and the settling read for two values of one quantity.
 The agent may read past its call limit to do that, and the send-back is not counted as a rejected save.
 The second save is accepted, and the items that still did not pass are stored with it.
 The check never fails a run, and with `off`, the default, nothing is recorded.

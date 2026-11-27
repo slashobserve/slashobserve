@@ -135,6 +135,11 @@ describe("the line for items the agent did not read", () => {
     ).toBe(
       "2 cited facts were not found in what the agent read: {{f9}}, {{f3:1}}"
     )
+    expect(
+      unverifiedLine(
+        finding({ unverified: [{ kind: "trace_id", text: "4bf92f35" }] })
+      )
+    ).toBe("1 trace id was not found in what the agent read: 4bf92f35")
   })
 
   it("names one figure, the component and the onset", () => {

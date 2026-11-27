@@ -91,7 +91,7 @@ func TestTheReviewListsBrokenCitationsInEveryTextField(t *testing.T) {
 	got := Unverified(r.Review(finding("p99 peaked at {{f1:ms}}, then {{f7}}.", map[string]any{
 		"impact":     "Up to {{f8}} slower.",
 		"root_cause": map[string]any{"component": "checkout", "kind": "dependency", "summary": "{{f1:1}} at peak"},
-	})))
+	}), ""))
 	want := []findings.Unverified{
 		{Kind: findings.UnverifiedFact, Text: "{{f7}}"},
 		{Kind: findings.UnverifiedFact, Text: "{{f8}}"},

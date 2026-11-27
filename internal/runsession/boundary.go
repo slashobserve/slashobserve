@@ -163,7 +163,7 @@ func (sess *session) admit(ctx context.Context, c guard.Call, turn *Turn) (admit
 	position := open.Admitted
 	open.Admitted++
 	out.seq = open.Seq
-	out.unverified, out.ledger = sess.state.checkGrounding(&c)
+	out.unverified, out.ledger = sess.state.checkGrounding(&c, sess.req.Prompt)
 	out.adm = sess.state.Guard.Admit(position, c)
 	if out.adm.Verdict != guard.Refuse {
 		return out, nil

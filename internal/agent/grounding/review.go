@@ -6,6 +6,7 @@ import (
 	"math"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/findings"
 )
@@ -39,7 +40,7 @@ func (ps *problems) add(more ...Problem) {
 	}
 }
 
-func (r *Record) Review(input json.RawMessage) []Problem {
+func (r *Record) Review(input json.RawMessage, question string) []Problem {
 	if r == nil {
 		return nil
 	}
@@ -56,8 +57,43 @@ func (r *Record) Review(input json.RawMessage) []Problem {
 	out.add(ledger.AnswerProblems(in.Answers)...)
 	out.add(ledger.unstated(in.Answers, in.Markdown, in.Impact)...)
 	out.add(ledger.conflicts(in.Markdown, in.Impact)...)
-	for _, item := range r.Check(input) {
-		out.add(Problem{Kind: item.Kind, Text: item.Text, Fix: itemAction})
+	seen := r.sortedReads()
+	for _, text := range []string{in.Markdown, in.Impact} {
+		out.add(r.figureProblems(ledger, seen, text, question)...)
+	}
+	known := r.knownIDs(ledger)
+	for _, text := range []string{in.Markdown, in.Impact} {
+		out.add(traceIDProblems(text, known)...)
+	}
+	out.add(r.nameAndTimeProblems(in.saved)...)
+	return out
+}
+
+func (r *Record) figureProblems(l *Ledger, seen sortedReads, text, question string) []Problem {
+	var out []Problem
+	for _, f := range UncitedFigures(text, question) {
+		exact, near := l.matching(f)
+		switch {
+		case exact != nil:
+		case near != nil:
+			out = append(out, Problem{Kind: findings.UnverifiedFigure, Text: f.Text,
+				Fix: fmt.Sprintf("more than 1%% from %s, %s: cite {{%s}}, with significant figures that keep it within 1%%", near.ID, near.Text, near.ID)})
+		case !seen.found(f):
+			out = append(out, Problem{Kind: findings.UnverifiedFigure, Text: f.Text, Fix: itemAction})
+		}
+	}
+	return out
+}
+
+func (r *Record) nameAndTimeProblems(in saved) []Problem {
+	var out []Problem
+	if in.RootCause != nil && strings.TrimSpace(in.RootCause.Component) != "" && !r.sawName(in.RootCause.Component) {
+		out = append(out, Problem{Kind: findings.UnverifiedComponent, Text: strings.TrimSpace(in.RootCause.Component), Fix: itemAction})
+	}
+	if onset := strings.TrimSpace(in.Onset); onset != "" {
+		if at, err := time.Parse(time.RFC3339, onset); err == nil && !r.queried(at) {
+			out = append(out, Problem{Kind: findings.UnverifiedOnset, Text: onset, Fix: itemAction})
+		}
 	}
 	return out
 }

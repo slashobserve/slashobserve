@@ -7318,10 +7318,10 @@ export interface components {
         };
         FindingUnverified: {
             /**
-             * @description A figure from the Markdown or the impact, the root cause component, the onset time, or a fact the agent cited that the run did not hold or that it asked to show more than 1% away from its value.
+             * @description A figure from the Markdown or the impact, the root cause component, the onset time, a cited fact or `answers` entry that did not pass (an unknown fact, an option more than 1% away, two values for one quantity, or an answer the Markdown never gives), or a trace or span id that was cut short or that the run never read.
              * @enum {string}
              */
-            kind: "figure" | "component" | "onset" | "fact";
+            kind: "figure" | "component" | "onset" | "fact" | "trace_id";
             /** @description The item as the agent wrote it, such as "523 ms". */
             text: string;
         };

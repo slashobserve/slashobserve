@@ -121,6 +121,46 @@ func TestTwoAnswersForOneQuantityAreSentBack(t *testing.T) {
 	}
 }
 
+const slowPath = `{"from":"2026-11-20T09:00:00Z","to":"2026-11-20T11:00:00Z","threshold":"route p50","listed_traces":40,"complete":true,"sample":false,"routes":[{"route":"GET /cart","threshold_ms":120,"slow_traces":7,"examined":40,"top_self_time":[],"services":[],"example":{"trace_id":"4bf92f3577b34da6a3ce929d0e0e4736","duration_ms":1312.75}}],"note":""}`
+
+func TestATypedFigureNoReadGaveIsSentBackWithTheFactItRounds(t *testing.T) {
+	s := groundingScript(t, grounding.Enforce)
+	s.readAnswer("measure_window", `{"datasource":"prom","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1})
+	save := `{"markdown":"Checkout p99 peaked at 0.5 s, and 2,950 orders failed over the last 6 hours on HTTP 503."}`
+
+	message := sendBackMessage(t, s.admitSave(save, &Turn{ID: "t2", Calls: 1}))
+	for _, want := range []string{
+		`figure "0.5 s": more than 1% from f1, 0.5234123: cite {{f1}}`,
+		`figure "2,950": read it, correct it, or remove it`,
+	} {
+		if !strings.Contains(message, want) {
+			t.Errorf("the send-back lacks %q:\n%s", want, message)
+		}
+	}
+	if strings.Contains(message, `"6 hours"`) || strings.Contains(message, `"503"`) {
+		t.Errorf("the send-back names a window or a status code:\n%s", message)
+	}
+}
+
+func TestACutTraceIDIsSentBackWithTheWholeID(t *testing.T) {
+	s := groundingScript(t, grounding.Enforce)
+	s.readAnswer("trace_slow_path", `{"datasource":"tempo","route":"GET /cart"}`, slowPath, &Turn{ID: "t1", Calls: 1})
+
+	message := sendBackMessage(t, s.admitSave(`{"markdown":"GET /cart had 7 slow traces, such as 4bf92f35, which took {{f8}}."}`, &Turn{ID: "t2", Calls: 1}))
+	if !strings.Contains(message, `trace id "4bf92f35": an id cut short: write the whole id 4bf92f3577b34da6a3ce929d0e0e4736`) {
+		t.Errorf("the send-back does not name the cut id:\n%s", message)
+	}
+	ids := s.sess.state.Grounding.Facts
+	trace, duration := ids[len(ids)-2], ids[len(ids)-1]
+	clean := s.admitSave(`{"markdown":"GET /cart had {{f3}} slow traces, such as {{`+trace.ID+`}}, which took {{`+duration.ID+`:s}}.","answers":[{"quantity":"example trace","fact":"`+trace.ID+`"},{"quantity":"its duration","fact":"`+duration.ID+`"}]}`, &Turn{ID: "t3", Calls: 1})
+	if clean.answer != nil || clean.unverified != nil {
+		t.Errorf("the repaired save = %+v, %+v", clean.answer, clean.unverified)
+	}
+	if rendered, _ := clean.ledger.Render("{{" + duration.ID + ":s}} in {{" + trace.ID + "}}"); rendered != "1.31275 s in 4bf92f3577b34da6a3ce929d0e0e4736" {
+		t.Errorf("rendered = %q", rendered)
+	}
+}
+
 func TestReportRecordsABrokenCitationWithoutSendingItBack(t *testing.T) {
 	s := groundingScript(t, grounding.Report)
 	s.readAnswer("measure_window", `{"datasource":"prom","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1})

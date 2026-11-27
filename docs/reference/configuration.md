@@ -396,7 +396,7 @@ The cost cap `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` and the run timeout still end
 
 With `report` or `enforce`, the server keeps a bounded record of what an investigation read, and checks the finding against it when the agent saves.
 The record holds up to 2,000 numbers, rounded to 3 significant figures and kept per read, the names the run saw, the time ranges it queried and the times its results showed.
-A figure in the Markdown or the impact passes when it is within 2% of a number the run read, or within the precision it was written with but never more than 10% away, or when it is the difference, sum, ratio or percentage change of two numbers from the same read; a percentage is compared as a fraction.
+A cited fact always passes, a typed figure within 1% of a fact passes and one further from it than 1% but within the tolerance below does not, a trace or span id passes only whole and read, and figures that are not measurements, such as a number from the question, a version, a port, an HTTP status, a window or step duration or a year, are not checked; otherwise a figure in the Markdown or the impact passes when it is within 2% of a number the run read, or within the precision it was written with but never more than 10% away, or when it is the difference, sum, ratio or percentage change of two numbers from the same read; a percentage is compared as a fraction.
 Times, dates, whole numbers of 10 or less with no unit, code spans and links are not checked, a small number with a unit such as `3 s` is, and `ms` and `s` and `K` and `M` are read as units.
 `root_cause.component` passes when it matches a name the run discovered or saw as a label value or a trace's service, as a whole or by whole words, and `onset` passes when it falls inside a time range the run queried or next to a time a result showed, give or take a minute.
 
@@ -404,7 +404,7 @@ The measurement and trace reads also number their values as facts (`"facts":{"va
 
 - `off` records nothing and checks nothing, so a run is the same as it was before the setting existed.
 - `report` stores the items that did not pass with the finding and changes nothing else.
-- `enforce` sends the finding back once, listing each item with "read it, correct it, or remove it"; the second save is accepted, and the items that still did not pass are stored with it.
+- `enforce` sends the finding back once, listing each item with how to fix it, such as "read it, correct it, or remove it"; the second save is accepted, and the items that still did not pass are stored with it.
 
 A send-back is not a rejected save: it does not count toward the 3 rejected saves in a row, and the call that answers it may read past the call limit.
 The check never fails a run.
