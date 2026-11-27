@@ -567,6 +567,7 @@ class Runner:
         self._note("traces: not read, because SREGym's Jaeger is 1.57 and the Jaeger datasource needs 2.21 or later")
         self._note("mitigation: not submitted; this adapter answers the diagnosis stage only")
         self._note(self.options.grounding_note())
+        self._note(self.options.loop_note())
         forwards: list[PortForward] = []
         network = f"slashobserve-sregym-{secrets.token_hex(4)}"
         stack = None
@@ -584,10 +585,7 @@ class Runner:
                 llm_provider=provider,
                 llm_model=model,
                 llm_effort=self.options.llm_effort,
-                investigation_calls=self.options.investigation_calls,
-                investigation_loop=self.options.investigation_loop,
-                investigation_calls_max=self.options.investigation_calls_max,
-                finding_grounding=self.options.effective_grounding,
+                **self.options.server_settings(),
                 run_max_cost_usd=self.options.run_max_cost_usd,
                 replay_dir=Path(replay_dir) if replay_dir else None,
                 add_hosts=(f"{HOST_ALIAS}:host-gateway",),

@@ -195,6 +195,14 @@ def test_run_starts_an_investigation_beside_the_trial_and_writes_the_report(setu
     assert "code context: the code server slashobserve-codeserver:local" in (logs / "notes.txt").read_text()
 
 
+def test_the_loop_settings_are_always_sent_and_noted(setup):
+    agent, environment, logs = setup
+    run(agent, environment)
+    config = FakeStack.started.config
+    assert (config.investigation_calls, config.investigation_loop, config.investigation_calls_max, config.finding_grounding) == (None, True, 40, "enforce")
+    assert "investigation loop: true, calls max 40, calls server default" in (logs / "notes.txt").read_text()
+
+
 def test_by_default_the_span_index_answers_the_trace_tools(setup):
     agent, environment, logs = setup
     run(agent, environment)

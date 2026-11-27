@@ -97,19 +97,21 @@ Every development run uses these ten, so results stay comparable; change the lis
 
 ### Options
 
-The loop and the calls limit are sent to the server only when given, so one image can be measured with the loop off and then on.
-Finding grounding is always sent, `enforce` unless given; see [Finding grounding](#finding-grounding).
-The results file records the settings under `settings` with the values the server ran with (loop `false`, `investigation_calls_max` equal to the effective calls and grounding `enforce` when unset), so a job that leaves them unset agrees with one that sets the defaults; a job whose trials disagree on them is refused.
+The adapter cannot read the server's defaults from outside, and they differ between images (see [Server defaults](#server-defaults)), so it does not rely on them.
+The loop, its ceiling and finding grounding are always sent, with the adapter's defaults when they are not given, and those match the defaults of an image with task types.
+`investigation_calls` is sent only when given, because unset it means one limit per task type on an image with task types, which one number cannot express.
+A given `--ak` value always wins over the adapter's default.
+The results file records under `settings` exactly what was sent, and `server default` for a setting that was not sent, so a job that leaves an option unset agrees with one that sets the adapter's default; a job whose trials disagree on them is refused.
 
 | `--ak` | Default | Meaning |
 | --- | --- | --- |
 | `server_image` | `ghcr.io/slashobserve/slashobserve:latest` | The server image, with its tag; use a local tag to test a build. |
 | `network` | `o11y-bench-shared` | The Docker network of the task's stores. |
 | `replay_dir` | unset | A directory of replay fixtures, readable by everyone; needed with `--model replay/replay`. |
-| `llm_effort` | server default | `SLASHOBSERVE_LLM_EFFORT`. |
-| `investigation_calls` | server default (12) | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`, 6 to 60. |
-| `investigation_loop` | server default (`false`) | `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`: `true` or `false`. |
-| `investigation_calls_max` | server default (the value of `investigation_calls`) | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`, 6 to 60; the adapter refuses a value below the effective `investigation_calls` (the given value or 12), as the server does. |
+| `llm_effort` | server default, not sent | `SLASHOBSERVE_LLM_EFFORT`. |
+| `investigation_calls` | server default, not sent | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`, 6 to 60. |
+| `investigation_loop` | `true` | `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`: `true` or `false`, always sent. |
+| `investigation_calls_max` | `40`, or `investigation_calls` when that is higher | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`, 6 to 60, always sent; the adapter refuses a value below `investigation_calls`, or below 12 when that is unset, because an older image starts at 12 and refuses a lower ceiling. |
 | `finding_grounding` | `enforce` | `SLASHOBSERVE_AGENT_FINDING_GROUNDING`: `off`, `report` or `enforce`, always sent. |
 | `run_max_cost_usd` | unset | `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD`: the server fails a run with `budget_exhausted` once its cost reaches it. The server refuses to start with it set when the model has no price, the replay model included. |
 | `spend_cap_usd`, `ledger_path` | unset | The job cap and its ledger file, which go together; see below. |
@@ -118,6 +120,27 @@ The results file records the settings under `settings` with the values the serve
 | `grafana_user`, `grafana_password` | unset | Grafana basic auth, used only when the task environment carries no Grafana credentials. |
 | `grafana_write_sec` | 150 | For a dashboard task, the seconds at the end of `wall_timeout_sec` kept for writing the dashboard to Grafana. |
 
+### Server defaults
+
+An image built from `agent-investigation-core` or later (an image with task types) and an older one, such as main or v0.1.5, have different defaults for an investigation:
+
+| Setting | Image with task types | Older image |
+| --- | --- | --- |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` | `true` | `false` |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | by task type: `measure` 16, `logs` 20, `traces` 20, `incident` 30, `inventory` 12, `explain` 12, and 30 for a question no rule sorts | 12 |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX` | 40, or the calls setting when higher | the calls setting |
+| `SLASHOBSERVE_AGENT_FINDING_GROUNDING` | `enforce` | `off` |
+| `SLASHOBSERVE_LLM_EFFORT` | on `anthropic`, `high` for an investigation and a question about a dashboard or an observation, `medium` for other runs | the provider's default |
+
+v0.1.5 has none of the loop, ceiling and grounding settings and ignores them when they are sent.
+What omitting an option means:
+
+- `investigation_loop`, `investigation_calls_max` and `finding_grounding`: the adapter sends `true`, 40 and `enforce`, so both kinds of image run with them, as far as the image has the setting.
+- `investigation_calls`: nothing is sent, so an image with task types gives each investigation its task type's limit and an older image gives 12; the results file records `server default`.
+- `llm_effort`: nothing is sent, so the server picks the effort per run as in the table; the results file records `server default`.
+
+The configuration reference in the repository's `docs/reference/configuration.md` is the source of these values.
+
 ### Finding grounding
 
 The server scores each cause of a finding and decides whether the finding states it only with `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`.
@@ -125,8 +148,8 @@ With `off` every cause counts as stated, so the ORCA-bench report and the SREGym
 The server default is `off` on images before the change that makes it `enforce`, so the adapters do not rely on it: every adapter sends `enforce` unless `finding_grounding` is given, and a run behaves the same on any image that has the setting.
 `enforce` also sends a finding back once when an item in it does not match what the run read, which is what a person gets from the product's default.
 An image older than the setting ignores it, has no causes and no scoring, and its findings are written from `root_cause` or the Markdown.
-The results file and the ORCA-bench and SREGym `notes.txt` record the value the server ran with.
-A Harbor job folder from before the adapter sent the setting recorded it unset, and its trials ran with the image's default; rebuilding a results file from such a folder records `enforce` for them, so keep the file written at the time.
+The results file and the ORCA-bench and SREGym `notes.txt` record the value that was sent.
+A Harbor job folder from before the adapter sent a setting recorded it unset, and its trials ran with the image's default; rebuilding a results file from such a folder records the adapter's current default for them, so keep the file written at the time.
 
 ## Cost
 
@@ -289,7 +312,7 @@ It runs on Harbor 0.20.0 with a patched `Task.checksum`, while o11y-bench pins H
 | `report.md` | The report that was written to `/app/report.md`. |
 | `trajectory.json`, `run.json`, `server.log` | As for o11y-bench. |
 | `codeserver.log` | The code server's log, when the trial started one. |
-| `notes.txt` | How traces were read, the finding grounding the server ran with, which code context applied, and the judge caveat. |
+| `notes.txt` | How traces were read, the finding grounding and loop settings that were sent, which code context applied, and the judge caveat. |
 
 The options are those of o11y-bench without `network`, plus `code_context`, `codeserver_image` (default `slashobserve-codeserver:local`), `source_names` (`mcp`, the default, or `context`) and `span_index` (`true`, the default, or `false`), and `wall_timeout_sec` defaults to 3300 under the task's 3600 second agent timeout.
 Leaderboard rules forbid a timeout or resource override, so leave Harbor's at their defaults.
@@ -484,7 +507,7 @@ A run that stops before the investigation (no `diagnosis` stage, the tool not ap
 | `diagnosis.txt` | The text submitted. |
 | `submission.json` | The conductor's answer to the submission, or the error. |
 | `trajectory.json`, `run.json`, `server.log` | As for o11y-bench; SREGym keeps this `trajectory.json`, because it has no converter for this agent. |
-| `notes.txt` | How each store was reached, the finding grounding the server ran with, whether kubectl was approved and marked read-only, and that no mitigation was submitted. |
+| `notes.txt` | How each store was reached, the finding grounding and loop settings that were sent, whether kubectl was approved and marked read-only, and that no mitigation was submitted. |
 
 The options are those of ORCA-bench without `code_context`, as `--` flags, plus `--conductor-url`, `--mcp-url`, `--prometheus-url`, `--loki-url`, `--kubectl-wait-sec`, `--without-kubectl` and `--out`.
 `--without-kubectl` is for a telemetry-only baseline, or for a run on an image older than `agent-rca-accuracy`, which cannot approve the tool.

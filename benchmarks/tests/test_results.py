@@ -83,11 +83,11 @@ def test_one_attempt_per_task(tmp_path):
     assert run["model"] == "anthropic/claude-sonnet-5-5"
     assert run["judge"] == "claude-haiku-5-5@high"
     assert run["settings"] == {
-        "investigation_calls": None,
-        "investigation_loop": False,
-        "investigation_calls_max": 12,
+        "investigation_calls": "server default",
+        "investigation_loop": True,
+        "investigation_calls_max": 40,
         "finding_grounding": "enforce",
-        "llm_effort": None,
+        "llm_effort": "server default",
         "run_max_cost_usd": 0.5,
         "wall_timeout_sec": None,
     }
@@ -238,21 +238,28 @@ def test_loop_settings_are_recorded_with_their_effective_values(tmp_path):
     assert settings["run_max_cost_usd"] == 0.5
 
 
-def test_unset_loop_settings_record_the_defaults_the_server_ran_with(tmp_path):
+def test_unset_loop_settings_record_what_the_adapter_sent(tmp_path):
     job = write_job(tmp_path)
     write_trial(job, "task-a", "AAA", 1.0, kwargs={"investigation_calls": 20})
     settings = build_from([job])["settings"]
-    assert (settings["investigation_loop"], settings["investigation_calls_max"], settings["finding_grounding"]) == (False, 20, "enforce")
+    assert (settings["investigation_calls"], settings["investigation_loop"], settings["investigation_calls_max"], settings["finding_grounding"]) == (20, True, 40, "enforce")
+
+
+def test_the_older_baseline_is_recorded_as_given(tmp_path):
+    job = write_job(tmp_path)
+    write_trial(job, "task-a", "AAA", 1.0, kwargs={"investigation_calls": "12", "investigation_loop": "false", "finding_grounding": "off", "llm_effort": "medium"})
+    settings = build_from([job])["settings"]
+    assert (settings["investigation_calls"], settings["investigation_loop"], settings["finding_grounding"], settings["llm_effort"]) == (12, False, "off", "medium")
 
 
 def test_jobs_that_set_the_defaults_explicitly_agree_with_jobs_that_leave_them_unset(tmp_path):
     job = write_job(tmp_path)
     write_trial(job, "task-a", "AAA", 1.0)
-    write_trial(job, "task-b", "BBB", 1.0, kwargs={"run_max_cost_usd": 0.5, "investigation_loop": False, "investigation_calls_max": 12, "finding_grounding": "enforce"})
+    write_trial(job, "task-b", "BBB", 1.0, kwargs={"run_max_cost_usd": 0.5, "investigation_loop": True, "investigation_calls_max": 40, "finding_grounding": "enforce"})
     build_from([job])
     other = write_job(tmp_path, "other")
     write_trial(other, "task-a", "AAA", 1.0)
-    write_trial(other, "task-b", "BBB", 1.0, kwargs={"run_max_cost_usd": 0.5, "investigation_loop": True})
+    write_trial(other, "task-b", "BBB", 1.0, kwargs={"run_max_cost_usd": 0.5, "investigation_loop": False})
     with pytest.raises(results.ResultsError, match="the settings"):
         build_from([other])
 

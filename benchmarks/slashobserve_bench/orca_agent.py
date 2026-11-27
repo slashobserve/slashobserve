@@ -241,10 +241,7 @@ class OrcaAgent(BaseAgent):
             llm_provider=provider,
             llm_model=model,
             llm_effort=options.llm_effort,
-            investigation_calls=options.investigation_calls,
-            investigation_loop=options.investigation_loop,
-            investigation_calls_max=options.investigation_calls_max,
-            finding_grounding=options.effective_grounding,
+            **options.server_settings(),
             run_max_cost_usd=options.run_max_cost_usd,
             replay_dir=Path(options.replay_dir) if options.replay_dir else None,
             extra_env=orca.code_settings(options.names) if served else (),
@@ -259,6 +256,7 @@ class OrcaAgent(BaseAgent):
         notes = [
             orca.spans_note_line(options.span_index),
             options.grounding_note(),
+            options.loop_note(),
             "scores: judged outside the published ORCA-bench judge, so not comparable with leaderboard numbers",
         ]
         workdir = tempfile.TemporaryDirectory(prefix="orca-code-")

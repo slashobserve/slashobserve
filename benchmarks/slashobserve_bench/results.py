@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
 
-from slashobserve_bench.loop_options import LoopOptions
+from slashobserve_bench.loop_options import SERVER_DEFAULT, LoopOptions
 
 SCHEMA_VERSION = 1
 RESULTS_DIR = Path(__file__).resolve().parents[1] / "results"
@@ -28,9 +28,8 @@ class RecordedSettings(LoopOptions):
 
     def recorded(self) -> dict[str, Any]:
         return {
-            "investigation_calls": self.investigation_calls,
-            **self.effective_loop_settings(),
-            "llm_effort": self.llm_effort,
+            **self.recorded_loop_settings(),
+            "llm_effort": self.llm_effort or SERVER_DEFAULT,
             "run_max_cost_usd": self.run_max_cost_usd,
             "wall_timeout_sec": self.wall_timeout_sec,
         }
