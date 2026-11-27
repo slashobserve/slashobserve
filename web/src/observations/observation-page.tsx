@@ -302,6 +302,7 @@ function LoadedObservation({
           blocks={blocks}
           onShowBlock={onShowBlock}
           onClose={() => rca.onOpenChange(false)}
+          personal={isPrivate}
           privateFolder={
             mustMoveToPublish
               ? () => {

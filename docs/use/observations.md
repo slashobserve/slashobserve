@@ -505,6 +505,8 @@ A revision never changes, so a slip in one cannot be edited, but the revision ca
 **Withdraw** asks for confirmation and then deletes the revision and its frozen panels for everyone.
 It needs Edit on the observation's folder.
 Over the API each revision carries its own `state` (`published`, `superseded` or `shared`) and `allowed_actions`, and `withdraw` is listed only while no live public link shows it; the [states reference](../reference/states.md) has the moves.
+The web app shows **Withdraw** only when the revision lists `withdraw`.
+While a live public link shows the revision, a person who could otherwise withdraw it sees **Withdraw** disabled, with "Revoke its public links below to withdraw it." under it.
 The activity log keeps `observation.rca_withdrawn` with the title and the revision number.
 
 A revision that still has a live public link answers `rca_shared` (409), with the revision's `state` and the `allowed_actions` the caller still has on it.
@@ -537,6 +539,8 @@ The list below it shows each link's first characters, whether it is active or ex
 **Revoke** asks "Revoke this public link?" and then stops the link at once.
 
 Creating, listing and revoking links need Manage on the folder.
+The **Create link** form shows only when the revision lists `share` in its `allowed_actions`.
+In its place the panel says "Public links can't be made in My Dashboards." for an observation in My Dashboards, and "Only Admins can read this folder." for one in a folder only Admins can read.
 The panel shows the server's reason when you lack it, when the observation is in My Dashboards, when the revision holds data that depends on the viewer, or when the observation already has 20 links.
 
 ### Share a revision over HTTP

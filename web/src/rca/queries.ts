@@ -1,5 +1,6 @@
 import {
   queryOptions,
+  type QueryClient,
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query"
@@ -108,6 +109,22 @@ export function useWithdrawRca(observationId: string) {
   })
 }
 
+function refreshLinks(
+  queryClient: QueryClient,
+  observationId: string,
+  revision: number
+) {
+  return Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: observationKeys.rcaLinks(observationId, revision),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: observationKeys.rcas(observationId),
+      exact: true,
+    }),
+  ])
+}
+
 export function useCreateRcaLink(observationId: string, revision: number) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -119,10 +136,7 @@ export function useCreateRcaLink(observationId: string, revision: number) {
           body,
         })
         .then(unwrap),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: observationKeys.rcaLinks(observationId, revision),
-      }),
+    onSuccess: () => refreshLinks(queryClient, observationId, revision),
   })
 }
 
@@ -135,10 +149,7 @@ export function useRevokeRcaLink(observationId: string, revision: number) {
           params: { path: { id: observationId, link_id: linkId } },
         })
         .then(unwrap),
-    onSettled: () =>
-      queryClient.invalidateQueries({
-        queryKey: observationKeys.rcaLinks(observationId, revision),
-      }),
+    onSettled: () => refreshLinks(queryClient, observationId, revision),
   })
 }
 

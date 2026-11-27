@@ -40,9 +40,27 @@ import {
   useCreateRcaLink,
   useRevokeRcaLink,
   type RcaLink,
+  type RcaSummary,
 } from "./queries"
 
 type Props = { observationId: string; revision: number }
+
+export function linkFormBlock(
+  rca: RcaSummary,
+  where: { personal: boolean; canPublish: boolean }
+): { blocked: false } | { blocked: true; reason: string | null } {
+  if (rca.allowed_actions.includes("share")) return { blocked: false }
+  if (where.personal) {
+    return {
+      blocked: true,
+      reason: "Public links can't be made in My Dashboards.",
+    }
+  }
+  return {
+    blocked: true,
+    reason: where.canPublish ? "Only Admins can read this folder." : null,
+  }
+}
 
 function statusText(link: RcaLink): string {
   if (link.state === "expired") return "Expired"
@@ -50,7 +68,11 @@ function statusText(link: RcaLink): string {
   return `Active, expires ${formatDateTime(link.expires_at)}`
 }
 
-export function RcaLinks({ observationId, revision }: Props) {
+export function RcaLinks({
+  observationId,
+  revision,
+  form,
+}: Props & { form: ReturnType<typeof linkFormBlock> }) {
   const links = useQuery(rcaLinksQuery(observationId, revision))
   const [urls, setUrls] = useState<Record<string, string>>({})
   const [latest, setLatest] = useState<string | null>(null)
@@ -69,15 +91,19 @@ export function RcaLinks({ observationId, revision }: Props) {
 
   return (
     <div className="flex flex-col gap-2.5">
-      <CreateRcaLink
-        observationId={observationId}
-        revision={revision}
-        latest={latest}
-        onCreated={(id, url) => {
-          setUrls((known) => ({ ...known, [id]: url }))
-          setLatest(url)
-        }}
-      />
+      {!form.blocked ? (
+        <CreateRcaLink
+          observationId={observationId}
+          revision={revision}
+          latest={latest}
+          onCreated={(id, url) => {
+            setUrls((known) => ({ ...known, [id]: url }))
+            setLatest(url)
+          }}
+        />
+      ) : form.reason === null ? null : (
+        <p className="text-[13px] text-muted-foreground">{form.reason}</p>
+      )}
       {links.data !== undefined ? (
         links.data.length === 0 ? null : (
           <ul className="rounded-card border">

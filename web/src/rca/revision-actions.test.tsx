@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { ApiError } from "@/api/errors"
 import { renderWithProviders } from "@/test/render"
 
+import type { RcaSummary } from "./queries"
 import { RevisionActions, withdrawProblemText } from "./revision-actions"
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
@@ -31,14 +32,22 @@ function respond(status: number, body?: unknown) {
   return requests
 }
 
+function revision(allowed: RcaSummary["allowed_actions"]): RcaSummary {
+  return {
+    revision: 2,
+    state: "published",
+    allowed_actions: allowed,
+  } as Partial<RcaSummary> as RcaSummary
+}
+
 function renderActions(canWithdraw: boolean, onWithdrawn = vi.fn()) {
   return {
     onWithdrawn,
     ...renderWithProviders(
       <RevisionActions
         observationId={observationId}
-        revision={2}
-        canWithdraw={canWithdraw}
+        rca={revision(canWithdraw ? ["withdraw"] : [])}
+        canPublish={canWithdraw}
         onWithdrawn={onWithdrawn}
       />,
       { route: { path: "/", url: "/" } }
