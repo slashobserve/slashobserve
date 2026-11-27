@@ -132,6 +132,26 @@ func TestARateLimitedReceiverSetsTheNextAttemptFromRetryAfter(t *testing.T) {
 	}
 }
 
+func TestAFailureKeepsAnAdminDisableMadeDuringTheDelivery(t *testing.T) {
+	r := newRig(t)
+	created := r.create(t)
+	r.append(t, activity.TypeFindingCreated)
+	off := false
+	r.sender.script(func(int, call) (egress.SendResult, error) {
+		if _, err := r.svc.Update(t.Context(), adminTwo, r.uuid(t, created.Webhook.ID), Patch{Enabled: &off}); err != nil {
+			t.Error(err)
+		}
+		return egress.SendResult{Status: http.StatusInternalServerError}, nil
+	})
+
+	r.pass(t)
+
+	row := r.row(t, created.Webhook.ID)
+	if !row.DisabledAt.Valid || row.DisabledReason.String != ReasonManual || row.ConsecutiveFailures != 1 {
+		t.Fatalf("webhook after a failure that raced an admin disable %+v", row)
+	}
+}
+
 func TestA410DisablesTheWebhookAsGone(t *testing.T) {
 	r := newRig(t)
 	created := r.create(t)

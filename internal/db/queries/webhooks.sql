@@ -87,8 +87,8 @@ WHERE id = @id AND lease_id = @lease_id;
 UPDATE webhooks
 SET consecutive_failures = @consecutive_failures,
   next_attempt_at = @next_attempt_at,
-  disabled_at = sqlc.narg('disabled_at'),
-  disabled_reason = sqlc.narg('disabled_reason')
+  disabled_at = coalesce(disabled_at, sqlc.narg('disabled_at')),
+  disabled_reason = coalesce(disabled_reason, sqlc.narg('disabled_reason'))
 WHERE id = @id AND lease_id = @lease_id;
 
 -- name: SkipWebhookEvent :execrows

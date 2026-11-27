@@ -142,8 +142,8 @@ const failWebhook = `-- name: FailWebhook :execrows
 UPDATE webhooks
 SET consecutive_failures = $1,
   next_attempt_at = $2,
-  disabled_at = $3,
-  disabled_reason = $4
+  disabled_at = coalesce(disabled_at, $3),
+  disabled_reason = coalesce(disabled_reason, $4)
 WHERE id = $5 AND lease_id = $6
 `
 
