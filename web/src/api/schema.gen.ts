@@ -8238,6 +8238,11 @@ export interface components {
             /** @description False when the link is expired or the dashboard's latest version reads the viewer's identity. */
             usable: boolean;
             /**
+             * @description Why the link does not open, set whenever `usable` is false and null otherwise: `expired` when its expiry time has passed, `user_scoped` when the dashboard's latest version reads the viewer's identity. An expired link reports `expired` whatever the dashboard reads.
+             * @enum {string|null}
+             */
+            unusable_reason: "expired" | "user_scoped" | null;
+            /**
              * @description Computed from `expired`. See `docs/reference/states.md`.
              * @enum {string}
              */

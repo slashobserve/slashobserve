@@ -26,6 +26,7 @@ const link = {
   last_viewed_at: null,
   expired: false,
   usable: true,
+  unusable_reason: null,
   state: "active",
 }
 
