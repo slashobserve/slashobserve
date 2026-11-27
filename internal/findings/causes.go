@@ -108,6 +108,30 @@ type CauseInput struct {
 	KnockOnOf *int             `json:"knock_on_of"`
 	Evidence  EvidenceInput    `json:"evidence"`
 	Estimate  string           `json:"estimate"`
+	CauseGiven
+}
+
+type CauseGiven struct {
+	Signals *GivenSignals `json:"signals"`
+	Score   *float64      `json:"score"`
+	Band    string        `json:"band"`
+	Queries []string      `json:"queries"`
+}
+
+type GivenSignals struct {
+	Kinds       []string `json:"kinds"`
+	Component   bool     `json:"component"`
+	OnsetRead   bool     `json:"onset_read"`
+	OnsetFact   bool     `json:"onset_fact"`
+	TriggerRead bool     `json:"trigger_read"`
+	RuledOut    bool     `json:"ruled_out"`
+}
+
+func (g GivenSignals) Signals() Signals {
+	kinds := slices.DeleteFunc(slices.Clone(g.Kinds), func(k string) bool {
+		return k != SignalMetrics && k != SignalLogs && k != SignalTraces
+	})
+	return Signals{Kinds: kinds, Component: g.Component, OnsetRead: g.OnsetRead, OnsetFact: g.OnsetFact, TriggerRead: g.TriggerRead, RuledOut: g.RuledOut}
 }
 
 func (in StructuredInput) CauseInputs() []CauseInput {
@@ -316,10 +340,26 @@ func (s *Structured) settle() {
 	}
 }
 
+func (s *Structured) GiveQueries(i int, queries []string) {
+	if i < 0 || i >= len(s.Causes) {
+		return
+	}
+	e := &s.Causes[i].Evidence
+	e.Queries = nil
+	for _, raw := range queries {
+		q := clipQuery(strings.TrimSpace(raw))
+		if q != "" && !slices.Contains(e.Queries, q) && len(e.Queries) < MaxCauseQueries {
+			e.Queries = append(e.Queries, q)
+		}
+	}
+}
+
 func (s *Structured) WithQueries(queryOf func(factID string) string) {
 	for i := range s.Causes {
 		e := &s.Causes[i].Evidence
-		e.Queries = nil
+		if len(e.Queries) > 0 {
+			continue
+		}
 		for _, id := range e.Facts {
 			q := clipQuery(strings.TrimSpace(queryOf(id)))
 			if q != "" && !slices.Contains(e.Queries, q) && len(e.Queries) < MaxCauseQueries {

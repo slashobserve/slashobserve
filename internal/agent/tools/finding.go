@@ -65,12 +65,12 @@ const (
 		`"trigger":{"type":"object","properties":{"kind":{"type":"string","enum":["feature_flag","config_value","deploy","traffic","dependency","unknown"]},"key":{"type":"string","maxLength":200,"description":"Flag key, setting, version or name exactly as the system spells it."},"value":{"type":"string","maxLength":200}},"required":["kind","key"],"additionalProperties":false},` +
 		`"onset":{"type":"string"},"affected":{"type":"array","maxItems":8,"items":` + propCauseComponent + `},"knock_on_of":{"type":"integer","minimum":0,"maximum":5},` +
 		`"evidence":{"type":"object","properties":{"facts":{"type":"array","maxItems":12,"items":{"type":"string"}},"trace_ids":{"type":"array","maxItems":4,"items":{"type":"string"}}},"additionalProperties":false},` +
-		`"estimate":{"type":"string","enum":["high","medium","low"]}},"required":["component","kind","mechanism"],"additionalProperties":false}}`
+		`"estimate":{"type":"string","enum":["high","medium","low"]}{cause_agent_props}},"required":["component","kind","mechanism"],"additionalProperties":false}}`
 
 	maxSuggestedChangeRunes = 500
 
 	schemaFindingHead       = `{"type":"object","properties":{` + propFindingTitle + `,` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,`
-	schemaFindingPlain      = propFindingSuggestedChange + `,` + propFindingObserveWorthy + `,` + propFindingAnswers
+	schemaFindingPlain      = propFindingSuggestedChange + `,` + propFindingObserveWorthy + `,` + propFindingAnswers + `{finding_agent_props}`
 	schemaFindingStructured = `,` + propFindingCauses + `,` + propFindingOnset + `,` + propFindingImpact + `,` + propFindingConf + `,` + propFindingRuledOut + `,` + propFindingNext + `,` + propFindingNoInc
 	schemaFindingEnd        = `},"required":["markdown"],"additionalProperties":false}`
 
@@ -97,7 +97,7 @@ func findingForRun(t Tool, mode Mode, investigation bool) Tool {
 	if askOn {
 		desc += descFindingAskOn
 	}
-	t.Description, t.InputSchema = desc, json.RawMessage(schema+schemaFindingEnd)
+	t.Description, t.InputSchema = desc, json.RawMessage(agentWording.replacer.Replace(schema+schemaFindingEnd))
 	return t
 }
 
@@ -120,6 +120,7 @@ type findingInput struct {
 	Answers         []grounding.Answer `json:"answers"`
 
 	findings.StructuredInput
+	agentFinding
 }
 
 type findingSavedOut struct {
@@ -157,12 +158,16 @@ func withLegacyFacts(ctx context.Context, in findingInput) findingInput {
 	return in
 }
 
-func scoredCauses(ctx context.Context, s *findings.Structured) string {
-	signals, ok := causeSignalsOf(ctx)
-	if !ok || len(s.Causes) == 0 {
+func scoredCauses(ctx context.Context, s *findings.Structured, agent agentFindingFields) string {
+	if len(s.Causes) == 0 {
 		return ""
 	}
-	notes := s.Score(signals)
+	signals, ok := causeSignalsOf(ctx)
+	signals, given, ok := agent.scoring(s, signals, ok)
+	if !ok {
+		return ""
+	}
+	notes := s.ScoreGiven(signals, given)
 	if ledger, ok := factsOf(ctx); ok {
 		s.WithQueries(ledger.QueryOf)
 	}
@@ -180,6 +185,8 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	in = withLegacyFacts(ctx, in)
 	in = renderedFinding(ctx, in)
 	run, _ := RunFrom(ctx)
+	agent := agentFindingOf(in.agentFinding, in.CauseInputs(), run)
+	ctx = agent.into(ctx)
 	principal, _ := auth.FromContext(ctx)
 	requestID, err := optionalUUID(run.RequestID)
 	if err != nil {
@@ -209,9 +216,12 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	}
 	save.AgentRequestID, save.DashboardID, save.AskDashboardID = requestID, dashboardID, extras.askOn
 	save.SuggestedChange, save.ObserveWorthy = suggested, in.ObserveWorthy
-	scoreNote := scoredCauses(ctx, &extras.structured)
+	scoreNote := scoredCauses(ctx, &extras.structured, agent)
 	save.Structured = extras.structured
 	save.Unverified = unverifiedOf(ctx)
+	if agent.hasUnverify {
+		save.Unverified = agent.unverified
+	}
 	save.AsOf = run.asOf()
 	f, replayed, err := r.deps.Findings.Save(ctx, principal, save)
 	if errors.Is(err, findings.ErrNotFound) {

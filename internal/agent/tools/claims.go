@@ -61,7 +61,11 @@ const (
 		`"model_calls":{"type":"integer","minimum":0},"failed_calls":{"type":"integer","minimum":0},"retries":{"type":"integer","minimum":0},` +
 		`"compactions":{"type":"integer","minimum":0},"renewals":{"type":"integer","minimum":0},` +
 		`"model_ms":{"type":"integer","minimum":0},` +
-		`"max_save_output_tokens":{"type":"integer","minimum":0}},"additionalProperties":false}`
+		`"max_save_output_tokens":{"type":"integer","minimum":0},` +
+		`"nudges":{"type":"integer","minimum":0},"save_now_refusals":{"type":"integer","minimum":0},"stalled_turns":{"type":"integer","minimum":0},` +
+		`"one_panel_refusals":{"type":"integer","minimum":0},"repair_rounds":{"type":"integer","minimum":0},` +
+		`"hypotheses":{"type":"array","maxItems":6,"items":{"type":"object"},"description":"Your hypothesis ledger, as note_hypotheses takes it."},` +
+		`"call_limit":{"type":"integer","minimum":0},"stage_at_save":{"type":"string","enum":["orient","hypothesize","test","conclude"]}},"additionalProperties":false}`
 
 	schemaGetRunBrief = `{"type":"object","properties":{` +
 		`"run_id":{"type":"string","format":"uuid","description":"The run id from claim_run."},` +
@@ -97,7 +101,7 @@ const (
 		`"claim_epoch":{"type":"integer","minimum":1,"description":"The claim_epoch from claim_run."},` +
 		`"outcome":{"type":"string","enum":["succeeded","failed"],"description":"succeeded once saved, failed when you could not."},` +
 		`"message":{"type":"string","maxLength":500,"description":"Why the run failed, shown on the run."},` +
-		`"failure_code":{"type":"string","description":"Model-side failure: call_timeout, rate_limited, provider_error, output_limit, no_tool_call, no_finding, refused, no_fixture or internal."},` +
+		`"failure_code":{"type":"string","description":"Model-side failure: call_timeout, rate_limited, provider_error, output_limit, no_tool_call, no_finding, refused, no_fixture or internal; or a guard of your own: validation_exhausted, no_progress or restricted_answer, with message."},` +
 		`"commit":{"type":"boolean","description":"Save the finished dashboard first."},` +
 		`"usage":` + schemaRunUsage + `},` +
 		`"required":["run_id","attempt","outcome"],"additionalProperties":false}`
@@ -152,19 +156,42 @@ type runUsage struct {
 	Renewals            int      `json:"renewals"`
 	ModelMS             int64    `json:"model_ms"`
 	MaxSaveOutputTokens int64    `json:"max_save_output_tokens"`
+
+	Nudges           int               `json:"nudges"`
+	SaveNowRefusals  int               `json:"save_now_refusals"`
+	StalledTurns     int               `json:"stalled_turns"`
+	OnePanelRefusals int               `json:"one_panel_refusals"`
+	RepairRounds     int               `json:"repair_rounds"`
+	Hypotheses       []hypothesisInput `json:"hypotheses"`
+	CallLimit        int               `json:"call_limit"`
+	StageAtSave      string            `json:"stage_at_save"`
 }
 
-func (u *runUsage) reported() *revisions.Usage {
+func (u *runUsage) reported() (*revisions.Usage, Result, bool) {
 	if u == nil {
-		return nil
+		return nil, Result{}, true
+	}
+	var ledger []revisions.Hypothesis
+	if len(u.Hypotheses) > 0 {
+		var problem string
+		if ledger, problem = checkLedger(u.Hypotheses); problem != "" {
+			return nil, invalid("usage.%s", problem), false
+		}
+	}
+	if !slices.Contains(reportedStages, u.StageAtSave) {
+		return nil, invalid("usage.stage_at_save must be one of %s", strings.Join(reportedStages[1:], ", ")), false
 	}
 	return &revisions.Usage{
 		Provider: u.Provider, Model: u.Model, InputTokens: u.InputTokens, OutputTokens: u.OutputTokens,
 		CacheReadTokens: u.CacheReadTokens, CacheWriteTokens: u.CacheWriteTokens, CostUSD: u.CostUSD,
 		ModelCalls: u.ModelCalls, FailedCalls: u.FailedCalls, Retries: u.Retries, Compactions: u.Compactions, Renewals: u.Renewals,
 		ModelMS: u.ModelMS, MaxSaveOutputTokens: u.MaxSaveOutputTokens,
-	}
+		Nudges: u.Nudges, SaveNowRefusals: u.SaveNowRefusals, StalledTurns: u.StalledTurns, OnePanelRefusals: u.OnePanelRefusals,
+		RepairRounds: u.RepairRounds, Hypotheses: ledger, CallLimit: u.CallLimit, StageAtSave: u.StageAtSave,
+	}, Result{}, true
 }
+
+var reportedStages = []string{"", "orient", "hypothesize", "test", "conclude"}
 
 type runRefInput struct {
 	RunID      string `json:"run_id"`
@@ -255,8 +282,12 @@ func (r *Registry) reportRun(ctx context.Context, input json.RawMessage) (Result
 	if res, ok := checkAgentReport(in.AgentState, in.Steps); !ok {
 		return res, nil
 	}
+	usage, res, ok := in.Usage.reported()
+	if !ok {
+		return res, nil
+	}
 	return r.asClaimedRun(ctx, in.runRefInput, func(claimer claims.Claimer, req revisions.Request) (Result, error) {
-		answer, err := r.report(ctx, claimer, req, in)
+		answer, err := r.report(ctx, claimer, req, in, usage)
 		if err != nil {
 			return claimFailure(ctx, err)
 		}
@@ -264,7 +295,7 @@ func (r *Registry) reportRun(ctx context.Context, input json.RawMessage) (Result
 	})
 }
 
-func (r *Registry) report(ctx context.Context, claimer claims.Claimer, req revisions.Request, in reportRunInput) (reportRunOut, error) {
+func (r *Registry) report(ctx context.Context, claimer claims.Claimer, req revisions.Request, in reportRunInput, usage *revisions.Usage) (reportRunOut, error) {
 	ref := claims.ReportInput{RunID: in.RunID, Attempt: in.Attempt, ClaimEpoch: in.ClaimEpoch, Note: in.Note}
 	answer, err := r.deps.Claims.Report(ctx, claimer, ref)
 	if err != nil || answer.Stop {
@@ -276,7 +307,7 @@ func (r *Registry) report(ctx context.Context, claimer claims.Claimer, req revis
 			return reportRunOut{}, err
 		}
 	}
-	if usage := in.Usage.reported(); usage != nil {
+	if usage != nil {
 		stop, err := r.noteUsage(ctx, req, *usage)
 		if err != nil {
 			return reportRunOut{}, err
@@ -326,9 +357,13 @@ func (r *Registry) finishRun(ctx context.Context, input json.RawMessage) (Result
 	if res, ok := checkRunText("message", in.Message, maxRunTextRunes); !ok {
 		return res, nil
 	}
+	usage, res, ok := in.Usage.reported()
+	if !ok {
+		return res, nil
+	}
 	return r.asClaimedRun(ctx, in.runRefInput, func(claimer claims.Claimer, req revisions.Request) (Result, error) {
 		answer, err := r.deps.RunSessions.Finish(ctx, req, RunFinish{
-			Outcome: in.Outcome, FailureCode: in.FailureCode, Message: in.Message, Commit: in.Commit, Usage: in.Usage.reported(),
+			Outcome: in.Outcome, FailureCode: in.FailureCode, Message: in.Message, Commit: in.Commit, Usage: usage,
 		})
 		if err != nil {
 			return claimFailure(ctx, err)

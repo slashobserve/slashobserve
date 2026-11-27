@@ -18,6 +18,13 @@ export const loopFailureCodes = [
 ] as const
 export type FailureCode = (typeof loopFailureCodes)[number]
 
+export const guardFailureCodes = [
+  "validation_exhausted",
+  "no_progress",
+  "restricted_answer",
+] as const
+export type GuardFailureCode = (typeof guardFailureCodes)[number]
+
 export const briefReasons = [
   "restart",
   "output_limit",
@@ -265,6 +272,16 @@ export const usage = z.strictObject({
   renewals: count,
   model_ms: count,
   max_save_output_tokens: count,
+  nudges: count.optional(),
+  save_now_refusals: count.optional(),
+  stalled_turns: count.optional(),
+  one_panel_refusals: count.optional(),
+  repair_rounds: count.optional(),
+  hypotheses: z.array(z.record(z.string(), z.unknown())).max(6).optional(),
+  call_limit: count.optional(),
+  stage_at_save: z
+    .enum(["orient", "hypothesize", "test", "conclude"])
+    .optional(),
 })
 export type Usage = z.infer<typeof usage>
 
@@ -332,7 +349,7 @@ export type ReleaseInput = z.infer<typeof releaseInput>
 export const finishInput = z.strictObject({
   ...runRef,
   outcome: z.enum(["succeeded", "failed"]),
-  failure_code: z.enum(loopFailureCodes).optional(),
+  failure_code: z.enum([...loopFailureCodes, ...guardFailureCodes]).optional(),
   message: z.string().optional(),
   commit: z.boolean().optional(),
   usage,

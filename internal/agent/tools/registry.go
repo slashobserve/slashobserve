@@ -253,6 +253,7 @@ type Run struct {
 	ThreadAsk     bool
 	Task          route.Task
 	AllTools      bool
+	BuiltIn       bool
 }
 
 func (run Run) asOf() *time.Time {

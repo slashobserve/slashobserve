@@ -344,6 +344,46 @@ describe("protocol", () => {
     expect(parsed.agent_state?.session).toBeUndefined()
   })
 
+  test("a finish carries the failures and counts of the agent's own guards", () => {
+    const counts = {
+      provider: "p",
+      model: "m",
+      input_tokens: 1,
+      output_tokens: 1,
+      cache_read_tokens: 0,
+      cache_write_tokens: 0,
+      model_calls: 1,
+      failed_calls: 0,
+      retries: 0,
+      compactions: 0,
+      renewals: 0,
+      model_ms: 1,
+      max_save_output_tokens: 0,
+      nudges: 2,
+      stalled_turns: 1,
+      hypotheses: [{ id: "c1", text: "t", status: "open" }],
+      call_limit: 34,
+      stage_at_save: "conclude",
+    }
+    const parsed = finishInput.safeParse({
+      run_id: "r1",
+      attempt: 1,
+      outcome: "failed",
+      failure_code: "no_progress",
+      message: "Stopped",
+      usage: counts,
+    })
+    expect(parsed.success).toBe(true)
+    expect(
+      finishInput.safeParse({
+        run_id: "r1",
+        attempt: 1,
+        outcome: "failed",
+        usage: { ...counts, stage_at_save: "wander" },
+      }).success
+    ).toBe(false)
+  })
+
   test("the run key reads the call side fields when the server sends them", () => {
     const meta = runMeta.parse({
       settled: null,

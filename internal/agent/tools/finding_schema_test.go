@@ -46,7 +46,7 @@ func number(p *int) string {
 
 func TestTheSaveFindingSchemaMatchesTheFindingsRules(t *testing.T) {
 	var schema schemaNode
-	if err := json.Unmarshal([]byte(schemaSaveFinding), &schema); err != nil {
+	if err := json.Unmarshal([]byte(agentWording.replacer.Replace(schemaSaveFinding)), &schema); err != nil {
 		t.Fatal(err)
 	}
 	bands := []string{findings.BandHigh, findings.BandMedium, findings.BandLow}
@@ -56,6 +56,9 @@ func TestTheSaveFindingSchemaMatchesTheFindingsRules(t *testing.T) {
 		"causes.[].kind":             findings.RootCauseKinds,
 		"causes.[].trigger.kind":     findings.TriggerKinds,
 		"causes.[].estimate":         bands,
+		"causes.[].band":             bands,
+		"causes.[].signals.kinds.[]": {findings.SignalMetrics, findings.SignalLogs, findings.SignalTraces},
+		"unverified.[].kind":         unverifiedKinds,
 		"confidence":                 findings.Confidences,
 	} {
 		if got := schema.at(t, path).Enum; !slices.Equal(got, want) {
@@ -67,6 +70,9 @@ func TestTheSaveFindingSchemaMatchesTheFindingsRules(t *testing.T) {
 		"causes.[].affected":           findings.MaxAffected,
 		"causes.[].evidence.facts":     findings.MaxCauseFacts,
 		"causes.[].evidence.trace_ids": findings.MaxCauseTraceIDs,
+		"causes.[].queries":            findings.MaxCauseQueries,
+		"unverified":                   findings.MaxUnverified,
+		"unchecked":                    maxGivenUnchecked,
 	} {
 		if got := schema.at(t, path).MaxItems; got == nil || *got != want {
 			t.Errorf("%s: the schema's maxItems %s, the findings rule %d", path, number(got), want)

@@ -86,15 +86,30 @@ func bandRank(band string) int {
 	return slices.Index([]string{BandLow, BandMedium, BandHigh}, band)
 }
 
+type GivenScore struct {
+	Score *float64
+	Band  string
+}
+
 func (s *Structured) Score(signals []Signals) []string {
+	return s.ScoreGiven(signals, nil)
+}
+
+func (s *Structured) ScoreGiven(signals []Signals, given []GivenScore) []string {
 	for i := range s.Causes {
 		var sig Signals
 		if i < len(signals) {
 			sig = signals[i]
 		}
-		score := Score(sig)
+		score, band := Score(sig), ""
+		if i < len(given) && given[i].Score != nil && !math.IsNaN(*given[i].Score) {
+			score = math.Round(min(max(*given[i].Score, 0), 1)*100) / 100
+			if bandRank(given[i].Band) >= 0 {
+				band = given[i].Band
+			}
+		}
 		c := &s.Causes[i]
-		c.Score, c.Band, c.Stated = &score, BandOf(score), score >= StatedFrom
+		c.Score, c.Band, c.Stated = &score, cmp.Or(band, BandOf(score)), score >= StatedFrom
 	}
 	notes := s.disagreements()
 	s.rank()

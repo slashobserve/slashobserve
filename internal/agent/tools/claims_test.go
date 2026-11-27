@@ -453,6 +453,35 @@ func TestReportRunRefusesAnAgentStateOverItsCapAndStepsItCannotRecord(t *testing
 	}
 }
 
+func TestReportRunPassesTheAgentsGuardCountsAndChecksItsLedger(t *testing.T) {
+	fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "running"}}}
+	rs := &fakeRunSessions{}
+	input := `{"run_id":"` + runID + `","attempt":2,"usage":{"provider":"p","model":"m","nudges":2,"save_now_refusals":1,"stalled_turns":1,` +
+		`"one_panel_refusals":3,"repair_rounds":1,"call_limit":34,"stage_at_save":"conclude",` +
+		`"hypotheses":[{"id":"c1","text":"The pool ran out.","status":"open"}]}}`
+	if _, err := callClaimToolWith(t, Deps{Claims: fc, RunSessions: rs}, outsideClaimer, nameReportRun, input); err != nil {
+		t.Fatal(err)
+	}
+	if len(rs.noted) != 1 {
+		t.Fatalf("noted = %+v", rs.noted)
+	}
+	got := rs.noted[0]
+	if got.Nudges != 2 || got.SaveNowRefusals != 1 || got.StalledTurns != 1 || got.OnePanelRefusals != 3 || got.RepairRounds != 1 ||
+		got.CallLimit != 34 || got.StageAtSave != "conclude" || len(got.Hypotheses) != 1 || got.Hypotheses[0].ID != "c1" {
+		t.Fatalf("noted usage = %+v", got)
+	}
+	for name, usage := range map[string]string{
+		"ledger": `{"hypotheses":[{"id":"c1","text":"x","status":"maybe"}]}`,
+		"stage":  `{"stage_at_save":"wander"}`,
+	} {
+		fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "running"}}}
+		res, err := callClaimToolWith(t, Deps{Claims: fc, RunSessions: &fakeRunSessions{}}, outsideClaimer, nameReportRun, `{"run_id":"`+runID+`","attempt":2,"usage":`+usage+`}`)
+		if err != nil || !res.IsError || len(fc.reports) != 0 {
+			t.Fatalf("%s: %#v, %v", name, res.Content, err)
+		}
+	}
+}
+
 func TestReportRunStopsBeforeUsageAndTextWhenTheRunHasEnded(t *testing.T) {
 	fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "canceling", Stop: true}}}
 	rs := &fakeRunSessions{}

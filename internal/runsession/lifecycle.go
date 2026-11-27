@@ -37,6 +37,7 @@ var (
 		revisions.FailureCallTimeout, revisions.FailureRateLimited, revisions.FailureProviderError, revisions.FailureOutputLimit,
 		revisions.FailureNoToolCall, revisions.FailureNoFinding, revisions.FailureRefused, revisions.FailureNoFixture, revisions.FailureInternal,
 	}
+	guardFailures = []revisions.FailureCode{revisions.FailureValidationExhausted, revisions.FailureNoProgress, revisions.FailureRestrictedAnswer}
 )
 
 type endSpec struct {
@@ -448,7 +449,7 @@ func (s *Service) Finish(ctx context.Context, req revisions.Request, in tools.Ru
 	switch {
 	case in.Outcome != outcomeDone && in.Outcome != outcomeFailed:
 		return tools.RunFinished{}, claims.ErrInvalidOutcome
-	case failure != "" && (in.Outcome != outcomeFailed || !slices.Contains(loopFailures, failure)):
+	case failure != "" && (in.Outcome != outcomeFailed || !slices.Contains(loopFailures, failure) && !slices.Contains(guardFailures, failure)):
 		return tools.RunFinished{}, tools.ErrInvalidFailureCode
 	case in.Commit && in.Outcome != outcomeDone:
 		return tools.RunFinished{}, tools.ErrCommitNeedsSuccess
@@ -514,6 +515,14 @@ func (sess *session) finishRun(ctx context.Context, failure revisions.FailureCod
 func (sess *session) endingOf(failure revisions.FailureCode, in tools.RunFinish) revisions.Ending {
 	ending := revisions.Ending{Usage: sess.state.storedUsage(sess.s.prices), Wrote: sess.state.Wrote}
 	switch {
+	case in.Outcome == outcomeFailed && slices.Contains(guardFailures, failure):
+		ending.Failure, ending.Message = failure, revisions.FailureMessage(failure, sess.req.Source)
+		if failure == revisions.FailureValidationExhausted {
+			ending.Message = revisions.ValidationExhaustedMessage(sess.req.Source, sess.state.rejection())
+		}
+		if message := claims.CleanText(in.Message, maxMessageRunes); message != "" {
+			ending.Message = message
+		}
 	case in.Outcome == outcomeFailed && failure != "":
 		ending.Failure, ending.Message = failure, revisions.FailureMessage(failure, sess.req.Source)
 	case in.Outcome == outcomeFailed:

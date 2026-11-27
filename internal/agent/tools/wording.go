@@ -59,6 +59,9 @@ var variants = []variant{
 			"{or_run_health}":      " or run_dashboard_health",
 		},
 		agent: map[string]string{"{new_comment}": "a new comment", "{comment_writers}": "a comment"}},
+	{name: "agent finding", tools: []string{nameSaveFinding},
+		mcp:   map[string]string{"{finding_agent_props}": "", "{cause_agent_props}": ""},
+		agent: map[string]string{"{finding_agent_props}": agentFindingProps, "{cause_agent_props}": agentCauseProps}},
 	{name: "build", tools: []string{nameCreateDashboard, nameUpdateDashboard, nameUpdatePanels},
 		mcp: map[string]string{"{upsert_max}": strconv.Itoa(dashboards.MaxUpsertPanels), "{layout_gridpos}": mcpLayoutGridPos},
 		agent: map[string]string{

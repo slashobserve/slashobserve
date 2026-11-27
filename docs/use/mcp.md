@@ -430,6 +430,7 @@ The server enforces the guards of [SlashObserve's own agent](../concepts/agent.m
 - The grounding check: with `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, a finding saved in a run is checked against what the run read, for a connected agent as for the built-in one; the measurement, trace, `log_facets` and `log_patterns` reads then carry fact ids in `facts`, `save_finding` cites them as `{{f3}}` and lists `answers`, and the server writes the values into the text before it is stored.
   With `enforce`, `save_finding` is sent back once with the figures and names that were not found, the next call may read past the call limit, and the second save is accepted; the send-back is not a rejected save.
   Each entry of an investigation's `causes` is then scored from the evidence, and `save_finding` answers with each cause's `confidence`, `band` and `stated`; see [Causes and confidence](../concepts/investigate.md#causes-and-confidence).
+  In a run of SlashObserve's own agent, `save_finding` also takes the agent's own `unverified`, `reads_refused` and `unchecked` and, for each cause, `signals`, `score`, `band` and `queries`, and uses them in place of what the server works out; a connected agent's values for these are ignored.
 - Task types: an investigate run whose question the server sorted into a [task type](../concepts/investigate.md#task-types) lists only that type's tools, for a connected agent as for the built-in one, and a call to another tool answers `unknown_tool` with a line naming the run's tools; `list_more_tools`, offered only in such a run, offers every investigation tool for the rest of the run, so list the tools again after it.
 - Churn: a save that changes no panel, or changes a panel for the fifth time, gets a note, and the fourth such save in a row ends the run as `no_progress`.
 - The cost limit: when `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` is set and `report_run` or `finish_run` reports `usage` whose cost reaches it, the answer has `stop: true` and the run ends as `budget_exhausted`.
@@ -489,6 +490,8 @@ A request on the run's token after the run ended is answered with HTTP 409 and `
 
 - `text`, at most 4,000 characters: the end of what the model is writing, shown on the run as live text while the run is running and never stored.
 - `usage`: the agent's model use so far, cumulative, with `provider`, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `cost_usd`, `model_calls`, `failed_calls`, `retries`, `compactions`, `renewals`, `model_ms` and `max_save_output_tokens`.
+  An agent that keeps guards of its own may add their counts: `nudges`, `save_now_refusals`, `stalled_turns`, `one_panel_refusals` and `repair_rounds`, `hypotheses` (its ledger, as `note_hypotheses` takes it, at most 6 and 4 KiB), `call_limit` and `stage_at_save` (`orient`, `hypothesize`, `test` or `conclude`).
+  The run stores the larger of each count and the server's own, and the server's ledger and stage when it has them.
 - `agent_state`: `{"session", "carry"}`, any JSON of the agent's own, at most 256 KiB in all, which replaces the state sent before.
   The server keeps it with the run's session, never shows or logs it, and `get_run_brief` returns it.
   `session` is for this attempt; `carry` is also copied to the next attempt of the run, so a retry starts with it.
@@ -500,6 +503,7 @@ Its answer has, next to `state`, `stop` and `lease_until`, the run's `build` pro
 
 `finish_run` also takes `failure_code`, one of `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `no_finding`, `refused`, `no_fixture` and `internal`, with `outcome` `failed`.
 The server stores its own text for the code, so no `message` is needed.
+An agent that keeps guards of its own may also end a run with `validation_exhausted`, `no_progress` or `restricted_answer`; the run then shows its `message`, or the server's text for the code when it sends none.
 `commit: true`, with `outcome` `succeeded`, saves the finished build as a version first.
 `usage` takes the fields above, and the run shows it as the agent reports it.
 The answer has `restarted`, true when the commit found a newer version and the run restarted from it: the run stays claimed, so call `get_run_brief` and go on.
