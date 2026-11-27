@@ -5,7 +5,7 @@ It is not part of the server image and CI never calls a model from it.
 `make test-benchmarks` runs its unit tests, which need no Docker, no network and no key, once in this folder's environment and once in `orca/`.
 
 The first benchmark is o11y-bench.
-Each benchmark gets one module under `slashobserve_bench/`; `o11y.py` is the o11y-bench one and `orca.py` the ORCA-bench one, which has its own section below.
+Each benchmark gets one module under `slashobserve_bench/`; `o11y.py` is the o11y-bench one, `orca.py` the ORCA-bench one and `sregym.py` the SREGym one, and the last two have their own sections below.
 
 ## What one trial does
 
@@ -350,6 +350,137 @@ Scores from a Claude judge on a ten-task subset are our own tracking and are not
 Do not submit before the maintainers answer whether an agent that runs beside the task's main container, and not inside it, is allowed.
 The leaderboard also rejects any run that is not the full dataset with default timeouts.
 
+## SREGym
+
+[SREGym](https://github.com/SREGym/SREGym) injects a fault into an application on a live Kubernetes cluster and grades an agent's diagnosis and mitigation.
+`sregym.py` is its adapter.
+It answers the diagnosis stage only, never the mitigation stage, and never writes to the cluster.
+
+### How it plugs in
+
+SREGym is not a Harbor benchmark: it deploys a problem, starts the agent named in its agent registry and waits for submissions on its conductor API.
+Its `--use-external-harness` mode deploys the fault and then shuts the conductor down, so nothing would grade a submission; the adapter is a registered agent instead.
+SREGym reads its registry from the file that `SREGYM_AGENT_REGISTRY` names, so no file in the SREGym checkout changes.
+`python -m slashobserve_bench.sregym registry` writes that file with one agent, `slashobserve`, which runs `python -m slashobserve_bench.sregym run` in this folder's environment on the host, with `container_isolation: false`.
+SREGym refuses an agent without container isolation under its default filtered network, so the run needs `--internet-access open`.
+The file replaces SREGym's `agents.yaml`, so keep SREGym's default `api` judge backend, which needs no agent from it.
+`run` reads what SREGym exports: `API_HOSTNAME` and `API_PORT` for the conductor, `MCP_SERVER_PORT`, `AGENT_MODEL_ID` (SREGym's `--model`) and `AGENT_LOGS_DIR`, the attempt's folder that SREGym publishes beside its results.
+
+### What one run does
+
+1. It reads the conductor's `GET /get_app` (app name, namespaces, description and stages) and waits on `GET /status` until the stage is `diagnosis`.
+2. It starts `kubectl port-forward` to the Services `prometheus-server` (port 80) and `loki` (port 3100) in the namespace `observe`, on free host ports bound to every interface, as SREGym does for its MCP server.
+   The kubeconfig is the one SREGym gives the agent, which goes through SREGym's filtering proxy.
+   `--prometheus-url` and `--loki-url` skip a port-forward; Prometheus is also a NodePort (32000) on the cluster's nodes.
+3. It creates a Docker network for the run and starts a throwaway Postgres and the server image on it, as for o11y-bench, with `host.docker.internal` mapped to the host.
+   The datasources are `prometheus` and `loki`.
+   SREGym's Jaeger is 1.57, in memory, and the Jaeger datasource needs 2.21 or later, so the run has no trace datasource.
+4. The server's MCP sources file registers `sregym-kubectl`, SREGym's kubectl MCP server at `http://host.docker.internal:<MCP_SERVER_PORT>/kubectl/sse`, with `allowPrivate: true` and `approve: [exec_kubectl_cmd_safely]` only.
+   `rollback_command` and `get_previous_rollbackable_cmd` stay unapproved, so the agent never sees them.
+   `SLASHOBSERVE_OUTBOUND_DOMAINS` is `host.docker.internal`, so the server may call nothing else.
+   The server speaks SSE to an MCP source only from branch `agent-rca-accuracy` on, so the image must be built from that branch.
+5. It waits up to `--kubectl-wait-sec` (120) for the server's discovery to approve the tool.
+   When the tool is not approved, it stops before any run, unless `--without-kubectl` lets the run work from telemetry alone.
+6. It starts one `investigate` run with no `as_of`, because the cluster is live.
+   The question gives the app name, namespaces and description, then a short playbook of our own: read-only kubectl commands only (get, describe, logs, top and events), what to inspect when telemetry shows only a symptom, and how to fill the finding.
+   A long description is cut so that the question stays within the server's 4000 characters.
+7. It polls the run until it ends, or until its time runs out: the smaller of `--wall-timeout-sec` (1500) and SREGym's remaining agent time less 360 seconds for the submission, which the conductor may hold for up to 300 seconds.
+   A run still going then is cancelled.
+8. It renders the diagnosis from the finding and submits it once with `POST /submit` and the stage `diagnosis`.
+
+`exec_kubectl_cmd_safely` runs any kubectl command, so read-only is an instruction to the agent, not something either server enforces.
+The port-forwards read through the API server and create nothing in the cluster.
+
+### The diagnosis
+
+SREGym's judge checks the originating component, the mechanism with its concrete changed value, and the scope, and both an extra suspect and a missed component cost points.
+The playbook asks for `root_cause.component` as `namespace/Kind/name` and the changed value in `root_cause.summary`, and the renderer writes that as the origin's kind, name and namespace, the mechanism and the finding's `impact`, and nothing else.
+`ruled_out`, `next_steps` and the Markdown are left out, because a component they mention could read as another suspect.
+A finding with a list of `causes` is written one cause after another, with each cause's component, mechanism (or summary), trigger and affected components, skipping any entry marked `stated: false`; those field names follow the planned ranked causes and must be checked when the server returns them.
+Without structured fields the Markdown is submitted as it is.
+A finding with `no_incident` submits that no faulty component was found, and a run without a finding submits that no diagnosis was produced, so the attempt is scored as a miss and not lost.
+A run that stops before the investigation (no `diagnosis` stage, the tool not approved, a port-forward or the server failing) submits nothing, and SREGym records the attempt as incomplete.
+
+| File in `AGENT_LOGS_DIR` | Content |
+| --- | --- |
+| `diagnosis.txt` | The text submitted. |
+| `submission.json` | The conductor's answer to the submission, or the error. |
+| `trajectory.json`, `run.json`, `server.log` | As for o11y-bench; SREGym keeps this `trajectory.json`, because it has no converter for this agent. |
+| `notes.txt` | How each store was reached, whether kubectl was approved, and that no mitigation was submitted. |
+
+The options are those of ORCA-bench without `code_context`, as `--` flags, plus `--conductor-url`, `--mcp-url`, `--prometheus-url`, `--loki-url`, `--kubectl-wait-sec`, `--without-kubectl` and `--out`.
+`--model` defaults to SREGym's `--model`, `--server-image` to `slashobserve-server:local` and `--out` to `AGENT_LOGS_DIR`.
+`--model replay/replay` without `--replay-dir` writes a replay fixture for the problem's question from `fixtures/sregym-answer.json`, so a run proves the plumbing with no model; give SREGym a real `--judge-model`, or its judge leaves the attempt unscored.
+The spend ledger, the cost cap and the key file work as for o11y-bench.
+
+### Requirements
+
+- A SREGym checkout with its kind cluster from `kind/setup_kind_cluster.sh`, which needs 8 vCPU and 16 GB for SREGym-Lite, plus `kubectl`, Docker and `uv` on the same Linux host.
+- A server image built from branch `agent-rca-accuracy`, for example `docker build -t slashobserve-server:rca .` in a checkout of that branch.
+- `SLASHOBSERVE_BENCH_LLM_KEY_FILE` for the model under test, and the judge's key as SREGym asks for it, such as `ANTHROPIC_API_KEY`.
+
+### Run the subset
+
+The subset is ten of the 17 SREGym-Lite problems whose fault telemetry can see (failed or slow requests, error logs, queue lag), which is where an observability agent starts.
+The other seven are cluster-operations faults where a workload never starts or never finishes.
+This split comes from the problem names and must be confirmed on a running cluster.
+`python -m slashobserve_bench.sregym subset` prints the ten ids, one per line.
+SREGym's `--problem` takes one id, so the subset is a loop, started from the root of this repository:
+
+```sh
+uv run --locked --project benchmarks python -m slashobserve_bench.sregym registry --out /tmp/slashobserve-agents.yaml -- \
+  --server-image slashobserve-server:rca --investigation-calls 30 --run-max-cost-usd 1 \
+  --spend-cap-usd 10 --ledger-path "$PWD/benchmarks/jobs/sregym-spend.jsonl"
+problems=$(uv run --locked --project benchmarks python -m slashobserve_bench.sregym subset)
+export SREGYM_AGENT_REGISTRY=/tmp/slashobserve-agents.yaml
+export SLASHOBSERVE_BENCH_LLM_KEY_FILE=/path/to/anthropic.key
+export ANTHROPIC_API_KEY=$(cat /path/to/anthropic.key)
+cd /path/to/SREGym
+for problem in $problems; do
+  uv run main.py --problem "$problem" --agent slashobserve --stages diagnosis --internet-access open \
+    --model anthropic/claude-sonnet-5-5 --judge-model anthropic/claude-opus-5-5 --n-attempts 3
+done
+```
+
+`--stages diagnosis` matters: without it SREGym waits for a mitigation that never comes until the agent exits, then records the attempt as incomplete with `mitigation` missing.
+With it the attempt has one stage and is `complete` once the judge scores it.
+Measure one problem's cost before the loop.
+
+### What SREGym records
+
+SREGym writes `results/<minute>/slashobserve/<problem>/<problem>_slashobserve_results.csv` in its checkout, one row per attempt, and the attempt's folder `run_<n>/` beside it holds the files above.
+The diagnosis columns are `Diagnosis.success` (the judge's verdict), `Diagnosis.accuracy` (its checklist score from 0 to 100), `Diagnosis.judgment` and `Diagnosis.reasoning`, with `TTL`, the seconds to the submission.
+No mitigation column is written, and no problem is ever mitigated.
+`results.py` does not read these files.
+It reads Harbor job folders, a pass there is a reward of exactly 1.0, and a judged-correct diagnosis can score below 100, so mapping either column onto a reward would change the result.
+Read the success rate from the CSV files, and the tokens and cost from each `run.json`.
+
+### What is comparable
+
+The diagnosis success rate on these ten problems compares loosely with the diagnosis column that SREGym publishes, which covers all 17 SREGym-Lite problems or the full benchmark, with a mitigation attempted after each diagnosis.
+Our runs never mitigate, so there is no end-to-end number and no place in the published ranking.
+SREGym lets each entrant pick the judge; use a strong one at high effort, as its maintainers recommend, and not the model under test.
+Read the number as how well the agent finds a root cause when telemetry shows only the symptom.
+The runs are private, and no result is submitted to the leaderboard.
+
+### Not verified
+
+The adapter has run only in its unit tests, never against a cluster.
+A real run must confirm:
+
+- That the server can approve `exec_kubectl_cmd_safely`.
+  SREGym's kubectl server sets no MCP tool annotations, and the server refuses a tool that its source does not mark read-only, so with the server as it is the tool stays `refused` and the run stops, or works from telemetry alone with `--without-kubectl`.
+- That a container reaches the host's port-forwards through `host.docker.internal` mapped to `host-gateway`, which depends on the host's firewall.
+- That `kubectl port-forward` works through SREGym's filtering proxy, which relays upgraded connections.
+- That the Services and ports in `observe` are the ones a run deploys, and that its Prometheus and Loki hold the app's metrics and logs.
+- That SSE to SREGym's server works through its port-forward, and that a slow kubectl command finishes within the server's MCP call timeout, because SREGym allows one up to 300 seconds.
+- That the judge reads the rendered diagnosis as intended.
+
+### SREGym license
+
+SREGym is MIT licensed.
+The adapter reads the app's name, namespaces and description from the conductor at run time, and copies none of SREGym's code, prompts, problem descriptions or judge checklists into this repository.
+
 ## License
 
 o11y-bench is AGPL-3.0 and SlashObserve core is Apache-2.0.
@@ -365,6 +496,6 @@ The adapter uses o11y-bench as an external dataset: it reads a task's `instructi
 | `harbor==0.20.0` | In `orca/` only: the version ORCA-bench runs on. |
 
 `uv.lock` is resolved with `exclude-newer` set so that no package is less than 14 days old; move that date when you update the pins.
-HTTP uses `urllib`, the extra model call of a dashboard task included, Docker uses `subprocess`, and the ledger lock uses `fcntl`, all from the standard library.
+HTTP uses `urllib`, the extra model call of a dashboard task included, Docker and the SREGym port-forwards use `subprocess`, and the ledger lock uses `fcntl`, all from the standard library.
 The price table is read with PyYAML, which Harbor already depends on, so it adds no package.
 The adapter runs on Linux and macOS only.

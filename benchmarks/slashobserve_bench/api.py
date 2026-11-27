@@ -50,6 +50,9 @@ class Client:
     def import_grafana(self, grafana_export: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/imports", {"json": json.dumps(grafana_export)}, timeout=180)
 
+    def mcp_tools(self, uid: str) -> list[dict[str, Any]]:
+        return self._call("GET", f"/mcp-sources/{uid}/tools")["tools"]
+
     def dashboard_version(self, dashboard_id: str, version: int) -> dict[str, Any]:
         return self._call("GET", f"/dashboards/{dashboard_id}/versions/{version}")["version"]
 

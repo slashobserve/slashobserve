@@ -1,11 +1,12 @@
 ---
 title: Running benchmarks
-description: How contributors run the Observe Agent on o11y-bench and ORCA-bench tasks through the Harbor adapter, with the replay model or a real one.
+description: How contributors run the Observe Agent on o11y-bench and ORCA-bench tasks through the Harbor adapter and on SREGym problems as a registered agent, with the replay model or a real one.
 ---
 
 The `benchmarks/` folder lets you measure the Observe Agent against an external benchmark.
 It holds a Harbor agent that runs the Observe Agent on the benchmark's tasks.
 The first benchmark is o11y-bench, and ORCA-bench, which asks for a root cause report on recorded telemetry, has its own module and environment.
+SREGym, which injects a fault into a live Kubernetes cluster, is not a Harbor benchmark and has its own runner.
 Use it to check that the adapter still works end to end, or to compare agent changes on the same tasks.
 
 For each task the adapter starts a throwaway server and Postgres and points the server at the task's stores.
@@ -45,6 +46,14 @@ ORCA-bench runs on Harbor 0.20.0 and a snapshot image of about 50 GB, so it has 
 The adapter runs the Observe Agent beside the task's main container, writes `/app/report.md` from the run's finding, and runs a fixed subset of ten tasks.
 Scores from it use a different judge than the leaderboard, so they are not comparable with published ones.
 The steps, the disk the snapshot needs and how to point the judge at a Claude model are in the ORCA-bench section of [`benchmarks/README.md`](https://github.com/slashobserve/slashobserve/blob/main/benchmarks/README.md).
+
+## Run SREGym problems
+
+SREGym runs the adapter as one of its registered agents, on the host beside its kind cluster, without changing the SREGym checkout.
+The adapter answers the diagnosis stage only, never mitigates, and runs a fixed subset of ten SREGym-Lite problems.
+It needs a server image built from branch `agent-rca-accuracy`, because SREGym's kubectl MCP server speaks SSE.
+Its diagnosis success rate compares only loosely with SREGym's published diagnosis numbers, and the adapter has not yet run against a cluster.
+The steps, what SREGym records and what a first run must confirm are in the SREGym section of [`benchmarks/README.md`](https://github.com/slashobserve/slashobserve/blob/main/benchmarks/README.md).
 
 ## Reference
 
