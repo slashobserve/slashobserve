@@ -476,6 +476,8 @@ A `failure_code` with another outcome, a code outside the list, or `commit` with
 Use it when you cannot work the run, for example because your process is stopping or the claim lacks something you need.
 The run is not failed and uses up no attempt: its saved panel progress and its steps stay, its session token stops working, and the next `claim_run` of an agent it is assigned to takes it at the same `attempt`.
 The answer has the run's `state`: `queued`, `canceled` when its requester had canceled it, or the state it had already ended in.
+An error other than `not_your_run` means the server could not release the run.
+You still hold it until its lease ends, its session token may already be revoked, and you can call `release_run` again.
 A run released again and again is claimed again and again, so wait before the next `claim_run` after you release one for a fault of your own, and wait longer each time.
 Without `release_run` a run you stop working returns to the queue only when its lease ends, up to 60 seconds later.
 
