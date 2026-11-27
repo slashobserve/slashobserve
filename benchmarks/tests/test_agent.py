@@ -380,6 +380,7 @@ def test_a_dashboard_task_revises_the_dashboard_the_build_points_at_and_writes_i
     assert context.cost_usd == pytest.approx(2 * 0.0123 + 0.00015)
     trajectory = json.loads((instance.logs_dir / "trajectory.json").read_text())
     Trajectory.model_validate(trajectory)
+    assert 'Saved the Grafana dashboard' in trajectory["steps"][-1]["message"] and '"Lag"' in trajectory["steps"][-1]["message"]
     assert trajectory["final_metrics"]["total_cost_usd"] == pytest.approx(context.cost_usd)
     assert SpendLedger(ledger_path, 10).total() == pytest.approx(2 * 0.0123 + 0.00015)
 

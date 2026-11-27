@@ -313,7 +313,7 @@ class SlashObserveAgent(BaseAgent):
             ledger = self._ledger
             if ledger is not None and write.calls:
                 ledger.record(self.logs_dir.parent.name, write.usage.cost_usd or 0.0)
-            self._save(request, task.instruction, context, earlier.plus(write.usage))
+            self._save(request, task.instruction, context, earlier.plus(write.usage), write.summary)
 
     @staticmethod
     def _specs(client: Client, request: dict, task: "DashboardTask", target: str | None) -> tuple[dict | None, dict] | None:
@@ -365,7 +365,7 @@ class SlashObserveAgent(BaseAgent):
         except ApiError:
             pass
 
-    def _save(self, request: dict, instruction: str, context: AgentContext, extra: atif.Usage | None = None) -> None:
+    def _save(self, request: dict, instruction: str, context: AgentContext, extra: atif.Usage | None = None, saved: str | None = None) -> None:
         self.logs_dir.mkdir(parents=True, exist_ok=True)
         trajectory = atif.build_trajectory(
             request,
@@ -374,6 +374,7 @@ class SlashObserveAgent(BaseAgent):
             agent_version=AGENT_VERSION,
             model_name=self.model_name,
             extra_usage=extra,
+            saved=saved,
         )
         (self.logs_dir / "trajectory.json").write_text(json.dumps(trajectory, indent=2) + "\n", encoding="utf-8")
         (self._detail("run.json")).write_text(json.dumps(request, indent=2) + "\n", encoding="utf-8")

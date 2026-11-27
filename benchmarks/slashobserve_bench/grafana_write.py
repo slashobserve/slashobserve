@@ -8,6 +8,7 @@ from typing import Any
 
 from slashobserve_bench import grafana_merge as merge
 from slashobserve_bench.atif import Usage
+from slashobserve_bench.grafana_summary import describe_save
 from slashobserve_bench.grafana import GrafanaClient, GrafanaError, datasource_map
 from slashobserve_bench.model_call import ModelCallError, ModelReply
 
@@ -37,6 +38,7 @@ class WriteBack:
     attempts: list[dict[str, Any]] = field(default_factory=list)
     saved_uid: str | None = None
     error: str | None = None
+    summary: str | None = None
 
     def outcome(self) -> dict[str, Any]:
         return {
@@ -265,6 +267,7 @@ async def write_back(
                 state.saved_uid = target_uid
                 record["saved"] = True
                 read_back = (await client.dashboard(target_uid))["dashboard"]
+                state.summary = describe_save(original, read_back)
                 failures = await check_panels(client, read_back, result.placed, window)
             except GrafanaError as error:
                 record["grafana_error"] = str(error)

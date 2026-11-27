@@ -89,11 +89,14 @@ def structured_lines(finding: dict[str, Any]) -> list[str]:
     return lines
 
 
-def answer_text(request: dict[str, Any]) -> str:
+def answer_text(request: dict[str, Any], saved: str | None = None) -> str:
     finding = request.get("finding")
     if finding:
         header = structured_lines(finding)
-        return "\n".join([*header, "", finding["markdown"]]) if header else finding["markdown"]
+        text = "\n".join([*header, "", finding["markdown"]]) if header else finding["markdown"]
+        return f"{text}\n\n{saved}" if saved else text
+    if saved:
+        return saved
     state = request.get("state", "unknown")
     if state == "succeeded":
         return "The run finished without saving a finding."
@@ -125,6 +128,7 @@ def build_trajectory(
     agent_version: str,
     model_name: str | None,
     extra_usage: Usage | None = None,
+    saved: str | None = None,
 ) -> dict[str, Any]:
     usage = Usage.from_request(request)
     if extra_usage is not None:
@@ -137,7 +141,7 @@ def build_trajectory(
     final_step: dict[str, Any] = {
         "step_id": len(steps) + 1,
         "source": "agent",
-        "message": answer_text(request),
+        "message": answer_text(request, saved),
     }
     if model_name:
         final_step["model_name"] = model_name
