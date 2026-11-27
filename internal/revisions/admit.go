@@ -163,8 +163,8 @@ func (s *Service) Requester(ctx context.Context, row dbsqlc.AgentRequest) (auth.
 	return s.principals.Principal(ctx, auth.PrincipalKind(row.RequestedByKind), row.RequestedByID.String())
 }
 
-func (s *Service) Release(ctx context.Context, row dbsqlc.AgentRequest) {
-	s.releaseLogged(ctx, row, false)
+func (s *Service) Release(ctx context.Context, row dbsqlc.AgentRequest) error {
+	return s.releaseLogged(ctx, row, false)
 }
 
 func (s *Service) RenewLease(ctx context.Context, row dbsqlc.AgentRequest) (canceled bool, err error) {
@@ -283,7 +283,7 @@ func (s *Service) checkFailedAdmission(ctx context.Context, row dbsqlc.AgentRequ
 
 func (s *Service) failCheck(ctx context.Context, row dbsqlc.AgentRequest, check admissionCheck, err error) (finished bool) {
 	if !checksExhausted(row) {
-		s.releaseLogged(ctx, row, true)
+		_ = s.releaseLogged(ctx, row, true)
 		return false
 	}
 	s.finishLogged(ctx, row, checkFailedOutcome(check, err))
@@ -294,7 +294,7 @@ func checksExhausted(row dbsqlc.AgentRequest) bool {
 	return int(row.CheckFailures)+1 >= maxCheckFailures
 }
 
-func (s *Service) releaseLogged(ctx context.Context, row dbsqlc.AgentRequest, checkFailed bool) {
+func (s *Service) releaseLogged(ctx context.Context, row dbsqlc.AgentRequest, checkFailed bool) error {
 	releaseCtx, cancel := finishContext(ctx)
 	defer cancel()
 	released, err := s.release(releaseCtx, row, checkFailed)
@@ -305,6 +305,7 @@ func (s *Service) releaseLogged(ctx context.Context, row dbsqlc.AgentRequest, ch
 	case !released:
 		s.logger.WarnContext(ctx, "agent request was finished elsewhere; not releasing it", attrs...)
 	}
+	return err
 }
 
 func (s *Service) finishLogged(ctx context.Context, row dbsqlc.AgentRequest, o outcome) {

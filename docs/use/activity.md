@@ -340,7 +340,7 @@ An event made through a key says which key, and an event made over MCP says whic
 - **Proposal.**
   Someone who can edit the dashboard merges a proposal.
 - **Run.**
-  `run.released` is written when a stopping server hands a run back to the queue.
+  `run.released` is written when a stopping server, or the agent that held the run, hands it back to the queue.
   `run.canceling` is written while a worker still holds the run.
   `run.kept` is written when the requester keeps the build of a stopped run as a version.
 - **Thread.**

@@ -23,6 +23,7 @@ const (
 	nameReportRun   = "report_run"
 	nameFinishRun   = "finish_run"
 	nameGetRunBrief = "get_run_brief"
+	nameReleaseRun  = "release_run"
 
 	defaultClaimWait = 30
 	maxClaimWait     = 30
@@ -43,6 +44,8 @@ const (
 	descFinishRun = "End a run you claimed. Send outcome succeeded after you saved its result with the run session's tools; a run that saved a version, a proposal or a finding ends succeeded whatever you send, and one that saved nothing ends failed. Send outcome failed with a message when you could not. usage is your model use, shown on the run. Optional: commit saves the finished dashboard first; restarted is true when the dashboard changed meanwhile and the run restarted from its latest version, so call get_run_brief and go on."
 
 	descGetRunBrief = "Optional. The first message the server's own agent starts each model session with: the system text, the user message and the run's saved progress. Starting a session with it resets the read guard and pins the parent version; an agent that does not call it keeps working from claim_run's prompt."
+
+	descReleaseRun = "Hand a run you claimed back to the queue when you cannot work it, for example because you are stopping. The run is queued again with its saved progress and steps, and it does not count as failed; the next claim_run of an agent it is assigned to takes it. The answer has the run's state: queued, canceled when its requester had canceled it, or the state it had already ended in. Call finish_run instead when the run is done or cannot be done."
 
 	schemaClaimRun = `{"type":"object","properties":{` +
 		`"wait_seconds":{"type":"integer","minimum":0,"maximum":30,"description":"How long to wait for a run, 0 to 30 seconds. Default 30."}},"additionalProperties":false}`
@@ -73,6 +76,12 @@ const (
 		`"usage":` + schemaRunUsage + `},` +
 		`"required":["run_id","attempt"],"additionalProperties":false}`
 
+	schemaReleaseRun = `{"type":"object","properties":{` +
+		`"run_id":{"type":"string","format":"uuid","description":"The run id from claim_run."},` +
+		`"attempt":{"type":"integer","minimum":1,"description":"The attempt from claim_run."},` +
+		`"claim_epoch":{"type":"integer","minimum":1,"description":"The claim_epoch from claim_run."}},` +
+		`"required":["run_id","attempt"],"additionalProperties":false}`
+
 	schemaFinishRun = `{"type":"object","properties":{` +
 		`"run_id":{"type":"string","format":"uuid","description":"The run id from claim_run."},` +
 		`"attempt":{"type":"integer","minimum":1,"description":"The attempt from claim_run."},` +
@@ -91,6 +100,7 @@ type ClaimService interface {
 	Claim(ctx context.Context, c claims.Claimer, wait time.Duration) (claims.Offer, error)
 	ClaimedRun(ctx context.Context, c claims.Claimer, runID string, attempt, claimEpoch int) (revisions.Request, error)
 	Report(ctx context.Context, c claims.Claimer, in claims.ReportInput) (claims.ReportAnswer, error)
+	Release(ctx context.Context, c claims.Claimer, runID string, attempt, claimEpoch int) (claims.ReleaseAnswer, error)
 }
 
 type LiveText interface {
@@ -109,6 +119,7 @@ func (r *Registry) claimEntries() []entry {
 		claim(nameClaimRun, descClaimRun, schemaClaimRun, r.claimRun),
 		claim(nameReportRun, descReportRun, schemaReportRun, r.reportRun),
 		claim(nameFinishRun, descFinishRun, schemaFinishRun, r.finishRun),
+		claim(nameReleaseRun, descReleaseRun, schemaReleaseRun, r.releaseRun),
 		brief,
 	}
 }
@@ -303,6 +314,23 @@ func (r *Registry) finishRun(ctx context.Context, input json.RawMessage) (Result
 			return claimFailure(ctx, err)
 		}
 		return success("Ended a run", answer), nil
+	})
+}
+
+func (r *Registry) releaseRun(ctx context.Context, input json.RawMessage) (Result, error) {
+	var in runRefInput
+	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	if res, ok := checkRunRef(in); !ok {
+		return res, nil
+	}
+	return r.asClaimer(ctx, func(claimer claims.Claimer) (Result, error) {
+		answer, err := r.deps.Claims.Release(ctx, claimer, in.RunID, in.Attempt, in.ClaimEpoch)
+		if err != nil {
+			return claimFailure(ctx, err)
+		}
+		return success("Released a run", answer), nil
 	})
 }
 

@@ -518,9 +518,9 @@ When they can still comment on the dashboard but can no longer edit it, or the r
 
 ### Tools in a run
 
-The server has 119 tools: MCP clients get 117, every one except `save_finding` and `list_more_tools`, which only a run offers.
+The server has 120 tools: MCP clients get 118, every one except `save_finding` and `list_more_tools`, which only a run offers.
 A run offers 93 of them in a new-dashboard or revision request, 93 in an investigation and 62 in a suggestion.
-With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a third tool that only a run offers, in an investigation only: the server has 120 tools, MCP clients outside a run still get 117 and an investigation offers 94.
+With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a third tool that only a run offers, in an investigation only: the server has 121 tools, MCP clients outside a run still get 118 and an investigation offers 94.
 Those are an Admin's counts: inside a run each tool needs the same role as over MCP, except `save_finding`, and a run session does not list a tool above the requester's role.
 
 - Reads are offered in every run.
@@ -547,9 +547,9 @@ Anything else is refused with `out_of_scope` and a message that names where the 
 Reads of private or Admin-only content, such as another chat or the audit trail, keep what the run writes afterwards visible only to the requester and Admins.
 Such a run cannot create, rename or move a folder, an observation, a dashboard or a saved search into a place others read; that is refused with `restricted_answer`.
 
-The other 22 tools are left out of every run, each for a reason:
+The other 23 tools are left out of every run, each for a reason:
 
-- `claim_run`, `report_run`, `finish_run` and `get_run_brief`: a run token works a run and never claims one.
+- `claim_run`, `report_run`, `finish_run`, `release_run` and `get_run_brief`: a run token works a run and never claims one.
 - `create_comment`, `reply_to_comment`, `edit_comment`, `resolve_comment` and `reopen_comment`: the server answers and resolves threads after a run.
 - `start_run`, `retry_run` and `cancel_run`: a new run would escape the cost and call limits of this one.
 - `restore_dashboard_version`, `make_dashboard` and `duplicate_dashboard`: only the finished build becomes a version, one per request.
@@ -590,6 +590,8 @@ See [LLM providers](../connect/llm-providers.md).
 The server starts `observe-agent` as a child process, which claims the built-in agent's runs and works them through the same MCP tools as a connected agent does.
 The server enforces the guards and the limits and stores the saved result.
 The claim answer to the built-in agent carries the model settings, which no other claimer receives, so the sidecar needs no provider configuration of its own.
+A claim that reaches the sidecar without them is a setup fault: the sidecar hands the run back to the queue with `release_run` and waits before it claims again, 1 second at first and doubling to 30.
+A run that comes back without them after 3 releases is ended as failed with `observe-agent received the run without model settings`, so it does not stay queued with no reason shown.
 
 The sidecar reaches the server only over the loopback address, with a token that is new for every start of the process.
 The server refuses that token on any request that carries a forwarding header (`Forwarded`, `X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Proto` or `X-Real-Ip`).

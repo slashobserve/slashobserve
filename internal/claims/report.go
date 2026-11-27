@@ -3,6 +3,7 @@ package claims
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"math"
 	"time"
@@ -74,6 +75,31 @@ func (s *Service) Report(ctx context.Context, c Claimer, in ReportInput) (Report
 		return ReportAnswer{State: string(revisions.StateCanceling), Stop: true}, nil
 	}
 	return renewedAnswer(time.Now()), nil
+}
+
+type ReleaseAnswer struct {
+	State string `json:"state"`
+}
+
+func (s *Service) Release(ctx context.Context, c Claimer, runID string, attempt, claimEpoch int) (ReleaseAnswer, error) {
+	row, err := s.claimedRun(ctx, c, runID, attempt, claimEpoch)
+	if err != nil {
+		return ReleaseAnswer{}, err
+	}
+	if !revisions.State(row.State).Terminal() {
+		// DeleteRunTokens deletes by run, so after the release it could take the next holder's token.
+		if err := s.db.Queries().DeleteRunTokens(ctx, row.ID); err != nil {
+			return ReleaseAnswer{}, fmt.Errorf("delete the run's tokens before its release: %w", err)
+		}
+		if err := s.runs.Release(ctx, row); err != nil {
+			return ReleaseAnswer{}, err
+		}
+	}
+	stored, err := s.runs.GetByID(ctx, row.ID)
+	if err != nil {
+		return ReleaseAnswer{}, err
+	}
+	return ReleaseAnswer{State: stored.State}, nil
 }
 
 func (s *Service) ClaimedRun(ctx context.Context, c Claimer, runID string, attempt, claimEpoch int) (revisions.Request, error) {

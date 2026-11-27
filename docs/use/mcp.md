@@ -358,7 +358,7 @@ Two kinds of credential can claim:
   Its runs always use the direct mode.
   With **Takes agent runs** off, or `takes_runs` false, `claim_run` answers `not_a_worker`.
 
-The claim tools are `claim_run`, `report_run`, `finish_run` and `get_run_brief`; MCP lists them like any other tool.
+The claim tools are `claim_run`, `report_run`, `finish_run`, `release_run` and `get_run_brief`; MCP lists them like any other tool.
 Connect as in [Connect your own agent](#connect-your-own-agent) or [Connect a bot with a service-account key](#connect-a-bot-with-a-service-account-key), and poll with `claim_run` while the agent is idle.
 An agent that polls shows as `listening` on the [Agents page](agents.md), and as `working` while it holds a run.
 
@@ -396,12 +396,13 @@ The loop of an agent that takes runs:
    `note`, one line of at most 500 characters, shows in the run's steps.
    When the server has no run time limit, the session's `expires_at` is a minute out and every `report_run` moves it a minute on, so a run lasts as long as it keeps reporting.
 6. Call `finish_run` with `outcome` `succeeded` or `failed`.
+   When you cannot work the run, for example because your process is stopping, call `release_run` instead; see [Hand a run back](#hand-a-run-back).
 
 A claim tool called with a run that is not yours at that attempt answers `not_your_run`.
-`claim_epoch` is optional on `report_run`, `finish_run` and `get_run_brief`; send it, because with it a call from a claim that was handed back and taken again also answers `not_your_run`.
+`claim_epoch` is optional on `report_run`, `finish_run`, `release_run` and `get_run_brief`; send it, because with it a call from a claim that was handed back and taken again also answers `not_your_run`.
 
 The session lists the tools SlashObserve's own agent has for that kind of run, with the same text, and none above the requester's role.
-It lists none of the 22 tools that no run has, such as the claim tools, `start_run` and the comment writes; [the agent](../concepts/agent.md#tools-in-a-run) lists them with their reasons.
+It lists none of the 23 tools that no run has, such as the claim tools, `start_run` and the comment writes; [the agent](../concepts/agent.md#tools-in-a-run) lists them with their reasons.
 It acts for the person who asked and records every call in the run's steps.
 Its prompt list is empty, because the `observe` prompt is read on the first connection.
 
@@ -478,6 +479,19 @@ The server stores its own text for the code, so no `message` is needed.
 The answer has `restarted`, true when the commit found a newer version and the run restarted from it: the run stays claimed, so call `get_run_brief` and go on.
 `finish_run` on a run that was canceled settles it as canceled at once.
 A `failure_code` with another outcome, a code outside the list, or `commit` with `outcome` `failed` answers `invalid_request`.
+
+### Hand a run back
+
+`release_run` takes `run_id`, `attempt` and an optional `claim_epoch` and puts a run you hold back in the queue.
+Use it when you cannot work the run, for example because your process is stopping or the claim lacks something you need.
+The run is not failed and uses up no attempt: its saved panel progress and its steps stay, its session token stops working, and the next `claim_run` of an agent it is assigned to takes it at the same `attempt` under a later `claim_epoch`.
+Send `claim_epoch`, so a late or repeated `release_run` of a claim you already handed back answers `not_your_run` and cannot requeue the next holder's run.
+
+The answer has the run's `state`: `queued`, `canceled` when its requester had canceled it, or the state it had already ended in.
+An error other than `not_your_run` means the server could not release the run.
+You still hold it until its lease ends, its session token may already be revoked, and you can call `release_run` again.
+A run released again and again is claimed again and again, so wait before the next `claim_run` after you release one for a fault of your own, and wait longer each time.
+Without `release_run` a run you stop working returns to the queue only when its lease ends, up to 60 seconds later.
 
 ### Presence and modes
 
@@ -614,6 +628,7 @@ The server uses the role of the key's service account, or of the person for an O
 | `query_instant` | Viewer |
 | `query_range` | Viewer |
 | `recheck_datasource` | Viewer |
+| `release_run` | Viewer |
 | `rename_folder` | Viewer |
 | `rename_run` | Viewer |
 | `reopen_comment` | Viewer |
@@ -1977,7 +1992,7 @@ Calls one approved tool of an MCP source and returns its text.
 
 ### Run claim tools
 
-`claim_run`, `report_run`, `finish_run` and `get_run_brief` are the tools of an outside agent that takes runs.
+`claim_run`, `report_run`, `finish_run`, `release_run` and `get_run_brief` are the tools of an outside agent that takes runs.
 [Take runs as an agent](#take-runs-as-an-agent) describes the loop and every field.
 
 | Tool | What it does |
@@ -1985,4 +2000,5 @@ Calls one approved tool of an MCP source and returns its text.
 | `claim_run` | Takes the next run assigned to you, waiting up to `wait_seconds` (0 to 30). |
 | `report_run` | Keeps the lease, with an optional `note`, `text` and `usage`. |
 | `finish_run` | Ends the run with `outcome` `succeeded` or `failed`. |
+| `release_run` | Puts a run you cannot work back in the queue, not failed. |
 | `get_run_brief` | Returns the system text and first message of a model session. |

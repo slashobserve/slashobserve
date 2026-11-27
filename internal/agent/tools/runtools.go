@@ -37,6 +37,7 @@ var leftOutOfRuns = map[string]string{
 	nameReportRun:               reasonClaims,
 	nameFinishRun:               reasonClaims,
 	nameGetRunBrief:             reasonClaims,
+	nameReleaseRun:              reasonClaims,
 	nameCreateComment:           reasonComments,
 	nameReplyToComment:          reasonComments,
 	nameEditComment:             reasonComments,
