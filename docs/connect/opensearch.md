@@ -1,6 +1,6 @@
 ---
 title: Connect OpenSearch
-description: Add an OpenSearch cluster as a datasource for logs, with its index pattern, time field, field roles and authentication, a first query, and the rules for queries, aggregations, filters and paging.
+description: Add an OpenSearch cluster as a datasource for logs, or for the spans Jaeger stored there, with its index pattern, time field, field roles and authentication, a first query, and the rules for queries, aggregations, filters and paging.
 ---
 
 Connect an OpenSearch cluster to search its logs on the Logs page, chart document counts and aggregations in dashboards, and let the agent read them.
@@ -91,6 +91,25 @@ Set `fields` when your documents use other names.
 A query variable takes `label_values(field)` or `label_values(<query>, field)`.
 [Variables and discovery](#variables-and-discovery) lists what the agent and the field browser can read.
 
+## Read spans that Jaeger stored
+
+Jaeger can store its spans in OpenSearch.
+Set `spans: jaeger` on an entry whose index holds those span documents, and the datasource answers the trace reads as a Jaeger or Tempo datasource does.
+Use it when the Jaeger in front of the cluster is older than the 2.21 the [Jaeger](jaeger.md) type needs, or when only the cluster is reachable:
+
+```yaml
+- uid: traces
+  type: opensearch
+  name: Jaeger spans
+  opensearch:
+    url: http://opensearch:9200
+    index: jaeger-main-jaeger-span-*
+    spans: jaeger
+```
+
+The server never guesses that an index holds spans; only this setting says so.
+[Jaeger spans](#jaeger-spans) lists what such a datasource reads and what it cannot do.
+
 ## Reference
 
 ### Fields
@@ -103,6 +122,7 @@ Every entry also takes the [fields common to every datasource](../reference/data
 | `index` | Required. One or more comma-separated index names, patterns, aliases or data streams. |
 | `timeField` | The `date` or `date_nanos` field that orders documents. Default `@timestamp`. |
 | `queryLanguage` | `kql` (default) or `lucene`. |
+| `spans` | `jaeger` when the index holds span documents that Jaeger wrote. |
 | `fields` | Role overrides: `message`, `level`, `service`, `traceId` and `spanId`. |
 | `apiKeyEnv`, `apiKeyFile` | An API key from an environment variable or a file. |
 | `headers` | Plain request headers. Not for secrets. |
@@ -139,6 +159,25 @@ Details of `bearerTokenEnv` and `bearerTokenFile`:
 - They cannot be combined with `basicAuth` or an API key.
 
 The server does not follow redirects, so give the final address, and it refuses a response over 64 MiB.
+
+### Jaeger spans
+
+An entry with `spans: jaeger` reads span documents in the shape Jaeger writes to OpenSearch and Elasticsearch.
+The shape was checked against documents a Jaeger 2.21 wrote to OpenSearch 2.19, and the tests index those documents with the mapping Jaeger created.
+
+- The time field is `startTimeMillis`, and a `timeField` other than that is refused.
+- A span's parent is `parentSpanID`, or else the `CHILD_OF` reference in the same trace; other references are links.
+- Tags are read from both forms Jaeger writes: the nested `tags` array and the `tag` object of tags stored as fields, whose keys carry `@` for each dot.
+  Process tags are read the same way and become the span's resource attributes, with `service.name` from `process.serviceName`.
+- A span failed when its `error` tag is true or its `otel.status_code` is `ERROR`; `otel.status_description` is its status message and `span.kind` its kind.
+- `startTime` and `duration` are microseconds, so durations are exact to the microsecond.
+- A trace id is matched as given, without its leading zeros and, when its high half is zero, as 16 characters, the forms older Jaeger versions stored.
+
+What it answers:
+
+- A whole trace by id, read in pages of 5,000 spans, up to 20,000 spans with the earliest kept, as `GET /api/v1/datasources/{uid}/traces/{trace_id}` and the `get_trace` tool describe.
+- The services list, from `process.serviceName`, as the `traces` signal.
+- The log lines of a trace are not in a span index: read them from a logs datasource.
 
 ### Health
 

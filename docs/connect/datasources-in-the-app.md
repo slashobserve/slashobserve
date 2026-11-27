@@ -292,7 +292,7 @@ They need an Admin key, except `recheck`, which needs a Viewer key.
 - `--clear` takes `password`, `bearer_token`, `api_key` or `header:<name>`, and repeats for several.
 - `--database` and `--tls` apply to ClickHouse.
 - `--tenant-id` is the Loki tenant, and `--scrape-interval` is the Prometheus scrape interval.
-- `--index`, `--time-field`, `--query-language` (`kql` or `lucene`) and the `--field-message`, `--field-level`, `--field-service`, `--field-trace-id` and `--field-span-id` settings apply to Elasticsearch and OpenSearch.
+- `--index`, `--time-field`, `--query-language` (`kql` or `lucene`), `--spans` (`jaeger` for an index of Jaeger spans) and the `--field-message`, `--field-level`, `--field-service`, `--field-trace-id` and `--field-span-id` settings apply to Elasticsearch and OpenSearch.
 - `--timeout`, `--max-series`, `--max-points`, `--max-rows` and `--max-concurrent-queries` set the query limits.
 - `--grafana-uid` names a Grafana datasource uid this one stands for on import, and repeats for several.
 

@@ -1654,6 +1654,10 @@ components:
         time_field:
           type: string
           description: The time field of an Elasticsearch or OpenSearch datasource; absent on other types.
+        spans:
+          type: string
+          enum: [jaeger]
+          description: Present on an Elasticsearch or OpenSearch datasource whose index holds span documents that Jaeger wrote, which answers the trace reads.
         audience:
           type: string
           enum: [everyone, admins]
@@ -1790,6 +1794,10 @@ components:
         query_language:
           type: string
           enum: ["", kql, lucene]
+        spans:
+          type: string
+          enum: ["", jaeger]
+          description: Elasticsearch and OpenSearch only. `jaeger` says the index holds span documents that Jaeger wrote, so the datasource answers the trace reads; the time field is then `startTimeMillis`.
         fields:
           $ref: "#/components/schemas/DatasourceFieldRoles"
         limits:
@@ -1842,6 +1850,9 @@ components:
           type: string
         query_language:
           type: string
+        spans:
+          type: string
+          enum: [jaeger]
         fields:
           $ref: "#/components/schemas/DatasourceFieldRoles"
         limits:

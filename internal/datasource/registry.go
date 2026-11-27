@@ -57,6 +57,7 @@ type Status struct {
 	Source    string    `json:"source"`
 	Index     string    `json:"index,omitempty"`
 	TimeField string    `json:"time_field,omitempty"`
+	Spans     string    `json:"spans,omitempty"`
 	Healthy   bool      `json:"healthy"`
 	Message   string    `json:"message,omitempty"`
 	Detail    string    `json:"detail,omitempty"`
@@ -67,6 +68,9 @@ func statusFor(in Instance) Status {
 	s := Status{UID: in.UID, Type: in.Datasource.Type(), Name: in.Name, Source: in.Source}
 	if indexed, ok := in.Datasource.(IndexSource); ok {
 		s.Index, s.TimeField = indexed.Index()
+	}
+	if spans, ok := in.Datasource.(SpanIndexSource); ok {
+		s.Spans = spans.SpanFormat()
 	}
 	return s
 }

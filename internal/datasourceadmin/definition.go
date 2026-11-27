@@ -58,6 +58,7 @@ type Definition struct {
 	TimeField      string              `json:"time_field,omitempty"`
 	QueryLanguage  string              `json:"query_language,omitempty"`
 	Fields         FieldRoles          `json:"fields,omitzero"`
+	Spans          string              `json:"spans,omitempty"`
 	Limits         Limits              `json:"limits,omitzero"`
 }
 
@@ -197,6 +198,7 @@ func (d Definition) search(conn config.HTTPConnection, secrets Secrets) config.S
 			TraceID: d.Fields.TraceID,
 			SpanID:  d.Fields.SpanID,
 		},
+		Spans: d.Spans,
 	}
 }
 

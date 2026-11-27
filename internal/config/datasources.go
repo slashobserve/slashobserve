@@ -44,6 +44,11 @@ const (
 
 var queryLanguages = []string{"kql", "lucene"}
 
+const (
+	SpansJaeger     = "jaeger"
+	jaegerTimeField = "startTimeMillis"
+)
+
 type Datasource struct {
 	UID, Type, Name string
 	GrafanaUIDs     []string
@@ -99,6 +104,7 @@ type SearchDatasource struct {
 	TimeField     string
 	QueryLanguage string
 	Fields        FieldRoles
+	Spans         string
 }
 
 type FieldRoles struct {
@@ -169,6 +175,7 @@ type fileSearch struct {
 	TimeField     string         `yaml:"timeField"`
 	QueryLanguage string         `yaml:"queryLanguage"`
 	Fields        fileFieldRoles `yaml:"fields"`
+	Spans         string         `yaml:"spans"`
 	APIKeyEnv     string         `yaml:"apiKeyEnv"`
 	APIKeyFile    string         `yaml:"apiKeyFile"`
 }
@@ -435,6 +442,10 @@ func convertSearch(path string, raw fileSearch, lookup func(string) (string, boo
 		TimeField:      raw.TimeField,
 		QueryLanguage:  raw.QueryLanguage,
 		Fields:         FieldRoles{Message: raw.Fields.Message, Level: raw.Fields.Level, Service: raw.Fields.Service, TraceID: raw.Fields.TraceID, SpanID: raw.Fields.SpanID},
+		Spans:          raw.Spans,
+	}
+	if problem := spansProblem(raw.Spans, raw.TimeField); problem != "" {
+		errs = append(errs, fmt.Errorf("%s.%s", path, problem))
 	}
 	if problem := indexProblem(raw.Index); problem != "" {
 		errs = append(errs, fmt.Errorf("%s.index: %s", path, problem))
@@ -728,4 +739,16 @@ func parseOptionalDuration(v string) (time.Duration, error) {
 		return 0, errors.New("must not be negative")
 	}
 	return d, nil
+}
+
+func spansProblem(spans, timeField string) string {
+	switch {
+	case spans == "":
+		return ""
+	case spans != SpansJaeger:
+		return "spans: must be " + SpansJaeger
+	case timeField != "" && timeField != jaegerTimeField:
+		return "timeField: an index of Jaeger spans uses " + jaegerTimeField
+	}
+	return ""
 }

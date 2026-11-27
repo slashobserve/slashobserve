@@ -29,6 +29,21 @@ type ServiceSource interface {
 	Services(ctx context.Context, req ServiceRequest) (ServiceList, error)
 }
 
+type SignalSource interface {
+	Signals() []string
+}
+
+type SpanIndexSource interface {
+	SpanFormat() string
+}
+
+func SignalsOf(ds Datasource) []string {
+	if s, ok := ds.(SignalSource); ok {
+		return s.Signals()
+	}
+	return ServiceSignals(ds.Type())
+}
+
 func ServiceSignals(datasourceType string) []string {
 	switch datasourceType {
 	case "loki", "elasticsearch", "opensearch":

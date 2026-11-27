@@ -5145,6 +5145,11 @@ export interface components {
             /** @description The time field of an Elasticsearch or OpenSearch datasource; absent on other types. */
             time_field?: string;
             /**
+             * @description Present on an Elasticsearch or OpenSearch datasource whose index holds span documents that Jaeger wrote, which answers the trace reads.
+             * @enum {string}
+             */
+            spans?: "jaeger";
+            /**
              * @description Who can query the datasource, for an Admin caller only; absent for everyone else.
              * @enum {string}
              */
@@ -5225,6 +5230,11 @@ export interface components {
             time_field?: string;
             /** @enum {string} */
             query_language?: "" | "kql" | "lucene";
+            /**
+             * @description Elasticsearch and OpenSearch only. `jaeger` says the index holds span documents that Jaeger wrote, so the datasource answers the trace reads; the time field is then `startTimeMillis`.
+             * @enum {string}
+             */
+            spans?: "" | "jaeger";
             fields?: components["schemas"]["DatasourceFieldRoles"];
             limits?: components["schemas"]["DatasourceLimits"];
             secrets?: components["schemas"]["DatasourceSecrets"];
@@ -5253,6 +5263,8 @@ export interface components {
             index?: string;
             time_field?: string;
             query_language?: string;
+            /** @enum {string} */
+            spans?: "jaeger";
             fields?: components["schemas"]["DatasourceFieldRoles"];
             limits?: components["schemas"]["DatasourceLimits"];
             /** @description Which credentials are stored, each `password`, `bearer_token`, `api_key` or `header:<name>`. Their values are never returned. */

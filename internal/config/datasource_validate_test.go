@@ -63,9 +63,9 @@ func TestValidateNamesTheFieldThatBreaksARule(t *testing.T) {
 func TestValidateSearchAndClickHouseRules(t *testing.T) {
 	search := Datasource{UID: "logs", Type: "elasticsearch", Elasticsearch: &SearchDatasource{
 		HTTPConnection: HTTPConnection{URL: "http://es:9200", BearerToken: datasource.NewSecret("tok")},
-		Index:          "_all", QueryLanguage: "sql", APIKey: datasource.NewSecret("key"),
+		Index:          "_all", QueryLanguage: "sql", APIKey: datasource.NewSecret("key"), Spans: "zipkin",
 	}}
-	if got, want := fieldsOf(search.Validate()), []string{"apiKey", "index", "queryLanguage"}; !slices.Equal(got, want) {
+	if got, want := fieldsOf(search.Validate()), []string{"apiKey", "index", "queryLanguage", "spans"}; !slices.Equal(got, want) {
 		t.Fatalf("search fields = %v, want %v", got, want)
 	}
 	ch := Datasource{UID: "ch", Type: "clickhouse", ClickHouse: &ClickHouseDatasource{}}
