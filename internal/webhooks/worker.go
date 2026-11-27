@@ -159,21 +159,29 @@ func (w *Worker) serve(ctx context.Context, row dbsqlc.Webhook) {
 	started := time.Now()
 	sent := 0
 	for {
-		page, to, err := w.source.next(ctx, audience, row.EventTypes, w.Now().Add(-expiry), at, pageSize)
+		page, to, err := w.source.next(ctx, audience, row.EventTypes, at, pageSize)
 		if err != nil {
 			if ctx.Err() == nil {
 				w.logFailure(ctx, "read activity for webhook", "webhook_read_failed", err, row)
 			}
 			return
 		}
-		for _, e := range page {
+		for i := 0; i < len(page); {
 			if sent >= maxPerClaim || time.Since(started) >= maxClaimTime {
 				return
 			}
-			if !w.send(ctx, c, e) {
+			if stale := expiredRun(page[i:], w.Now()); stale > 0 {
+				if !w.expire(ctx, c, page[i:i+stale]) {
+					return
+				}
+				i += stale
+				continue
+			}
+			if !w.send(ctx, c, page[i]) {
 				return
 			}
 			sent++
+			i++
 		}
 		if to != at && !w.advanceTo(ctx, c, to) {
 			return
@@ -266,6 +274,40 @@ func (w *Worker) record(ctx context.Context, c *claim, e activity.Event, deliver
 		}
 	}
 	return !failed
+}
+
+func (w *Worker) expire(ctx context.Context, c *claim, stale []activity.Event) bool {
+	recordCtx, cancel := finishContext(ctx)
+	defer cancel()
+	last := cursorOf(stale[len(stale)-1])
+	err := w.DB.InTx(recordCtx, func(q *dbsqlc.Queries) error {
+		changed, err := q.AdvanceWebhook(recordCtx, dbsqlc.AdvanceWebhookParams{
+			ID: c.row.ID, LeaseID: c.row.LeaseID,
+			CursorXid: pgtype.Uint64{Uint64: last.xid, Valid: true}, CursorSeq: last.seq,
+		})
+		if err != nil {
+			return err
+		}
+		if changed == 0 {
+			return errLeaseLost
+		}
+		for _, e := range stale {
+			passedOver := deliveryParams(c.row.ID, deliveryIDOf(c.row.ID.String(), e), e.Type, pgtype.Int8{Int64: e.Seq, Valid: true},
+				attempt{outcome: outcomeSkipped, errorCode: errorExpired})
+			if _, err := q.InsertWebhookDelivery(recordCtx, passedOver); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		if !errors.Is(err, errLeaseLost) {
+			w.logFailure(ctx, "record expired webhook events", "webhook_expire_failed", err, c.row)
+		}
+		return false
+	}
+	c.failures = 0
+	return true
 }
 
 func (w *Worker) recordDelivery(ctx context.Context, row dbsqlc.Webhook, e activity.Event, got attempt) {

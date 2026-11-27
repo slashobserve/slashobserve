@@ -449,10 +449,10 @@ func requireSaveAbility(c *gin.Context) bool {
 func (s *Service) answerSave(c *gin.Context, res SaveResult) {
 	if res.Proposal != nil {
 		c.Header("Location", "/api/v1/proposals/"+res.Proposal.ID)
-		c.JSON(http.StatusAccepted, proposalCreatedJSON{ProposalID: res.Proposal.ID, Revision: res.Proposal.Revision, Opened: res.Proposal.Opened})
+		c.JSON(http.StatusAccepted, proposalCreatedJSON{ProposalID: res.Proposal.ID, Revision: res.Proposal.Revision, Opened: res.Proposal.Opened, Outcome: res.Outcome()})
 		return
 	}
-	body := versionSavedJSON{DashboardVersionJSON: NewDashboardVersionJSON(res.Dashboard, res.Version), MergedFrom: res.MergedFrom}
+	body := versionSavedJSON{DashboardVersionJSON: NewDashboardVersionJSON(res.Dashboard, res.Version), MergedFrom: res.MergedFrom, Outcome: res.Outcome()}
 	if res.Replayed {
 		c.Header("Idempotent-Replay", "true")
 		c.JSON(http.StatusOK, body)

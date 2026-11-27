@@ -241,7 +241,7 @@ type Run struct {
 	Prompt        string
 	Base          *spec.Dashboard
 	Build         bool
-	Attempt       int
+	ClaimEpoch    int
 	From, To      time.Time
 	TimeZone      string
 	Access        datasource.Access

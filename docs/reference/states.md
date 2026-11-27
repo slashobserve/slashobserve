@@ -107,6 +107,18 @@ A proposal is a change to a dashboard that someone who can edit merges or discar
 | `merge` | `open` | `merged` | `proposal.merged` | editor |
 | `discard` | `open` | `discarded` | `proposal.discarded` | requester, editor |
 
+## Proposal mergeability
+
+`GET /proposals/{id}` returns the `mergeability` of an open proposal, which says what a merge would meet on the dashboard's latest version, and null once the proposal is merged or discarded.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `current` | It builds on the dashboard's latest version; a merge saves it as it is. |
+| `behind_clean` | The dashboard has newer versions that changed other panels, variables and settings; a merge combines them without a choice. |
+| `behind_conflicting` | The dashboard has newer versions that changed the same panel, variable or setting; a merge needs a choice for each conflict. |
+| `blocked` | Combined with the latest version it is not a valid dashboard (a conflict whose reason is `invalid`); no choice fixes that, so every merge is refused until its author saves a new revision. |
+
 ## Dashboard health
 
 `GET /health` returns the `state` of each dashboard that has a problem.
@@ -166,6 +178,18 @@ This state is computed from stored fields on every read; nothing stores it.
 | `revoked` | The person or an admin revoked it; it leaves the list. |
 | `active` | It may call /mcp as its person until expires_at. |
 
+## Dashboard save
+
+`POST /dashboards/{id}/versions` and `PATCH /dashboards/{id}/panels` return the `outcome` of the save, and so do the `update_dashboard` and `update_panels` tools.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `proposed` | The caller may not save here, so the change became a proposal, or a revision of the caller's open one; no version was saved. |
+| `replayed` | The save repeats a version that already exists, so that version is returned and no version was saved. |
+| `merged` | The save was stale and the server merged it onto the latest version; the merge is the new version and merged_from names both ends. |
+| `created` | None of the above; the save is the new version. |
+
 ## Public link
 
 `GET /dashboards/{id}/public-links` returns the `state` of each link.
@@ -174,7 +198,7 @@ This state is computed from stored fields on every read; nothing stores it.
 | State | When |
 | --- | --- |
 | `expired` | Its expiry time has passed; the link no longer opens. |
-| `active` | None of the above; usable says whether the dashboard's latest version can be shown publicly. |
+| `active` | None of the above; usable says whether the dashboard's latest version can be shown publicly, and unusable_reason says why it cannot. |
 
 ## Inbox item
 
@@ -208,6 +232,17 @@ A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /g
 | `exhaust` | `running` | `failed` | `grafana sync lease expired twice` | server |
 | `cancel` | `running` | `canceled` | `grafana sync canceled` | admin |
 
+## Grafana connection test
+
+`GET /grafana` returns the `test.state` of each connection.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `untested` | The connection has not been tested since it was added or its URL or token changed; last_test is null. |
+| `failing` | The last test could not read Grafana; failure_kind says who can fix it: transient (Grafana did not answer, try again), credentials (the token was refused), configuration (the URL, the outbound allowlist or what answers at the address), unsupported (an answer this server cannot take) or unknown. |
+| `ok` | None of the above: the last test read Grafana's health, folders and dashboards. |
+
 ## MCP source tool
 
 An MCP source tool is one tool of an MCP server an Admin registered, returned by `GET /api/v1/mcp-sources/{uid}/tools`; discovery moves it between `offered`, `changed`, `gone` and `refused`, and an Admin approves or revokes it.
@@ -240,8 +275,8 @@ This state is computed from stored fields on every read; nothing stores it.
 | State | When |
 | --- | --- |
 | `unchecked` | No discovery has run since the source was added or its address changed. |
-| `unreachable` | The last discovery failed; failure says why, such as the domain not being on the outbound allowlist, the secret being refused or the server not answering. |
-| `ready` | None of the above: the last discovery listed the server's tools. |
+| `unreachable` | The last discovery failed, or an agent's call could not reach the server since; failure says why, such as the domain not being on the outbound allowlist, the secret being refused or the server not answering. |
+| `ready` | None of the above: the last discovery listed the server's tools, or the server has answered an agent's call since it last failed. |
 
 ## Agent presence
 
@@ -253,3 +288,25 @@ This state is computed from stored fields on every read; nothing stores it.
 | `working` | It holds the lease of a run it claimed. |
 | `listening` | It asked for work in the last 40 seconds. |
 | `offline` | It has not asked for work in 40 seconds and holds no run. |
+
+## Server process
+
+A server process moves through these phases from start to exit: `GET /readyz` returns the current one as `phase`, the `slashobserve_server_phase` series is 1 for it, and each move writes one server log line with the name in the Event column and the new phase as its `phase` attribute, not an activity event.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `booting` | It reads its settings and connects to Postgres. | - |
+| `migrating` | It applies the pending database migrations. | - |
+| `provisioning` | It reconciles roles, applies the service-account and MCP source files and builds its services; it does not listen yet. | - |
+| `ready` | It listens and serves requests, and `/readyz` answers 200 while its checks pass. | - |
+| `stopping` | It got the shutdown signal: `/readyz` answers 503 while it keeps serving for 5 seconds, then it stops accepting requests and finishes the open ones. The 503 code `shutting_down` of the event streams is this phase. | - |
+| `stopped` | It serves nothing more and exits. Final. | - |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `boot` | - | `booting` | `starting slashobserve-server` | server |
+| `migrate` | `booting` | `migrating` | `migrating database` | server |
+| `provision` | `migrating` | `provisioning` | `provisioning` | server |
+| `serve` | `provisioning` | `ready` | `listening` | server |
+| `stop` | `ready` | `stopping` | `shutting down` | server |
+| `exit` | `booting`, `migrating`, `provisioning`, `ready`, `stopping` | `stopped` | `server stopped` | server |

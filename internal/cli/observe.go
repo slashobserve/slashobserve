@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -321,7 +320,7 @@ func printRequest(out *output, req agentRequest) {
 	fields := [][2]string{
 		{"ID", text(req.ID)},
 		{"Status", text(req.Status)},
-		{"State", text(req.State)},
+		{"State", requestStateWord(req.State)},
 		{"Intent", text(req.Intent)},
 		{"Investigation", yesNo(req.Investigation)},
 		{"Trigger", text(req.Trigger)},
@@ -344,17 +343,8 @@ func printRequest(out *output, req agentRequest) {
 		fields = append(fields, [2]string{"Shared in thread", text(*req.SharedThread)})
 	}
 	out.fields(fields)
-	switch {
-	case req.Status == "queued" && req.QueuePosition != nil:
-		out.line("Queued, position %d", *req.QueuePosition)
-	case req.Status == "failed" && req.ContinuedBy != nil:
-		out.line("Continued by %s", text(*req.ContinuedBy))
-	case req.RetriedBy != nil:
-		out.line("Retried by %s", text(*req.RetriedBy))
-	case slices.Contains(req.AllowedActions, "continue"):
-		out.line("Save it in the browser, or continue it: observe continue %s", text(req.ID))
-	case slices.Contains(req.AllowedActions, "retry") && req.State != "succeeded":
-		out.line("Run it again: observe retry %s", text(req.ID))
+	for _, note := range req.notes() {
+		out.line("%s", note)
 	}
 	if len(req.Steps) > 0 {
 		out.line("")
@@ -397,14 +387,8 @@ func (a *app) waitAndReport(ctx context.Context, c *client, id string, timeout t
 	if a.json {
 		out.body(data)
 	}
-	if req.Status != "succeeded" {
-		reason := "the agent gave no reason"
-		if req.Error != nil && *req.Error != "" {
-			reason = text(*req.Error)
-		} else if req.Status != "failed" {
-			reason = fmt.Sprintf("the request ended with status %q", text(req.Status))
-		}
-		return fmt.Errorf("observe failed: %s", reason)
+	if req.state() != runSucceeded {
+		return req.failure()
 	}
 	if req.Kind == kindInvestigate || req.Finding != nil {
 		return a.reportFinding(out, req)
@@ -481,7 +465,7 @@ func poll(ctx context.Context, c *client, progress *requestProgress, id string, 
 				return nil, agentRequest{}, err
 			}
 			progress.update(pollCtx, envelope.Request)
-			if envelope.Request.Status != "queued" && envelope.Request.Status != "running" {
+			if !runInFlight(envelope.Request.state()) {
 				return data, envelope.Request, nil
 			}
 		}
