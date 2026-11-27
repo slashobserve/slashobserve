@@ -251,6 +251,33 @@ func TestInTxRunsInTheSavesTransaction(t *testing.T) {
 	}
 }
 
+func TestInTxSavedSeesTheSavedDashboardAndVersionAndRollsBackOnFailure(t *testing.T) {
+	r := newRig(t, false)
+	dash := r.createDashboard(t)
+	boom := errors.New("boom")
+
+	_, err := r.service.Save(reading(t.Context()), testUser, SaveInput{
+		DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "refused",
+		InTxSaved: func(context.Context, *dbsqlc.Queries, Dashboard, Version) error { return boom },
+	})
+	if !errors.Is(err, boom) || r.latestNumber(t, dash) != 1 {
+		t.Fatalf("err = %v, latest %d, want the hook's error and no version", err, r.latestNumber(t, dash))
+	}
+
+	var seenDash Dashboard
+	var seenVer Version
+	res, err := r.service.Save(reading(t.Context()), testUser, SaveInput{
+		DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "kept",
+		InTxSaved: func(_ context.Context, _ *dbsqlc.Queries, d Dashboard, v Version) error {
+			seenDash, seenVer = d, v
+			return nil
+		},
+	})
+	if err != nil || res.Version.Number != 2 || seenVer.Number != 2 || seenDash.ID != dash.String() || seenDash.Title != "t" {
+		t.Fatalf("version %d, hook saw %d and %+v, err %v", res.Version.Number, seenVer.Number, seenDash, err)
+	}
+}
+
 func TestACallerWhoCanOnlyCommentGetsAProposalOnlyWhenAskedAndWired(t *testing.T) {
 	r := newRig(t, false)
 	dash := r.createDashboard(t)
