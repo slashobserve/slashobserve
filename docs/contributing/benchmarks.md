@@ -36,7 +36,8 @@ Set `SLASHOBSERVE_SERVER_IMAGE` to use another image than `slashobserve-server:l
 ## Run tasks with a real model
 
 A real run spends tokens, so start with one task and a cost cap.
-For a real model, a subset of tasks, the options, the spend cap and the tasks that are skipped, read [`benchmarks/README.md`](https://github.com/slashobserve/slashobserve/blob/main/benchmarks/README.md) in the repository.
+Every one of the 64 o11y-bench tasks runs, the Grafana API and dashboard tasks included.
+For a real model, a subset of tasks, the options, the spend cap and how the Grafana tasks run, read [`benchmarks/README.md`](https://github.com/slashobserve/slashobserve/blob/main/benchmarks/README.md) in the repository.
 
 ## Run ORCA-bench tasks
 
@@ -63,4 +64,4 @@ The steps, the disk the snapshot needs and how to point the judge at a Claude mo
 
 ### Where the details are
 
-[`benchmarks/README.md`](https://github.com/slashobserve/slashobserve/blob/main/benchmarks/README.md) covers the trial step by step, the requirements, the `--ak` options, the cost cap, the skipped tasks, cleanup and the pinned dependencies.
+[`benchmarks/README.md`](https://github.com/slashobserve/slashobserve/blob/main/benchmarks/README.md) covers the trial step by step, the requirements, the `--ak` options, the cost cap, the Grafana tasks, cleanup and the pinned dependencies.
