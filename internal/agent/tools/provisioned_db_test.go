@@ -20,35 +20,35 @@ func (r *accessRig) starter(t *testing.T) pgtype.UUID {
 	return id
 }
 
-func TestGetDashboardNamesTheOriginAndAFileDashboardWarnsOnSaveOverMCP(t *testing.T) {
+func TestGetDashboardNamesWhatManagesItAndAFileDashboardWarnsOnSaveOverMCP(t *testing.T) {
 	r := newAccessRig(t)
 	plain, bound := r.seed(t, "Plain board"), r.seed(t, "File board")
 	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `INSERT INTO provisioned_dashboards (path, dashboard_id, content_sha256, folder_title) VALUES ('a.json', $1, 'sha', 'General')`, bound.String()); err != nil {
 		t.Fatal(err)
 	}
 	cases := []struct {
-		id              pgtype.UUID
-		origin, warning string
+		id                 pgtype.UUID
+		managedBy, warning string
 	}{
-		{plain, "editable", ""},
-		{bound, "file", folders.FileOwnedWarning},
+		{plain, "workspace", ""},
+		{bound, "file", folders.FileManagedWarning},
 		{r.starter(t), "starter", ""},
 	}
 	for _, tc := range cases {
-		t.Run(tc.origin, func(t *testing.T) {
+		t.Run(tc.managedBy, func(t *testing.T) {
 			res := r.call(t, adminCaller, nameGetDashboard, `{"dashboard_id":"`+tc.id.String()+`"}`)
 			read, ok := res.Content.(dashboardOut)
 			if res.IsError || !ok {
 				t.Fatalf("get_dashboard: %s", textOf(t, res))
 			}
-			if read.DashboardOrigin != tc.origin || read.Origin == tc.origin {
-				t.Fatalf("dashboard_origin = %q beside origin %q, want %q beside the write channel", read.DashboardOrigin, read.Origin, tc.origin)
+			if read.ManagedBy != tc.managedBy {
+				t.Fatalf("managed_by = %q, want %q", read.ManagedBy, tc.managedBy)
 			}
 			validateOutput(t, r.registry, nameGetDashboard, read)
-			if tc.origin == "starter" {
+			if tc.managedBy == "starter" {
 				return
 			}
-			update := `{"dashboard_id":"` + tc.id.String() + `","parent_version":1,"summary":"s","spec":` + boardSpec("Renamed "+tc.origin) + `}`
+			update := `{"dashboard_id":"` + tc.id.String() + `","parent_version":1,"summary":"s","spec":` + boardSpec("Renamed "+tc.managedBy) + `}`
 			res = r.call(t, adminCaller, nameUpdateDashboard, update)
 			saved, ok := res.Content.(savedOut)
 			if res.IsError || !ok {

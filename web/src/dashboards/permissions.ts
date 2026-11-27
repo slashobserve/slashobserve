@@ -41,11 +41,11 @@ export const fileOwnedNote =
   "This dashboard comes from a file on the server. The next change to that file replaces edits made here, which stay in the version history."
 
 export function editNote(
-  dashboard: Pick<components["schemas"]["DashboardSummary"], "origin"> & {
+  dashboard: Pick<components["schemas"]["DashboardSummary"], "managed_by"> & {
     permissions: Pick<DashboardPermissions, "edit">
   }
 ): string | null {
-  return dashboard.origin === "file" && dashboard.permissions.edit
+  return dashboard.managed_by === "file" && dashboard.permissions.edit
     ? fileOwnedNote
     : null
 }

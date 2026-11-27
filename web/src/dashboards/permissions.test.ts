@@ -94,15 +94,15 @@ describe("editNote", () => {
     ["file", { edit: true }, fileOwnedNote],
     ["file", { comment: true }, null],
     ["file", {}, null],
-    ["applied", { edit: true }, null],
+    ["apply", { edit: true }, null],
     ["starter", { edit: true }, null],
-    ["editable", { edit: true }, null],
+    ["workspace", { edit: true }, null],
   ] as const)(
-    "on a dashboard with origin %s and permissions %j says %j",
-    (origin, flags, expected) => {
-      expect(editNote({ origin, permissions: permissions(flags) })).toBe(
-        expected
-      )
+    "on a dashboard managed by %s with permissions %j says %j",
+    (managedBy, flags, expected) => {
+      expect(
+        editNote({ managed_by: managedBy, permissions: permissions(flags) })
+      ).toBe(expected)
     }
   )
 })

@@ -68,7 +68,7 @@ type Dashboard struct {
 	Folder        folders.Folder
 	Abilities     folders.Abilities
 	Provisioned   bool
-	Origin        folders.DashboardOrigin
+	ManagedBy     folders.ManagedBy
 }
 
 type VersionMeta struct {

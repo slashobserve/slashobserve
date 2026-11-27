@@ -313,7 +313,7 @@ func (s *Service) getDashboard(c *gin.Context) {
 	}
 	dash.Abilities = folders.DashboardFrom(c).Shown()
 	dash.Provisioned = folders.DashboardFrom(c).Provisioned
-	dash.Origin = folders.DashboardFrom(c).Origin()
+	dash.ManagedBy = folders.DashboardFrom(c).ManagedBy()
 	audit.Conclude(c.Request.Context(), audit.Result{
 		Outcome: audit.OutcomeSuccess,
 		Target:  audit.Target{Kind: "dashboard", ID: c.Param("id")},
@@ -396,7 +396,7 @@ func (s *Service) getVersion(c *gin.Context) {
 	}
 	dash.Abilities = folders.DashboardFrom(c).Shown()
 	dash.Provisioned = folders.DashboardFrom(c).Provisioned
-	dash.Origin = folders.DashboardFrom(c).Origin()
+	dash.ManagedBy = folders.DashboardFrom(c).ManagedBy()
 	httpapi.RevalidatedJSON(c, NewDashboardVersionJSON(dash, ver))
 }
 

@@ -138,8 +138,8 @@ func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Sa
 }
 
 func saveWarning(access folders.DashboardAccess) string {
-	if access.Origin() == folders.OriginFile {
-		return folders.FileOwnedWarning
+	if access.ManagedBy() == folders.ManagedByFile {
+		return folders.FileManagedWarning
 	}
 	return ""
 }

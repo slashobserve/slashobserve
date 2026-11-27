@@ -5749,10 +5749,10 @@ export interface components {
             /** @description True for a starter dashboard the server keeps current with each release, such as those in the Audit folder. Its `permissions.edit` is false, every change to its content answers 409 `provisioned`, and duplicating it makes an ordinary editable dashboard. */
             provisioned: boolean;
             /**
-             * @description What else writes the dashboard's content. `starter` is the same dashboards as `provisioned: true`. `file` is bound to a file in the server's provisioning directory: a save works, and the next change to that file replaces it, leaving it in the version history. `applied` was last written by `observe dashboards apply`: a save works, and applying its file again after the file changed saves the file's content on top. `editable` is every other dashboard.
+             * @description What writes the dashboard's content. `starter` is the same dashboards as `provisioned: true`. `file` is bound to a file in the server's provisioning directory: a save works, and the next change to that file replaces it, leaving it in the version history. `apply` was last written by `observe dashboards apply`: a save works, and applying its file again after the file changed saves the file's content on top. `workspace` is every other dashboard: people edit it in the app, and no file and no release writes it.
              * @enum {string}
              */
-            origin: "starter" | "file" | "applied" | "editable";
+            managed_by: "starter" | "file" | "apply" | "workspace";
         };
         HomeDashboard: {
             /**
@@ -5880,7 +5880,7 @@ export interface components {
             dashboard: components["schemas"]["DashboardSummary"];
             version: components["schemas"]["Version"];
             merged_from?: components["schemas"]["MergedFrom"];
-            /** @description Present when the save went to a dashboard whose `origin` is `file`. It says that the next change to the file replaces this version, which stays in the version history. */
+            /** @description Present when the save went to a dashboard whose `managed_by` is `file`. It says that the next change to the file replaces this version, which stays in the version history. */
             warning?: string;
         };
         /** @description Present when a stale save was merged on the server. */

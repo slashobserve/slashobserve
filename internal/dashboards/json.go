@@ -45,7 +45,7 @@ type dashboardJSON struct {
 	Folder        dashboardFolderJSON `json:"folder"`
 	Permissions   folders.Permissions `json:"permissions"`
 	Provisioned   bool                `json:"provisioned"`
-	Origin        string              `json:"origin"`
+	ManagedBy     string              `json:"managed_by"`
 }
 
 type dashboardListItemJSON struct {
@@ -146,7 +146,7 @@ func newDashboardJSON(d Dashboard) dashboardJSON {
 		Folder:        newDashboardFolderJSON(d.Folder),
 		Permissions:   folders.PermissionsJSON(d.Abilities),
 		Provisioned:   d.Provisioned,
-		Origin:        d.Origin.String(),
+		ManagedBy:     d.ManagedBy.String(),
 	}
 }
 

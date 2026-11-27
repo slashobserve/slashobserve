@@ -56,7 +56,7 @@ func TestCreatorActorLabels(t *testing.T) {
 	}
 }
 
-func originOf(t *testing.T, d Dashboard) string {
+func managedByOf(t *testing.T, d Dashboard) string {
 	t.Helper()
 	raw, err := json.Marshal(NewDashboardVersionJSON(d, Version{}))
 	if err != nil {
@@ -64,38 +64,38 @@ func originOf(t *testing.T, d Dashboard) string {
 	}
 	var got struct {
 		Dashboard struct {
-			Origin      *string `json:"origin"`
+			ManagedBy   *string `json:"managed_by"`
 			Provisioned bool    `json:"provisioned"`
 		} `json:"dashboard"`
 	}
 	if err := json.Unmarshal(raw, &got); err != nil {
 		t.Fatal(err)
 	}
-	if got.Dashboard.Origin == nil {
-		t.Fatalf("the dashboard read has no origin: %s", raw)
+	if got.Dashboard.ManagedBy == nil {
+		t.Fatalf("the dashboard read has no managed_by: %s", raw)
 	}
 	if got.Dashboard.Provisioned != d.Provisioned {
 		t.Fatalf("provisioned = %v, want %v as before", got.Dashboard.Provisioned, d.Provisioned)
 	}
-	return *got.Dashboard.Origin
+	return *got.Dashboard.ManagedBy
 }
 
-func TestTheDashboardReadNamesWhereTheDashboardComesFrom(t *testing.T) {
-	if got := originOf(t, Dashboard{}); got != "editable" {
-		t.Fatalf("origin = %q, want editable for a dashboard made in the app", got)
+func TestTheDashboardReadNamesWhatManagesTheDashboard(t *testing.T) {
+	if got := managedByOf(t, Dashboard{}); got != "workspace" {
+		t.Fatalf("managed_by = %q, want workspace for a dashboard made in the app", got)
 	}
 	cases := []struct {
 		access folders.DashboardAccess
 		want   string
 	}{
-		{folders.DashboardAccess{}, "editable"},
+		{folders.DashboardAccess{}, "workspace"},
 		{folders.DashboardAccess{Provisioned: true}, "starter"},
 		{folders.DashboardAccess{FromFile: true}, "file"},
-		{folders.DashboardAccess{Applied: true}, "applied"},
+		{folders.DashboardAccess{Applied: true}, "apply"},
 	}
 	for _, tc := range cases {
-		if got := originOf(t, withAccess(Dashboard{}, tc.access)); got != tc.want {
-			t.Errorf("origin = %q, want %q", got, tc.want)
+		if got := managedByOf(t, withAccess(Dashboard{}, tc.access)); got != tc.want {
+			t.Errorf("managed_by = %q, want %q", got, tc.want)
 		}
 	}
 }
@@ -103,11 +103,11 @@ func TestTheDashboardReadNamesWhereTheDashboardComesFrom(t *testing.T) {
 func TestOnlyASaveToAFileDashboardCarriesTheWarning(t *testing.T) {
 	for _, access := range []folders.DashboardAccess{{}, {Provisioned: true}, {Applied: true}} {
 		if got := saveWarning(access); got != "" {
-			t.Errorf("a save to a dashboard with origin %s warns %q, want no warning", access.Origin(), got)
+			t.Errorf("a save to a dashboard managed by %s warns %q, want no warning", access.ManagedBy(), got)
 		}
 	}
 	warning := saveWarning(folders.DashboardAccess{FromFile: true})
-	if warning != folders.FileOwnedWarning {
+	if warning != folders.FileManagedWarning {
 		t.Fatalf("warning = %q, want the file warning", warning)
 	}
 

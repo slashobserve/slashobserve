@@ -44,57 +44,57 @@ func (r *rig) bindToAppliedFile(t *testing.T, id pgtype.UUID) {
 	}
 }
 
-type savedWithOrigin struct {
+type savedWithManager struct {
 	Dashboard struct {
-		Origin      string `json:"origin"`
+		ManagedBy   string `json:"managed_by"`
 		Provisioned bool   `json:"provisioned"`
 		Permissions struct{ Edit bool }
 	}
 	Warning string `json:"warning"`
 }
 
-func TestADashboardReadsItsOriginAndOnlyAFileDashboardWarnsOnSave(t *testing.T) {
+func TestADashboardReadsWhatManagesItAndOnlyAFileDashboardWarnsOnSave(t *testing.T) {
 	r := newRig(t, false)
 	b := boards{rig: r}
 	cases := []struct {
-		origin  string
-		bind    func(*testing.T, pgtype.UUID)
-		warning string
+		managedBy string
+		bind      func(*testing.T, pgtype.UUID)
+		warning   string
 	}{
-		{"editable", func(*testing.T, pgtype.UUID) {}, ""},
-		{"file", r.bindToProvisioningFile, folders.FileOwnedWarning},
-		{"applied", r.bindToAppliedFile, ""},
+		{"workspace", func(*testing.T, pgtype.UUID) {}, ""},
+		{"file", r.bindToProvisioningFile, folders.FileManagedWarning},
+		{"apply", r.bindToAppliedFile, ""},
 	}
 	for _, tc := range cases {
-		t.Run(tc.origin, func(t *testing.T) {
+		t.Run(tc.managedBy, func(t *testing.T) {
 			id := r.createDashboard(t)
 			tc.bind(t, id)
 			path := "/dashboards/" + id.String()
 
-			var read savedWithOrigin
+			var read savedWithManager
 			rec := b.serve(adminUser, http.MethodGet, path, "")
 			if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &read) != nil {
 				t.Fatalf("get answered %d %s", rec.Code, rec.Body.String())
 			}
-			if read.Dashboard.Origin != tc.origin || read.Dashboard.Provisioned || !read.Dashboard.Permissions.Edit {
-				t.Fatalf("dashboard = %+v, want origin %s, not provisioned, editable", read.Dashboard, tc.origin)
+			if read.Dashboard.ManagedBy != tc.managedBy || read.Dashboard.Provisioned || !read.Dashboard.Permissions.Edit {
+				t.Fatalf("dashboard = %+v, want managed_by %s, not provisioned, editable", read.Dashboard, tc.managedBy)
 			}
 
-			var saved savedWithOrigin
+			var saved savedWithManager
 			rec = b.serve(adminUser, http.MethodPost, path+"/versions", `{"spec":`+string(panelsSpec("changed", "rps"))+`,"summary":"s","parent_version":1}`)
 			if rec.Code != http.StatusCreated || json.Unmarshal(rec.Body.Bytes(), &saved) != nil {
 				t.Fatalf("save answered %d %s", rec.Code, rec.Body.String())
 			}
-			if saved.Warning != tc.warning || saved.Dashboard.Origin != tc.origin {
-				t.Fatalf("save answered warning %q and origin %q, want %q and %q", saved.Warning, saved.Dashboard.Origin, tc.warning, tc.origin)
+			if saved.Warning != tc.warning || saved.Dashboard.ManagedBy != tc.managedBy {
+				t.Fatalf("save answered warning %q and managed_by %q, want %q and %q", saved.Warning, saved.Dashboard.ManagedBy, tc.warning, tc.managedBy)
 			}
 
-			moved, _, err := r.service.Move(reading(t.Context()), testUser, id, r.newFolder(t, "Ops "+tc.origin))
+			moved, _, err := r.service.Move(reading(t.Context()), testUser, id, r.newFolder(t, "Ops "+tc.managedBy))
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := moved.Origin.String(); got != tc.origin {
-				t.Fatalf("the move answered origin %q, want %q", got, tc.origin)
+			if got := moved.ManagedBy.String(); got != tc.managedBy {
+				t.Fatalf("the move answered managed_by %q, want %q", got, tc.managedBy)
 			}
 		})
 	}
@@ -106,13 +106,13 @@ func TestAStarterDashboardReadsAsAStarter(t *testing.T) {
 	id := r.starterDashboard(t)
 	r.bindToProvisioningFile(t, id)
 
-	var read savedWithOrigin
+	var read savedWithManager
 	rec := b.serve(adminUser, http.MethodGet, "/dashboards/"+id.String(), "")
 	if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &read) != nil {
 		t.Fatalf("get answered %d %s", rec.Code, rec.Body.String())
 	}
-	if read.Dashboard.Origin != "starter" || !read.Dashboard.Provisioned {
-		t.Fatalf("dashboard = %+v, want origin starter and provisioned", read.Dashboard)
+	if read.Dashboard.ManagedBy != "starter" || !read.Dashboard.Provisioned {
+		t.Fatalf("dashboard = %+v, want managed_by starter and provisioned", read.Dashboard)
 	}
 }
 

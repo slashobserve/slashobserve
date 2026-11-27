@@ -26,12 +26,12 @@ const (
 	specObjectSchema = `{"type":"object","description":"The dashboard Spec; get_spec_guide has its JSON Schema."}`
 )
 
-var dashboardOriginSchema = `{"type":"string","enum":["` + strings.Join(folders.DashboardOrigins.Names(), `","`) + `"],"description":"What else writes the dashboard: a server release (starter), a file in the provisioning directory (file), observe dashboards apply (applied), or nothing (editable)."}`
+var managedBySchema = `{"type":"string","enum":["` + strings.Join(folders.ManagedByStates.Names(), `","`) + `"],"description":"What writes the dashboard: a server release (starter), a file in the provisioning directory (file), observe dashboards apply (apply), or only people in the app (workspace)."}`
 
 var outputSchemas = map[string]json.RawMessage{
 	nameListDatasources: outputSchema("datasources", `"datasources":{"type":"array","items":{"type":"object","properties":{"uid":`+typeString+`,"type":`+typeString+`,"name":`+typeString+`,"healthy":`+typeBoolean+`,"message":`+typeString+`,"detail":`+typeString+`,"audience":{"type":"string","enum":["everyone","admins"]}},"required":["uid","type","name","healthy"]}},"truncated":`+typeBoolean),
 	nameListDashboards:  outputSchema("dashboards", `"dashboards":{"type":"array","items":{"type":"object","properties":{"id":`+typeString+`,"title":`+typeString+`,"tags":{"type":"array","items":`+typeString+`},"latest_version":`+typeInteger+`,"updated_at":`+typeString+`,"view_count":`+typeInteger+`,"url":`+typeString+`,"folder":`+typeString+`},"required":["id","title","tags","latest_version","updated_at","view_count","url","folder"]}},"next_cursor":`+typeNullString),
-	nameGetDashboard:    outputSchema("dashboard_id", `"dashboard_id":`+typeString+`,"version":`+typeInteger+`,"title":`+typeString+`,"url":`+typeString+`,"folder":`+typeString+`,"view_count":`+typeInteger+`,"window_days":`+typeInteger+`,"saved_by":`+typeString+`,"origin":`+typeString+`,"dashboard_origin":`+dashboardOriginSchema+`,"saved_at":`+typeString+`,"summary":`+typeString+`,"spec":`+specObjectSchema+`,"unverified":{"type":"object"},"import_attention":{"type":"array","items":{"type":"object"}},"import_attention_truncated":`+typeBoolean),
+	nameGetDashboard:    outputSchema("dashboard_id", `"dashboard_id":`+typeString+`,"version":`+typeInteger+`,"title":`+typeString+`,"url":`+typeString+`,"folder":`+typeString+`,"view_count":`+typeInteger+`,"window_days":`+typeInteger+`,"saved_by":`+typeString+`,"origin":`+typeString+`,"managed_by":`+managedBySchema+`,"saved_at":`+typeString+`,"summary":`+typeString+`,"spec":`+specObjectSchema+`,"unverified":{"type":"object"},"import_attention":{"type":"array","items":{"type":"object"}},"import_attention_truncated":`+typeBoolean),
 	nameQueryRange:      querySummarySchema,
 	nameQueryInstant:    querySummarySchema,
 }

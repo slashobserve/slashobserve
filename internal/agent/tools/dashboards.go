@@ -185,7 +185,7 @@ type dashboardOut struct {
 	WindowDays               int             `json:"window_days,omitempty"`
 	SavedBy                  string          `json:"saved_by"`
 	Origin                   string          `json:"origin"`
-	DashboardOrigin          string          `json:"dashboard_origin"`
+	ManagedBy                string          `json:"managed_by"`
 	SavedAt                  string          `json:"saved_at"`
 	Summary                  string          `json:"summary"`
 	Spec                     *spec.Dashboard `json:"spec"`
@@ -275,7 +275,7 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	if err != nil {
 		return Result{}, err
 	}
-	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, SavedBy: ver.Author.Name, Origin: ver.Origin, DashboardOrigin: access.Origin().String(), SavedAt: ver.CreatedAt.UTC().Format(time.RFC3339), Summary: ver.Summary, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified.Shown(access.Provisioned))}
+	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, SavedBy: ver.Author.Name, Origin: ver.Origin, ManagedBy: access.ManagedBy().String(), SavedAt: ver.CreatedAt.UTC().Format(time.RFC3339), Summary: ver.Summary, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified.Shown(access.Provisioned))}
 	if out.ImportAttention, out.ImportAttentionTruncated, err = r.importAttention(ctx, id, ver.Number); err != nil {
 		return Result{}, err
 	}

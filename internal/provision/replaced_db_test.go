@@ -44,8 +44,8 @@ func TestAFileChangeOverAPersonsEditRecordsTheVersionItReplaced(t *testing.T) {
 	if err != nil {
 		t.Fatalf("a person's save to a file dashboard: %v", err)
 	}
-	if edited.Version.Number != 2 || edited.Warning != folders.FileOwnedWarning || edited.Dashboard.Origin != folders.OriginFile {
-		t.Fatalf("saved version %d with warning %q and origin %s, want version 2, the file warning and origin file", edited.Version.Number, edited.Warning, edited.Dashboard.Origin)
+	if edited.Version.Number != 2 || edited.Warning != folders.FileManagedWarning || edited.Dashboard.ManagedBy != folders.ManagedByFile {
+		t.Fatalf("saved version %d with warning %q, managed by %s, want version 2, the file warning and managed by file", edited.Version.Number, edited.Warning, edited.Dashboard.ManagedBy)
 	}
 
 	r.write(t, "a.json", specJSON("A from the file", "up"))
