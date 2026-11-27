@@ -31,9 +31,9 @@ type BuildProgress struct {
 }
 
 type BriefAnswer struct {
-	Reason  string         `json:"reason"`
-	Build   *BuildProgress `json:"build"`
-	Brief   *RunBrief      `json:"brief"`
+	Reason string         `json:"reason"`
+	Build  *BuildProgress `json:"build"`
+	Brief  *RunBrief      `json:"brief"`
 
 	AgentState *AgentState `json:"agent_state"`
 }

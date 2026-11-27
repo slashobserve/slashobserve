@@ -144,7 +144,6 @@ func (in StructuredInput) CauseInputs() []CauseInput {
 		Kind:       r.Kind,
 		Mechanism:  r.Summary,
 		Onset:      in.Onset,
-		Evidence:   EvidenceInput{Facts: in.LegacyFacts},
 		Estimate:   in.Confidence,
 		CauseGiven: r.CauseGiven,
 	}}
@@ -351,21 +350,6 @@ func (s *Structured) GiveQueries(i int, queries []string) {
 		q := clipQuery(strings.TrimSpace(raw))
 		if q != "" && !slices.Contains(e.Queries, q) && len(e.Queries) < MaxCauseQueries {
 			e.Queries = append(e.Queries, q)
-		}
-	}
-}
-
-func (s *Structured) WithQueries(queryOf func(factID string) string) {
-	for i := range s.Causes {
-		e := &s.Causes[i].Evidence
-		if len(e.Queries) > 0 {
-			continue
-		}
-		for _, id := range e.Facts {
-			q := clipQuery(strings.TrimSpace(queryOf(id)))
-			if q != "" && !slices.Contains(e.Queries, q) && len(e.Queries) < MaxCauseQueries {
-				e.Queries = append(e.Queries, q)
-			}
 		}
 	}
 }

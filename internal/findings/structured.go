@@ -59,8 +59,6 @@ type StructuredInput struct {
 	NextSteps  []string        `json:"next_steps"`
 	NoIncident bool            `json:"no_incident"`
 	Causes     []CauseInput    `json:"causes"`
-
-	LegacyFacts []string `json:"-"`
 }
 
 func (in StructuredInput) Provided() bool {

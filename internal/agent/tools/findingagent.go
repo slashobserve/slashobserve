@@ -94,12 +94,12 @@ func (f agentFindingFields) into(ctx context.Context) context.Context {
 	return ctx
 }
 
-func (f agentFindingFields) scoring(s *findings.Structured, signals []findings.Signals, scored bool) ([]findings.Signals, []findings.GivenScore, bool) {
+func (f agentFindingFields) scoring(s *findings.Structured) ([]findings.Signals, []findings.GivenScore, bool) {
 	if !f.given || len(f.causes) == 0 {
-		return signals, nil, scored
+		return nil, nil, false
 	}
 	merged := make([]findings.Signals, len(s.Causes))
-	copy(merged, signals)
+	scored := false
 	given := make([]findings.GivenScore, len(s.Causes))
 	for i := range s.Causes {
 		if i >= len(f.causes) {

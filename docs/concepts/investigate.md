@@ -320,8 +320,8 @@ The stored items are returned as `unverified` on the finding and on each entry o
 An investigation's finding lists every cause the evidence supports, up to 6, most confident first, in `causes`; see [Structured fields](../use/investigate.md#structured-fields) for each cause's fields.
 A cause that only follows another, such as a second service failing on its calls to the first, is listed as a knock-on of that cause, never as a root cause of its own.
 
-With `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `enforce`, the default, the server scores each cause from 0 to 1 when the finding is saved.
-The agent may give its own `estimate`, but the stored `confidence` is the server's, from what the run read:
+With `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `enforce`, the default, the built-in agent scores each cause from 0 to 1 before it saves the finding, from what the run read, and the server stores that score as `confidence`.
+The model may give its own `estimate`, but the stored `confidence` is the score:
 
 | Signal | Adds |
 | --- | --- |
@@ -341,6 +341,7 @@ The causes are kept in the agent's order within a band, and the bands are sorted
 `save_finding` answers with each cause's score and band, and says so when a cause is unconfirmed or when the agent's estimate is two bands away from the score.
 
 With `off`, causes are not scored: `confidence` and `band` are null and every cause is stated.
+A connected agent's causes are never scored, the same way.
 `root_cause` is the first stated cause that is not a knock-on, and null when there is none.
 
 ## Where the answer goes

@@ -3,8 +3,6 @@ package config
 import (
 	"strings"
 	"testing"
-
-	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 )
 
 func TestSessionRenewSetting(t *testing.T) {
@@ -160,12 +158,12 @@ func TestFindingGroundingIsEnforcedUnlessSet(t *testing.T) {
 	for _, tt := range []struct {
 		name    string
 		set     map[string]string
-		want    grounding.Mode
+		want    string
 		wantErr string
 	}{
-		{name: "unset", want: grounding.Enforce},
-		{name: "off", set: map[string]string{envAgentFindingGrounding: "off"}, want: grounding.Off},
-		{name: "enforce", set: map[string]string{envAgentFindingGrounding: "enforce"}, want: grounding.Enforce},
+		{name: "unset", want: "enforce"},
+		{name: "off", set: map[string]string{envAgentFindingGrounding: "off"}, want: "off"},
+		{name: "enforce", set: map[string]string{envAgentFindingGrounding: "enforce"}, want: "enforce"},
 		{name: "report", set: map[string]string{envAgentFindingGrounding: "report"}, wantErr: envAgentFindingGrounding + ": report is no longer a mode"},
 		{name: "a boolean", set: map[string]string{envAgentFindingGrounding: "true"}, wantErr: envAgentFindingGrounding + ": must be off or enforce"},
 	} {

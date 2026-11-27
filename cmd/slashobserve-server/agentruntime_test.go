@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -75,7 +74,7 @@ func TestModelSettingsCarryTheConfiguredModelAndAFreshCopyEachCall(t *testing.T)
 
 func TestAgentSettingsCarryTheConfigAndTheGuardDefaults(t *testing.T) {
 	got := agentSettingsOf(config.Agent{
-		InvestigationCalls: 20, InvestigationCallsMax: 50, InvestigationLoop: true, FindingGrounding: grounding.Enforce,
+		InvestigationCalls: 20, InvestigationCallsMax: 50, InvestigationLoop: true, FindingGrounding: "enforce",
 		InvestigationBrief: true, SessionRenewBytes: 65536,
 	})
 	if got.InvestigationCalls != 20 || got.InvestigationCallsMax != 50 || !got.Loop || got.Grounding != "enforce" || !got.BriefSweep || got.SessionRenewBytes != 65536 {

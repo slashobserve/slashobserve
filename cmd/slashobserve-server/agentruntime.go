@@ -92,7 +92,7 @@ func agentSettingsOf(a config.Agent) *claims.AgentSettings {
 		SaveCalls:             guard.MaxCallsBeforeSave,
 		SuggestCalls:          guard.MaxCallsBeforeProposal,
 		Loop:                  a.InvestigationLoop,
-		Grounding:             string(a.FindingGrounding),
+		Grounding:             a.FindingGrounding,
 		BriefSweep:            a.InvestigationBrief,
 		SessionRenewBytes:     a.SessionRenewBytes,
 	}

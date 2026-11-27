@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
-	"github.com/slashobserve/slashobserve/internal/findings"
 )
 
 func TestAResolvedRangeIsNotedForTheCallThatAsked(t *testing.T) {
@@ -25,15 +24,5 @@ func TestAResolvedRangeIsNotedForTheCallThatAsked(t *testing.T) {
 	}
 	if _, _, ok := resolveRunRange(context.Background(), "now-1h", "now"); !ok {
 		t.Error("a call outside a noting context failed to resolve")
-	}
-}
-
-func TestTheSaveReadsTheUnverifiedItemsOfItsCall(t *testing.T) {
-	items := []findings.Unverified{{Kind: findings.UnverifiedFigure, Text: "9.3 s"}}
-	if got := unverifiedOf(WithUnverified(context.Background(), items)); !slices.Equal(got, items) {
-		t.Errorf("unverified = %+v, want %+v", got, items)
-	}
-	if got := unverifiedOf(context.Background()); got != nil {
-		t.Errorf("unverified without a check = %+v, want none", got)
 	}
 }

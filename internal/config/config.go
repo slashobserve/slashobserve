@@ -19,7 +19,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/egress/domains"
@@ -27,6 +26,11 @@ import (
 )
 
 type LogFormat string
+
+const (
+	groundingOff     = "off"
+	groundingEnforce = "enforce"
+)
 
 const (
 	LogFormatJSON LogFormat = "json"
@@ -207,7 +211,7 @@ type Agent struct {
 	InvestigationLoop  bool
 
 	InvestigationCallsMax int
-	FindingGrounding      grounding.Mode
+	FindingGrounding      string
 	MaxRunCostUSD         float64
 	InvestigationBrief    bool
 }
@@ -732,7 +736,7 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 		}
 	}
 	errs = append(errs, loadInvestigationCalls(lookup, cfg)...)
-	mode, err := grounding.ParseMode(get(lookup, envAgentFindingGrounding))
+	mode, err := groundingMode(get(lookup, envAgentFindingGrounding))
 	if err != nil {
 		errs = append(errs, fmt.Errorf("%s: %w", envAgentFindingGrounding, err))
 	}
@@ -744,6 +748,18 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 		errs = append(errs, err)
 	}
 	return errs
+}
+
+func groundingMode(raw string) (string, error) {
+	switch raw {
+	case "":
+		return groundingEnforce, nil
+	case groundingOff, groundingEnforce:
+		return raw, nil
+	case "report":
+		return groundingOff, errors.New("report is no longer a mode, because the agent sends an ungrounded finding back or stores it as it is; use enforce, the default, or off")
+	}
+	return groundingOff, fmt.Errorf("must be off or enforce, got %q", raw)
 }
 
 func loadInvestigationCalls(lookup func(string) (string, bool), cfg *Config) []error {

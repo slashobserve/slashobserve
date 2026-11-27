@@ -22,7 +22,6 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/accessrequests"
 	"github.com/slashobserve/slashobserve/internal/activity"
-	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/audit/trail"
@@ -301,42 +300,6 @@ func WithUnchecked(ctx context.Context, unchecked []Unchecked) context.Context {
 func UncheckedReads(ctx context.Context) []Unchecked {
 	unchecked, _ := ctx.Value(uncheckedKey{}).([]Unchecked)
 	return unchecked
-}
-
-type unverifiedKey struct{}
-
-type factsKey struct{}
-
-func WithFacts(ctx context.Context, ledger *grounding.Ledger) context.Context {
-	if ledger == nil {
-		return ctx
-	}
-	return context.WithValue(ctx, factsKey{}, ledger)
-}
-
-func factsOf(ctx context.Context) (*grounding.Ledger, bool) {
-	ledger, ok := ctx.Value(factsKey{}).(*grounding.Ledger)
-	return ledger, ok && ledger != nil
-}
-
-type causeSignalsKey struct{}
-
-func WithCauseSignals(ctx context.Context, signals []findings.Signals) context.Context {
-	return context.WithValue(ctx, causeSignalsKey{}, signals)
-}
-
-func causeSignalsOf(ctx context.Context) ([]findings.Signals, bool) {
-	signals, ok := ctx.Value(causeSignalsKey{}).([]findings.Signals)
-	return signals, ok
-}
-
-func WithUnverified(ctx context.Context, items []findings.Unverified) context.Context {
-	return context.WithValue(ctx, unverifiedKey{}, items)
-}
-
-func unverifiedOf(ctx context.Context) []findings.Unverified {
-	items, _ := ctx.Value(unverifiedKey{}).([]findings.Unverified)
-	return items
 }
 
 type rangeNotes struct {

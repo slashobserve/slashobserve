@@ -104,10 +104,9 @@ func TestSeveralCausesAreKeptInOrderAndTheFirstIndependentOneIsTheRootCause(t *t
 
 func TestARootCauseAloneIsStoredAsAOneCauseList(t *testing.T) {
 	got, err := StructuredInput{
-		RootCause:   &RootCauseInput{Component: "checkout", Kind: "deploy", Summary: "Version 42 broke the cart call."},
-		Onset:       "2026-11-20T10:05:00Z",
-		Confidence:  "medium",
-		LegacyFacts: []string{"f1"},
+		RootCause:  &RootCauseInput{Component: "checkout", Kind: "deploy", Summary: "Version 42 broke the cart call."},
+		Onset:      "2026-11-20T10:05:00Z",
+		Confidence: "medium",
 	}.Check()
 	if err != nil {
 		t.Fatal(err)
@@ -116,7 +115,7 @@ func TestARootCauseAloneIsStoredAsAOneCauseList(t *testing.T) {
 		t.Fatalf("causes %+v", got.Causes)
 	}
 	c := got.Causes[0]
-	if c.Component != (Component{Kind: "other", Name: "checkout"}) || c.Mechanism != "Version 42 broke the cart call." || c.Onset == nil || c.Estimate != "medium" || c.Evidence.Facts[0] != "f1" || !c.Stated {
+	if c.Component != (Component{Kind: "other", Name: "checkout"}) || c.Mechanism != "Version 42 broke the cart call." || c.Onset == nil || c.Estimate != "medium" || !c.Stated {
 		t.Errorf("cause %+v", c)
 	}
 	if got.RootCause == nil || *got.RootCause != (RootCause{Component: "checkout", Kind: "deploy", Summary: "Version 42 broke the cart call."}) {
