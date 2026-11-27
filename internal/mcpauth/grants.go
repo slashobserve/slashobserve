@@ -40,17 +40,17 @@ type grantPersonJSON struct {
 }
 
 type grantJSON struct {
-	ID         string          `json:"id"`
-	Client     grantClientJSON `json:"client"`
-	Person     grantPersonJSON `json:"person"`
-	CreatedAt  string          `json:"created_at"`
-	LastUsedAt *string         `json:"last_used_at"`
-	ExpiresAt  string          `json:"expires_at"`
+	ID            string          `json:"id"`
+	Client        grantClientJSON `json:"client"`
+	Person        grantPersonJSON `json:"person"`
+	CreatedAt     string          `json:"created_at"`
+	LastUsedAt    *string         `json:"last_used_at"`
+	ExpiresAt     string          `json:"expires_at"`
 	State         string          `json:"state"`
 	RevokedReason *string         `json:"revoked_reason"`
-	Mode       string          `json:"mode"`
-	Presence   string          `json:"presence"`
-	LastSeenAt *string         `json:"last_seen_at"`
+	Mode          string          `json:"mode"`
+	Presence      string          `json:"presence"`
+	LastSeenAt    *string         `json:"last_seen_at"`
 }
 
 type grantListJSON struct {
