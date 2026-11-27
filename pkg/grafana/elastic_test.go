@@ -123,6 +123,48 @@ func TestElasticMetricsDroppedBesideOthersAreNoted(t *testing.T) {
 	}
 }
 
+func TestElasticRangeCountShortcutKeepsTheReports(t *testing.T) {
+	const bucket = `"bucketAggs":[{"id":"2","type":"date_histogram","field":"@timestamp","settings":{"interval":"auto","min_doc_count":"0","trimEdges":"0"}}]`
+	cases := []struct{ name, target, path, reason string }{
+		{"a hidden count", esTarget(`"query":"*","metrics":[{"id":"1","type":"count","hide":true}],` + bucket), "targets[0].metrics[0].hide", decisionElasticHiddenMetrics.reason},
+		{"an unknown metric key", esTarget(`"query":"*","metrics":[{"id":"1","type":"count","bogus":"x"}],` + bucket), "targets[0].metrics[0].bogus", genericQueryNote},
+		{"an unknown bucket key", esTarget(`"query":"*","metrics":[{"id":"1","type":"count"}],"bucketAggs":[{"id":"2","type":"date_histogram","field":"@timestamp","bogus":"x"}]`), "targets[0].bucketAggs[0].bogus", genericQueryNote},
+		{"a fractional min_doc_count", esTarget(`"query":"*","metrics":[{"id":"1","type":"count"}],"bucketAggs":[{"id":"2","type":"date_histogram","field":"@timestamp","settings":{"min_doc_count":"0.5"}}]`), "targets[0].bucketAggs[0].settings.min_doc_count", wholeNumberNote},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, line := importedOn(t, esRef, "timeseries", tc.target)
+			if !slices.Equal(line.Paths, []string{tc.path}) || !slices.Equal(line.Reasons, []string{tc.reason}) {
+				t.Fatalf("line = %+v, want %s noted with %q", line, tc.path, tc.reason)
+			}
+		})
+	}
+}
+
+func TestElasticSettingsThatAreNotWholeNumbersAreReported(t *testing.T) {
+	cases := []struct{ name, target, path, want string }{
+		{"histogram interval", esTarget(`"query":"*","metrics":[{"id":"1","type":"count"}],"bucketAggs":[{"id":"2","type":"histogram","field":"bytes","settings":{"interval":"0.5"}}]`), "targets[0].bucketAggs[0].settings.interval", `"interval":1000`},
+		{"terms size", esTarget(`"query":"*","metrics":[{"id":"1","type":"count"}],"bucketAggs":[{"id":"2","type":"terms","field":"host","settings":{"size":"2.5"}}]`), "targets[0].bucketAggs[0].settings.size", `"terms":{"field":"host","order":{"_count":"desc"}}`},
+		{"serial diff lag", esTarget(`"query":"*","metrics":[{"id":"1","type":"count"},{"id":"3","type":"serial_diff","pipelineAgg":"1","settings":{"lag":"1.5"}}],"bucketAggs":[{"id":"2","type":"date_histogram","field":"@timestamp"}]`), "targets[0].metrics[1].settings.lag", `"serial_diff":{"buckets_path":"_count"}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := importedOn(t, esRef, "timeseries", tc.target)
+			if got := onlyQuery(t, panel).Query; !strings.Contains(got, tc.want) {
+				t.Fatalf("query = %s, want it to contain %s", got, tc.want)
+			}
+			if !slices.Equal(line.Paths, []string{tc.path}) || !slices.Equal(line.Reasons, []string{wholeNumberNote}) {
+				t.Fatalf("line = %+v, want %s noted", line, tc.path)
+			}
+		})
+	}
+}
+
+func TestElasticWholeNumberSettingsAreNotReported(t *testing.T) {
+	_, line := importedOn(t, esRef, "timeseries", esTarget(`"query":"*","metrics":[{"id":"1","type":"count"}],"bucketAggs":[{"id":"2","type":"terms","field":"host","settings":{"size":"5","min_doc_count":"1"}}]`))
+	wantClean(t, line)
+}
+
 func TestElasticKindsWithoutADatasourceArePlaceholders(t *testing.T) {
 	cases := []struct{ name, ds, reason string }{
 		{"elasticsearch", esRef, "No Elasticsearch datasource is configured."},

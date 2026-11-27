@@ -78,6 +78,8 @@ func (tb *targetBuild) elastic() (spec.Query, string) {
 	}
 	legend := tb.elasticLegend(metrics)
 	if tb.elasticRangeCount(metrics, buckets) {
+		_, _ = tb.elasticMetricAggs(metrics)
+		_, _ = tb.elasticBucket(0, buckets[0])
 		return spec.Query{Query: luceneQueryPrefix + lucene, Legend: legend}, ""
 	}
 	body, reason := tb.elasticDSL(lucene, metrics, buckets)
@@ -122,6 +124,8 @@ func pathIf(when bool, path string) string {
 	return ""
 }
 
+const wholeNumberNote = "A setting that is not a whole number was replaced by its default."
+
 func (tb *targetBuild) elasticRangeCount(metrics, buckets []map[string]any) bool {
 	if len(metrics) != 1 || asString(metrics[0]["type"]) != "count" || len(buckets) != 1 || asString(buckets[0]["type"]) != "date_histogram" {
 		return false
@@ -138,7 +142,7 @@ func (tb *targetBuild) elasticRangeCount(metrics, buckets []map[string]any) bool
 				return false
 			}
 		case "min_doc_count", "trimEdges":
-			if n, ok := intSetting(value); ok && n != 0 {
+			if n, ok := intSetting(value); present(value) && (!ok || n != 0) {
 				return false
 			}
 		default:
@@ -218,12 +222,14 @@ func (tb *targetBuild) elasticBucket(i int, bucket map[string]any) (elasticAgg, 
 		return tb.dateHistogram(path, field, settings)
 	case "terms":
 		tb.unknownSettings(path, settings, "size", "order", "orderBy", "min_doc_count", "missing")
+		tb.wholeNumbers(path, settings, "size", "min_doc_count")
 		return elasticAgg{"terms": termsAgg(field, settings)}, ""
 	case "filters":
 		tb.unknownSettings(path, settings, "filters")
 		return elasticAgg{"filters": elasticAgg{"filters": filtersAgg(settings)}}, ""
 	case "histogram":
 		tb.unknownSettings(path, settings, "interval", "min_doc_count")
+		tb.wholeNumbers(path, settings, "interval", "min_doc_count")
 		return elasticAgg{"histogram": histogramAgg(field, settings)}, ""
 	case "geohash_grid", "nested":
 		return nil, decisionElasticGeoNested.reason
@@ -240,6 +246,7 @@ func (tb *targetBuild) dateHistogram(path, field string, settings map[string]any
 		return nil, noTimeFieldReason
 	}
 	tb.unknownSettings(path, settings, "interval", "min_doc_count", "trimEdges", "offset", "timeZone")
+	tb.wholeNumbers(path, settings, "min_doc_count", "trimEdges")
 	agg := elasticAgg{
 		"field":           field,
 		"min_doc_count":   intSettingOr(settings["min_doc_count"], 0),
@@ -355,6 +362,7 @@ func (tb *targetBuild) elasticMetric(path string, metric map[string]any, all []m
 		return nil, "settings.script", decisionElasticScripts.reason
 	}
 	tb.unknownSettings(path, settings, elasticMetricSetting[typ]...)
+	tb.wholeNumbers(path, settings, "window", "lag", "precision_threshold")
 	switch {
 	case typ == "count":
 		return nil, "", ""
@@ -445,11 +453,7 @@ func settingNumber(v any) any {
 }
 
 func intSetting(v any) (int, bool) {
-	f, ok := asFloat(settingNumber(v))
-	if !ok {
-		return 0, false
-	}
-	return int(f), true
+	return asInt(settingNumber(v))
 }
 
 func intSettingOr(v any, fallback int) int {
@@ -477,6 +481,14 @@ func (tb *targetBuild) unknownKeys(path string, object map[string]any, known []s
 	for _, key := range sortedKeys(object) {
 		if !slices.Contains(known, key) && present(object[key]) {
 			tb.partial(path+"."+key, genericQueryNote)
+		}
+	}
+}
+
+func (tb *targetBuild) wholeNumbers(path string, settings map[string]any, keys ...string) {
+	for _, key := range keys {
+		if _, ok := intSetting(settings[key]); !ok && present(settings[key]) {
+			tb.partial(path+".settings."+key, wholeNumberNote)
 		}
 	}
 }
