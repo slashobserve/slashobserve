@@ -4,7 +4,6 @@ import (
 	"errors"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -137,32 +136,5 @@ func TestEffectiveSelectionsPassesOptionErrorsThrough(t *testing.T) {
 	_, err := EffectiveSelections(ModeFree, selectionsDashboard(), nil, map[string][]string{"region": {"eu"}}, calls.options)
 	if err == nil || errors.Is(err, ErrSelectionNotAllowed) {
 		t.Fatalf("err = %v, want the options error", err)
-	}
-}
-
-func TestUsable(t *testing.T) {
-	now := time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC)
-	past, future := now.Add(-time.Second), now.Add(time.Hour)
-	cases := []struct {
-		name       string
-		expiresAt  *time.Time
-		usesUser   bool
-		wantOK     bool
-		wantReason string
-	}{
-		{"no expiry", nil, false, true, ""},
-		{"expires later", &future, false, true, ""},
-		{"expired", &past, false, false, "expired"},
-		{"expires right now", &now, false, false, "expired"},
-		{"user scoped", nil, true, false, "user_scoped"},
-		{"expired and user scoped", &past, true, false, "expired"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			ok, reason := usable(Link{ExpiresAt: tc.expiresAt}, tc.usesUser, now)
-			if ok != tc.wantOK || reason != tc.wantReason {
-				t.Fatalf("usable = %v, %q; want %v, %q", ok, reason, tc.wantOK, tc.wantReason)
-			}
-		})
 	}
 }

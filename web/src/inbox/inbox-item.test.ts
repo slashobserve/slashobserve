@@ -36,6 +36,7 @@ function item(over: Partial<InboxItem> = {}): InboxItem {
     created_at: "2026-11-11T10:00:00Z",
     reason: null,
     unread: false,
+    state: over.unread === true ? "unread" : "read",
     target_title: null,
     excerpt: null,
     question: null,

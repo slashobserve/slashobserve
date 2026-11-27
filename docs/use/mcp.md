@@ -82,6 +82,10 @@ The connection has these limits:
 - You can have at most 20 connected agents, and approving a client you already connected replaces that connection.
 - An approval the client has not yet finished lasts 60 seconds and counts toward the 20.
 
+When a connection has ended, the token endpoint still answers a refresh with `invalid_grant`, and says why: `error_description` names the cause, `grant_state` is `revoked`, `expired` or `aged_out`, and `revoked_reason` is set for a revoked one.
+A client can so tell "connect again" from "you were disconnected".
+A refresh token that was already exchanged, and an authorization code that expired or was already used, each get their own `error_description`; an unknown token and one sent by another client keep the general text.
+
 ### Disconnect an agent
 
 In the web app, open Settings, Connected agents.
@@ -94,6 +98,7 @@ In Claude Code, `claude mcp logout slashobserve` clears only the credentials Cla
 Over the HTTP API, any signed-in person lists and disconnects their own agents with `GET /api/v1/me/grants` and `DELETE /api/v1/me/grants/{id}`.
 An Admin lists and disconnects everyone's with `GET /api/v1/grants` and `DELETE /api/v1/grants/{id}`.
 Each connected agent in the list has a `state`, always `active` there because the list leaves out revoked and expired connections; see [States](../reference/states.md).
+Add `include_ended=true` to either list to also get the connections that ended in the last 30 days: `state` is then `revoked`, `expired` (the refresh token went unused for 30 days) or `aged_out` (the 90 day limit), and `revoked_reason` says how a revoked one ended: `person`, `admin`, `client`, `replaced`, `refresh_reuse` or `code_reuse`.
 Service-account keys cannot call any of these routes.
 
 ## Make your first tool call
@@ -1880,7 +1885,7 @@ It covers dashboard saves, restores, moves and deletes, annotations, findings an
 #### `list_inbox`
 
 Lists the [inbox](inbox.md) of the person who signed in to the connected agent: what asks something of them.
-Each item has the `reason` and whether it is `unread`, and the result has `unread_count`.
+Each item has the `reason`, whether it is `unread` and its `state` (`unread`, `read` or `done`), and the result has `unread_count`.
 
 - Pass `view` (`for_you`, `proposals`, `mentions` or `everything`, `for_you` by default), `filter`, `limit` and `cursor` from `next_cursor`.
   `filter` is `open` by default, `unread` for the open items that are unread, or `done` for the items marked done.

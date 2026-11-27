@@ -145,6 +145,7 @@ func TestInboxListAndReadMatchTheDocumentAndEachOther(t *testing.T) {
 			Seq    int64   `json:"seq"`
 			Reason *string `json:"reason"`
 			Unread bool    `json:"unread"`
+			State  string  `json:"state"`
 		} `json:"items"`
 		NextCursor  *string `json:"next_cursor"`
 		UnreadCount int     `json:"unread_count"`
@@ -152,8 +153,8 @@ func TestInboxListAndReadMatchTheDocumentAndEachOther(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &first); err != nil {
 		t.Fatal(err)
 	}
-	if len(first.Items) != 1 || first.Items[0].Seq != plainEvent || first.Items[0].Reason != nil || !first.Items[0].Unread || first.NextCursor == nil || first.UnreadCount != 1 {
-		t.Fatalf("first page = %+v, want the plain event with a null reason, a next cursor and 1 unread", first)
+	if len(first.Items) != 1 || first.Items[0].Seq != plainEvent || first.Items[0].Reason != nil || !first.Items[0].Unread || first.Items[0].State != string(ItemUnread) || first.NextCursor == nil || first.UnreadCount != 1 {
+		t.Fatalf("first page = %+v, want the plain event unread with a null reason, a next cursor and 1 unread", first)
 	}
 
 	next := "/inbox?view=everything&limit=1&cursor=" + url.QueryEscape(*first.NextCursor)
@@ -196,8 +197,8 @@ func TestInboxListAndReadMatchTheDocumentAndEachOther(t *testing.T) {
 	r.validated(t, done, http.MethodPut, path)
 	rec = r.call(t, mia, http.MethodGet, "/inbox?filter=done", "")
 	r.validated(t, rec, http.MethodGet, "/inbox?filter=done")
-	if !strings.Contains(rec.Body.String(), `"unread_count":0`) || !strings.Contains(rec.Body.String(), `"reason":"mention"`) {
-		t.Fatalf("GET /inbox?filter=done = %s, want the done mention and unread_count 0", rec.Body)
+	if !strings.Contains(rec.Body.String(), `"unread_count":0`) || !strings.Contains(rec.Body.String(), `"reason":"mention"`) || !strings.Contains(rec.Body.String(), `"state":"done"`) {
+		t.Fatalf("GET /inbox?filter=done = %s, want the mention in state done and unread_count 0", rec.Body)
 	}
 	rec = r.call(t, mia, http.MethodGet, "/inbox?filter=unread", "")
 	r.validated(t, rec, http.MethodGet, "/inbox?filter=unread")
@@ -221,7 +222,7 @@ func TestInboxItemSchemaCarriesEveryActivityEventProperty(t *testing.T) {
 			t.Errorf("InboxItem lacks the activity event property %q", name)
 		}
 	}
-	if got := len(item.Properties) - len(event); got != 5 {
-		t.Errorf("InboxItem adds %d properties to the event, want reason, unread, target_title, excerpt and question", got)
+	if got := len(item.Properties) - len(event); got != 6 {
+		t.Errorf("InboxItem adds %d properties to the event, want reason, unread, state, target_title, excerpt and question", got)
 	}
 }

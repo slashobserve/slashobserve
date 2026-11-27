@@ -18,6 +18,7 @@ import {
 import { useDeletedDashboards } from "./deleted-store"
 import { parseEvent, type DashboardEvent } from "./events"
 import {
+  afterClosed,
   backoffDelay,
   goneOutcome,
   reconnectingGraceMs,
@@ -249,29 +250,33 @@ export function useDashboardEvents(
       }
     }
 
-    async function checkDashboard(announced?: { deletedBy: string }) {
+    async function checkDashboard(announced?: {
+      deletedBy: string
+    }): Promise<"gone" | "kept"> {
       try {
         await queryClient.fetchQuery({
           ...latestDashboardQuery(queryClient, dashboardId),
           staleTime: 0,
           retry: false,
         })
+        return "kept"
       } catch (error) {
-        if (disposed) return
-        if (!(error instanceof ApiError)) return
+        if (disposed) return "gone"
+        if (!(error instanceof ApiError)) return "kept"
         const outcome = goneOutcome(error, announced !== undefined)
-        if (outcome === "keep") return
+        if (outcome === "keep") return "kept"
         if (outcome === "deleted") {
           useDeletedDashboards
             .getState()
             .markDeleted(dashboardId, announced?.deletedBy ?? "")
-          return
+          return "gone"
         }
         queryClient.removeQueries({
           queryKey: dashboardKeys.latest(dashboardId),
           exact: true,
         })
         void latest.current.router.invalidate()
+        return "gone"
       }
     }
 
@@ -301,6 +306,22 @@ export function useDashboardEvents(
       }, delay)
     }
 
+    function continueAfterClosed(data: string) {
+      const next = afterClosed(data)
+      if (next === "reopen") {
+        open()
+        return
+      }
+      if (next === "retry") {
+        void recover()
+        return
+      }
+      checkedSinceReady = true
+      void checkDashboard().then((dashboard) => {
+        if (dashboard === "kept") void recover()
+      })
+    }
+
     function open() {
       if (disposed || suspended || source) return
       const stream = new EventSource(url)
@@ -312,6 +333,12 @@ export function useDashboardEvents(
           if (event) handle(event)
         })
       }
+      stream.addEventListener("closed", (message) => {
+        if (source !== stream) return
+        stream.close()
+        source = undefined
+        continueAfterClosed((message as MessageEvent<string>).data)
+      })
       stream.onerror = () => {
         if (source !== stream) return
         checkOnceAfterDrop()

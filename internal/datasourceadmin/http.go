@@ -10,6 +10,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/egress"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -63,9 +64,10 @@ func newRecordJSON(r Record) recordJSON {
 }
 
 type testJSON struct {
-	Healthy bool   `json:"healthy"`
-	Message string `json:"message,omitempty"`
-	Detail  string `json:"detail,omitempty"`
+	Healthy     bool                   `json:"healthy"`
+	Message     string                 `json:"message,omitempty"`
+	Detail      string                 `json:"detail,omitempty"`
+	FailureKind datasource.FailureKind `json:"failure_kind,omitempty"`
 }
 
 type userJSON struct {
