@@ -1,8 +1,6 @@
 package grounding
 
 import (
-	"encoding/json"
-	"fmt"
 	"math"
 	"slices"
 	"sort"
@@ -20,8 +18,7 @@ const (
 	minNameRunes = 3
 	maxItemRunes = 120
 
-	sendBackLead = "Some figures or names in this finding were not found in what this run read. For each item below: read it, correct it, or remove it, then call save_finding again."
-	itemAction   = "read it, correct it, or remove it"
+	itemAction = "read it, correct it, or remove it"
 )
 
 type saved struct {
@@ -32,40 +29,6 @@ type saved struct {
 		Component string `json:"component"`
 		Summary   string `json:"summary"`
 	} `json:"root_cause"`
-}
-
-func (r *Record) Check(input json.RawMessage) []findings.Unverified {
-	if r == nil {
-		return nil
-	}
-	var in saved
-	if json.Unmarshal(input, &in) != nil {
-		return nil
-	}
-	seen := r.sortedReads()
-	var out []findings.Unverified
-	add := func(kind, text string) {
-		item := findings.Unverified{Kind: kind, Text: clip(text)}
-		if len(out) < findings.MaxUnverified && !slices.Contains(out, item) {
-			out = append(out, item)
-		}
-	}
-	for _, text := range []string{in.Markdown, in.Impact} {
-		for _, f := range Figures(text) {
-			if !seen.found(f) {
-				add(findings.UnverifiedFigure, f.Text)
-			}
-		}
-	}
-	if in.RootCause != nil && strings.TrimSpace(in.RootCause.Component) != "" && !r.sawName(in.RootCause.Component) {
-		add(findings.UnverifiedComponent, strings.TrimSpace(in.RootCause.Component))
-	}
-	if onset := strings.TrimSpace(in.Onset); onset != "" {
-		if at, err := time.Parse(time.RFC3339, onset); err == nil && !r.queried(at) {
-			add(findings.UnverifiedOnset, onset)
-		}
-	}
-	return out
 }
 
 func clip(text string) string {
@@ -232,14 +195,6 @@ func (r *Record) queried(at time.Time) bool {
 	return slices.ContainsFunc(r.Instants, func(seen time.Time) bool {
 		return at.Sub(seen).Abs() <= onsetSlack
 	})
-}
-
-func SendBack(items []findings.Unverified) string {
-	lines := []string{sendBackLead}
-	for _, item := range items {
-		lines = append(lines, fmt.Sprintf("- %s %q: %s", describe(item.Kind), item.Text, itemAction))
-	}
-	return strings.Join(lines, "\n")
 }
 
 func describe(kind string) string {
