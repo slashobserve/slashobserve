@@ -745,9 +745,17 @@ func (a threadAnswers) RunAnswer(ctx context.Context, by auth.Principal, run pgt
 	if err != nil || !found {
 		return threads.Answer{}, false, err
 	}
-	raw, err := json.Marshal(findings.JSONOf(f, a.url(f)))
+	answer, err := answerOf(run, f, by, a.url(f))
 	if err != nil {
 		return threads.Answer{}, false, err
+	}
+	return answer, true, nil
+}
+
+func answerOf(run pgtype.UUID, f findings.Finding, by auth.Principal, url string) (threads.Answer, error) {
+	raw, err := json.Marshal(findings.JSONOf(f, url))
+	if err != nil {
+		return threads.Answer{}, err
 	}
 	return threads.Answer{
 		RunID:           run.String(),
@@ -759,44 +767,54 @@ func (a threadAnswers) RunAnswer(ctx context.Context, by auth.Principal, run pgt
 		ObservationID:   f.ObservationID,
 		CanSave:         f.SavableBy(by),
 		Finding:         raw,
-	}, true, nil
+	}, nil
 }
 
 func saveAnswerOf(service *findings.Service) revisions.AnswerSaver {
 	return func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (revisions.SavedAnswer, error) {
 		f, replayed, err := service.SaveAsObservation(ctx, by, requestID)
-		switch {
-		case errors.Is(err, findings.ErrNotFound):
-			return revisions.SavedAnswer{}, revisions.ErrNoAnswer
-		case errors.Is(err, findings.ErrRequesterOnly):
-			return revisions.SavedAnswer{}, revisions.ErrNotRequester
-		case err != nil:
-			return revisions.SavedAnswer{}, err
+		if err != nil {
+			return revisions.SavedAnswer{}, saveAnswerError(err)
 		}
 		return revisions.SavedAnswer{ObservationID: f.ObservationID, Replayed: replayed}, nil
 	}
 }
 
+func saveAnswerError(err error) error {
+	switch {
+	case errors.Is(err, findings.ErrNotFound):
+		return revisions.ErrNoAnswer
+	case errors.Is(err, findings.ErrRequesterOnly):
+		return revisions.ErrNotRequester
+	}
+	return err
+}
+
 func shareAnswerOf(service *threads.Service) revisions.AnswerSharer {
 	return func(ctx context.Context, by auth.Principal, requestID, threadID pgtype.UUID) (revisions.SharedAnswer, error) {
 		shared, err := service.ShareRun(ctx, by, threads.ShareInput{RunID: requestID, ThreadID: threadID})
-		var invalid *threads.InvalidInputError
-		switch {
-		case errors.Is(err, threads.ErrRunNotFound):
-			return revisions.SharedAnswer{}, revisions.ErrRequestNotFound
-		case errors.Is(err, threads.ErrNoAnswer):
-			return revisions.SharedAnswer{}, revisions.ErrNoAnswerToShare
-		case errors.Is(err, threads.ErrNotShareable):
-			return revisions.SharedAnswer{}, revisions.ErrNotShareable
-		case errors.Is(err, threads.ErrNotFound), errors.As(err, &invalid) && invalid.Code == threads.CodeWrongThread:
-			return revisions.SharedAnswer{}, revisions.ErrShareThread
-		case errors.Is(err, threads.ErrTargetNotFound):
-			return revisions.SharedAnswer{}, revisions.ErrRequestNotFound
-		case err != nil:
-			return revisions.SharedAnswer{}, err
+		if err != nil {
+			return revisions.SharedAnswer{}, shareAnswerError(err)
 		}
 		return revisions.SharedAnswer{ThreadID: shared.Thread.ID, MessageID: shared.Message.ID, Replayed: shared.Replayed}, nil
 	}
+}
+
+func shareAnswerError(err error) error {
+	var invalid *threads.InvalidInputError
+	switch {
+	case errors.Is(err, threads.ErrRunNotFound):
+		return revisions.ErrRequestNotFound
+	case errors.Is(err, threads.ErrNoAnswer):
+		return revisions.ErrNoAnswerToShare
+	case errors.Is(err, threads.ErrNotShareable):
+		return revisions.ErrNotShareable
+	case errors.Is(err, threads.ErrNotFound), errors.As(err, &invalid) && invalid.Code == threads.CodeWrongThread:
+		return revisions.ErrShareThread
+	case errors.Is(err, threads.ErrTargetNotFound):
+		return revisions.ErrRequestNotFound
+	}
+	return err
 }
 
 type buildStore struct {
@@ -841,10 +859,14 @@ type runObservations struct {
 
 func (r runObservations) OpenForRun(ctx context.Context, q *dbsqlc.Queries, in revisions.RunObservationOpen) (pgtype.UUID, error) {
 	id, err := r.service.OpenForRun(ctx, q, observations.RunOpen{Run: in.Run, By: in.By, ObservationID: in.ObservationID, Strict: in.Strict})
+	return id, openObservationError(err)
+}
+
+func openObservationError(err error) error {
 	if errors.Is(err, observations.ErrNotFound) {
-		return pgtype.UUID{}, revisions.ErrObservationNotFound
+		return revisions.ErrObservationNotFound
 	}
-	return id, err
+	return err
 }
 
 func revisionsBuildError(err error) error {
