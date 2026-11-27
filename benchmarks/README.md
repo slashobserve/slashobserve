@@ -113,12 +113,14 @@ The results file records the settings under `settings` with the values the serve
 | `wall_timeout_sec` | 540 | How long a trial may take from the start of `run`, server start-up included, under Harbor's 600 second agent timeout. |
 | `grafana_url` | unset | Reach Grafana from the host at this address instead of through the task's `main` container. |
 | `grafana_user`, `grafana_password` | unset | Grafana basic auth, used only when the task environment carries no Grafana credentials. |
+| `grafana_write_sec` | 150 | For a dashboard task, the seconds at the end of `wall_timeout_sec` kept for writing the dashboard to Grafana. |
 
 ## Cost
 
 A real run spends tokens: o11y-bench's published reference runs cost between about $0.02 and $0.30 per trial.
-The store tasks are 51 of the 64, and a full job of three attempts each over the 51 is 153 trials.
+The tasks are 64, 51 of them store tasks, and a full job of three attempts each is 192 trials.
 The o11y-bench judge costs extra and runs in the verifier, not here.
+A dashboard task makes one or two extra model calls after its run; see [Dashboard tasks](#dashboard-tasks).
 
 `spend_cap_usd` is a cap for the whole Harbor job.
 Every trial that started a run appends the run's last seen cost to the ledger file, also when polling fails or Harbor stops the trial.
@@ -173,26 +175,64 @@ They are text rules, so they cannot see two different figures for one quantity o
 
 ## Grafana tasks
 
-The 6 `grafana_api` tasks ask about the task's Grafana: its datasources and its dashboards.
-Before the run, the adapter reads Grafana's datasource list and every dashboard that Grafana's search returns.
+The 6 `grafana_api` tasks ask about the task's Grafana, and the 7 `dashboarding` tasks are graded on the dashboard saved in it.
+The agent works on SlashObserve dashboards in both, as it does for any user; there is no Grafana converter in the product or the adapter.
+
+### Reading Grafana
+
+Before the server starts, the adapter reads Grafana's datasource list and every dashboard that Grafana's search returns.
 It calls Grafana's HTTP API with `curl` inside the task's `main` container, because `GRAFANA_URL` names a host on the task's Docker network, and the adapter runs on the host.
 `--ak grafana_url=<address>` calls Grafana from the host instead, for a Grafana whose port is published there.
 The credentials come from the task environment: a token in `GRAFANA_SERVICE_ACCOUNT_TOKEN`, `GRAFANA_API_KEY` or `GRAFANA_TOKEN`, else a user and password in `GRAFANA_USER` (or `GRAFANA_USERNAME`, `GRAFANA_ADMIN_USER`) and `GRAFANA_PASSWORD` (or `GRAFANA_ADMIN_PASSWORD`).
 Without them the adapter uses `--ak grafana_user` and `--ak grafana_password`, which have no default, and without those it sends no credentials.
+Which of these the benchmark's Grafana needs was not checked against a running task.
 The token or password reaches `curl` through the environment of the command, never its arguments, and is never written to the trial's folder.
 The datasources file lists each Grafana datasource's uid and name under `grafanaUids` of the store of the same type, so the imports match them.
 Each dashboard is then imported into the throwaway server through `POST /api/v1/imports`, and `agent/grafana-imports.json` records the result.
-The question is a `kind: ask` run on a throwaway observation, like a store question, with a note after the task statement: the Grafana datasources (name, type, uid, id, URL, access and whether it is the default) and the dashboards (title, uid, folder and tags, and the SlashObserve dashboard each was imported as).
-The note is cut short so that the prompt stays within the server's 4000 characters.
+
+### Grafana API questions
+
+The question is a `kind: ask` run on a throwaway observation, like a store question, with a note after the task statement.
+The note lists the Grafana datasources (name, type, uid, id, URL, access and whether it is the default) and the dashboards (title, uid, folder and tags, and the SlashObserve dashboard each was imported as).
+It is cut short so that the prompt stays within the server's 4000 characters.
 The answer is the finding's text, as for the other questions.
 
-## Skipped tasks
+### Dashboard tasks
 
-The 7 `dashboarding` tasks are graded on the dashboard saved in Grafana, which this agent does not write yet, so they do not apply.
-`python -m slashobserve_bench.o11y skipped` lists them with the reason.
-If one is run anyway, `setup` raises before any container starts, writes `agent/skipped.txt` and Harbor records an exception with the reason and no reward.
-`include-flags` leaves them out, so a normal run never meets one.
-A run over the other 57 tasks is not a leaderboard submission, which needs all 64.
+The run gets the task statement as its prompt and no `as_of`, because the server refuses `as_of` for a build or a revision.
+When the statement names the title of an imported dashboard, the run is a `kind: revise` run on it; otherwise it is a build of a new dashboard.
+A build that answers that an existing dashboard should change, with `ask_on` on its finding, is followed by a revision of that dashboard with the same prompt, and the first run is kept as `agent/run-build.json`.
+The last `grafana_write_sec` seconds of `wall_timeout_sec` are kept for the step after the run.
+
+After the run, the adapter compares the Spec the run started from (none for a build) with the one it saved.
+A panel or variable counts as changed when anything but its position differs.
+The adapter then makes one extra model call, with the trial's provider, model and key, outside the server.
+The call gets the Grafana dashboard JSON as fetched (none for a new dashboard), the Grafana datasources, the map from each SlashObserve datasource to a Grafana one, and the added, changed and removed panels and variables, with the Spec before and after and the current Grafana JSON of each changed part.
+It asks for those parts only, as Grafana JSON.
+The Spec has no annotations, so the call also gets the task statement and writes an annotation only when the statement asks for one.
+The adapter places the parts into the fetched JSON itself: an edited panel keeps its Grafana id and position, a new panel gets the next free id below the others, a removed panel or variable leaves, and every other panel stays exactly as fetched.
+A part for a panel or variable the run did not change is ignored.
+It saves the dashboard with `POST /api/dashboards/db` in its folder, reads it back, and runs each new or changed panel's queries once through `POST /api/ds/query` over the 6 hours before the scenario time, with each variable at its current value.
+A query that fails, a reply that cannot be read or a changed part the reply left out goes back to the model once, and the second reply is placed, saved and checked the same way, with no further retry.
+The read-back check runs each query with one value per variable, so it cannot see a wrong variable shape or a query that fails only with many or All values.
+The replay model writes nothing to Grafana.
+
+The call's tokens and cost are added to the trial's usage and to `final_metrics` of the trajectory, and its cost is added to the spend ledger.
+The cost is priced from the server's price table, `internal/llm/pricing/prices.yaml`, read from this checkout.
+The key is passed only in the request header and is never printed, logged or written.
+
+| File in `agent/` | Content |
+| --- | --- |
+| `grafana-write.json` | The dashboard written, the parts placed, missing and ignored, each attempt's failed queries, and the call's usage. |
+| `grafana-call-<n>-request.json` | The body of model call `n`: the model, the system text and the messages. |
+| `grafana-call-<n>-response.json` | The provider's response to call `n`. |
+| `run-build.json` | Only when a build was followed by a revision: the build. |
+
+### The skip list
+
+`o11y.SKIPPED` is empty, so every task runs and `include-flags` names all of them.
+`python -m slashobserve_bench.o11y skipped` lists any task put back on it with the reason.
+If such a task is run anyway, `setup` raises before any container starts, writes `agent/skipped.txt` and Harbor records an exception with the reason and no reward.
 
 ## Cleaning up
 
@@ -325,5 +365,6 @@ The adapter uses o11y-bench as an external dataset: it reads a task's `instructi
 | `harbor==0.20.0` | In `orca/` only: the version ORCA-bench runs on. |
 
 `uv.lock` is resolved with `exclude-newer` set so that no package is less than 14 days old; move that date when you update the pins.
-HTTP uses `urllib`, Docker uses `subprocess`, and the ledger lock uses `fcntl`, all from the standard library.
+HTTP uses `urllib`, the extra model call of a dashboard task included, Docker uses `subprocess`, and the ledger lock uses `fcntl`, all from the standard library.
+The price table is read with PyYAML, which Harbor already depends on, so it adds no package.
 The adapter runs on Linux and macOS only.

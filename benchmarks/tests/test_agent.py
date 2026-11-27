@@ -133,10 +133,11 @@ def stub_environment(tmp_path, task_id, category):
     return SimpleNamespace(environment_name=task_id, environment_dir=task_dir / "environment")
 
 
-def test_setup_refuses_a_skipped_task_and_records_why(tmp_path):
-    environment = stub_environment(tmp_path, "dashboard-create-service-overview", "dashboarding")
+def test_setup_refuses_a_skipped_task_and_records_why(tmp_path, monkeypatch):
+    monkeypatch.setitem(o11y.SKIPPED, "some-task", "needs what this agent lacks")
+    environment = stub_environment(tmp_path, "some-task", "prometheus_query")
     instance = bench_agent.SlashObserveAgent(logs_dir=tmp_path / "agent", model_name="replay/replay")
-    with pytest.raises(bench_agent.TaskSkipped, match="dashboard-create-service-overview is skipped"):
+    with pytest.raises(bench_agent.TaskSkipped, match="some-task is skipped: needs what this agent lacks"):
         asyncio.run(instance.setup(environment))
     assert (tmp_path / "agent" / "skipped.txt").read_text().startswith("skipped: ")
 
@@ -254,3 +255,149 @@ def test_a_grafana_task_without_grafana_url_is_unsupported(tmp_path):
     instance = bench_agent.SlashObserveAgent(logs_dir=tmp_path, model_name="replay/replay")
     with pytest.raises(o11y.UnsupportedTask, match="GRAFANA_URL"):
         instance._grafana_client({}, None)
+
+
+SPEC_V1 = {
+    "specVersion": "0",
+    "title": "Cache review",
+    "time": {"from": "now-1h", "to": "now"},
+    "panels": [{"id": "p1", "type": "stat", "title": "Hits", "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4}, "datasource": "prometheus", "queries": [{"query": "hits"}]}],
+}
+SPEC_V2 = {**SPEC_V1, "panels": [*SPEC_V1["panels"], {"id": "lag", "type": "stat", "title": "Lag", "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4}, "datasource": "prometheus", "queries": [{"query": "lag"}]}]}
+GRAFANA_CACHE = {
+    "dashboard": {"id": 3, "uid": "cache", "title": "Cache review", "panels": [{"id": 1, "type": "stat", "title": "Hits", "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0}, "targets": [{"refId": "A", "expr": "hits"}]}]},
+    "meta": {"folderUid": "ops"},
+}
+
+
+class DashboardClient:
+    def __init__(self, base):
+        self.base = base
+        self.bodies = []
+        self.replies = []
+
+    def start_run(self, body):
+        self.bodies.append(body)
+        if body["kind"] == "ask":
+            self.replies = [{**self.base, "id": "run-build", "kind": "build", "state": "succeeded", "dashboard_id": None, "result_version": None, "finding": {"markdown": "That dashboard exists.", "ask_on": {"dashboard_id": "sob-cache", "title": "Cache review"}}}]
+        else:
+            self.replies = [{**self.base, "id": "run-revise", "kind": "revise", "state": "succeeded", "dashboard_id": "sob-cache", "base_version": 1, "result_version": 2, "finding": None}]
+        return "run"
+
+    def get_run(self, run_id):
+        return self.replies[0]
+
+    def dashboard_version(self, dashboard_id, version):
+        assert dashboard_id == "sob-cache"
+        return {"spec": SPEC_V1 if version == 1 else SPEC_V2}
+
+
+class SavingGrafana:
+    def __init__(self):
+        self.saved = []
+
+    async def save_dashboard(self, dashboard, folder_uid, message):
+        self.saved.append((dashboard, folder_uid))
+        return {"uid": dashboard["uid"]}
+
+    async def dashboard(self, uid):
+        return {"dashboard": self.saved[-1][0]}
+
+    async def query(self, body):
+        return 200, {"results": {query["refId"]: {"frames": []} for query in body["queries"]}}
+
+
+def test_a_dashboard_task_revises_the_dashboard_the_build_points_at_and_writes_it_to_grafana(tmp_path, monkeypatch, finished_request):
+    calls = []
+
+    def fake_call(provider, model, key, system, messages, timeout):
+        calls.append((provider, model, key))
+        text = json.dumps({"panels": [{"spec_id": "lag", "panel": {"type": "stat", "title": "Lag", "gridPos": {"w": 6, "h": 4}, "targets": [{"refId": "A", "expr": "lag", "datasource": {"type": "prometheus", "uid": "graf-prom"}}]}}]})
+        usage = bench_agent.atif.Usage(input_tokens=1000, output_tokens=100, model_calls=1)
+        return bench_agent.model_call.ModelReply(text=text, usage=usage, request={"model": model, "messages": messages}, response={"content": [{"type": "text", "text": text}]})
+
+    monkeypatch.setattr(bench_agent.model_call, "call_model", fake_call)
+    monkeypatch.setattr("slashobserve_bench.api.time.sleep", lambda seconds: None)
+    ledger_path = tmp_path / "ledger.jsonl"
+    instance = bench_agent.SlashObserveAgent(
+        logs_dir=tmp_path / "trial" / "agent", model_name="anthropic/claude-haiku-5-5", spend_cap_usd=10, ledger_path=str(ledger_path)
+    )
+    instance._category = o11y.DASHBOARDING
+    base = {key: value for key, value in finished_request.items() if key != "finding"}
+    client = DashboardClient(base)
+    grafana_client = SavingGrafana()
+    task = bench_agent.DashboardTask(
+        instruction="Add a lag panel next to the hits panel.",
+        as_of="2026-11-20T10:00:00Z",
+        state=bench_agent.grafana.GrafanaState(datasources=[{"uid": "graf-prom", "name": "Prometheus", "type": "prometheus"}], dashboards=[GRAFANA_CACHE]),
+        imported={"cache": "sob-cache"},
+        grafana=grafana_client,
+        provider="anthropic",
+        model="claude-haiku-5-5",
+        key="sk-never-written",
+    )
+    context = AgentContext()
+    asyncio.run(instance._dashboard_task(client, task, context, deadline=bench_agent.time.monotonic() + 600))
+
+    assert [body["kind"] for body in client.bodies] == ["ask", "revise"]
+    assert client.bodies[1]["dashboard_id"] == "sob-cache"
+    assert calls == [("anthropic", "claude-haiku-5-5", "sk-never-written")]
+    saved, folder = grafana_client.saved[0]
+    assert folder == "ops"
+    assert saved["panels"][0] == GRAFANA_CACHE["dashboard"]["panels"][0]
+    assert saved["panels"][1]["title"] == "Lag" and saved["panels"][1]["id"] == 2
+    logs = instance.logs_dir
+    outcome = json.loads((logs / "grafana-write.json").read_text())
+    assert outcome["saved_uid"] == "cache" and outcome["model_calls"] == 1
+    assert outcome["usage"]["cost_usd"] == pytest.approx(0.00015)
+    assert (logs / "grafana-call-1-request.json").exists() and (logs / "grafana-call-1-response.json").exists()
+    assert (logs / "run-build.json").exists()
+    for path in logs.iterdir():
+        assert "sk-never-written" not in path.read_text()
+    assert "sk-never-written" not in repr(task)
+    assert context.n_input_tokens == 2 * 1350 + 1000
+    assert context.n_cache_tokens == 2 * 300
+    assert context.n_output_tokens == 2 * 200 + 100
+    assert context.cost_usd == pytest.approx(2 * 0.0123 + 0.00015)
+    trajectory = json.loads((logs / "trajectory.json").read_text())
+    Trajectory.model_validate(trajectory)
+    assert trajectory["final_metrics"]["total_cost_usd"] == pytest.approx(context.cost_usd)
+    assert SpendLedger(ledger_path, 10).total() == pytest.approx(2 * 0.0123 + 0.00015)
+
+
+def test_the_replay_model_writes_nothing_to_grafana(tmp_path, monkeypatch, finished_request):
+    monkeypatch.setattr("slashobserve_bench.api.time.sleep", lambda seconds: None)
+    instance = bench_agent.SlashObserveAgent(logs_dir=tmp_path / "agent", model_name="replay/replay")
+    instance._category = o11y.DASHBOARDING
+    client = DashboardClient({key: value for key, value in finished_request.items() if key != "finding"})
+    grafana_client = SavingGrafana()
+    task = bench_agent.DashboardTask(
+        instruction="Change the Cache review dashboard.",
+        as_of="2026-11-20T10:00:00Z",
+        state=bench_agent.grafana.GrafanaState(datasources=[], dashboards=[GRAFANA_CACHE]),
+        imported={"cache": "sob-cache"},
+        grafana=grafana_client,
+        provider="replay",
+        model=None,
+        key=None,
+    )
+    asyncio.run(instance._dashboard_task(client, task, AgentContext(), deadline=bench_agent.time.monotonic() + 600))
+    assert [body["kind"] for body in client.bodies] == ["revise"]
+    assert grafana_client.saved == []
+    assert "replay" in json.loads((tmp_path / "agent" / "grafana-write.json").read_text())["skipped"]
+
+
+class VersionClient:
+    def dashboard_version(self, dashboard_id, version):
+        return {"spec": {"id": dashboard_id, "version": version}}
+
+
+def test_specs_compare_a_build_with_nothing_and_a_revise_with_its_base():
+    task = SimpleNamespace(imported={"cache": "sob-cache"})
+    specs = bench_agent.SlashObserveAgent._specs
+    assert specs(VersionClient(), {"dashboard_id": "new", "result_version": 1}, task, None) == (None, {"id": "new", "version": 1})
+    assert specs(VersionClient(), {"dashboard_id": None, "result_version": None}, task, None) is None
+    revised = specs(VersionClient(), {"base_version": 1, "result_version": 3}, task, "cache")
+    assert revised == ({"id": "sob-cache", "version": 1}, {"id": "sob-cache", "version": 3})
+    unchanged = specs(VersionClient(), {"base_version": 1, "result_version": None}, task, "cache")
+    assert unchanged[0] == unchanged[1]

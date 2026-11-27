@@ -104,7 +104,7 @@ def grafana_id_of(spec_panel_id: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
-def _panel_lists(dashboard: dict[str, Any]) -> list[list[dict[str, Any]]]:
+def panel_lists(dashboard: dict[str, Any]) -> list[list[dict[str, Any]]]:
     top = dashboard.setdefault("panels", [])
     lists = [top]
     for panel in top:
@@ -113,8 +113,13 @@ def _panel_lists(dashboard: dict[str, Any]) -> list[list[dict[str, Any]]]:
     return lists
 
 
-def _find_panel(dashboard: dict[str, Any], grafana_id: int) -> tuple[list[dict[str, Any]], int] | None:
-    for panels in _panel_lists(dashboard):
+def find_panel(dashboard: dict[str, Any], grafana_id: int) -> dict[str, Any] | None:
+    found = _locate_panel(dashboard, grafana_id)
+    return None if found is None else found[0][found[1]]
+
+
+def _locate_panel(dashboard: dict[str, Any], grafana_id: int) -> tuple[list[dict[str, Any]], int] | None:
+    for panels in panel_lists(dashboard):
         for index, panel in enumerate(panels):
             if panel.get("id") == grafana_id:
                 return panels, index
@@ -122,7 +127,7 @@ def _find_panel(dashboard: dict[str, Any], grafana_id: int) -> tuple[list[dict[s
 
 
 def _all_ids(dashboard: dict[str, Any]) -> list[int]:
-    return [panel["id"] for panels in _panel_lists(dashboard) for panel in panels if isinstance(panel.get("id"), int)]
+    return [panel["id"] for panels in panel_lists(dashboard) for panel in panels if isinstance(panel.get("id"), int)]
 
 
 def _bottom(dashboard: dict[str, Any]) -> int:
@@ -166,7 +171,7 @@ def _place_panels(dashboard: dict[str, Any], changes: SpecChanges, parts: ModelP
         if part is None:
             result.missing.append(old["id"])
             continue
-        found = None if grafana_id is None else _find_panel(dashboard, grafana_id)
+        found = None if grafana_id is None else _locate_panel(dashboard, grafana_id)
         if found is None:
             changes.added_panels.append(old)
             continue
@@ -202,7 +207,7 @@ def _place_panels(dashboard: dict[str, Any], changes: SpecChanges, parts: ModelP
 def _remove_panels(dashboard: dict[str, Any], changes: SpecChanges) -> None:
     for panel in changes.removed_panels:
         grafana_id = grafana_id_of(panel["id"])
-        found = None if grafana_id is None else _find_panel(dashboard, grafana_id)
+        found = None if grafana_id is None else _locate_panel(dashboard, grafana_id)
         if found is not None:
             panels, index = found
             del panels[index]

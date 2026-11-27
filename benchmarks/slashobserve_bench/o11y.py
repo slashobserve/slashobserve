@@ -29,17 +29,7 @@ SUBSET: tuple[str, ...] = (
     "dependency-outage-false-lead",
 )
 
-_DASHBOARD_STATE = "graded on the dashboard saved in Grafana, which this agent never writes"
-
-SKIPPED: dict[str, str] = {
-    "dashboard-add-cache-lag-panels": _DASHBOARD_STATE,
-    "dashboard-add-deployment-annotation": _DASHBOARD_STATE,
-    "dashboard-add-retry-backlog-panels": _DASHBOARD_STATE,
-    "dashboard-create-cache-incident-review": _DASHBOARD_STATE,
-    "dashboard-create-service-overview": _DASHBOARD_STATE,
-    "dashboard-repair-cache-review": _DASHBOARD_STATE,
-    "dashboard-update-add-service-variable": _DASHBOARD_STATE,
-}
+SKIPPED: dict[str, str] = {}
 
 
 class UnsupportedTask(Exception):
@@ -76,17 +66,33 @@ def run_kind(category: str) -> str:
         return "investigate"
     if category in QUESTION_CATEGORIES:
         return "ask"
+    if category == DASHBOARDING:
+        return "build"
     raise UnsupportedTask(f"the category {category!r} is not one this agent can answer")
 
 
 def start_body(category: str, prompt: str, as_of: str, observation_id: str | None) -> dict[str, Any]:
     kind = run_kind(category)
+    if kind == "build":
+        raise UnsupportedTask("a dashboard task starts with dashboard_body, because a build or revise takes no as_of")
     body: dict[str, Any] = {"kind": kind, "prompt": prompt, "as_of": as_of}
     if kind == "ask":
         if not observation_id:
             raise UnsupportedTask("a question needs an observation to carry as_of")
         body["observation_id"] = observation_id
     return body
+
+
+def dashboard_body(prompt: str, dashboard_id: str | None) -> dict[str, Any]:
+    if dashboard_id is None:
+        return {"kind": "ask", "prompt": prompt}
+    return {"kind": "revise", "dashboard_id": dashboard_id, "prompt": prompt}
+
+
+def target_dashboard(instruction: str, titles: dict[str, str]) -> str | None:
+    text = instruction.casefold()
+    named = [(len(title), uid) for uid, title in titles.items() if len(title.strip()) >= 4 and title.strip().casefold() in text]
+    return max(named)[1] if named else None
 
 
 def task_names(tasks_dir: Path) -> list[str]:

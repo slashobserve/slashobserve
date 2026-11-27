@@ -27,6 +27,20 @@ class Usage:
             tool_calls=usage.get("tool_calls", 0),
         )
 
+    def plus(self, other: "Usage") -> "Usage":
+        cost = None
+        if self.cost_usd is not None or other.cost_usd is not None:
+            cost = (self.cost_usd or 0.0) + (other.cost_usd or 0.0)
+        return Usage(
+            input_tokens=self.input_tokens + other.input_tokens,
+            output_tokens=self.output_tokens + other.output_tokens,
+            cache_read_tokens=self.cache_read_tokens + other.cache_read_tokens,
+            cache_write_tokens=self.cache_write_tokens + other.cache_write_tokens,
+            cost_usd=cost,
+            model_calls=self.model_calls + other.model_calls,
+            tool_calls=self.tool_calls + other.tool_calls,
+        )
+
     @property
     def prompt_tokens(self) -> int:
         return self.input_tokens + self.cache_read_tokens + self.cache_write_tokens
@@ -83,8 +97,11 @@ def build_trajectory(
     agent_name: str,
     agent_version: str,
     model_name: str | None,
+    extra_usage: Usage | None = None,
 ) -> dict[str, Any]:
     usage = Usage.from_request(request)
+    if extra_usage is not None:
+        usage = usage.plus(extra_usage)
     steps: list[dict[str, Any]] = [
         {"step_id": 1, "timestamp": request["created_at"], "source": "user", "message": instruction}
     ]
@@ -120,6 +137,7 @@ def build_trajectory(
                 "state": request.get("state"),
                 "failure_code": request.get("failure_code"),
                 "as_of": request.get("as_of"),
+                **({"added_model_calls": extra_usage.model_calls} if extra_usage is not None else {}),
             },
         },
     }
