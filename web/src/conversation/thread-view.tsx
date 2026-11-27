@@ -35,6 +35,7 @@ import {
   shownAnswer,
 } from "./run-answer"
 import {
+  askedAgentName,
   panelText,
   replyCountText,
   threadStatus,
@@ -93,7 +94,9 @@ function MessageRow({
           gate={gate}
         />
       )}
-      {pending === null ? null : <RunLine message={message} run={pending} />}
+      {pending === null ? null : (
+        <RunLine run={pending} agentName={askedAgentName(message, pending)} />
+      )}
     </EntryFrame>
   )
 }
@@ -239,7 +242,7 @@ export function ThreadView({
         folded={folded}
       />
       {folded || pending === null ? null : (
-        <RunLine message={root} run={pending} />
+        <RunLine run={pending} agentName={askedAgentName(root, pending)} />
       )}
       {replies.length === 0 ? null : (
         <Fold open={!folded}>

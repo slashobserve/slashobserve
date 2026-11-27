@@ -3,13 +3,8 @@ import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import { useEffect, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 
-import { ApiError, problemText } from "@/api/errors"
 import { AgentMark } from "@/components/agent-mark"
-import {
-  AnswerCard,
-  reviseProblems,
-  type RevisionAsked,
-} from "@/conversation/answer-card"
+import { AnswerCard } from "@/conversation/answer-card"
 import {
   defaultDelivery,
   deliveryGate,
@@ -17,12 +12,8 @@ import {
   ungated,
   type Place,
 } from "@/conversation/delivery"
-import {
-  planRevise,
-  threadTargetOf,
-  type Subject,
-} from "@/conversation/send-plan"
-import { useDeliver } from "@/conversation/use-composer"
+import { threadTargetOf, type Subject } from "@/conversation/send-plan"
+import { useReviseAnswer } from "@/conversation/use-revise-answer"
 import { StatusIcon } from "@/components/status-label"
 import {
   buildStatusText,
@@ -136,7 +127,6 @@ export function ChatAnswer({
     request.subject_observation_id === null
       ? subject
       : { kind: "observation", id: request.subject_observation_id }
-  const { deliver, pending } = useDeliver(subject)
   const agent = useAgentInfo()
   const mayRevise = own && !request.read_only && revised !== null
   const place: Place = { kind: "chat", chatId: request.chat_id }
@@ -145,19 +135,13 @@ export function ChatAnswer({
     defaultDelivery(place, "")
   )
 
-  async function revise(): Promise<RevisionAsked> {
-    const plan = planRevise(place, revised, finding.id, crypto.randomUUID())
-    if ("error" in plan) return plan.error || problemText(null, reviseProblems)
-    let sent: Awaited<ReturnType<typeof deliver>>
-    try {
-      sent = await deliver(plan)
-    } catch (error) {
-      if (error instanceof ApiError && error.code === "already_applied") {
-        return true
-      }
-      return problemText(error, reviseProblems)
-    }
-    if (sent.via === "chat") {
+  const { revise, pending } = useReviseAnswer({
+    subject,
+    place,
+    revised,
+    findingId: finding.id,
+    onSent: async (sent) => {
+      if (sent.via !== "chat") return
       try {
         await onRevised(sent.request)
       } catch {
@@ -165,9 +149,8 @@ export function ChatAnswer({
           "The revision was asked for, but the chat could not open it. Reload the page to see it."
         )
       }
-    }
-    return true
-  }
+    },
+  })
 
   return (
     <AnswerCard

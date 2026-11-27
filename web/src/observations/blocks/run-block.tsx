@@ -1,5 +1,4 @@
 import { useId, useState } from "react"
-import { Link } from "@tanstack/react-router"
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
 
 import { ApiError } from "@/api/errors"
@@ -8,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { StepTimeline } from "@/chat/step-timeline"
 import { showsWorkingRow } from "@/chat/turn-model"
 import { TurnFailure } from "@/chat/turn-failure"
-import type { AuthorMarkModel } from "@/lib/author"
+import { RunLink } from "@/conversation/run-answer"
+import { observeAgentMark } from "@/lib/author"
 import type { Block } from "@/observations/queries"
 import {
   isTerminal,
@@ -19,12 +19,6 @@ import { CancelRequestButton } from "@/observe/request-actions"
 
 import { citeLabel } from "../block-rows"
 import { runBlockBody } from "./block-data"
-
-const observeAgentMark: AuthorMarkModel = {
-  kind: "observe-agent",
-  text: "/",
-  tint: null,
-}
 
 const unavailableText = "This run is no longer available."
 
@@ -133,13 +127,10 @@ function RunProgress({
         </h3>
         {finished ? (
           <>
-            <Link
-              to="/c/$requestId"
-              params={{ requestId: runId }}
-              className="text-[13px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
-            >
-              View the run
-            </Link>
+            <RunLink
+              runId={runId}
+              className="text-[13px] text-muted-foreground"
+            />
             {folds ? (
               <Button
                 variant="ghost"

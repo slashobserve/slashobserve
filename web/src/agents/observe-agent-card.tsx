@@ -3,25 +3,11 @@ import { Link } from "@tanstack/react-router"
 
 import { AuthorMark } from "@/components/author-mark"
 import { StatusLabel } from "@/components/status-label"
-import { markOf, type Actor } from "@/lib/author"
+import { observeAgentMark } from "@/lib/author"
 
 import { agentLink } from "./agent-ref"
 import type { AgentsOverview } from "./queries"
 import { scopeLine, statCells } from "./stats"
-
-const observeActor: Pick<
-  Actor,
-  "kind" | "id" | "name" | "origin" | "client" | "run_id"
-> = {
-  kind: "user",
-  id: "observe",
-  name: "Observe Agent",
-  origin: null,
-  client: null,
-  run_id: "observe",
-}
-
-export const observeAgentMark = markOf(observeActor)
 
 export function PowerState({ enabled }: { enabled: boolean }) {
   return enabled ? (

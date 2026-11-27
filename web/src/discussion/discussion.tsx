@@ -34,7 +34,7 @@ import {
   shownAnswer,
 } from "@/conversation/run-answer"
 import { subjectOf } from "@/conversation/send-plan"
-import { unansweredRun } from "@/conversation/thread-state"
+import { askedAgentName, unansweredRun } from "@/conversation/thread-state"
 import { useComposer } from "@/conversation/use-composer"
 import { markOf } from "@/lib/author"
 import { liveRegionText } from "@/lib/live-region"
@@ -341,7 +341,10 @@ export function DiscussionFeed({
                   />
                 )}
                 {waitingOn === null ? null : (
-                  <RunLine message={message} run={waitingOn} />
+                  <RunLine
+                    run={waitingOn}
+                    agentName={askedAgentName(message, waitingOn)}
+                  />
                 )}
                 {block === undefined ? null : (
                   <EntryMeta>
