@@ -36,18 +36,15 @@ func runInFlight(state string) bool {
 	return known && !view.settled
 }
 
-func stateOrLegacyStatus(state, status string) string {
-	if state != "" {
+func stateOrLegacyStatus[V any](known map[string]V, state, status string) string {
+	if _, ok := known[state]; ok {
 		return state
 	}
 	return status
 }
 
 func (r agentRequest) state() string {
-	if _, known := runStates[r.State]; known {
-		return r.State
-	}
-	return r.Status
+	return stateOrLegacyStatus(runStates, r.State, r.Status)
 }
 
 func (r agentRequest) nextStep() string {
