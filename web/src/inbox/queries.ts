@@ -106,7 +106,6 @@ function useInboxMutation<Input>(
 ) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: send,
     onMutate: async (input: Input) => {
       await queryClient.cancelQueries({ queryKey: inboxKeys.all })

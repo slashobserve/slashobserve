@@ -26,7 +26,6 @@ export function outboundDomainsQuery() {
 export function useAllowDomain() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (domain: string) =>
       api.POST("/outbound-domains", { body: { domain } }).then(unwrap),
     onSettled: () =>
@@ -37,7 +36,6 @@ export function useAllowDomain() {
 export function useRemoveDomain() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (domain: string) =>
       api
         .DELETE("/outbound-domains/{domain}", {

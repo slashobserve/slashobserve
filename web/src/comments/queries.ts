@@ -79,7 +79,6 @@ export function useComments(id: string) {
 export function useDeleteMessage(queryKey: QueryKey) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (messageId: string) =>
       api
         .DELETE("/messages/{message_id}", {
@@ -93,7 +92,6 @@ export function useDeleteMessage(queryKey: QueryKey) {
 export function useEditMessage(queryKey: QueryKey) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (input: { messageId: string; body: string }) =>
       api
         .PATCH("/messages/{message_id}", {

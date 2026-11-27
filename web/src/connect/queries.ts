@@ -26,7 +26,6 @@ export function useConnectionRequest(id: string) {
 export function useAnswerConnection(id: string) {
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: async (answer: Answer) => {
       const params = { params: { path: { id } } }
       const result =

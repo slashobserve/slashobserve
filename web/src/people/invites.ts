@@ -77,7 +77,6 @@ export function inviteProblemText(error: unknown): string {
 export function useSaveInvite() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: ({ email, role }: { email: string; role: Role }) =>
       api
         .POST("/invites", { body: { email: email.trim(), role } })

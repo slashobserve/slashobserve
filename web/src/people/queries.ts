@@ -67,7 +67,6 @@ export function useSignOutEverywhere(signedInUserId: string) {
 export function useSetRole() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: ({ id, role }: { id: string; role: Role }) =>
       api
         .PATCH("/users/{id}", {

@@ -5,7 +5,7 @@ import {
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { ApiError, NetworkError, unwrap } from "@/api/errors"
+import { ApiError, NetworkError, unreachableText, unwrap } from "@/api/errors"
 import { agentKeys, serviceAccountKeys } from "@/api/keys"
 import type { paths } from "@/api/schema.gen"
 import type { Role } from "@/lib/roles"
@@ -45,7 +45,6 @@ export function serviceAccountKeysQuery(accountId: string) {
 export function useCreateServiceAccount() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (input: { name: string; description?: string; role: Role }) =>
       api.POST("/service-accounts", { body: input }).then(unwrap),
     onSuccess: () =>
@@ -56,7 +55,6 @@ export function useCreateServiceAccount() {
 export function useUpdateServiceAccount() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: ({ id, ...changes }: { id: string } & AccountChanges) =>
       api
         .PATCH("/service-accounts/{id}", {
@@ -76,7 +74,6 @@ export function useCreateKey() {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: ({
       accountId,
       name,
@@ -102,7 +99,6 @@ export function useCreateKey() {
 export function useRevokeKey(accountId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (keyId: string) =>
       api
         .DELETE("/service-accounts/{id}/keys/{keyId}", {
@@ -116,9 +112,6 @@ export function useRevokeKey(accountId: string) {
     },
   })
 }
-
-const unreachableText =
-  "Could not reach the server. Check your connection and try again."
 
 export function loadProblemText(error: unknown): string {
   if (error instanceof NetworkError) return unreachableText

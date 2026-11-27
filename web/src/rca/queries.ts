@@ -62,7 +62,6 @@ export function rcaLinksQuery(observationId: string, revision: number) {
 export function usePublishRca(observationId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: () =>
       api
         .POST("/observations/{id}/rcas", {
@@ -85,7 +84,6 @@ export function usePublishRca(observationId: string) {
 export function useWithdrawRca(observationId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (revision: number) =>
       api
         .DELETE("/observations/{id}/rcas/{revision}", {
@@ -114,7 +112,6 @@ export function useCreateRcaLink(observationId: string, revision: number) {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: (body: components["schemas"]["CreateRCAPublicLinkRequest"]) =>
       api
         .POST("/observations/{id}/rcas/{revision}/public-links", {
@@ -132,7 +129,6 @@ export function useCreateRcaLink(observationId: string, revision: number) {
 export function useRevokeRcaLink(observationId: string, revision: number) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (linkId: string) =>
       api
         .DELETE("/observations/{id}/public-links/{link_id}", {

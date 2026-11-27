@@ -3,7 +3,12 @@ import { useQueryClient } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { ApiError, type ApiIssue } from "@/api/errors"
+import {
+  ApiError,
+  NetworkError,
+  unreachableText,
+  type ApiIssue,
+} from "@/api/errors"
 import { isTransient, issueLines } from "@/api/issues"
 import { dashboardKeys } from "@/api/keys"
 import {
@@ -41,6 +46,9 @@ function problemFrom(error: unknown): Problem {
     }
     if (error.status === 422) return { kind: "invalid", issues: error.issues }
     return { kind: "failed", message: error.message }
+  }
+  if (error instanceof NetworkError) {
+    return { kind: "failed", message: unreachableText }
   }
   return {
     kind: "failed",

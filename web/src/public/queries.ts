@@ -87,7 +87,6 @@ export function useCreatePublicLink(dashboardId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: (body: CreatePublicLink) =>
       api
         .POST("/dashboards/{id}/public-links", {
@@ -105,7 +104,6 @@ export function useCreatePublicLink(dashboardId: string) {
 export function useRevokePublicLink(dashboardId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (linkId: string) =>
       api
         .DELETE("/dashboards/{id}/public-links/{link_id}", {

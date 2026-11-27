@@ -44,6 +44,9 @@ export function failedQueryText(error: ApiError): string {
     : `Query ${error.ref} failed: ${lowerFirst(error.message)}`
 }
 
+export const unreachableText =
+  "Could not reach the server. Check your connection and try again."
+
 export class NetworkError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options)

@@ -53,7 +53,6 @@ export function useCreateWebhook() {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: (body: CreateWebhookBody) =>
       api.POST("/webhooks", { body }).then(unwrap),
     onSuccess: () =>
@@ -64,7 +63,6 @@ export function useCreateWebhook() {
 export function useUpdateWebhook() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: ({ id, body }: { id: string; body: UpdateWebhookBody }) =>
       api
         .PATCH("/webhooks/{id}", { params: { path: { id } }, body })
@@ -78,7 +76,6 @@ export function useRotateSecret() {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: (id: string) =>
       api
         .POST("/webhooks/{id}/secret", { params: { path: { id } } })
@@ -91,7 +88,6 @@ export function useRotateSecret() {
 export function useTestWebhook() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (id: string) =>
       api
         .POST("/webhooks/{id}/test", { params: { path: { id } } })
@@ -108,7 +104,6 @@ export function useSkipWebhookEvent() {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: (id: string) =>
       api
         .POST("/webhooks/{id}/skip", { params: { path: { id } } })
@@ -121,7 +116,6 @@ export function useSkipWebhookEvent() {
 export function useDeleteWebhook() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (id: string) =>
       api.DELETE("/webhooks/{id}", { params: { path: { id } } }).then(unwrap),
     onSettled: () =>

@@ -26,7 +26,6 @@ export function promptsQuery() {
 export function useCreatePrompt() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (input: { name: string; body: string; shared: boolean }) =>
       api.POST("/prompts", { body: input }).then(unwrap),
     onSuccess: () =>
@@ -37,7 +36,6 @@ export function useCreatePrompt() {
 export function useUpdatePrompt() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: ({
       id,
       patch,
@@ -56,7 +54,6 @@ export function useUpdatePrompt() {
 export function useDeletePrompt() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (id: string) =>
       api
         .DELETE("/prompts/{id}", { params: { path: { id } } })

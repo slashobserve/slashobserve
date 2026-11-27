@@ -14,7 +14,7 @@ export function createQueryClient(): QueryClient {
             ? Math.min(error.retryAfterMs, maxRetryDelayMs)
             : Math.min(1000 * 2 ** attempt, 8000),
       },
-      mutations: { retry: false },
+      mutations: { retry: false, networkMode: "always" },
     },
   })
 }

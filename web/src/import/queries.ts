@@ -68,7 +68,6 @@ export function useImportDashboard() {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: async ({
       source,
       mapping,
@@ -113,7 +112,6 @@ export function useCreateDashboardFromSpec() {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: async ({
       spec,
       folderId,

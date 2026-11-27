@@ -45,7 +45,6 @@ export function useAllGrants() {
 export function useDisconnect(scope: GrantScope) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (id: string) => {
       const params = { params: { path: { id } } }
       return (
@@ -61,7 +60,6 @@ export function useDisconnect(scope: GrantScope) {
 export function useSetGrantMode() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (input: { id: string; mode: GrantMode }) =>
       api
         .PATCH("/me/grants/{id}", {

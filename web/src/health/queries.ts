@@ -71,7 +71,6 @@ export function healthSummaryQuery(
 export function useRequestHealthRepair() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (dashboardId: string) =>
       api
         .POST("/health/repairs", { body: { dashboard_ids: [dashboardId] } })
@@ -84,7 +83,6 @@ export function useRequestHealthRepair() {
 export function useRunHealth() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: () => api.POST("/health/run").then(unwrap),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: healthKeys.all }),

@@ -301,7 +301,6 @@ export function useCreateObserveRequest() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationKey: observeKeys.create(),
-    networkMode: "always",
     mutationFn: ({
       kind,
       chatId,

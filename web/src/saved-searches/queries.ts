@@ -38,7 +38,6 @@ export function savedSearchesQuery(params: SavedSearchListParams) {
 export function useSaveSearch() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (body: CreateSavedSearch) =>
       api.POST("/saved-searches", { body }).then(unwrap),
     onSuccess: () =>
@@ -49,7 +48,6 @@ export function useSaveSearch() {
 export function useRenameSavedSearch(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (title: string) =>
       api
         .PATCH("/saved-searches/{id}", {
@@ -65,7 +63,6 @@ export function useRenameSavedSearch(id: string) {
 export function useUpdateSavedSearchContent(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (
       draft: Pick<CreateSavedSearch, "query" | "filters" | "from" | "to">
     ) =>
@@ -88,7 +85,6 @@ export function useUpdateSavedSearchContent(id: string) {
 export function useMoveSavedSearch(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (folderId: string) =>
       api
         .PATCH("/saved-searches/{id}", {
@@ -104,7 +100,6 @@ export function useMoveSavedSearch(id: string) {
 export function useDeleteSavedSearch(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: () =>
       api
         .DELETE("/saved-searches/{id}", { params: { path: { id } } })

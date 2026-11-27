@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { ApiError, toApiError } from "@/api/errors"
+import { ApiError, NetworkError, toApiError } from "@/api/errors"
 
 import { saveProblemFrom } from "./save-problem"
 
@@ -86,6 +86,16 @@ describe("saveProblemFrom", () => {
     expect(saveProblemFrom(error, heading)).toEqual({
       kind: "failed",
       message: "server broke",
+    })
+  })
+
+  it("says the server could not be reached when the request never arrived", () => {
+    expect(
+      saveProblemFrom(new NetworkError("Failed to fetch"), heading)
+    ).toEqual({
+      kind: "failed",
+      message:
+        "Could not reach the server. Check your connection and try again.",
     })
   })
 

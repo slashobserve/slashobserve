@@ -45,7 +45,6 @@ export function useCreateMCPSource() {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: (body: CreateMCPSourceBody) =>
       api.POST("/mcp-sources", { body }).then(unwrap),
     onSettled: () =>
@@ -57,7 +56,6 @@ export function useUpdateMCPSource() {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: ({ uid, body }: { uid: string; body: UpdateMCPSourceBody }) =>
       api
         .PATCH("/mcp-sources/{uid}", { params: { path: { uid } }, body })
@@ -70,7 +68,6 @@ export function useUpdateMCPSource() {
 export function useDeleteMCPSource() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (uid: string) =>
       api
         .DELETE("/mcp-sources/{uid}", { params: { path: { uid } } })
@@ -83,7 +80,6 @@ export function useDeleteMCPSource() {
 export function useDiscoverMCPSource() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (uid: string) =>
       api
         .POST("/mcp-sources/{uid}/discover", { params: { path: { uid } } })
@@ -96,7 +92,6 @@ export function useDiscoverMCPSource() {
 export function useApproveMCPTool() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: ({
       uid,
       tool,
@@ -118,7 +113,6 @@ export function useApproveMCPTool() {
 export function useApproveReadOnlyTools() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (uid: string) =>
       api
         .POST("/mcp-sources/{uid}/tools/approve-read-only", {
@@ -133,7 +127,6 @@ export function useApproveReadOnlyTools() {
 export function useRevokeMCPTool() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: ({ uid, name }: { uid: string; name: string }) =>
       api
         .POST("/mcp-sources/{uid}/tools/{name}/revoke", {

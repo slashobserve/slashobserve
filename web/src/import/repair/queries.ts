@@ -56,7 +56,6 @@ function bodyOf(target: RepairTarget) {
 export function useRequestRepairs() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (target: RepairTarget) =>
       api.POST("/repairs", { body: bodyOf(target) }).then(unwrap),
     onSuccess: () =>

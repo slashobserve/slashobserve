@@ -232,7 +232,6 @@ export type CreateObservationInput =
 export function useCreateObservation() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (input: CreateObservationInput) =>
       api.POST("/observations", { body: input }).then(unwrap),
     onSuccess: (envelope) => {
@@ -250,7 +249,6 @@ function useObservationMutation<Input>(
 ) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: call,
     onSuccess: (envelope) => writeEnvelope(queryClient, id, envelope),
     onSettled: () => refreshLists(queryClient),
@@ -358,7 +356,6 @@ export function useMakeDashboard(target: {
 export function useDeleteObservation() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (id: string) =>
       api
         .DELETE("/observations/{id}", { params: { path: { id } } })
@@ -376,7 +373,6 @@ export function useDeleteObservation() {
 export function useResolveObservations() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: ({ id, summary }: { id: string; summary: string }) =>
       api
         .POST("/observations/{id}/resolve", {
@@ -392,7 +388,6 @@ export function useResolveObservations() {
 export function useReopenObservationRow() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (id: string) =>
       api
         .POST("/observations/{id}/reopen", { params: { path: { id } } })
@@ -411,7 +406,6 @@ function useBlockMutation<Input, Result>(
   const observationOf = (input: Input) =>
     typeof id === "string" ? id : id(input)
   return useMutation({
-    networkMode: "always",
     mutationFn: call,
     onSuccess: (result, input) => {
       onWritten(queryClient, result, input)

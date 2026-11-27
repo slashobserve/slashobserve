@@ -160,7 +160,6 @@ export function useOpenThread(target: string) {
   return useMutation({
     mutationKey:
       dashboardId === null ? undefined : dashboardKeys.posts(dashboardId),
-    networkMode: "always",
     mutationFn: (input: {
       body: string
       to?: "agent" | "everyone"
@@ -199,7 +198,6 @@ export function useOpenThread(target: string) {
 export function useReplyToThread(target: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (input: {
       threadId: string
       body: string

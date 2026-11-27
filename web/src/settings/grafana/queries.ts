@@ -36,7 +36,6 @@ export function useCreateConnection() {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: async (input: ConnectionInput) => {
       const created = await api.POST("/grafana", { body: input }).then(unwrap)
       return api
@@ -53,7 +52,6 @@ export function useUpdateConnection() {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: async ({
       id,
       body,
@@ -77,7 +75,6 @@ export function useUpdateConnection() {
 export function useTestConnection() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (id: string) =>
       api.POST("/grafana/{id}/test", { params: { path: { id } } }).then(unwrap),
     onSuccess: (tested) =>
@@ -94,7 +91,6 @@ export function useTestConnection() {
 export function useDeleteConnection() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (id: string) =>
       api.DELETE("/grafana/{id}", { params: { path: { id } } }).then(unwrap),
     onSettled: () =>
@@ -138,7 +134,6 @@ export function grafanaDatasourcesQuery(connectionId: string | null) {
 
 export function useStartImport() {
   return useMutation({
-    networkMode: "always",
     mutationFn: ({
       connectionId,
       body,
@@ -158,7 +153,6 @@ export function useStartImport() {
 export function useCancelImport(connectionId: string, syncId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: () =>
       api
         .POST("/grafana/{id}/imports/{sync_id}/cancel", {
