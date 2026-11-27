@@ -9,7 +9,7 @@ import {
   widened,
 } from "../src/run"
 import { estimateOutputTokens } from "../src/session/replay/replay"
-import { CallError, type SessionFactory } from "../src/session/types"
+import { CallError, type SessionFactory, type Turn } from "../src/session/types"
 import {
   FakeClaim,
   claimed,
@@ -454,6 +454,122 @@ describe("restarts", () => {
     expect(claim.finishes).toHaveLength(1)
     expect(claim.finishes[0]?.outcome).toBe("succeeded")
     expect(claim.finishes[0]?.usage.model_calls).toBe(2)
+  })
+
+  describe("after a saved version opened the write window", () => {
+    const usage = {
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      calls: 1,
+    }
+    const calling = (name: string): Turn => ({
+      text: "",
+      toolCalls: [{ id: name, name, input: "{}" }],
+      stop: "tool_use",
+      usage,
+    })
+    const answering: Turn = {
+      text: "done",
+      toolCalls: [],
+      stop: "end_turn",
+      usage,
+    }
+
+    function scripted(...sessions: Turn[][]): SessionFactory {
+      return async () => {
+        const turns = sessions.shift() ?? []
+        return {
+          next: async () => ({ turn: turns.shift() ?? answering, attempts: 1 }),
+          compact: async () => {},
+        }
+      }
+    }
+
+    function restartedInTheWriteWindow(): FakeClaim {
+      const claim = new FakeClaim()
+      claim.tools.specs = ["create_dashboard", "pin_observation"].map(
+        (name) => ({ name, description: "", inputSchema: {}, readOnly: false })
+      )
+      claim.tools.handler = async (call) =>
+        call.name === "create_dashboard"
+          ? reply({ meta: meta("saved", progress(1)) })
+          : reply({ meta: meta("restarted") })
+      return claim
+    }
+
+    const untilRestart = [calling("create_dashboard"), calling("update_panels")]
+
+    async function restartThenAnswer(claim: FakeClaim): Promise<void> {
+      await runLoop(
+        claim,
+        claimed("save, write, restart"),
+        scripted(untilRestart.slice(), [answering]),
+        new AbortController().signal,
+        idle
+      )
+    }
+
+    test("the restarted build is committed when the model answers without a call", async () => {
+      const claim = restartedInTheWriteWindow()
+      claim.brief = (input) =>
+        input.reason === "conflict" ? { build: progress(1) } : {}
+      await restartThenAnswer(claim)
+      expect(claim.briefs.map((b) => b.reason)).toEqual([undefined, "conflict"])
+      expect(claim.finishes).toHaveLength(1)
+      expect(claim.finishes[0]).toMatchObject({
+        outcome: "succeeded",
+        commit: true,
+      })
+    })
+
+    test("a restarted run with no build is nudged, not finished as succeeded", async () => {
+      const claim = restartedInTheWriteWindow()
+      await restartThenAnswer(claim)
+      expect(claim.briefs.map((b) => b.reason)).toEqual([
+        undefined,
+        "conflict",
+        "no_answer",
+      ])
+      expect(claim.finishes).toHaveLength(1)
+      expect(claim.finishes[0]).toMatchObject({
+        outcome: "failed",
+        failure_code: "no_tool_call",
+      })
+    })
+
+    test("what the run made before the restart still answers it", async () => {
+      const claim = new FakeClaim()
+      claim.tools.specs = ["create_observation", "save_finding"].map(
+        (name) => ({ name, description: "", inputSchema: {}, readOnly: false })
+      )
+      claim.tools.handler = async (call) => {
+        switch (call.name) {
+          case "create_observation":
+            return reply({ content: '{"url":"http://app/o/o1"}' })
+          case "save_finding":
+            return reply({ meta: meta("finding") })
+          default:
+            return reply({ meta: meta("restarted") })
+        }
+      }
+      await runLoop(
+        claim,
+        claimed("write, restart"),
+        scripted(
+          [calling("create_observation"), calling("update_panels")],
+          [answering, answering]
+        ),
+        new AbortController().signal,
+        idle
+      )
+      expect(claim.tools.calls.at(-1)).toMatchObject({ name: "save_finding" })
+      expect(claim.tools.calls.at(-1)?.args.markdown).toContain(
+        "http://app/o/o1"
+      )
+      expect(claim.finishes[0]?.outcome).toBe("succeeded")
+    })
   })
 })
 
