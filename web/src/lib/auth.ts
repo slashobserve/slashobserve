@@ -22,6 +22,10 @@ function remember(session: Session) {
   knownSession = session
 }
 
+export function signedInPrincipalId(): string | undefined {
+  return knownSession?.authenticated ? knownSession.principal.id : undefined
+}
+
 export function sessionEnded(): boolean {
   return ended
 }

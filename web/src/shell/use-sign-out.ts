@@ -6,6 +6,7 @@ import { useActivityStore } from "@/activity/activity-store"
 import { useInboxPanelStore } from "@/inbox/inbox-panel-store"
 import { resetLiveToasts } from "@/inbox/use-live-toasts"
 import { invalidateSession, logout } from "@/lib/auth"
+import { clearUnscopedHistory } from "@/lib/scoped-storage"
 
 export function useSignOut() {
   const navigate = useNavigate()
@@ -18,6 +19,7 @@ export function useSignOut() {
       useActivityStore.getState().forgetChats()
       useInboxPanelStore.setState(useInboxPanelStore.getInitialState())
       resetLiveToasts()
+      clearUnscopedHistory()
       invalidateSession()
       await navigate({ to: "/login" })
     } catch {
