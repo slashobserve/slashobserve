@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
-	"github.com/slashobserve/slashobserve/internal/egress/domains"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 )
 
@@ -62,11 +61,7 @@ func expectBlockedUntil(t *testing.T, name string, done <-chan error, release fu
 
 func addForConnection(t *testing.T, r *rig, host string) {
 	t.Helper()
-	p, err := domains.ParsePattern(host)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := r.domains.AddForConnection(reading(t.Context()), r.admin, p); err != nil {
+	if _, err := r.domains.SaveOnAllowedHost(reading(t.Context()), r.admin, host, func(*dbsqlc.Queries) error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 }
