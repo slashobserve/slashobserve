@@ -395,6 +395,7 @@ observe-id:
     description: >-
       Only the principal that made the request may archive it (403 `forbidden`); a request hidden from the caller answers 404.
       The request stays readable through `GET /observe/{id}`, and archiving it again changes nothing.
+      Archiving the last turn of a chat that is not archived yet archives the chat too; a chat with a turn left stays.
     responses:
       "204":
         description: The request is archived; nothing is returned.

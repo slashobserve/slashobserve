@@ -405,6 +405,7 @@ observe requests archive <request-id>
 `requests rename` and `o edit --title` also rename the chat or observation that shares the title, as [Chat](chat.md#one-title-for-a-chat-and-its-observation) describes, and say so or say that the other title was left as it is.
 You can repeat each command without effect, so a retry after a dropped connection is safe.
 An archived request stays readable with `observe status`.
+Archiving the last request of a chat archives the chat too.
 
 `requests archive <id> --delete-observation --yes` first deletes the observation the request saved, as `observe o delete` does and with the same permission.
 That is Manage on its folder, or Edit when you started the observation.

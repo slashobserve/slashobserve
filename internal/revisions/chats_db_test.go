@@ -2,7 +2,9 @@ package revisions_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
 	"slices"
 	"strings"
 	"sync"
@@ -463,4 +465,52 @@ func TestAChatCarriesItsDashboardTitleOnlyForAReaderWhoSeesTheDashboard(t *testi
 func chatOfTurnID(t *testing.T, d *dbtest.Database, turn pgtype.UUID) pgtype.UUID {
 	t.Helper()
 	return mustUUID(t, chatOfTurn(t, d, turn))
+}
+
+func TestArchivingATurnArchivesItsChatOnlyWithTheLastTurnAndAnArchivedTurnOffersNoPin(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	ctx := context.Background()
+	first := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("one")})
+	second := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("two"), ChatID: text(first.String())})
+	chatArchived := func() bool {
+		t.Helper()
+		var archived bool
+		if err := d.SQLDB(t).QueryRowContext(ctx, `SELECT archived_at IS NOT NULL FROM chats WHERE id = $1`, first).Scan(&archived); err != nil {
+			t.Fatal(err)
+		}
+		return archived
+	}
+	allowed := func(id pgtype.UUID) []string {
+		t.Helper()
+		rec := call(observeRouterFor(svc, user), http.MethodGet, "/api/v1/observe/"+id.String(), "")
+		var wrapped struct {
+			Request struct {
+				AllowedActions []string `json:"allowed_actions"`
+			} `json:"request"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &wrapped); err != nil || rec.Code != http.StatusOK {
+			t.Fatalf("read %v: %d %s", id, rec.Code, rec.Body)
+		}
+		return wrapped.Request.AllowedActions
+	}
+	if !slices.Contains(allowed(first), "pin") {
+		t.Fatalf("allowed_actions of a live turn = %v, want pin", allowed(first))
+	}
+
+	if err := svc.Archive(ctx, first, user); err != nil {
+		t.Fatal(err)
+	}
+	if chatArchived() {
+		t.Fatal("archiving the first turn archived the chat while its second turn is live")
+	}
+	if got := allowed(first); slices.Contains(got, "pin") || !slices.Contains(got, "archive") {
+		t.Fatalf("allowed_actions of an archived turn = %v, want archive and no pin", got)
+	}
+
+	if err := svc.Archive(ctx, second, user); err != nil {
+		t.Fatal(err)
+	}
+	if !chatArchived() {
+		t.Fatal("archiving the last live turn left the chat live")
+	}
 }

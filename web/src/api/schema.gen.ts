@@ -2499,7 +2499,7 @@ export interface paths {
         post?: never;
         /**
          * Archive one of your agent requests so it leaves your list.
-         * @description Only the principal that made the request may archive it (403 `forbidden`); a request hidden from the caller answers 404. The request stays readable through `GET /observe/{id}`, and archiving it again changes nothing.
+         * @description Only the principal that made the request may archive it (403 `forbidden`); a request hidden from the caller answers 404. The request stays readable through `GET /observe/{id}`, and archiving it again changes nothing. Archiving the last turn of a chat that is not archived yet archives the chat too; a chat with a turn left stays.
          */
         delete: operations["archiveObserveRequest"];
         options?: never;

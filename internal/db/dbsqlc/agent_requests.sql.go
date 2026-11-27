@@ -77,8 +77,15 @@ func (q *Queries) AppendAgentRequestStep(ctx context.Context, arg AppendAgentReq
 }
 
 const archiveAgentRequest = `-- name: ArchiveAgentRequest :execrows
-WITH chat AS (
-  UPDATE chats SET archived_at = coalesce(archived_at, clock_timestamp()) WHERE chats.id = $1
+WITH turn AS (
+  SELECT r.chat_id FROM agent_requests r WHERE r.id = $1
+), chat AS (
+  UPDATE chats SET archived_at = coalesce(chats.archived_at, clock_timestamp())
+  FROM turn
+  WHERE chats.id = turn.chat_id AND NOT EXISTS (
+    SELECT 1 FROM agent_requests t
+    WHERE t.chat_id = turn.chat_id AND t.id <> $1 AND t.archived_at IS NULL
+  )
 )
 UPDATE agent_requests SET archived_at = coalesce(agent_requests.archived_at, clock_timestamp()) WHERE agent_requests.id = $1
 `
