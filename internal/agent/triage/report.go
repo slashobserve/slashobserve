@@ -96,6 +96,7 @@ type Report struct {
 	Question   *Window
 	Services   []ServiceSource
 	Signals    []string
+	Rates      []Row
 	Candidates []Candidate
 	Background []Row
 	Skipped    []Skip

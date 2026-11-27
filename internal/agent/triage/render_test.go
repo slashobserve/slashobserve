@@ -42,7 +42,7 @@ func TestRenderStatesTheWindowsCandidatesAndThatItIsNotEvidence(t *testing.T) {
 		`log pattern (loki, error) new, 120 lines: "charge failed <_>"`,
 		"Background, not a candidate: cart errors 2%, 1.9% before it",
 		"Skipped: trace rates on jaeger: prom span metrics cover them.",
-		"Sweep: 17 datasource calls in 3.2s.",
+		"Sweep: 17 reads in 3.2s.",
 		"\n</triage>",
 	} {
 		if !strings.Contains(got, want) {

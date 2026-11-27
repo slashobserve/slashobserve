@@ -25,6 +25,7 @@ const (
 	prioSignals
 	prioEvidence
 	prioServices
+	prioRates
 	prioPatterns
 	prioBackground
 	prioSkipped
@@ -48,6 +49,7 @@ func reportLines(r Report) []line {
 	for _, s := range r.Signals {
 		lines = append(lines, line{prioSignals, "Signal: " + s})
 	}
+	lines = append(lines, rateLines(r.Rates)...)
 	if len(r.Candidates) == 0 {
 		lines = append(lines, line{keep, "Candidates: none. No service's errors or latency moved against its baseline on any window the sweep read."})
 	} else {
@@ -62,7 +64,7 @@ func reportLines(r Report) []line {
 	for _, s := range r.Skipped {
 		lines = append(lines, line{prioSkipped, fmt.Sprintf("Skipped: %s%s: %s.", s.Step, onSource(s.Source), s.Reason)})
 	}
-	lines = append(lines, line{keep, fmt.Sprintf("Sweep: %d datasource calls in %s.", r.Calls, r.Duration.Round(100*time.Millisecond))}, line{keep, blockClose})
+	lines = append(lines, line{keep, fmt.Sprintf("Sweep: %d reads in %s.", r.Calls, r.Duration.Round(100*time.Millisecond))}, line{keep, blockClose})
 	return lines
 }
 
@@ -92,6 +94,20 @@ func serviceLine(s ServiceSource) string {
 		text += "none seen"
 	}
 	return text
+}
+
+func rateLines(rows []Row) []line {
+	var out []line
+	for i := 0; i < len(rows); {
+		head := rows[i]
+		parts := []string{fmt.Sprintf("%s %s from %s", head.Signal, figure(head.Window, head.Unit), figure(head.Baseline, head.Unit))}
+		i++
+		for ; i < len(rows) && rows[i].Signal != SignalRequests; i++ {
+			parts = append(parts, fmt.Sprintf("%s %s from %s", rows[i].Signal, figure(rows[i].Window, rows[i].Unit), figure(rows[i].Baseline, rows[i].Unit)))
+		}
+		out = append(out, line{prioRates, fmt.Sprintf("Last %s on %s, %s: %s", short(head.Rung), head.Source, head.Service, strings.Join(parts, ", "))})
+	}
+	return out
 }
 
 func candidateLines(c Candidate) []line {
@@ -171,7 +187,7 @@ func size(lines []line, cut int) int {
 }
 
 func cutNote(n int) string {
-	return fmt.Sprintf("Cut for size: %d lines, skipped steps first, then background, log patterns, service lists, evidence, signals and the last candidates.", n)
+	return fmt.Sprintf("Cut for size: %d lines, skipped steps first, then background, log patterns, per-service rates, service lists, evidence, signals and the last candidates.", n)
 }
 
 func lowest(lines []line) int {

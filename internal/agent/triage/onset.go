@@ -19,8 +19,8 @@ type Rule struct {
 
 var (
 	ErrorRule   = Rule{Factor: 2, Floor: 0.01, Sustain: 3}
-	LatencyRule = Rule{Factor: 1.5, Floor: 0, Sustain: 3}
-	LogRule     = Rule{Factor: 2, Floor: 0, Sustain: 3}
+	LatencyRule = Rule{Factor: 1.5, Floor: 5, Sustain: 3}
+	LogRule     = Rule{Factor: 2, Floor: 0.01, Sustain: 3}
 )
 
 func (r Rule) threshold(baseline float64) float64 {
