@@ -29,17 +29,34 @@ export type ReporterOptions = {
   textFlushMs: number
   usageRetryMs?: readonly number[]
   usageBudgetMs?: number
-  now?: () => number
+  clock?: Clock
+}
+
+export type Clock = { wall: () => number; monotonic: () => number }
+
+const systemClock: Clock = {
+  wall: Date.now,
+  monotonic: () => performance.now(),
 }
 
 type Lease =
-  | { state: "renewed"; until: number | undefined }
+  | { state: "renewed"; monotonicEnd: number | undefined }
   | { state: "stop_told"; ended: RunEnded }
   | { state: "lost"; ended: RunEnded }
 
-function leaseEnd(leaseUntil: string | null | undefined): number | undefined {
-  const until = Date.parse(leaseUntil ?? "")
-  return Number.isNaN(until) ? undefined : until
+function timeOf(text: string | null | undefined): number | undefined {
+  const time = Date.parse(text ?? "")
+  return Number.isNaN(time) ? undefined : time
+}
+
+function leaseLeftMs(
+  answer: ReportAnswer,
+  wallNow: number
+): number | undefined {
+  const until = timeOf(answer.lease_until)
+  return until === undefined
+    ? undefined
+    : until - (timeOf(answer.server_time) ?? wallNow)
 }
 
 export type ReporterHooks = {
@@ -62,14 +79,14 @@ export class Reporter {
   private readonly options: ReporterOptions
   private readonly hooks: ReporterHooks
   private readonly signal: AbortSignal
-  private readonly now: () => number
+  private readonly clock: Clock
   private buffered = ""
   private flushTimer: ReturnType<typeof setTimeout> | undefined
   private beatTimer: ReturnType<typeof setInterval> | undefined
   private beating = false
   private wroteText = false
   private messageBreak = false
-  private lease: Lease = { state: "renewed", until: undefined }
+  private lease: Lease = { state: "renewed", monotonicEnd: undefined }
 
   constructor(
     api: ClaimApi,
@@ -83,7 +100,7 @@ export class Reporter {
     this.options = options
     this.hooks = hooks
     this.signal = signal
-    this.now = options.now ?? Date.now
+    this.clock = options.clock ?? systemClock
   }
 
   startHeartbeat(): void {
@@ -151,8 +168,8 @@ export class Reporter {
     const { lease } = this
     if (
       lease.state === "renewed" &&
-      lease.until !== undefined &&
-      this.now() >= lease.until
+      lease.monotonicEnd !== undefined &&
+      this.clock.monotonic() >= lease.monotonicEnd
     ) {
       log("warn", "lease lapsed without a successful report", {
         run_id: this.run.run_id,
@@ -217,9 +234,12 @@ export class Reporter {
       this.end({ state: "stop_told", ended: new RunEnded(answer.state) })
       return
     }
-    const until = leaseEnd(answer.lease_until)
-    if (this.lease.state === "renewed" && until !== undefined) {
-      this.lease = { state: "renewed", until }
+    const leftMs = leaseLeftMs(answer, this.clock.wall())
+    if (this.lease.state === "renewed" && leftMs !== undefined) {
+      this.lease = {
+        state: "renewed",
+        monotonicEnd: this.clock.monotonic() + leftMs,
+      }
     }
   }
 
