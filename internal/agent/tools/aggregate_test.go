@@ -225,3 +225,17 @@ func TestAggregateSaysAnEmptyResultIsNotAZero(t *testing.T) {
 		t.Fatalf("out = %+v", out)
 	}
 }
+
+func TestAggregateQuantileFallsBackToANativeHistogram(t *testing.T) {
+	fake := &measureFake{answer: func(query string) []datasource.Frame {
+		if strings.Contains(query, bucketSuffix) {
+			return nil
+		}
+		return []datasource.Frame{timeNumberFrame(map[string]string{"route": "/cart"}, 0.42)}
+	}}
+	out := aggregated(t, fake.registry(t, ""), `{"datasource":"fake","op":"quantile","quantile":0.99,"query":"http_server_duration_seconds","by":["route"]}`)
+	want := `histogram_quantile(0.99, sum by (route) (increase(http_server_duration_seconds[3600s])))`
+	if out.Empty || out.Query != want || *out.Values[0].Value != 0.42 || len(fake.queries) != 2 {
+		t.Fatalf("out = %+v queries = %q", out, fake.queries)
+	}
+}

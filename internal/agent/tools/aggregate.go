@@ -72,6 +72,7 @@ type aggregatePlan struct {
 	query       string
 	numerator   string
 	denominator string
+	native      string
 }
 
 type aggregatedValue struct {
@@ -166,7 +167,11 @@ func planPromAggregate(in aggregateInput, window time.Duration) (aggregatePlan, 
 		}
 		buckets := renderSelector(matchers, bucketSuffix)
 		q := strconv.FormatFloat(*in.Quantile, 'g', -1, 64)
-		return aggregatePlan{query: fmt.Sprintf("histogram_quantile(%s, sum by (%s) (increase(%s[%s])))", q, grouping(in.By, "le"), buckets, promSeconds(window))}, ""
+		plan := aggregatePlan{query: fmt.Sprintf("histogram_quantile(%s, sum by (%s) (increase(%s[%s])))", q, grouping(in.By, "le"), buckets, promSeconds(window))}
+		if base := renderSelector(matchers, ""); !strings.HasSuffix(base, bucketSuffix) && !strings.Contains(base, bucketSuffix+"{") {
+			plan.native = fmt.Sprintf("histogram_quantile(%s, sum by (%s) (increase(%s[%s])))", q, grouping(in.By), base, promSeconds(window))
+		}
+		return plan, ""
 	}
 	numerator, problem := promCounterSelector("query", in.Query)
 	if problem != "" {
@@ -321,6 +326,14 @@ func (r *Registry) runAggregate(ctx context.Context, inst datasource.Instance, p
 		return failed, err
 	}
 	out.Values, out.Truncated = aggregatedValues(frames)
+	if len(out.Values) == 0 && plan.native != "" {
+		if frames, failed, err = r.measureRun(ctx, inst, plan.native, rng); failed != nil {
+			return failed, err
+		}
+		if out.Values, out.Truncated = aggregatedValues(frames); len(out.Values) > 0 {
+			out.Query = plan.native
+		}
+	}
 	if plan.numerator == "" || len(out.Values) == 0 {
 		return nil, nil
 	}

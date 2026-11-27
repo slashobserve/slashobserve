@@ -1137,6 +1137,7 @@ It runs one instant query at `to` over a range as long as the window, so the fig
   A group whose numerator has no series but whose denominator grew reads 0, not an empty result.
   Each value also carries `numerator` and `denominator`, and the result carries the two queries that gave them.
 - `op` `quantile` with `quantile`, such as `0.99`, is `histogram_quantile(q, sum by (le) (increase(<name>_bucket{...}[W])))`.
+  When `<name>_bucket` has no series, the selector is read as a native histogram, `histogram_quantile(q, sum(increase(<name>{...}[W])))`, and `query` names the one that answered.
 - On Loki, `query` is a log query, a stream selector with an optional pipeline such as `{service_name="cart"} | json`; a metric query is refused, because the server adds the range function itself.
   `op` `total` counts the matching lines, `sum(count_over_time(query [W]))`, and `ratio` divides the line counts of `query` and `denominator`, 0 when `query` matches nothing.
   With `unwrap`, the numeric label or parsed field to measure (`duration(field)` and `bytes(field)` read values with units), `total` is the field's sum and `quantile`, `max`, `min` and `avg` pool every line in the window, such as `quantile_over_time(0.99, query | unwrap ms | __error__="" [W]) by ()`.
