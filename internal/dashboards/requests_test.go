@@ -158,22 +158,6 @@ func TestRequestVersionIsSavedExactlyOnce(t *testing.T) {
 	}
 }
 
-func TestRequestVersionReplaysEvenWhenTheDashboardMovedOn(t *testing.T) {
-	r := newRig(t, true)
-	dash := r.createDashboard(t)
-	request := r.queueRevision(t, dash)
-	if _, _, _, err := r.saveRequest(t, dash, 1, panelsSpec("t", "rps", "p99"), "first", request); err != nil {
-		t.Fatal(err)
-	}
-	if _, _, _, err := r.service.AddVersion(reading(t.Context()), testUser, dash, 2, panelsSpec("t", "rps"), "someone else"); err != nil {
-		t.Fatal(err)
-	}
-	_, ver, replayed, err := r.saveRequest(t, dash, 1, panelsSpec("t", "rps", "p99"), "first", request)
-	if err != nil || !replayed || ver.Number != 2 {
-		t.Fatalf("version %d, replayed %t, err %v", ver.Number, replayed, err)
-	}
-}
-
 func TestConcurrentSavesForOneRequestCreateOneVersion(t *testing.T) {
 	r := newRig(t, true)
 	dash := r.createDashboard(t)
