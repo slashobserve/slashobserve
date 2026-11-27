@@ -312,6 +312,24 @@ describe("Reporter lease", () => {
     expect(run.sent).toHaveLength(2)
   })
 
+  test("the lease counts from when the report was sent, not from when its answer arrived", async () => {
+    const answerDelayMs = 10_000
+    const run = leased({
+      answer: async (nth) => {
+        if (nth > 0) throw unreachable()
+        run.pass(answerDelayMs)
+        return run.renewal()
+      },
+    })
+    await run.reporter.beat()
+    run.pass(leaseMs - answerDelayMs - 1)
+    await run.reporter.beat()
+    expect(run.ended).toEqual([])
+    run.pass(1)
+    await run.reporter.beat()
+    expect(run.ended.map((e) => e.state)).toEqual(["lost"])
+  })
+
   test("without server_time the lease ends when the agent's clock reaches lease_until", async () => {
     const leaseUntil = new Date(serverStart + leaseMs).toISOString()
     const run = leased({

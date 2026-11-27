@@ -39,6 +39,10 @@ const systemClock: Clock = {
   monotonic: () => performance.now(),
 }
 
+type Instant = { wall: number; monotonic: number }
+
+type Reported = { answer: ReportAnswer; sent: Instant }
+
 type Lease =
   | { state: "renewed"; monotonicEnd: number | undefined }
   | { state: "stop_told"; ended: RunEnded }
@@ -49,14 +53,11 @@ function timeOf(text: string | null | undefined): number | undefined {
   return Number.isNaN(time) ? undefined : time
 }
 
-function leaseLeftMs(
-  answer: ReportAnswer,
-  wallNow: number
-): number | undefined {
+function leaseEndFrom(sent: Instant, answer: ReportAnswer): number | undefined {
   const until = timeOf(answer.lease_until)
   return until === undefined
     ? undefined
-    : until - (timeOf(answer.server_time) ?? wallNow)
+    : sent.monotonic + until - (timeOf(answer.server_time) ?? sent.wall)
 }
 
 export type ReporterHooks = {
@@ -217,9 +218,9 @@ export class Reporter {
   }
 
   private async send(body: { text?: string; usage?: Usage }): Promise<void> {
-    let answer: ReportAnswer
+    let reported: Reported
     try {
-      answer = await this.attempt(body)
+      reported = await this.attempt(body)
     } catch (error) {
       if (error instanceof ToolError && error.code === "not_your_run") {
         this.end({ state: "lost", ended: new RunEnded("lost") })
@@ -227,6 +228,7 @@ export class Reporter {
       }
       throw error
     }
+    const { answer, sent } = reported
     if (answer.build != null) {
       this.hooks.onBuild(answer.build)
     }
@@ -234,19 +236,13 @@ export class Reporter {
       this.end({ state: "stop_told", ended: new RunEnded(answer.state) })
       return
     }
-    const leftMs = leaseLeftMs(answer, this.clock.wall())
-    if (this.lease.state === "renewed" && leftMs !== undefined) {
-      this.lease = {
-        state: "renewed",
-        monotonicEnd: this.clock.monotonic() + leftMs,
-      }
+    const monotonicEnd = leaseEndFrom(sent, answer)
+    if (this.lease.state === "renewed" && monotonicEnd !== undefined) {
+      this.lease = { state: "renewed", monotonicEnd }
     }
   }
 
-  private attempt(body: {
-    text?: string
-    usage?: Usage
-  }): Promise<ReportAnswer> {
+  private attempt(body: { text?: string; usage?: Usage }): Promise<Reported> {
     const input = { ...this.run, ...body }
     const policy: RetryPolicy =
       body.usage === undefined
@@ -256,7 +252,13 @@ export class Reporter {
             budgetMs: this.options.usageBudgetMs ?? usageReportBudgetMs,
           }
     return retryWithin(
-      (signal) => this.api.reportRun(input, signal),
+      async (signal) => {
+        const sent = {
+          wall: this.clock.wall(),
+          monotonic: this.clock.monotonic(),
+        }
+        return { answer: await this.api.reportRun(input, signal), sent }
+      },
       this.signal,
       policy
     )
