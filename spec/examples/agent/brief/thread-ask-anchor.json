@@ -1,0 +1,85 @@
+{
+  "name": "thread-ask-anchor",
+  "brief": {
+    "request": {
+      "mode": "investigate",
+      "source": "comment",
+      "prompt": "@observe why is this so high?",
+      "panel_id": null,
+      "from": null,
+      "to": null,
+      "time_zone": "America/Sao_Paulo",
+      "zone": {
+        "label": "UTC-03:00",
+        "offset_seconds": -10800
+      },
+      "as_of": null,
+      "continue_note": null,
+      "thread_context": "Ana: the checkout \u003cp99\u003e spiked\nBo: since the deploy \u0026 rollback",
+      "continues": false,
+      "attempt": 1,
+      "investigation": false,
+      "pointer": {
+        "anchor": {
+          "kind": "point",
+          "pos": {
+            "x": 0.4,
+            "y": 0.3
+          },
+          "from": "2026-11-21T05:26:30+05:30",
+          "series": {
+            "env": "prod",
+            "service": "checkout"
+          },
+          "shown": "440 \u003cms\u003e \u0026 more",
+          "window": {
+            "from": "now-2h",
+            "to": "now"
+          }
+        },
+        "block_id": "blk1",
+        "observation_id": "obs1",
+        "thread_ask": true
+      }
+    },
+    "current": null,
+    "build": null,
+    "datasources": [
+      {
+        "uid": "prom",
+        "type": "prometheus",
+        "name": "Prometheus",
+        "source": "",
+        "healthy": true,
+        "checked_at": "0001-01-01T00:00:00Z",
+        "health_state": "",
+        "everyone": false
+      }
+    ],
+    "withheld": false,
+    "guide": {
+      "text": "",
+      "schema": null
+    },
+    "draft": null
+  },
+  "guide": "guide-prometheus.md",
+  "reason": "",
+  "now": "2026-11-25T05:29:00Z",
+  "state": {
+    "task": "incident",
+    "loop": false,
+    "facts": false,
+    "ledger": null,
+    "triage": "",
+    "digest": null
+  },
+  "want": {
+    "system": {
+      "bytes": 20259,
+      "sha256": "91fc92269dee9b583beb1f68d81099cd27346d13331c57121ec7e10eb20dce5c"
+    },
+    "context": "Configured datasources:\n- prom (prometheus): healthy\n\nInvestigate the question and save one finding.\nWindow: the last hour (a default the question may need to exceed)\n\nTime zone: the person reads times in America/Sao_Paulo, labelled UTC-03:00. Tool results give UTC; write every time in the answer in America/Sao_Paulo with its label, such as 14:05 UTC-03:00, not in UTC. It is now 02:29 UTC-03:00 on 2026-11-25, which is 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nThe request points at \"the point at 2026-11-20 23:56:30 UTC on the series env=prod, service=checkout (440 \u0026lt;ms\u0026gt; \u0026amp; more), last 2 hours\" on block blk1 of observation obs1.\n\nThe request was asked in this thread (earlier messages, oldest first):\nAna: the checkout \u003cp99\u003e spiked\nBo: since the deploy \u0026 rollback",
+    "user": "Configured datasources:\n- prom (prometheus): healthy\n\nInvestigate the question and save one finding.\nWindow: the last hour (a default the question may need to exceed)\n\nTime zone: the person reads times in America/Sao_Paulo, labelled UTC-03:00. Tool results give UTC; write every time in the answer in America/Sao_Paulo with its label, such as 14:05 UTC-03:00, not in UTC. It is now 02:29 UTC-03:00 on 2026-11-25, which is 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nThe request points at \"the point at 2026-11-20 23:56:30 UTC on the series env=prod, service=checkout (440 \u0026lt;ms\u0026gt; \u0026amp; more), last 2 hours\" on block blk1 of observation obs1.\n\nThe request was asked in this thread (earlier messages, oldest first):\nAna: the checkout \u003cp99\u003e spiked\nBo: since the deploy \u0026 rollback\n\n\u003crequest\u003e\n@observe why is this so high?\n\u003c/request\u003e"
+  }
+}

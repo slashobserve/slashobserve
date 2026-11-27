@@ -28,6 +28,7 @@ type BriefRequest struct {
 	From          *time.Time   `json:"from"`
 	To            *time.Time   `json:"to"`
 	TimeZone      *string      `json:"time_zone"`
+	Zone          *BriefZone   `json:"zone"`
 	AsOf          *time.Time   `json:"as_of"`
 	ContinueNote  *string      `json:"continue_note"`
 	ThreadContext *string      `json:"thread_context"`
@@ -35,6 +36,11 @@ type BriefRequest struct {
 	Attempt       int          `json:"attempt"`
 	Investigation bool         `json:"investigation"`
 	Pointer       BriefPointer `json:"pointer"`
+}
+
+type BriefZone struct {
+	Label         string `json:"label"`
+	OffsetSeconds int    `json:"offset_seconds"`
 }
 
 type BriefPointer struct {

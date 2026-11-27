@@ -1,0 +1,202 @@
+{
+  "name": "create-build-renewed",
+  "brief": {
+    "request": {
+      "mode": "create",
+      "source": "observe",
+      "prompt": "make a checkout dashboard",
+      "panel_id": null,
+      "from": null,
+      "to": null,
+      "time_zone": null,
+      "zone": null,
+      "as_of": null,
+      "continue_note": null,
+      "thread_context": null,
+      "continues": false,
+      "attempt": 1,
+      "investigation": false,
+      "pointer": {
+        "anchor": null,
+        "block_id": null,
+        "observation_id": null,
+        "thread_ask": false
+      }
+    },
+    "current": null,
+    "build": {
+      "base_version": 0,
+      "spec": {
+        "specVersion": "0",
+        "title": "Checkout \u003clive\u003e \u0026 co",
+        "tags": [
+          "shop",
+          "p-l"
+        ],
+        "time": {
+          "from": "now-6h",
+          "to": "now"
+        },
+        "refresh": "30s",
+        "variables": [
+          {
+            "name": "service",
+            "type": "query",
+            "datasource": "prom",
+            "query": "label_values(up, service)"
+          },
+          {
+            "name": "env",
+            "type": "custom",
+            "options": [
+              "prod",
+              "staging"
+            ],
+            "multi": true,
+            "default": [
+              "prod"
+            ]
+          }
+        ],
+        "panels": [
+          {
+            "id": "p1",
+            "type": "stat",
+            "title": "Requests \"now\" été",
+            "gridPos": {
+              "x": 0,
+              "y": 0,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"$service\"}[5m]))"
+              }
+            ],
+            "unit": "reqps",
+            "decimals": 2,
+            "min": 2.5e-7
+          },
+          {
+            "id": "p2",
+            "type": "timeseries",
+            "title": "Latency p99",
+            "gridPos": {
+              "x": 6,
+              "y": 0,
+              "w": 18,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "A",
+                "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))",
+                "legend": "p99"
+              }
+            ],
+            "unit": "s",
+            "min": 0.000001
+          },
+          {
+            "id": "r1",
+            "type": "row",
+            "title": "Details",
+            "gridPos": {
+              "x": 0,
+              "y": 8,
+              "w": 24,
+              "h": 1
+            },
+            "panels": [
+              {
+                "id": "p3",
+                "type": "table",
+                "title": "Errors by route",
+                "gridPos": {
+                  "x": 0,
+                  "y": 9,
+                  "w": 12,
+                  "h": 6
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "topk(5, sum by (route) (rate(errors_total[5m])))",
+                    "instant": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "unverified": {
+        "panels": null,
+        "variables": null
+      },
+      "progress": {
+        "saves": 3,
+        "panels": 3,
+        "planned_panels": 0
+      }
+    },
+    "datasources": [
+      {
+        "uid": "prom",
+        "type": "prometheus",
+        "name": "Prometheus",
+        "source": "",
+        "healthy": true,
+        "checked_at": "0001-01-01T00:00:00Z",
+        "health_state": "",
+        "everyone": false
+      }
+    ],
+    "withheld": false,
+    "guide": {
+      "text": "",
+      "schema": null
+    },
+    "draft": null
+  },
+  "guide": "guide-prometheus.md",
+  "reason": "renewed",
+  "now": "2026-11-25T05:29:00Z",
+  "state": {
+    "task": "",
+    "loop": false,
+    "facts": false,
+    "ledger": null,
+    "triage": "",
+    "digest": [
+      {
+        "datasource": "prom",
+        "of": "metrics",
+        "names": [
+          "http_requests_total",
+          "http_request_duration_seconds_bucket"
+        ]
+      },
+      {
+        "datasource": "prom",
+        "of": "labels",
+        "names": [
+          "service",
+          "route",
+          "code"
+        ]
+      }
+    ]
+  },
+  "want": {
+    "system": {
+      "bytes": 24163,
+      "sha256": "f4315d70e1db9b3550c2f76c29d97603b8612645937d6a3c1d7f429aea20c6d3"
+    },
+    "context": "Configured datasources:\n- prom (prometheus): healthy\n\nCreate a new dashboard for the request. This is your build of the new dashboard, not saved as a version yet.\n```json\n{\"specVersion\":\"0\",\"title\":\"Checkout \\u003clive\\u003e \\u0026 co\",\"tags\":[\"shop\",\"p-l\"],\"time\":{\"from\":\"now-6h\",\"to\":\"now\"},\"refresh\":\"30s\",\"variables\":[{\"name\":\"service\",\"type\":\"query\",\"datasource\":\"prom\",\"query\":\"label_values(up, service)\"},{\"name\":\"env\",\"type\":\"custom\",\"options\":[\"prod\",\"staging\"],\"multi\":true,\"default\":[\"prod\"]}],\"panels\":[{\"id\":\"p1\",\"type\":\"stat\",\"title\":\"Requests \\\"now\\\" été\",\"gridPos\":{\"x\":0,\"y\":0,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"$service\\\"}[5m]))\"}],\"unit\":\"reqps\",\"decimals\":2,\"min\":2.5e-7},{\"id\":\"p2\",\"type\":\"timeseries\",\"title\":\"Latency p99\",\"gridPos\":{\"x\":6,\"y\":0,\"w\":18,\"h\":8},\"datasource\":\"prom\",\"queries\":[{\"ref\":\"A\",\"query\":\"histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))\",\"legend\":\"p99\"}],\"unit\":\"s\",\"min\":0.000001},{\"id\":\"r1\",\"type\":\"row\",\"title\":\"Details\",\"gridPos\":{\"x\":0,\"y\":8,\"w\":24,\"h\":1},\"panels\":[{\"id\":\"p3\",\"type\":\"table\",\"title\":\"Errors by route\",\"gridPos\":{\"x\":0,\"y\":9,\"w\":12,\"h\":6},\"datasource\":\"prom\",\"queries\":[{\"query\":\"topk(5, sum by (route) (rate(errors_total[5m])))\",\"instant\":true}]}]}]}\n```\n\u003cbuild\u003e\nYou are building this dashboard. Your saves so far are in the build above; do not redo them.\nThe build holds 3 panels.\nWhy your conversation was shortened: Your session was renewed to keep it short; the build above holds every panel you saved.\nContinue with the next panel, one panel per save, and set finish: true on the last one. If nothing is missing, answer with one short sentence and no tool call.\n\u003c/build\u003e\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\n\u003cdiscovered\u003e\nNames this run already found; use them without listing them again.\n- prom labels: service, route, code\n- prom metrics: http_requests_total, http_request_duration_seconds_bucket\n\u003c/discovered\u003e",
+    "user": "Configured datasources:\n- prom (prometheus): healthy\n\nCreate a new dashboard for the request. This is your build of the new dashboard, not saved as a version yet.\n```json\n{\"specVersion\":\"0\",\"title\":\"Checkout \\u003clive\\u003e \\u0026 co\",\"tags\":[\"shop\",\"p-l\"],\"time\":{\"from\":\"now-6h\",\"to\":\"now\"},\"refresh\":\"30s\",\"variables\":[{\"name\":\"service\",\"type\":\"query\",\"datasource\":\"prom\",\"query\":\"label_values(up, service)\"},{\"name\":\"env\",\"type\":\"custom\",\"options\":[\"prod\",\"staging\"],\"multi\":true,\"default\":[\"prod\"]}],\"panels\":[{\"id\":\"p1\",\"type\":\"stat\",\"title\":\"Requests \\\"now\\\" été\",\"gridPos\":{\"x\":0,\"y\":0,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"$service\\\"}[5m]))\"}],\"unit\":\"reqps\",\"decimals\":2,\"min\":2.5e-7},{\"id\":\"p2\",\"type\":\"timeseries\",\"title\":\"Latency p99\",\"gridPos\":{\"x\":6,\"y\":0,\"w\":18,\"h\":8},\"datasource\":\"prom\",\"queries\":[{\"ref\":\"A\",\"query\":\"histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))\",\"legend\":\"p99\"}],\"unit\":\"s\",\"min\":0.000001},{\"id\":\"r1\",\"type\":\"row\",\"title\":\"Details\",\"gridPos\":{\"x\":0,\"y\":8,\"w\":24,\"h\":1},\"panels\":[{\"id\":\"p3\",\"type\":\"table\",\"title\":\"Errors by route\",\"gridPos\":{\"x\":0,\"y\":9,\"w\":12,\"h\":6},\"datasource\":\"prom\",\"queries\":[{\"query\":\"topk(5, sum by (route) (rate(errors_total[5m])))\",\"instant\":true}]}]}]}\n```\n\u003cbuild\u003e\nYou are building this dashboard. Your saves so far are in the build above; do not redo them.\nThe build holds 3 panels.\nWhy your conversation was shortened: Your session was renewed to keep it short; the build above holds every panel you saved.\nContinue with the next panel, one panel per save, and set finish: true on the last one. If nothing is missing, answer with one short sentence and no tool call.\n\u003c/build\u003e\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\n\u003cdiscovered\u003e\nNames this run already found; use them without listing them again.\n- prom labels: service, route, code\n- prom metrics: http_requests_total, http_request_duration_seconds_bucket\n\u003c/discovered\u003e\n\n\u003crequest\u003e\nmake a checkout dashboard\n\u003c/request\u003e"
+  }
+}

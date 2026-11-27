@@ -475,7 +475,8 @@ Some results also carry a note after the content, which an agent reads like any 
 `message` is the first message of a model session.
 `brief` holds what `system` and `message` are written from, as fields, read in the same call:
 
-- `request`: the run's `mode` (`create`, `revise`, `suggest` or `investigate`), `source`, `prompt`, `panel_id`, `from`, `to`, `time_zone`, `as_of`, `continue_note`, `thread_context`, `continues`, `attempt`, `investigation` and `pointer` (`anchor`, `block_id`, `observation_id`, `thread_ask`); an unset value is `null`.
+- `request`: the run's `mode` (`create`, `revise`, `suggest` or `investigate`), `source`, `prompt`, `panel_id`, `from`, `to`, `time_zone`, `zone`, `as_of`, `continue_note`, `thread_context`, `continues`, `attempt`, `investigation` and `pointer` (`anchor`, `block_id`, `observation_id`, `thread_ask`); an unset value is `null`.
+  `zone` is the `label` (such as `CET`, or `UTC-03:00` where the zone has no abbreviation) and `offset_seconds` east of UTC of `time_zone` at `as_of`, or at the time of the call without one, and `null` when `time_zone` is unset or not a known zone.
 - `current`: the dashboard version the run works on, with `dashboard_id`, `number`, `spec`, `unverified` and `conversion` (the import notes of that version), or `null`; for a suggest run it is the base version with the draft panel in it.
 - `build`: the saved build, with `base_version`, `spec`, `unverified` and `progress`, or `null`.
 - `datasources`: each datasource the run may read, with its health as `list_datasources` gives it and `everyone`, true when everyone may read it (never the audit datasource or an Admins-only one).

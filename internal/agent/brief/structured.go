@@ -39,7 +39,7 @@ func Structured(statuses []datasource.Status, everyone func(uid string) bool, t 
 func structuredRequest(t Task) tools.BriefRequest {
 	return tools.BriefRequest{
 		Mode: t.Mode, Source: string(t.Source), Prompt: t.Prompt, PanelID: nonEmpty(t.PanelID),
-		From: inUTC(t.From), To: inUTC(t.To), TimeZone: nonEmpty(t.TimeZone), AsOf: inUTC(t.AsOf),
+		From: inUTC(t.From), To: inUTC(t.To), TimeZone: nonEmpty(t.TimeZone), Zone: zoneAt(t.TimeZone, t.now()), AsOf: inUTC(t.AsOf),
 		ContinueNote: nonEmpty(t.ContinueNote), ThreadContext: nonEmpty(t.ThreadContext), Continues: t.Continues, Attempt: t.Attempt,
 		Investigation: t.Investigation,
 		Pointer: tools.BriefPointer{

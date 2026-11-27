@@ -15,6 +15,8 @@ The server starts it whenever a model provider is configured; the image ships it
   Its tests read the Go tests' cases in `spec/examples/agent/route/`.
 - `src/prompts/`: ports the run system text assembly of `internal/agent/prompts/run.go` (`investigateFor`, `buildSystem`), importing the `.md` files from `internal/agent/prompts/` and the example Spec with Bun text imports, which the Dockerfile's agent stage copies; the authoring guide comes from `get_run_brief`'s `brief.guide.text`; not yet called by the run loop.
   Its tests compare against the Go goldens in `spec/examples/agent/prompts/`.
+- `src/brief/`: ports `internal/agent/brief` (`render`, the digest, `resumeReason`, the seed, context and anchor notes, the `<hypotheses>` block) over `get_run_brief`'s `brief` and the agent's own state (route, loop, facts, ledger, triage block, digest); `gofmt.ts` reproduces Go's `encoding/json` escaping, `%q` quoting, `strings.Fields` and time layouts, so the text stays byte-identical; not yet called by the run loop.
+  Its tests compare against the Go goldens in `spec/examples/agent/brief/` and the anchor cases in `spec/examples/anchor/`.
 
 ## Rules
 

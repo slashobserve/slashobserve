@@ -175,6 +175,9 @@ export const runBrief = z.object({
     from: z.string().nullish(),
     to: z.string().nullish(),
     time_zone: z.string().nullish(),
+    zone: z
+      .object({ label: z.string(), offset_seconds: z.number().int() })
+      .nullish(),
     as_of: z.string().nullish(),
     continue_note: z.string().nullish(),
     thread_context: z.string().nullish(),
@@ -210,6 +213,7 @@ export const runBrief = z.object({
       uid: z.string(),
       type: z.string(),
       name: z.string().default(""),
+      spans: z.string().default(""),
       healthy: z.boolean(),
       everyone: z.boolean().default(false),
     })

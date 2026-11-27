@@ -1,0 +1,66 @@
+{
+  "name": "block-ask",
+  "brief": {
+    "request": {
+      "mode": "investigate",
+      "source": "comment",
+      "prompt": "is this right",
+      "panel_id": null,
+      "from": null,
+      "to": null,
+      "time_zone": null,
+      "zone": null,
+      "as_of": null,
+      "continue_note": null,
+      "thread_context": null,
+      "continues": false,
+      "attempt": 1,
+      "investigation": false,
+      "pointer": {
+        "anchor": null,
+        "block_id": "blk9",
+        "observation_id": "obs3",
+        "thread_ask": false
+      }
+    },
+    "current": null,
+    "build": null,
+    "datasources": [
+      {
+        "uid": "prom",
+        "type": "prometheus",
+        "name": "Prometheus",
+        "source": "",
+        "healthy": true,
+        "checked_at": "0001-01-01T00:00:00Z",
+        "health_state": "",
+        "everyone": false
+      }
+    ],
+    "withheld": false,
+    "guide": {
+      "text": "",
+      "schema": null
+    },
+    "draft": null
+  },
+  "guide": "guide-prometheus.md",
+  "reason": "",
+  "now": "2026-11-25T05:29:00Z",
+  "state": {
+    "task": "",
+    "loop": false,
+    "facts": false,
+    "ledger": null,
+    "triage": "",
+    "digest": null
+  },
+  "want": {
+    "system": {
+      "bytes": 27664,
+      "sha256": "f4c641cb390ca6a4aa3140a3b4ebf61c68fee6bc324eeeee1ef0cae0a2a6560c"
+    },
+    "context": "Configured datasources:\n- prom (prometheus): healthy\n\nInvestigate the question and save one finding.\nWindow: the last hour (a default the question may need to exceed)\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nThe request is about the whole of block blk9 of observation obs3.",
+    "user": "Configured datasources:\n- prom (prometheus): healthy\n\nInvestigate the question and save one finding.\nWindow: the last hour (a default the question may need to exceed)\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nThe request is about the whole of block blk9 of observation obs3.\n\n\u003crequest\u003e\nis this right\n\u003c/request\u003e"
+  }
+}

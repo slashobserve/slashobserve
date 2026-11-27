@@ -25,7 +25,7 @@ func TestTheStructuredBriefHoldsTheRequestInUTCAndLeavesUnsetFieldsNull(t *testi
 		t.Fatal(err)
 	}
 	want := `{"mode":"investigate","source":"investigate","prompt":"why","panel_id":"a","from":"2026-03-01T09:00:00Z","to":"2026-03-01T10:00:00Z",` +
-		`"time_zone":"Europe/Paris","as_of":null,"continue_note":null,"thread_context":null,"continues":false,"attempt":2,"investigation":true,` +
+		`"time_zone":"Europe/Paris","zone":{"label":"CET","offset_seconds":3600},"as_of":null,"continue_note":null,"thread_context":null,"continues":false,"attempt":2,"investigation":true,` +
 		`"pointer":{"anchor":null,"block_id":"b1","observation_id":null,"thread_ask":false}}`
 	if string(raw) != want {
 		t.Fatalf("request = %s\nwant %s", raw, want)
