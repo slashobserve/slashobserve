@@ -187,8 +187,8 @@ SELECT r.id, r.title, r.created_at, r.folder_id, r.folder_title, r.folder_genera
   dd.latest_version AS latest_version,
   EXISTS (SELECT 1 FROM starter_content s WHERE s.ref = r.id)::boolean AS provisioned,
   rep.id AS repair_id, coalesce(rep.status, '')::text AS repair_status, coalesce(rep.state, '')::text AS repair_state,
-  rep.result_version AS repair_version, coalesce(rep.error, '')::text AS repair_error,
-  rep.updated_at AS repair_updated_at
+  rep.result_version AS repair_version, coalesce(rep.result_kind, '')::text AS repair_result_kind,
+  coalesce(rep.error, '')::text AS repair_error, rep.updated_at AS repair_updated_at
 FROM (
   SELECT s.id, s.title, s.created_at, s.folder_id, s.folder_title, s.folder_general, s.folder_personal, s.checked_version, s.checked_at, s.skipped, s.issues, s.query_failed, s.no_data, s.variable_failed, s.last_viewed_at, s.duplicate_title, s.outdated, s.old_check_problems,
     CASE WHEN s.query_failed OR s.variable_failed THEN 0 WHEN s.no_data THEN 1
@@ -213,7 +213,7 @@ FROM (
 ) r
 JOIN dashboards dd ON dd.id = r.id
 LEFT JOIN LATERAL (
-  SELECT a.id, a.status, a.state, a.result_version, a.error,
+  SELECT a.id, a.status, a.state, a.result_version, a.result_kind, a.error,
     coalesce(a.finished_at, a.started_at, a.created_at) AS updated_at
   FROM agent_requests a
   WHERE a.dashboard_id = r.id AND a.intent = 'apply' AND a.base_version IS NOT NULL AND starts_with(a.prompt, $2::text)
@@ -246,29 +246,30 @@ type ListHealthParams struct {
 }
 
 type ListHealthRow struct {
-	ID              pgtype.UUID
-	Title           string
-	CreatedAt       pgtype.Timestamptz
-	FolderID        pgtype.UUID
-	FolderTitle     string
-	FolderGeneral   bool
-	FolderPersonal  bool
-	CheckedVersion  pgtype.Int4
-	CheckedAt       pgtype.Timestamptz
-	Skipped         string
-	Issues          []byte
-	LastViewedAt    pgtype.Timestamptz
-	DuplicateTitle  bool
-	Rank            int32
-	SeenAt          pgtype.Timestamptz
-	LatestVersion   int32
-	Provisioned     bool
-	RepairID        pgtype.UUID
-	RepairStatus    string
-	RepairState     string
-	RepairVersion   pgtype.Int4
-	RepairError     string
-	RepairUpdatedAt pgtype.Timestamptz
+	ID               pgtype.UUID
+	Title            string
+	CreatedAt        pgtype.Timestamptz
+	FolderID         pgtype.UUID
+	FolderTitle      string
+	FolderGeneral    bool
+	FolderPersonal   bool
+	CheckedVersion   pgtype.Int4
+	CheckedAt        pgtype.Timestamptz
+	Skipped          string
+	Issues           []byte
+	LastViewedAt     pgtype.Timestamptz
+	DuplicateTitle   bool
+	Rank             int32
+	SeenAt           pgtype.Timestamptz
+	LatestVersion    int32
+	Provisioned      bool
+	RepairID         pgtype.UUID
+	RepairStatus     string
+	RepairState      string
+	RepairVersion    pgtype.Int4
+	RepairResultKind string
+	RepairError      string
+	RepairUpdatedAt  pgtype.Timestamptz
 }
 
 func (q *Queries) ListHealth(ctx context.Context, arg ListHealthParams) ([]ListHealthRow, error) {
@@ -315,6 +316,7 @@ func (q *Queries) ListHealth(ctx context.Context, arg ListHealthParams) ([]ListH
 			&i.RepairStatus,
 			&i.RepairState,
 			&i.RepairVersion,
+			&i.RepairResultKind,
 			&i.RepairError,
 			&i.RepairUpdatedAt,
 		); err != nil {

@@ -295,6 +295,16 @@ describe("repairAction", () => {
       { kind: "open" },
     ],
     [
+      "a repair that proposed its change",
+      item({
+        problems: failing,
+        checked_version: 4,
+        repair: { ...repair, state: "succeeded", outcome: "proposed" },
+      }),
+      true,
+      { kind: "proposed" },
+    ],
+    [
       "a failed repair",
       item({
         problems: failing,
@@ -623,6 +633,7 @@ describe("repairStatus", () => {
       { kind: "repaired", version: 2 },
       { tone: "ok", label: "Repaired" },
     ],
+    [{ kind: "proposed" }, { tone: "none", label: "Repair proposed" }],
     [
       { kind: "failed", error: null, canRetry: true, disabledReason: null },
       { tone: "critical", label: "Repair failed" },

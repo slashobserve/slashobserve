@@ -1,6 +1,10 @@
 package health
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/slashobserve/slashobserve/internal/revisions"
+)
 
 func TestItemStateFollowsTheRulesInOrder(t *testing.T) {
 	three, five := 3, 5
@@ -42,7 +46,7 @@ func TestItemStatesListEveryReturnedState(t *testing.T) {
 			t.Errorf("ItemStates lacks %s", name)
 		}
 	}
-	for _, name := range []string{OutcomeQueued, OutcomeRunning, OutcomeRepaired, OutcomeStillFailing, OutcomeFailed} {
+	for _, name := range []string{OutcomeQueued, OutcomeRunning, OutcomeRepaired, OutcomeStillFailing, OutcomeProposed, OutcomeFailed} {
 		if !RepairOutcomes.Has(name) {
 			t.Errorf("RepairOutcomes lacks %s", name)
 		}
@@ -51,29 +55,41 @@ func TestItemStatesListEveryReturnedState(t *testing.T) {
 
 func TestRepairOutcomeReadsTheRunStateAndTheCheckedVersion(t *testing.T) {
 	two, three, four := 2, 3, 4
+	failing := []Problem{{Kind: KindQueryFailed}}
+	empty := []Problem{{Kind: KindNoData}}
+	badVariable := []Problem{{Kind: KindVariableFailed}}
 	tests := []struct {
 		name    string
 		run     string
+		kind    revisions.ResultKind
 		version *int
 		checked *int
+		found   []Problem
 		want    string
 	}{
-		{"queued", "queued", nil, nil, "queued"},
-		{"running", "running", nil, &two, "running"},
-		{"canceling", "canceling", nil, nil, "running"},
-		{"saved version not checked yet", "succeeded", &three, &two, "repaired"},
-		{"saved version and nothing checked", "succeeded", &three, nil, "repaired"},
-		{"saved version checked and still listed", "succeeded", &three, &three, "still_failing"},
-		{"a later version was checked", "succeeded", &three, &four, "still_failing"},
-		{"succeeded without a saved version", "succeeded", nil, &two, "still_failing"},
-		{"failed", "failed", nil, nil, "failed"},
-		{"canceled", "canceled", nil, nil, "failed"},
-		{"unknown state", "paused", nil, nil, "failed"},
-		{"empty state", "", nil, nil, "failed"},
+		{"queued", "queued", revisions.ResultNone, nil, nil, nil, "queued"},
+		{"running", "running", revisions.ResultNone, nil, &two, nil, "running"},
+		{"canceling", "canceling", revisions.ResultNone, nil, nil, nil, "running"},
+		{"saved version not checked yet", "succeeded", revisions.ResultVersion, &three, &two, failing, "repaired"},
+		{"saved version and nothing checked", "succeeded", revisions.ResultVersion, &three, nil, nil, "repaired"},
+		{"saved version checked and fixed", "succeeded", revisions.ResultVersion, &three, &three, nil, "repaired"},
+		{"saved version checked with only other problems", "succeeded", revisions.ResultVersion, &three, &three, []Problem{{Kind: KindDuplicateTitle}}, "repaired"},
+		{"saved version checked and still failing", "succeeded", revisions.ResultVersion, &three, &three, failing, "still_failing"},
+		{"saved version checked and still without data", "succeeded", revisions.ResultVersion, &three, &three, empty, "still_failing"},
+		{"saved version checked with a failing variable", "succeeded", revisions.ResultVersion, &three, &three, badVariable, "still_failing"},
+		{"a later version was checked and fails", "succeeded", revisions.ResultVersion, &three, &four, failing, "still_failing"},
+		{"a later version was checked and is fixed", "succeeded", revisions.ResultVersion, &three, &four, nil, "repaired"},
+		{"succeeded with a proposal", "succeeded", revisions.ResultProposal, nil, &two, failing, "proposed"},
+		{"succeeded without a saved version", "succeeded", revisions.ResultNone, nil, &two, nil, "still_failing"},
+		{"failed", "failed", revisions.ResultNone, nil, nil, nil, "failed"},
+		{"failed with a proposal kind left", "failed", revisions.ResultProposal, nil, nil, nil, "failed"},
+		{"canceled", "canceled", revisions.ResultNone, nil, nil, nil, "failed"},
+		{"unknown state", "paused", revisions.ResultNone, nil, nil, nil, "failed"},
+		{"empty state", "", revisions.ResultNone, nil, nil, nil, "failed"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := repairOutcome(tt.run, tt.version, tt.checked); got != tt.want {
+			if got := repairOutcome(tt.run, tt.kind, tt.version, tt.checked, tt.found); got != tt.want {
 				t.Errorf("repairOutcome = %s, want %s", got, tt.want)
 			}
 		})

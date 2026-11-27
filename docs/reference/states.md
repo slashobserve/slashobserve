@@ -220,8 +220,9 @@ This state is computed from stored fields on every read; nothing stores it.
 | --- | --- |
 | `queued` | The repair run waits for a worker. |
 | `running` | The repair run is running or stopping. |
-| `repaired` | The run saved a version that the health check has not checked yet. |
-| `still_failing` | The run saved a version and the check that ran on it still lists the dashboard. |
+| `repaired` | The run saved a version that the health check has not checked yet, or that the check found without a `no_data`, `query_failed` or `variable_failed` problem. |
+| `still_failing` | The run saved a version and the check that ran on it, or on a later version, still finds a `no_data`, `query_failed` or `variable_failed` problem. |
+| `proposed` | The run succeeded with a proposal, which waits for an Editor to merge it. |
 | `failed` | The run failed or was canceled. |
 
 ## Webhook

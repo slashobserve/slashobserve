@@ -179,6 +179,8 @@ func repairState(r *healthRepair) string {
 		return "repaired in version " + strconv.Itoa(*r.Version)
 	case r.Outcome == "still_failing" && r.Version != nil:
 		return "repair saved version " + strconv.Itoa(*r.Version) + ", still failing"
+	case r.Outcome == "proposed":
+		return "repair proposed, waiting for an editor to merge it"
 	case r.Outcome == "failed" && r.Error != nil:
 		return "repair failed: " + text(*r.Error)
 	}

@@ -8565,7 +8565,7 @@ export interface components {
              * @description What the repair came to, computed from the run and the latest health check. See `docs/reference/states.md`.
              * @enum {string}
              */
-            outcome: "queued" | "running" | "repaired" | "still_failing" | "failed";
+            outcome: "queued" | "running" | "repaired" | "still_failing" | "proposed" | "failed";
             /**
              * Format: uuid
              * @description The revision request of the repair.

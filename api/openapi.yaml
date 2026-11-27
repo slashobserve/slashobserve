@@ -7959,7 +7959,7 @@ components:
           description: The status of the repair's run, kept for compatibility; read `outcome` instead.
         outcome:
           type: string
-          enum: [queued, running, repaired, still_failing, failed]
+          enum: [queued, running, repaired, still_failing, proposed, failed]
           description: What the repair came to, computed from the run and the latest health check. See `docs/reference/states.md`.
         request_id:
           type: string

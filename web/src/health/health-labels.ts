@@ -231,6 +231,7 @@ export type RepairAction =
   | { kind: "queued" }
   | { kind: "running" }
   | { kind: "repaired"; version: number }
+  | { kind: "proposed" }
   | {
       kind: "failed"
       error: string | null
@@ -251,6 +252,8 @@ export function repairAction(
       return { kind: "queued" }
     case "running":
       return { kind: "running" }
+    case "proposed":
+      return { kind: "proposed" }
     case "failed":
       return {
         kind: "failed",
@@ -274,6 +277,8 @@ export function repairStatus(action: RepairAction): SummaryLabel | null {
       return { tone: "running", label: "Repairing" }
     case "repaired":
       return { tone: "ok", label: "Repaired" }
+    case "proposed":
+      return { tone: "none", label: "Repair proposed" }
     case "failed":
       return { tone: "critical", label: "Repair failed" }
     default:
