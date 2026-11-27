@@ -34,11 +34,11 @@ func TestDetectFolderTitle(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			summary, err := Detect([]byte(tt.doc))
+			src, err := load([]byte(tt.doc))
 			if err != nil {
-				t.Fatalf("Detect: %v", err)
+				t.Fatalf("load: %v", err)
 			}
-			if summary.FolderTitle != tt.want {
+			if summary := src.summary(); summary.FolderTitle != tt.want {
 				t.Errorf("FolderTitle = %q, want %q", summary.FolderTitle, tt.want)
 			}
 		})
@@ -58,7 +58,7 @@ func TestBadJSONIsDescribedByLineAndColumn(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := Detect([]byte(tc.doc))
+			_, err := load([]byte(tc.doc))
 			var input *InputError
 			if !errors.As(err, &input) || input.Code != codeInvalidJSON {
 				t.Fatalf("err = %v, want an invalid_json input error", err)

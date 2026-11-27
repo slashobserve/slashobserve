@@ -77,8 +77,12 @@ func TestOpenRowIgnoresLeftoverPanels(t *testing.T) {
 	if notes := notesFor(res, "rows"); len(notes) != 1 || !hasPath(notes, "panels[0].panels") {
 		t.Fatalf("rows notes = %+v", notes)
 	}
-	if summary, err := Detect([]byte(doc)); err != nil || summary.Panels != 1 {
-		t.Fatalf("summary = %+v, err = %v, want 1 panel", summary, err)
+	src, err := load([]byte(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary := src.summary(); summary.Panels != 1 {
+		t.Fatalf("summary = %+v, want 1 panel", summary)
 	}
 }
 
