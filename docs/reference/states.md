@@ -197,9 +197,9 @@ A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /g
 | `exhaust` | `running` | `failed` | `grafana sync lease expired twice` | server |
 | `cancel` | `running` | `canceled` | `grafana sync canceled` | admin |
 
-## Context source tool
+## MCP source tool
 
-A context source tool is one tool of an MCP server an Admin registered, returned by `GET /api/v1/context-sources/{uid}/tools`; discovery moves it between `offered`, `changed`, `gone` and `refused`, and an Admin approves or revokes it.
+An MCP source tool is one tool of an MCP server an Admin registered, returned by `GET /api/v1/mcp-sources/{uid}/tools`; discovery moves it between `offered`, `changed`, `gone` and `refused`, and an Admin approves or revokes it.
 
 | State | Meaning | Actions |
 | --- | --- | --- |
@@ -211,19 +211,19 @@ A context source tool is one tool of an MCP server an Admin registered, returned
 
 | Action | From | To | Event | By |
 | --- | --- | --- | --- | --- |
-| `list` | - | `offered` | `context_source.discover` | server |
-| `reject` | - | `refused` | `context_source.discover` | server |
-| `offer` | `refused` | `offered` | `context_source.discover` | server |
-| `refuse` | `offered`, `approved`, `changed`, `gone` | `refused` | `context_source.discover` | server |
-| `approve` | `offered`, `changed` | `approved` | `context_source.approve` | admin |
-| `revoke` | `approved`, `changed` | `offered` | `context_source.revoke` | admin |
-| `change` | `approved`, `gone` | `changed` | `context_source.discover` | server |
-| `drop` | `approved`, `changed` | `gone` | `context_source.discover` | server |
-| `restore` | `changed`, `gone` | `approved` | `context_source.discover` | server |
+| `list` | - | `offered` | `mcp_source.discover` | server |
+| `reject` | - | `refused` | `mcp_source.discover` | server |
+| `offer` | `refused` | `offered` | `mcp_source.discover` | server |
+| `refuse` | `offered`, `approved`, `changed`, `gone` | `refused` | `mcp_source.discover` | server |
+| `approve` | `offered`, `changed` | `approved` | `mcp_source.approve` | admin |
+| `revoke` | `approved`, `changed` | `offered` | `mcp_source.revoke` | admin |
+| `change` | `approved`, `gone` | `changed` | `mcp_source.discover` | server |
+| `drop` | `approved`, `changed` | `gone` | `mcp_source.discover` | server |
+| `restore` | `changed`, `gone` | `approved` | `mcp_source.discover` | server |
 
-## Context source
+## MCP source
 
-`GET /api/v1/context-sources` returns the `state` of each context source.
+`GET /api/v1/mcp-sources` returns the `state` of each MCP source.
 This state is computed from stored fields on every read; nothing stores it.
 
 | State | When |

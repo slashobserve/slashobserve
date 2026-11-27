@@ -205,7 +205,7 @@ func TestTheSendBackListsEachItemWithWhatToDo(t *testing.T) {
 }
 
 func TestParseMode(t *testing.T) {
-	for raw, want := range map[string]Mode{"": Off, "off": Off, "report": Report, "enforce": Enforce} {
+	for raw, want := range map[string]Mode{"": Enforce, "off": Off, "report": Report, "enforce": Enforce} {
 		if got, err := ParseMode(raw); err != nil || got != want {
 			t.Errorf("ParseMode(%q) = %q, %v", raw, got, err)
 		}

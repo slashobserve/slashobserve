@@ -39,6 +39,22 @@ func (q *Queries) DeleteRunSession(ctx context.Context, arg DeleteRunSessionPara
 	return err
 }
 
+const getPriorRunSession = `-- name: GetPriorRunSession :one
+SELECT state FROM run_sessions WHERE agent_request_id = $1 AND attempt < $2 ORDER BY attempt DESC LIMIT 1
+`
+
+type GetPriorRunSessionParams struct {
+	AgentRequestID pgtype.UUID
+	Attempt        int32
+}
+
+func (q *Queries) GetPriorRunSession(ctx context.Context, arg GetPriorRunSessionParams) ([]byte, error) {
+	row := q.db.QueryRow(ctx, getPriorRunSession, arg.AgentRequestID, arg.Attempt)
+	var state []byte
+	err := row.Scan(&state)
+	return state, err
+}
+
 const getRunSessionForUpdate = `-- name: GetRunSessionForUpdate :one
 SELECT state FROM run_sessions WHERE agent_request_id = $1 AND attempt = $2 FOR UPDATE
 `

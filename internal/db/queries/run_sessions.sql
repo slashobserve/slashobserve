@@ -17,6 +17,9 @@ DELETE FROM run_sessions WHERE agent_request_id = @agent_request_id AND attempt 
 -- name: DeleteOlderRunSessions :exec
 DELETE FROM run_sessions WHERE agent_request_id = @agent_request_id AND attempt < @attempt;
 
+-- name: GetPriorRunSession :one
+SELECT state FROM run_sessions WHERE agent_request_id = @agent_request_id AND attempt < @attempt ORDER BY attempt DESC LIMIT 1;
+
 -- name: ShareRunTargets :exec
 WITH targets AS (
   SELECT r.dashboard_id, r.observation_id, b.folder_id

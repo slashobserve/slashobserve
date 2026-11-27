@@ -63,6 +63,7 @@ The agent investigates with the same read tools it uses to build dashboards, and
 It does not get the dashboard save tools in an investigation, because an investigation never changes a dashboard.
 Investigations therefore do not wait for other requests on the same dashboard.
 
+Each task type also gets its own short prompt section, a playbook with the steps and the answer shape for that kind of question, and the rules below reach only the types they belong to; a question no rule sorts gets them all.
 How the agent reads and answers:
 
 - The verdict follows the comparison the question asked for, and a short spike inside the window is a separate observation.
@@ -73,17 +74,79 @@ How the agent reads and answers:
 - When a term has two plausible readings, the agent headlines one figure for the reading it used and names the other reading in a separate one-line note.
 - When the question names several services, routes or operations, it reads each one's slow tail or error set separately.
 - When it compares or ranks the members of a set, it gives every member, including the ones that look fine, the same metric, window and unit.
-- A trace with an error names its deepest erroring span, by service and operation, as its origin, in the headline and the body alike, with self time and downstream symptoms as separate points; across services, each failing request is counted once at that span, and the leaders by count and share are the origin and the others are secondary.
-- Slowness is judged from the slow requests, not a percentile alone: requests over the slow threshold (the question's, otherwise a stated one) are reported with their count, the backend span that took the time and an example trace, and a list of slow traces gives every service in them with its count.
+- To say where requests first failed, the agent calls `trace_error_origins`, which counts each failing request once at its deepest erroring span; the leaders by count and share are the origin, named by service and operation in the headline and the body alike, and the services that relayed the error are secondary.
+- Slowness is judged from the slow requests, not a percentile alone: the agent calls `trace_slow_path`, with the question's threshold when it gives one, and reports for each route the slow count, the span with the most self time, every service in the slow traces with its count and an example trace with its exact duration.
+- A quantile over a window comes from `trace_stats` with `group_by`, which reads it exactly or says it rests on a sample.
 - When it found an onset, the annotations show no deploy and a change is a plausible cause, it searches the involved services' logs at every level for deploy, rollout, version or restart lines in a short window before the onset.
 - When a second service shows errors during an incident, it classifies them as knock-on from the incident, pre-existing background (checked against the rate before the onset) or a separate incident, and says which with the evidence.
 - It does not say something does not exist, is not happening, is not recurring or was not deployed unless a query checked it, and it says what was checked.
 - It reads durations and rates at the series' native step in a short range around the event.
 - It takes a baseline such as typical or normal from the question's whole window without the event's own span, read at an aggregate or coarser step.
 
+### Task types
+
+When an investigation or a question about a dashboard or an observation starts, the server sorts it into one task type by fixed rules over the question's words, whether a dashboard or panel is its subject and which kinds of datasource are configured.
+No model call is made for this.
+
+| Task type | Questions it takes |
+| --- | --- |
+| `measure` | A value, peak, total, rate, share, quantile or a comparison of them. |
+| `logs` | Reading, counting or characterising log lines, when a log store is configured. |
+| `traces` | Single requests, slow or failing calls and one trace, when a trace store is configured. |
+| `incident` | Why something happened, what changed, health and root cause. |
+| `inventory` | What exists: services, metrics, labels, dashboards, datasources. |
+| `explain` | Explaining or summarizing a dashboard, panel, observation, query or term, and a change asked for on a dashboard. |
+
+A question that asks for a write, such as pinning, publishing or adding a block, one that names both logs and traces, and one no rule decides gets the full investigation, exactly as without task types.
+The run's steps show one line with the task type, such as `Routed the question to the measure task type`, and never the question.
+The type is decided once, when the run's session starts, and kept with it.
+A new-dashboard request, a revision and a suggestion are not sorted.
+
+A sorted run offers only its type's tools, the built-in agent and a connected agent with a run token alike.
+Every type gets `list_services`, `list_labels`, `list_label_values`, `save_finding`, `note_hypotheses` when the setting turns it on, the three MCP source tools and `list_more_tools`, plus `get_panels` when a dashboard is the subject and `get_observation` when an observation is:
+
+| Task type | Its own tools |
+| --- | --- |
+| `measure` | `list_metrics`, `measure_window`, `measure_aggregate`, `query_range`, `query_instant` |
+| `logs` | `query_range`, `measure_aggregate`, `log_patterns`, `log_facets`, `log_context`, `sample_rows` |
+| `traces` | `trace_stats`, `trace_error_origins`, `trace_slow_path`, `get_trace`, `compare_traces`, `logs_for_trace` |
+| `incident` | `list_metrics`, `list_annotations`, `measure_window`, `query_range`, `trace_error_origins`, `trace_slow_path`, `log_patterns`, `get_trace` |
+| `inventory` | `list_datasources`, `list_metrics`, `list_dashboards`, `list_observations`, `search_workspace` |
+| `explain` | `get_dashboard`, `get_panels`, `get_observation`, `list_dashboards`, `search_workspace`, `get_spec_guide`, `query_range` |
+
+A call to any other tool is answered `unknown_tool` with a line that names the run's tools.
+When those are not enough, the agent calls `list_more_tools`: the run then offers every investigation tool until it ends, the steps record it, and the built-in agent lists its tools again before its next model call.
+A type never adds a tool its run would not offer without one.
+
+### The preflight brief
+
+Before the first model call of an investigation, the server sweeps the datasources the requester's run may read and writes what it found into the agent's first message, in a `<triage>` block.
+It is on by default; `SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF` set to `off` turns it off.
+A plain question, a chat question and a dashboard build or revision do not sweep.
+
+The sweep calls no model.
+It reads through the same tools, access checks and limits as the agent, never reads the audit datasource or any datasource only Admins can query, and stops after 40 reads or 20 seconds, whichever comes first.
+It reads:
+
+- The service map: on each store, the label or field that names a service and the services seen.
+- Request rate, error rate and p95 latency per service over the last 1 hour, 6 hours and 24 hours, each against the same length just before it, from span-metric or HTTP server metrics on Prometheus, otherwise span counts on Tempo or ClickHouse, otherwise error-level log lines on Loki; each line says which.
+- The onset of each service whose errors or latency moved: the first step above twice the baseline's median error ratio and at least 1 point more, or 1.5 times its median p95 latency and at least 5 ms more, that stays there for 3 steps, read at 120 steps per window.
+- Failing requests counted at their deepest erroring span with `trace_error_origins`, with one example trace id per group.
+- Log patterns on Loki that are new or grew in the window, at every level, for up to 3 services that moved.
+- Change events: annotations in the window and the day before, deploy, rollout, version and restart lines in Loki, and feature flag evaluations in Loki log records and in Tempo span events (`feature_flag.evaluation`, with `feature_flag.key` and its variant), with the first time each variant was seen.
+
+The server groups what moved into numbered candidates, `c1`, `c2` and so on, in onset order, each with the change events of the 30 minutes before its onset.
+A service whose errors start later than another's and that relays that service's errors in the traces is listed as its knock-on, not as a candidate of its own, and errors present before the window at a similar level are listed as background.
+The block also says what was skipped and why, such as a store that failed or the read budget running out.
+It is at most 6 KiB; the lines cut first are the skipped steps, then the background, log patterns, per-service rates, service lists, evidence lines, signal lines and last the latest candidates.
+
+The block is a starting point, not evidence: the agent is told to test each candidate with its own reads, and every figure in the finding still comes from a read of the run.
+The sweep runs once per run: the block and its duration are kept with the run session, so a shortened conversation, a restart or another server reuses it, and the run's steps show one line with the number of reads and the time it took.
+The block is sent to the LLM provider like any tool result and never written to the server's logs.
+
 ### The hypothesis ledger
 
-With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` set to `true`, the built-in agent also gets `note_hypotheses`, and an investigation that opens an observation is told in its prompt to use it.
+With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` set to `true`, the default, the built-in agent also gets `note_hypotheses`, and an investigation that opens an observation is told in its prompt to use it.
 A plain question gets the tool but no prompt section and no `<hypotheses>` block.
 It writes down 2 to 4 candidate causes after its first look and sends the whole list again with each batch of reads.
 Each hypothesis has a short id, one sentence, a status of `open`, `supported` or `ruled_out`, up to 3 evidence lines and, for an open one, the next check.
@@ -118,8 +181,8 @@ The agent never declares a stage; the server derives it from the ledger and the 
 Details of the stages:
 
 - The agent gets one line after each turn, such as `Stage: test. Model call 7 of 12.`, and the run's steps show one line each time the stage changes, under the label `stage`.
-- The limit starts at `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`.
-  It grows by 3 calls each time a hypothesis moves to `supported` or `ruled_out`, as long as the run made at least one successful read since the limit last grew, and stops at `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`.
+- The limit starts at `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`, or the task type's own limit when that is unset.
+  It grows by 3 calls each time a hypothesis moves to `supported` or `ruled_out`, as long as the run made at least one successful read since the limit last grew, and stops at `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`, 40 by default.
   The move counts when the hypothesis carried evidence already or gains an evidence line that no hypothesis of the earlier ledger had, so renaming a hypothesis earns nothing.
   A ledger written without reading anything earns nothing, and unset, the ceiling equals the starting limit, so the limit never grows.
 - When the stage becomes `conclude` because a hypothesis is supported and none is open, the agent is told at once to save the finding instead of waiting for the limit.
@@ -131,22 +194,69 @@ Details of the stages:
 
 ### The grounding check
 
-With `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, the server checks each finding against what the run read before it is saved.
-It looks at the figures in the Markdown and the impact, the root cause component and the onset.
+With `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, the default, the server checks each finding against what the run read before it is saved.
+It looks at the cited facts and `answers` (see [Facts](#facts)), the figures and trace ids in the Markdown and the impact, the root cause component and the onset.
 
-- A figure passes when the run read it, rounded, within 2% or within the precision it was written with, such as `0.52 s` for a read value of 0.5234, and never more than 10% away.
+- A cited fact is a figure from a read by construction, so it always passes the figure rules.
+- A figure typed as digits passes when it is a fact's value within 1% and within the precision it was written with, such as `523 ms` for a fact of 0.5234123 s.
+  When it is within the looser tolerance below of a fact but more than 1% away, such as `0.5 s` for that fact, it does not pass, and the send-back names the fact to cite.
+- Otherwise a figure passes when the run read it, rounded, within 2% or within the precision it was written with, such as `0.52 s` for a read value of 0.5234, and never more than 10% away.
 - A figure also passes when it is the difference, sum, ratio or percentage change of two numbers from the same read, such as `+82%` from 287 ms to 523 ms; a percentage is compared as a fraction, so `82%` is never the plain difference of 300 and 382.
 - Times in a result are not numbers for this check.
 - `ms` and `s` are converted into each other, and `K` and `M` multiply a number.
 - Times, dates, whole numbers of 10 or less with no unit, code spans and links are never checked; a small number with a unit, such as `3 s` or `5%`, is checked.
+- Nor are figures that are not measurements: a number that appears in the question; a version after `version`, `release` or `v`; a port after `port` or a host and colon; an HTTP status from 100 to 599 after `HTTP`, `status`, `code` or `returned`, or in a list after one, such as `503s`; a duration in seconds after `last`, `past`, `every`, `each`, `within`, `step` or `interval`, or before `step`, `window`, `interval` or `resolution`; a quantile after or before `quantile` or `percentile`; a whole number after `top`, `first` or `bottom`; a year from 1990 to 2100 after `in`, `since`, `during` or `of`; list numbers; and percentile names such as `p99`.
+- A run of 8 to 32 hexadecimal characters with a letter and a digit is a trace or span id, never a figure: it passes when it is a whole id a result of the run showed, it does not pass when it is the start of such an id cut short, and a 16 or 32 character id the run never read does not pass; link targets and fenced code are not checked.
 - The root cause component passes when it is a name the run discovered or saw as a label value or a trace's service, as a whole or as whole words of it, so `checkout service` passes on `checkout` and `payment-error-handler` does not.
 - The onset passes when it falls inside a time range the run queried, or next to a time a result showed, such as a log line's, give or take a minute.
 
+### Facts
+
+With `report` or `enforce`, the values the measurement and trace reads return are numbered facts.
+Each object in such a result that holds one carries a `facts` map from the value's key to its id, such as `"facts":{"value":"f3"}`; an id is unique within the run, and the same value read again keeps its id.
+The reads that give facts are `measure_window` and `measure_aggregate` (each value, numerator and denominator), `trace_stats` (the counts and the whole-window and per-group quantiles), `trace_error_origins` (the counts, shares and example trace ids), `trace_slow_path` (each route's threshold, median, slow count and examined count, the self times, shares and counts, and the example trace id and duration), `get_trace` (the trace id, span count, duration and the slowest spans), and the `min`, `max` and `last` of each `query_range` and `query_instant` series.
+The run keeps each fact with its value at full precision, its kind (number, duration, count, ratio or trace id), its unit when the tool knows it, its labels, its window and the query that produced it.
+The ledger holds the newest 400 facts, so the oldest are dropped first, and it is stored with the run's session, never logged and never returned by the API.
+Every read also records the trace and span ids its result showed.
+
+The finding cites a fact with a placeholder in place of the figure, `{{f3}}`, in its Markdown, title, impact, root cause summary, ruled-out items and next steps.
+The server writes the value into the text before the finding is stored, so the saved and shown finding holds the number and nobody downstream sees a placeholder.
+A placeholder takes options after colons, in any order:
+
+| Option | What it does |
+| --- | --- |
+| none | The value exactly as the read returned it, with its unit: `{{f3}}` is `1312.75 ms`. |
+| `ms`, `s`, `us`, `min` | A duration in another unit; a value with no unit is taken as seconds, as Prometheus writes durations: `{{f3:s}}` is `1.31275 s`. |
+| `%` | A ratio as a percent: `{{f4:%}}` of 0.4167 is `41.67%`. |
+| `1` to `9` | That many significant figures, refused when the shown value would be more than 1% from the fact: `{{f3:s:3}}` is `1.31 s`. |
+| `bare` | No unit after the number. |
+
+A trace id fact takes no option and renders as the whole id.
+A placeholder naming a fact the run does not hold, or an option that does not fit the fact or would move the value by more than 1%, is a problem with the finding: with `enforce` it is sent back once naming the id, and when the finding is saved anyway, an unknown fact is written as `[figure not read]`, a broken option is ignored, and the item is stored with the finding.
+
+### One value per quantity
+
+`save_finding` takes `answers`: for each quantity the question asks for, a few words naming it and the one fact that answers it, such as `{"quantity":"peak p99 of checkout","fact":"f12"}`.
+The list is checked and then dropped; the finding stores the rendered text, not the list.
+These are problems with the finding, handled like any other item of the check:
+
+- An entry names a fact the run does not hold.
+- Two entries name the same quantity (compared without case or punctuation) with facts whose values are more than 1% apart, or with two different trace ids.
+- An entry's fact is not given in the Markdown or the impact, cited or written within 1% of its value.
+- The Markdown or the impact cites two facts of one quantity with values more than 1% apart: the same tool, statistic and field for the same labels, window and asked query, such as one peak read at two steps, or two durations of one trace.
+
+With `enforce`, a `measure`, `logs` or `traces` question (see [Task types](#task-types)) whose finding states a figure, cited or typed, but has no `answers` entry is also sent back once to list them; the item is only in the send-back, never stored, and the second save is accepted.
+The check runs on a finding saved in any run that can save one, so a question asked on Home or in a revision's chat is checked like an investigation, and a suggestion has none.
+
+With `report` or `enforce`, the investigate system text drops its two rules on giving one value per quantity at the precision the tool returned and on settling two different figures with one more read, because the server now enforces them, and ends instead with a short Facts section that says to cite facts, how the options work and to list `answers`.
+A question asked on Home or in a revision gets the same instructions as one note in its context, and with `off` every prompt is the one it was.
+`get_run_brief` gives a connected agent the same text.
+
 With `report`, the items that did not pass are stored with the finding and nothing else changes.
-With `enforce`, the first save with such items is sent back once with a line per item that says "read it, correct it, or remove it".
+With `enforce`, the first save with such items is sent back once with a line per item that says how to fix it: "read it, correct it, or remove it" for a figure or name no read gave, the fact to cite for a rounded figure, the whole id for a cut one, and the settling read for two values of one quantity.
 The agent may read past its call limit to do that, and the send-back is not counted as a rejected save.
 The second save is accepted, and the items that still did not pass are stored with it.
-The check never fails a run, and with `off`, the default, nothing is recorded.
+The check never fails a run, and with `off` nothing is recorded.
 
 The stored items are returned as `unverified` on the finding and on each entry of the observation's `findings`, and the observation shows one line under its header, such as `2 figures were not found in what the agent read: 9.3 s, 2,950`.
 `observe investigate` prints the same items with the summary lines before the answer.
@@ -247,7 +357,7 @@ Details of the evidence:
 
 Details of the markdown:
 
-- The server appends a note when reads were refused after the run reached its limit of model calls (12 by default, set by `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`), or when a datasource did not answer.
+- The server appends a note when reads were refused after the run reached its limit of model calls (the task type's limit by default, set for every investigation by `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`), or when a datasource did not answer.
 - That note counts toward the 400 words and the 4,000 characters.
 
 A finding has the id of its observation when the save creates it, and its own id when the run already had an observation.

@@ -15,6 +15,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/findings"
@@ -48,6 +49,7 @@ const (
 
 	propFindingSuggestedChange = `"suggested_change":{"type":"string","maxLength":500,"description":"Asked about a dashboard only: the change the person asked for, in their terms, or the nearest safe one; omitted when none is needed, never repeated in markdown; a person with Comment applies it with Revise the dashboard, an agent over MCP."}`
 	propFindingObserveWorthy   = `"observe_worthy":{"type":"boolean","description":"True when the answer shows a jump, drop or error spike."}`
+	propFindingAnswers         = `"answers":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"quantity":{"type":"string"},"fact":{"type":"string"}},"required":["quantity","fact"]},"description":"When results gave fact ids: each quantity asked, in a few words, with the one fact id answering it, cited in markdown as {{f1}}."}`
 
 	propFindingRootCause = `"root_cause":{"type":"object","properties":{"component":{"type":"string","maxLength":120,"description":"Service, datastore, host or flag as named in the telemetry."},"kind":{"type":"string","enum":["deploy","config_or_flag","dependency","resource","data","traffic","infrastructure","unknown"]},"summary":{"type":"string","maxLength":300}},"required":["component","kind","summary"],"additionalProperties":false}`
 	propFindingOnset     = `"onset":{"type":"string","description":"Absolute RFC 3339 time."}`
@@ -60,7 +62,7 @@ const (
 	maxSuggestedChangeRunes = 500
 
 	schemaFindingHead       = `{"type":"object","properties":{` + propFindingTitle + `,` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,`
-	schemaFindingPlain      = propFindingSuggestedChange + `,` + propFindingObserveWorthy
+	schemaFindingPlain      = propFindingSuggestedChange + `,` + propFindingObserveWorthy + `,` + propFindingAnswers
 	schemaFindingStructured = `,` + propFindingRootCause + `,` + propFindingOnset + `,` + propFindingImpact + `,` + propFindingConf + `,` + propFindingRuledOut + `,` + propFindingNext + `,` + propFindingNoInc
 	schemaFindingEnd        = `},"required":["markdown"],"additionalProperties":false}`
 
@@ -105,8 +107,9 @@ type findingInput struct {
 	To       string            `json:"to"`
 	AskOn    string            `json:"ask_on_dashboard_id"`
 
-	SuggestedChange string `json:"suggested_change"`
-	ObserveWorthy   bool   `json:"observe_worthy"`
+	SuggestedChange string             `json:"suggested_change"`
+	ObserveWorthy   bool               `json:"observe_worthy"`
+	Answers         []grounding.Answer `json:"answers"`
 
 	findings.StructuredInput
 }
@@ -127,6 +130,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
+	in = renderedFinding(ctx, in)
 	run, _ := RunFrom(ctx)
 	principal, _ := auth.FromContext(ctx)
 	requestID, err := optionalUUID(run.RequestID)
@@ -175,6 +179,37 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 		out.Note = noteStructuredDropped
 	}
 	return success(stepSavedAnswer, out), nil
+}
+
+func renderedFinding(ctx context.Context, in findingInput) findingInput {
+	ledger, ok := factsOf(ctx)
+	if !ok {
+		return in
+	}
+	render := func(text string) string {
+		out, _ := ledger.Render(text)
+		return out
+	}
+	in.Title, in.Markdown, in.Impact = render(in.Title), render(in.Markdown), render(in.Impact)
+	if in.RootCause != nil {
+		cause := *in.RootCause
+		cause.Summary = render(cause.Summary)
+		in.RootCause = &cause
+	}
+	in.RuledOut = renderedAll(in.RuledOut, render)
+	in.NextSteps = renderedAll(in.NextSteps, render)
+	return in
+}
+
+func renderedAll(texts []string, render func(string) string) []string {
+	if len(texts) == 0 {
+		return texts
+	}
+	out := make([]string, len(texts))
+	for i, text := range texts {
+		out[i] = render(text)
+	}
+	return out
 }
 
 func (r *Registry) findingURL(f findings.Finding) string {

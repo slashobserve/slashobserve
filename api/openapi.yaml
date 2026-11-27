@@ -152,20 +152,20 @@ paths:
     $ref: "./paths/queryproxy.yaml#/dashboards-id-versions-version-panels-panel-id-data"
   /dashboards/{id}/versions/{version}/variables/{name}/values:
     $ref: "./paths/queryproxy.yaml#/dashboards-id-versions-version-variables-name-values"
-  /context-sources:
-    $ref: "./paths/context-sources.yaml#/context-sources"
-  /context-sources/{uid}:
-    $ref: "./paths/context-sources.yaml#/context-sources-uid"
-  /context-sources/{uid}/discover:
-    $ref: "./paths/context-sources.yaml#/context-sources-uid-discover"
-  /context-sources/{uid}/tools:
-    $ref: "./paths/context-sources.yaml#/context-sources-uid-tools"
-  /context-sources/{uid}/tools/approve-read-only:
-    $ref: "./paths/context-sources.yaml#/context-sources-uid-tools-approve-read-only"
-  /context-sources/{uid}/tools/{name}/approve:
-    $ref: "./paths/context-sources.yaml#/context-sources-uid-tools-name-approve"
-  /context-sources/{uid}/tools/{name}/revoke:
-    $ref: "./paths/context-sources.yaml#/context-sources-uid-tools-name-revoke"
+  /mcp-sources:
+    $ref: "./paths/mcp-sources.yaml#/mcp-sources"
+  /mcp-sources/{uid}:
+    $ref: "./paths/mcp-sources.yaml#/mcp-sources-uid"
+  /mcp-sources/{uid}/discover:
+    $ref: "./paths/mcp-sources.yaml#/mcp-sources-uid-discover"
+  /mcp-sources/{uid}/tools:
+    $ref: "./paths/mcp-sources.yaml#/mcp-sources-uid-tools"
+  /mcp-sources/{uid}/tools/approve-read-only:
+    $ref: "./paths/mcp-sources.yaml#/mcp-sources-uid-tools-approve-read-only"
+  /mcp-sources/{uid}/tools/{name}/approve:
+    $ref: "./paths/mcp-sources.yaml#/mcp-sources-uid-tools-name-approve"
+  /mcp-sources/{uid}/tools/{name}/revoke:
+    $ref: "./paths/mcp-sources.yaml#/mcp-sources-uid-tools-name-revoke"
   /datasources/test:
     $ref: "./paths/datasources.yaml#/datasources-test"
   /datasources/{uid}:
@@ -1304,10 +1304,10 @@ components:
           description: A host name, or `*.` followed by a host name for its subdomains only, in lower case ASCII.
         from_connection:
           type: boolean
-          description: True when saving a Grafana connection, a datasource or a context source added the entry; it is removed with the last webhook, connection, datasource or context source that uses that host.
+          description: True when saving a Grafana connection, a datasource or an MCP source added the entry; it is removed with the last webhook, connection, datasource or MCP source that uses that host.
         used_by:
           type: array
-          description: The webhooks, Grafana connections, datasources and context sources whose address this entry allows, so removing it would stop them; empty for anyone but an Admin, because those objects are Admin only.
+          description: The webhooks, Grafana connections, datasources and MCP sources whose address this entry allows, so removing it would stop them; empty for anyone but an Admin, because those objects are Admin only.
           items:
             type: object
             additionalProperties: false
@@ -1315,7 +1315,7 @@ components:
             properties:
               kind:
                 type: string
-                enum: [webhook, grafana_connection, datasource, context_source]
+                enum: [webhook, grafana_connection, datasource, mcp_source]
               name:
                 type: string
         added_at:
@@ -1891,7 +1891,7 @@ components:
                 type: string
               message:
                 type: string
-    ContextSourceToolCounts:
+    MCPSourceToolCounts:
       type: object
       additionalProperties: false
       required: [offered, approved, changed, gone, refused]
@@ -1907,7 +1907,7 @@ components:
           type: integer
         refused:
           type: integer
-    ContextSource:
+    MCPSource:
       type: object
       additionalProperties: false
       required: [uid, name, description, url, audience, secret_header, secret_set, provisioned, private, state, failure, checked_at, tools, created_at, updated_at]
@@ -1936,10 +1936,10 @@ components:
           description: True when a secret is stored; the secret itself is never returned.
         provisioned:
           type: boolean
-          description: True when the source comes from the context sources file and cannot be changed or deleted here.
+          description: True when the source comes from the MCP sources file and cannot be changed or deleted here.
         private:
           type: boolean
-          description: True when the context sources file set `allowPrivate`, so the source may be an `http` address that resolves to a private network. Only the file can set it, and it is never writable through the API.
+          description: True when the MCP sources file set `allowPrivate`, so the source may be an `http` address that resolves to a private network. Only the file can set it, and it is never writable through the API.
         state:
           type: string
           enum: [unchecked, unreachable, ready]
@@ -1953,23 +1953,23 @@ components:
           format: date-time
           nullable: true
         tools:
-          $ref: "#/components/schemas/ContextSourceToolCounts"
+          $ref: "#/components/schemas/MCPSourceToolCounts"
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
-    ContextSourceList:
+    MCPSourceList:
       type: object
       additionalProperties: false
-      required: [context_sources]
+      required: [mcp_sources]
       properties:
-        context_sources:
+        mcp_sources:
           type: array
           items:
-            $ref: "#/components/schemas/ContextSource"
-    CreateContextSourceRequest:
+            $ref: "#/components/schemas/MCPSource"
+    CreateMCPSourceRequest:
       type: object
       additionalProperties: false
       required: [uid, url]
@@ -2001,7 +2001,7 @@ components:
           type: string
           minLength: 1
           maxLength: 4096
-    UpdateContextSourceRequest:
+    UpdateMCPSourceRequest:
       type: object
       additionalProperties: false
       properties:
@@ -2030,7 +2030,7 @@ components:
         clear_secret:
           type: boolean
           description: Delete the stored secret; cannot be combined with `secret`.
-    InvalidContextSourceError:
+    InvalidMCPSourceError:
       type: object
       additionalProperties: false
       required: [error, code, fields]
@@ -2039,7 +2039,7 @@ components:
           type: string
         code:
           type: string
-          enum: [invalid_context_source]
+          enum: [invalid_mcp_source]
         fields:
           type: array
           items:
@@ -2064,7 +2064,7 @@ components:
         refusal:
           type: string
           description: Why the tool cannot be approved.
-    ContextSourceDefinition:
+    MCPSourceDefinition:
       type: object
       additionalProperties: false
       required: [description, input_schema, hash]
@@ -2077,7 +2077,7 @@ components:
         hash:
           type: string
           description: SHA-256 over the tool's name, description and input schema, as 64 hex characters.
-    ContextSourceTool:
+    MCPSourceTool:
       type: object
       additionalProperties: false
       required: [name, state, refusal, description, input_schema, hash, seen, approved_by, approved_at, updated_at, allowed_actions]
@@ -2104,7 +2104,7 @@ components:
           nullable: true
           description: What the server describes now, for a `changed` tool; null otherwise.
           allOf:
-            - $ref: "#/components/schemas/ContextSourceDefinition"
+            - $ref: "#/components/schemas/MCPSourceDefinition"
         approved_by:
           type: string
           format: uuid
@@ -2122,7 +2122,7 @@ components:
           items:
             type: string
             enum: [approve, revoke]
-    ContextSourceToolList:
+    MCPSourceToolList:
       type: object
       additionalProperties: false
       required: [tools]
@@ -2130,8 +2130,8 @@ components:
         tools:
           type: array
           items:
-            $ref: "#/components/schemas/ContextSourceTool"
-    ContextSourceApproved:
+            $ref: "#/components/schemas/MCPSourceTool"
+    MCPSourceApproved:
       type: object
       additionalProperties: false
       required: [approved]
@@ -2139,14 +2139,14 @@ components:
         approved:
           type: array
           items:
-            $ref: "#/components/schemas/ContextSourceTool"
-    ContextSourceDiscovery:
+            $ref: "#/components/schemas/MCPSourceTool"
+    MCPSourceDiscovery:
       type: object
       additionalProperties: false
       required: [source, tally]
       properties:
         source:
-          $ref: "#/components/schemas/ContextSource"
+          $ref: "#/components/schemas/MCPSource"
         tally:
           type: object
           additionalProperties: false
@@ -2168,7 +2168,7 @@ components:
             ignored:
               type: integer
               description: Tools left out because their name is not 1 to 128 letters, digits, dots, hyphens or underscores, or is repeated.
-    ApproveContextSourceToolRequest:
+    ApproveMCPSourceToolRequest:
       type: object
       additionalProperties: false
       properties:
@@ -5720,8 +5720,8 @@ components:
       properties:
         kind:
           type: string
-          enum: [figure, component, onset]
-          description: A figure from the Markdown or the impact, the root cause component, or the onset time.
+          enum: [figure, component, onset, fact, trace_id]
+          description: A figure from the Markdown or the impact, the root cause component, the onset time, a cited fact or `answers` entry that did not pass (an unknown fact, an option more than 1% away, two values for one quantity, or an answer the Markdown never gives), or a trace or span id that was cut short or that the run never read.
         text:
           type: string
           maxLength: 120

@@ -6,8 +6,8 @@ import { PageHeader } from "@/components/page-header"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-import { contextSourcesQuery } from "./context-sources/queries"
-import { McpSourcesSection } from "./context-sources/sources-table"
+import { mcpSourcesQuery } from "./mcp-sources/queries"
+import { McpSourcesSection } from "./mcp-sources/sources-table"
 import type { DatasourceType } from "./draft"
 import { DatasourcePanel } from "./datasource-panel"
 import { DatasourceTable } from "./datasource-table"
@@ -25,7 +25,7 @@ export function DatasourcesPage({ focusMcpSources = false }: Props) {
   const mcpHeading = useRef<HTMLHeadingElement>(null)
 
   const datasourcesPending = useQuery(datasourcesQuery()).isPending
-  const mcpPending = useQuery(contextSourcesQuery()).isPending
+  const mcpPending = useQuery(mcpSourcesQuery()).isPending
   const settled = !datasourcesPending && !mcpPending
 
   useEffect(() => {

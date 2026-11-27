@@ -1796,17 +1796,17 @@ It exits 1 when any dashboard failed or the import failed or was canceled, and `
 An interrupt stops the waiting while the import continues on the server.
 The server keeps a connection's last 20 imports.
 
-### Context sources
+### MCP sources
 
-An Admin registers MCP servers for the agent and approves their tools with `observe context`; see [Context sources](../operate/context-sources.md).
+An Admin registers MCP servers for the agent and approves their tools with `observe mcp-sources`; see [MCP sources](../operate/mcp-sources.md).
 
 ```sh
-printf '%s' "$DOCS_TOKEN" | observe context add docs --url https://docs.example.com/mcp --secret-header Authorization --secret-stdin
-observe context discover docs
-observe context tools docs
-observe context approve docs search
-observe context approve docs --all-read-only
-observe context revoke docs search
+printf '%s' "$DOCS_TOKEN" | observe mcp-sources add docs --url https://docs.example.com/mcp --secret-header Authorization --secret-stdin
+observe mcp-sources discover docs
+observe mcp-sources tools docs
+observe mcp-sources approve docs search
+observe mcp-sources approve docs --all-read-only
+observe mcp-sources revoke docs search
 ```
 
 - `list [uid]` prints every source with its state, audience and tool counts, or one source in full.

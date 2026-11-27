@@ -73,9 +73,9 @@ func GuideFor(types []spec.DatasourceType) string {
 	return b.String()
 }
 
-func SpecGuide() string {
-	return GuideFor([]spec.DatasourceType{spec.Prometheus, spec.ClickHouse, spec.Loki, spec.Tempo, spec.Jaeger, spec.Elasticsearch})
-}
+var allTypes = []spec.DatasourceType{spec.Prometheus, spec.ClickHouse, spec.Loki, spec.Tempo, spec.Jaeger, spec.Elasticsearch}
+
+func SpecGuide() string { return GuideFor(allTypes) }
 
 func System() string { return system }
 

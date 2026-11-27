@@ -6,3 +6,4 @@
 - A search returns one row per trace, newest first, with `TraceId`, `SpanId` (the same id), `SpanName` and `ServiceName` of the root span, `StartTime`, `Duration` in nanoseconds, `Spans` and `Errors`; show it as a `table` with the override `{"match": {"field": "Duration"}, "unit": "ns"}`.
 - A trace id, 32 hex characters or `${trace_id}` of a `textbox` variable, returns every span of that trace with `ParentSpanId`, `StatusCode`, `SpanAttributes` and `ResourceAttributes` as well; show it in a `traces` panel.
 - Jaeger returns no series: chart span counts or latency over time from `otel_traces` or Prometheus, never from Jaeger.
+- Over a window, `trace_error_origins` names where failing requests start and `trace_slow_path` where each route's slow requests spend their time; both read one `service` at a time.

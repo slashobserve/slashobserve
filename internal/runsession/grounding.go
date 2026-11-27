@@ -1,27 +1,38 @@
 package runsession
 
 import (
+	"slices"
+
 	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/findings"
 )
 
 const toolSaveFinding = "save_finding"
 
+func answersAFigure(task route.Task) bool {
+	return task == route.Measure || task == route.Logs || task == route.Traces
+}
+
 func groundsFindings(c guard.Call, res tools.Result) bool {
 	return guard.ReadsData(c.Name) || res.Discovered != nil
 }
 
-func (s *State) checkGrounding(c *guard.Call) []findings.Unverified {
+func (s *State) checkGrounding(c *guard.Call, question string) ([]findings.Unverified, *grounding.Ledger) {
 	if s.Grounding == nil || c.Name != toolSaveFinding {
-		return nil
+		return nil, nil
 	}
-	items := s.Grounding.Check(c.Input)
-	if len(items) > 0 && s.Grounding.Enforced() {
-		c.Ungrounded = grounding.SendBack(items)
+	problems := s.Grounding.Review(c.Input, question)
+	sendBack := problems
+	if missing, ok := grounding.MissingAnswers(c.Input, question); ok && answersAFigure(s.Task) {
+		sendBack = append(slices.Clone(problems), missing)
 	}
-	return items
+	if len(sendBack) > 0 && s.Grounding.Enforced() {
+		c.Ungrounded = grounding.SendBackProblems(sendBack)
+	}
+	return grounding.Unverified(problems), s.Grounding.Ledger()
 }
 
 func (s *State) noteGrounding(c guard.Call, d dispatched) {
@@ -32,9 +43,20 @@ func (s *State) noteGrounding(c guard.Call, d dispatched) {
 	if d.res.Discovered != nil {
 		names = d.res.Discovered.Names
 	}
+	s.Grounding.AddRead(d.content, names, rangesOf(d))
+}
+
+func (s *State) issueFacts(c guard.Call, d dispatched) []byte {
+	if s.Grounding == nil || d.res.IsError {
+		return d.content
+	}
+	return s.Grounding.IssueFacts(c.Name, c.Input, d.content, rangesOf(d))
+}
+
+func rangesOf(d dispatched) []grounding.Range {
 	ranges := make([]grounding.Range, len(d.ranges))
 	for i, r := range d.ranges {
 		ranges[i] = grounding.Range{From: r.From, To: r.To}
 	}
-	s.Grounding.AddRead(d.content, names, ranges)
+	return ranges
 }

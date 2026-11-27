@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -24,7 +25,9 @@ const (
 	maxReasonsShown        = 2
 	maxWritesPerAttempt    = 8
 
-	DefaultInvestigationCalls = 12
+	DefaultInvestigationCalls    = 30
+	DefaultInvestigationCallsMax = 40
+	DefaultChatCalls             = 12
 
 	PhaseRepair = "repair"
 
@@ -135,8 +138,27 @@ func (s *State) answering() bool {
 }
 
 func (s *State) investigationCalls() int {
-	if s.InvestigationCalls > 0 {
+	switch {
+	case s.InvestigationCalls > 0:
 		return s.InvestigationCalls
+	case s.Mode == tools.ModeCreate:
+		return DefaultChatCalls
+	}
+	return DefaultInvestigationCalls
+}
+
+var investigationCallsByTask = map[route.Task]int{
+	route.Measure:   16,
+	route.Logs:      20,
+	route.Traces:    20,
+	route.Incident:  30,
+	route.Inventory: 12,
+	route.Explain:   12,
+}
+
+func InvestigationCallsFor(task route.Task) int {
+	if n, ok := investigationCallsByTask[task]; ok {
+		return n
 	}
 	return DefaultInvestigationCalls
 }

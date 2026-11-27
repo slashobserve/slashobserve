@@ -75,7 +75,7 @@ func newFixture(t *testing.T) *fixture {
 	svc := New(Config{
 		DB: d.DB, Runs: runs, Listen: d.Listen,
 		PublicURL: &url.URL{Scheme: "https", Host: "so.example.com"}, InternalURL: &url.URL{Scheme: "http", Host: "127.0.0.1:8080"},
-		InstanceID: instanceID, Model: func() *ModelSettings { settings := modelSettings; return &settings },
+		InstanceID: instanceID, Model: func(bool) *ModelSettings { settings := modelSettings; return &settings },
 		RunTimeout: time.Hour, Logger: logger,
 	})
 	return &fixture{svc: svc, runs: runs, d: d, principals: people, dashboard: seedDashboard(t, d)}

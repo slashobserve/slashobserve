@@ -31,6 +31,10 @@ func buildView(current *Revision, build *dashboards.Build) *Revision {
 }
 
 func systemFor(statuses []datasource.Status) string {
+	return prompts.Build(guideTypes(statuses))
+}
+
+func guideTypes(statuses []datasource.Status) []spec.DatasourceType {
 	var types []spec.DatasourceType
 	for _, s := range statuses {
 		for _, t := range prompts.GuideTypes(s.Type, s.Source == datasource.SourceBuiltin) {
@@ -39,7 +43,7 @@ func systemFor(statuses []datasource.Status) string {
 			}
 		}
 	}
-	return prompts.Build(types)
+	return types
 }
 
 const newDashboardLimits = " Without a folder_id the dashboard is saved in the requester's My Dashboards. If the request names a folder, find it with list_folders and pass its id as folder_id on your first save; use only a folder with can_create true, and when none fits, build it in My Dashboards and say in the last save's summary that it can be moved. This run cannot create alerts, and a dashboard that already exists is changed from its own chat. To change one, find it with list_dashboards by the id or exact title in the request, reading at most 3 pages with next_cursor: when exactly one dashboard matches, answer with save_finding that says the change is asked for on that dashboard's own chat, and pass its id as ask_on_dashboard_id; when none or several match, answer with save_finding that lists up to 5 candidate titles and pass no ask_on_dashboard_id. For an alert, answer with save_finding that says so, and that a dashboard with a threshold line can be asked for instead."

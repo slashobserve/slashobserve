@@ -30,6 +30,7 @@ type saved struct {
 	Onset     string `json:"onset"`
 	RootCause *struct {
 		Component string `json:"component"`
+		Summary   string `json:"summary"`
 	} `json:"root_cause"`
 }
 
@@ -247,6 +248,12 @@ func describe(kind string) string {
 		return "root_cause.component, not a name this run saw,"
 	case findings.UnverifiedOnset:
 		return "onset, outside every time range this run queried,"
+	case findings.UnverifiedFact:
+		return "cited fact"
+	case findings.UnverifiedTraceID:
+		return "trace id"
+	case kindAnswers:
+		return "answer"
 	}
 	return "figure"
 }

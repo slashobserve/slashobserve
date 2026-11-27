@@ -81,7 +81,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		Provider:       &scriptedDraft{},
 		Runs:           revisions.NewRunDesk(queue, revisions.ObserveOptions{}),
 		Audit:          trail.NewReader(database.DB, logger),
-		ContextSources: &fakeContextSources{},
+		MCPSources:     &fakeMCPSources{},
 		Logger:         logger,
 	})
 	ctx := auth.WithPrincipal(reading(context.Background()), placeholderUser)
@@ -109,6 +109,8 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"question":       json.RawMessage(`"error logs from checkout"`),
 		"prompt":         json.RawMessage(`"add a latency panel"`),
 		"query":          json.RawMessage(`"up"`),
+		"stat":           json.RawMessage(`"max"`),
+		"op":             json.RawMessage(`"total"`),
 		"q":              json.RawMessage(`"checkout"`),
 		"table":          json.RawMessage(`"t"`),
 		"label":          json.RawMessage(`"job"`),

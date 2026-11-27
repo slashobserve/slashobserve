@@ -2,6 +2,7 @@ package runsession
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/agent/brief"
 	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
@@ -62,6 +64,10 @@ type Statuses interface {
 	Health(ctx context.Context) []datasource.Status
 }
 
+type Datasources interface {
+	Visible(ctx context.Context) []datasource.Instance
+}
+
 type Config struct {
 	DB                    *db.DB
 	Runs                  *revisions.Service
@@ -70,6 +76,7 @@ type Config struct {
 	Dashboards            Dashboards
 	Imports               brief.ImportReader
 	Statuses              Statuses
+	Datasources           Datasources
 	Steps                 revisions.StepRecorder
 	Prices                pricing.Table
 	MaxRunCostUSD         float64
@@ -88,6 +95,7 @@ type Service struct {
 	dashboards         Dashboards
 	loader             brief.Loader
 	statuses           Statuses
+	datasources        Datasources
 	steps              revisions.StepRecorder
 	prices             pricing.Table
 	maxRunCost         float64
@@ -98,6 +106,7 @@ type Service struct {
 	logger             *slog.Logger
 	inFlight           slots
 	runLocks           runLocks
+	sweeper            Sweeper
 }
 
 func New(c Config) *Service {
@@ -110,7 +119,7 @@ func New(c Config) *Service {
 	return &Service{
 		db: c.DB, runs: c.Runs, claims: c.Claims, builds: c.Builds, dashboards: c.Dashboards,
 		loader:   brief.Loader{Dashboards: c.Dashboards, Imports: c.Imports, Logger: c.Logger},
-		statuses: c.Statuses, steps: c.Steps, prices: c.Prices, maxRunCost: c.MaxRunCostUSD, investigationCalls: c.InvestigationCalls, investigationLoop: c.InvestigationLoop, investigationMax: c.InvestigationCallsMax, findingGrounding: c.FindingGrounding, logger: c.Logger,
+		statuses: c.Statuses, datasources: c.Datasources, steps: c.Steps, prices: c.Prices, maxRunCost: c.MaxRunCostUSD, investigationCalls: c.InvestigationCalls, investigationLoop: c.InvestigationLoop, investigationMax: c.InvestigationCallsMax, findingGrounding: c.FindingGrounding, logger: c.Logger,
 		inFlight: make(slots, max(1, c.DB.Stat().MaxConns()/2)),
 	}
 }
@@ -179,7 +188,8 @@ func (s *Service) with(ctx context.Context, req revisions.Request, fn func(ctx c
 func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Request, id pgtype.UUID) (*session, error) {
 	key := dbsqlc.GetRunSessionForUpdateParams{AgentRequestID: id, Attempt: httpapi.Int32(req.Attempt)}
 	raw, err := q.GetRunSessionForUpdate(ctx, key)
-	if errors.Is(err, pgx.ErrNoRows) {
+	created := errors.Is(err, pgx.ErrNoRows)
+	if created {
 		raw, err = s.create(ctx, q, req, id)
 	}
 	if err != nil {
@@ -188,6 +198,9 @@ func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Req
 	sess := &session{s: s, q: q, req: req, id: id, loaded: raw}
 	if err := json.Unmarshal(raw, &sess.state); err != nil {
 		return nil, fmt.Errorf("decode run session: %w", err)
+	}
+	if created {
+		sess.recordRoute()
 	}
 	if sess.state.Guard.InvestigationCalls == 0 {
 		sess.state.Guard.InvestigationCalls = s.investigationCalls
@@ -207,11 +220,14 @@ func (s *Service) create(ctx context.Context, q *dbsqlc.Queries, req revisions.R
 	if err != nil {
 		return nil, err
 	}
+	attempt := httpapi.Int32(req.Attempt)
+	if initial.Triage, err = priorTriage(ctx, q, id, attempt); err != nil {
+		return nil, err
+	}
 	raw, err := json.Marshal(initial)
 	if err != nil {
 		return nil, fmt.Errorf("encode run session: %w", err)
 	}
-	attempt := httpapi.Int32(req.Attempt)
 	if _, err := q.InsertRunSession(ctx, dbsqlc.InsertRunSessionParams{AgentRequestID: id, Attempt: attempt, State: raw}); err != nil {
 		return nil, fmt.Errorf("insert run session: %w", err)
 	}
@@ -226,7 +242,7 @@ func (s *Service) initial(ctx context.Context, req revisions.Request, id pgtype.
 	if err != nil {
 		return State{}, err
 	}
-	state := s.watched(run, req)
+	state := s.watched(run, req, s.routed(ctx, run, req))
 	parent := 0
 	switch {
 	case run.Mode == tools.ModeSuggest:
@@ -254,19 +270,21 @@ func (s *Service) initial(ctx context.Context, req revisions.Request, id pgtype.
 	return state, nil
 }
 
-func (s *Service) watched(run tools.Run, req revisions.Request) State {
-	state := State{Guard: guard.New(run.Mode), Loop: s.investigationLoop && run.Mode == tools.ModeInvestigate && run.Investigation}
+func (s *Service) watched(run tools.Run, req revisions.Request, task route.Task) State {
+	state := State{Guard: guard.New(run.Mode), Task: task, Loop: s.investigationLoop && run.Mode == tools.ModeInvestigate && run.Investigation}
+	if run.Mode == tools.ModeInvestigate {
+		state.Guard.InvestigationCalls = cmp.Or(s.investigationCalls, guard.InvestigationCallsFor(task))
+	}
 	if state.Loop {
 		state.Guard.WatchLedger()
 	}
-	if run.Mode == tools.ModeInvestigate {
+	if run.Mode != tools.ModeSuggest {
 		state.Grounding = grounding.NewRecord(s.findingGrounding)
 	}
 	if state.Grounding.Enforced() {
 		state.Guard.WatchGrounding()
 	}
 	if state.Loop && req.Assignee == revisions.AssignBuiltin {
-		state.Guard.InvestigationCalls = s.investigationCalls
 		state.Guard.StartLoop(s.investigationMax)
 	}
 	return state
@@ -309,6 +327,7 @@ func (s *Service) Scope(ctx context.Context, req revisions.Request) (tools.Run, 
 	ended := false
 	err = s.with(ctx, req, func(ctx context.Context, sess *session) error {
 		run.ParentVersion = sess.state.Guard.ParentVersion
+		run.Task, run.AllTools = sess.state.Task, sess.state.AllTools
 		run.Access, run.WriteFolders = sess.access, sess.writes.Folders
 		if run.Mode != tools.ModeSuggest {
 			return nil

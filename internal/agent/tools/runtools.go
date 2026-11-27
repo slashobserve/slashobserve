@@ -28,7 +28,7 @@ const (
 	reasonProposals = "merging writes a dashboard version outside the build"
 	reasonRunAnswer = "a later turn of a chat could publish an earlier private ask's answer, so only the requester saves an answer"
 	reasonApp       = "it draws a chart in an MCP Apps host, which a run does not have"
-	reasonContext   = "what a context source returns is outside text a build must not act on, so only an investigation or a chat question reads it"
+	reasonContext   = "what an MCP source returns is outside text a build must not act on, so only an investigation or a chat question reads it"
 	reasonHealth    = "it checks every dashboard of the workspace, far outside what one run is about"
 )
 
@@ -58,9 +58,9 @@ var leftOutOfRuns = map[string]string{
 }
 
 var contextReads = map[string]string{
-	nameListContextSources: reasonContext,
-	nameCallContextTool:    reasonContext,
-	nameFindContextTools:   reasonContext,
+	nameListMCPSources: reasonContext,
+	nameCallMCPTool:    reasonContext,
+	nameFindMCPTools:   reasonContext,
 }
 
 var creatingWrites = map[string]bool{
@@ -320,6 +320,9 @@ func runViolation(run Run, id string, inChat func(runID string) bool) string {
 }
 
 func (r *Registry) admitted(ctx context.Context, tool Tool, run Run, inRun bool, input json.RawMessage) (Result, bool) {
+	if inRun && tool.OfferedInMode(run) && !tool.InTask(run) {
+		return r.notInTask(tool, run), false
+	}
 	if res, ok := offered(tool, run, inRun); !ok {
 		return res, false
 	}

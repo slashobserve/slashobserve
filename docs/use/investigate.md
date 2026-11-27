@@ -206,9 +206,9 @@ It stays there when the dashboard moves.
 - It reads earlier [observations](observations.md) in the folders you can open, as you.
   When one bears on the question, it cites it by title and `/o/<id>` link and says its numbers are from an earlier time.
 
-### Context sources
+### MCP sources
 
-A context source is an MCP server an Admin registered, such as a documentation index or a ticket system; see [Context sources](../operate/context-sources.md).
+An MCP source is an MCP server an Admin registered, such as a documentation index or a ticket system; see [MCP sources](../operate/mcp-sources.md).
 In an investigation or a question the agent can list the sources you may use and call the tools an Admin approved.
 
 - It cannot call a tool that is not approved, changed since it was approved, or belongs to a source set to Admins only when you are not an Admin.
