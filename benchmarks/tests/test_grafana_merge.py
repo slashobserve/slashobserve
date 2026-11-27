@@ -263,3 +263,8 @@ def test_parts_are_read_from_a_fenced_reply():
 def test_malformed_parts_are_refused(reply):
     with pytest.raises(merge.PartsError):
         merge.parse_parts(reply)
+
+
+def test_a_row_the_run_added_is_not_written_to_grafana() -> None:
+    after = {"panels": [{"id": "overview", "type": "row", "title": "Overview"}, {"id": "p_lag", "type": "stat", "title": "Lag"}]}
+    assert [panel["id"] for panel in merge.spec_changes(None, after).added_panels] == ["p_lag"]

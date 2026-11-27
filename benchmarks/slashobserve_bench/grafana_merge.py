@@ -83,7 +83,8 @@ def spec_changes(before: dict[str, Any] | None, after: dict[str, Any]) -> SpecCh
     for panel_id, panel in new_panels.items():
         old = old_panels.get(panel_id)
         if old is None:
-            changes.added_panels.append(panel)
+            if panel.get("type") != "row":
+                changes.added_panels.append(panel)
         elif _comparable(old) != _comparable(panel):
             changes.changed_panels.append((old, panel))
     changes.removed_panels = [panel for panel_id, panel in old_panels.items() if panel_id not in new_panels]

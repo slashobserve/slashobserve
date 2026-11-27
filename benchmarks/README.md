@@ -299,6 +299,7 @@ The last `grafana_write_sec` seconds of `wall_timeout_sec` are kept for the step
 
 After the run, the adapter compares the Spec the run started from (none for a build) with the one it saved.
 A panel or variable counts as changed when anything but its position differs.
+A row the run added is left out: the agent groups a build under row headings of its own, and a task that names its panels counts a row as one more panel.
 The adapter then makes one extra model call, with the trial's provider, model and key, outside the server.
 The call gets the Grafana dashboard JSON as fetched (none for a new dashboard), the Grafana datasources, the map from each SlashObserve datasource to a Grafana one, and the added, changed and removed panels and variables, with the Spec before and after and the current Grafana JSON of each changed part.
 It asks for those parts only, as Grafana JSON.
