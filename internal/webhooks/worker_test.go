@@ -244,6 +244,39 @@ func TestASkipAfterTheLeaseRanOutIsNotOverwrittenByTheDeliveryStillInFlight(t *t
 	}
 }
 
+func TestSkipReadsTheLeaseAgainstTheDatabaseClockLikeAClaim(t *testing.T) {
+	r := newRig(t)
+	created := r.create(t)
+	id := r.uuid(t, created.Webhook.ID)
+	cases := []struct {
+		name  string
+		lease string
+		want  bool
+	}{
+		{"no lease", `lease_id = NULL, leased_by = NULL, lease_until = NULL`, false},
+		{"a lease that ran out", `lease_id = gen_random_uuid(), leased_by = 'other', lease_until = clock_timestamp() - interval '1 second'`, false},
+		{"a live lease", `lease_id = gen_random_uuid(), leased_by = 'other', lease_until = clock_timestamp() + interval '1 minute'`, true},
+	}
+	for _, tc := range cases {
+		r.db.Exec(t, `UPDATE webhooks SET `+tc.lease+` WHERE id = $1::uuid`, created.Webhook.ID)
+		var leased bool
+		err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
+			got, err := q.GetWebhookForSkip(t.Context(), id)
+			leased = got.Leased
+			return err
+		})
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		_, claimErr := r.db.Queries().ClaimWebhook(t.Context(), dbsqlc.ClaimWebhookParams{
+			InstanceID: pgtype.Text{String: "claimer", Valid: true}, LeaseSeconds: leaseTTL.Seconds(), Done: []pgtype.UUID{},
+		})
+		if claimable := claimErr == nil; leased != tc.want || claimable == leased {
+			t.Fatalf("%s: skip sees it leased %v, want %v; a claim took it %v (%v)", tc.name, leased, tc.want, claimable, claimErr)
+		}
+	}
+}
+
 func TestA410DisablesTheWebhookAsGone(t *testing.T) {
 	r := newRig(t)
 	created := r.create(t)

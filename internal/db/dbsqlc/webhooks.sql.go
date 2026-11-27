@@ -230,6 +230,46 @@ func (q *Queries) GetWebhook(ctx context.Context, id pgtype.UUID) (GetWebhookRow
 	return i, err
 }
 
+const getWebhookForSkip = `-- name: GetWebhookForSkip :one
+SELECT w.id, w.name, w.url, w.secret_ciphertext, w.event_types, w.owner_kind, w.owner_id, w.cursor_xid, w.cursor_seq, w.consecutive_failures, w.next_attempt_at, w.lease_id, w.leased_by, w.lease_until, w.disabled_at, w.disabled_reason, w.created_at, w.updated_at, w.format, coalesce(w.lease_until >= clock_timestamp(), false)::boolean AS leased
+FROM webhooks w
+WHERE w.id = $1
+FOR UPDATE
+`
+
+type GetWebhookForSkipRow struct {
+	Webhook Webhook
+	Leased  bool
+}
+
+func (q *Queries) GetWebhookForSkip(ctx context.Context, id pgtype.UUID) (GetWebhookForSkipRow, error) {
+	row := q.db.QueryRow(ctx, getWebhookForSkip, id)
+	var i GetWebhookForSkipRow
+	err := row.Scan(
+		&i.Webhook.ID,
+		&i.Webhook.Name,
+		&i.Webhook.Url,
+		&i.Webhook.SecretCiphertext,
+		&i.Webhook.EventTypes,
+		&i.Webhook.OwnerKind,
+		&i.Webhook.OwnerID,
+		&i.Webhook.CursorXid,
+		&i.Webhook.CursorSeq,
+		&i.Webhook.ConsecutiveFailures,
+		&i.Webhook.NextAttemptAt,
+		&i.Webhook.LeaseID,
+		&i.Webhook.LeasedBy,
+		&i.Webhook.LeaseUntil,
+		&i.Webhook.DisabledAt,
+		&i.Webhook.DisabledReason,
+		&i.Webhook.CreatedAt,
+		&i.Webhook.UpdatedAt,
+		&i.Webhook.Format,
+		&i.Leased,
+	)
+	return i, err
+}
+
 const getWebhookForUpdate = `-- name: GetWebhookForUpdate :one
 SELECT id, name, url, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq, consecutive_failures, next_attempt_at, lease_id, leased_by, lease_until, disabled_at, disabled_reason, created_at, updated_at, format FROM webhooks WHERE id = $1 FOR UPDATE
 `

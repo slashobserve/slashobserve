@@ -26,6 +26,12 @@ WHERE w.id = @id;
 -- name: GetWebhookForUpdate :one
 SELECT * FROM webhooks WHERE id = @id FOR UPDATE;
 
+-- name: GetWebhookForSkip :one
+SELECT sqlc.embed(w), coalesce(w.lease_until >= clock_timestamp(), false)::boolean AS leased
+FROM webhooks w
+WHERE w.id = @id
+FOR UPDATE;
+
 -- name: UpdateWebhook :one
 UPDATE webhooks
 SET name = @name,

@@ -290,20 +290,28 @@ func (s *Service) waiting(ctx context.Context, ownerKind, ownerID string, types 
 	return &Waiting{Count: min(len(page), maxWaitingCount), More: len(page) > maxWaitingCount}
 }
 
+func skipRefusal(row dbsqlc.Webhook, leased bool) error {
+	switch {
+	case stateOf(!row.DisabledAt.Valid, int(row.ConsecutiveFailures)) != StateRetrying:
+		return ErrNothingToSkip
+	case leased:
+		return ErrBusy
+	}
+	return nil
+}
+
 func (s *Service) SkipEvent(ctx context.Context, by auth.Principal, id pgtype.UUID) (skipped Delivery, updated Webhook, err error) {
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		row, err := q.GetWebhookForUpdate(ctx, id)
+		locked, err := q.GetWebhookForSkip(ctx, id)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		}
 		if err != nil {
 			return err
 		}
-		if row.ConsecutiveFailures == 0 || row.DisabledAt.Valid {
-			return ErrNothingToSkip
-		}
-		if row.LeaseUntil.Valid && row.LeaseUntil.Time.After(time.Now()) {
-			return ErrBusy
+		row := locked.Webhook
+		if err := skipRefusal(row, locked.Leased); err != nil {
+			return err
 		}
 		page, err := s.pending(ctx, row.OwnerKind, row.OwnerID.String(), row.EventTypes, cursor{xid: row.CursorXid.Uint64, seq: row.CursorSeq}, 1)
 		if errors.Is(err, auth.ErrPrincipalGone) || (err == nil && len(page) == 0) {

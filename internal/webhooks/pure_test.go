@@ -413,3 +413,30 @@ func TestAnExpiredRunEndsAtTheFirstEventStillToSend(t *testing.T) {
 		}
 	}
 }
+
+func TestSkipIsRefusedUnlessTheWebhookIsRetryingAndNoServerHoldsItsLease(t *testing.T) {
+	off := pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	cases := []struct {
+		name   string
+		row    dbsqlc.Webhook
+		leased bool
+		want   error
+	}{
+		{"sending", dbsqlc.Webhook{}, false, ErrNothingToSkip},
+		{"sending while a server delivers", dbsqlc.Webhook{}, true, ErrNothingToSkip},
+		{"retrying", dbsqlc.Webhook{ConsecutiveFailures: 2}, false, nil},
+		{"retrying while a server delivers", dbsqlc.Webhook{ConsecutiveFailures: 2}, true, ErrBusy},
+		{"disabled after failures", dbsqlc.Webhook{ConsecutiveFailures: 2, DisabledAt: off}, false, ErrNothingToSkip},
+		{"disabled while a server delivers", dbsqlc.Webhook{ConsecutiveFailures: 2, DisabledAt: off}, true, ErrNothingToSkip},
+	}
+	for _, tc := range cases {
+		got := skipRefusal(tc.row, tc.leased)
+		if !errors.Is(got, tc.want) {
+			t.Errorf("%s: %v, want %v", tc.name, got, tc.want)
+		}
+		retrying := stateOf(!tc.row.DisabledAt.Valid, int(tc.row.ConsecutiveFailures)) == StateRetrying
+		if nothingToSkip := errors.Is(got, ErrNothingToSkip); nothingToSkip == retrying {
+			t.Errorf("%s: nothing to skip %v for a webhook whose state the API shows as retrying %v", tc.name, nothingToSkip, retrying)
+		}
+	}
+}
