@@ -261,6 +261,25 @@ This state is computed from stored fields on every read; nothing stores it.
 | `unreachable` | The last discovery failed; failure says why, such as the domain not being on the outbound allowlist, the secret being refused or the server not answering. |
 | `ready` | None of the above: the last discovery listed the server's tools. |
 
+## Built-in agent supervisor
+
+The server starts the built-in agent as the `observe-agent` process and restarts it when it exits; each move writes a server log line with the state under the key `agent_state`, not an activity event.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `starting` | The server is starting the `observe-agent` process. | - |
+| `running` | The process runs and can claim runs. | - |
+| `backoff` | The process exited or could not be started, and the server waits 1 to 30 seconds before it starts it again. | - |
+| `stopping` | The server is shutting down and stops the process. Final. | - |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `start` | - | `starting` | `observe-agent starting` | server |
+| `run` | `starting` | `running` | `observe-agent running` | server |
+| `back_off` | `starting`, `running` | `backoff` | `observe-agent waiting to restart` | server |
+| `restart` | `backoff` | `starting` | `observe-agent starting` | server |
+| `stop` | `starting`, `running`, `backoff` | `stopping` | `observe-agent supervisor stopping` | server |
+
 ## Agent presence
 
 Whether an outside agent is taking runs: derived from when it last asked for work and the runs it holds.
