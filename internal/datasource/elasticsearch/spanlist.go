@@ -47,7 +47,7 @@ func listConditions(req datasource.TraceListRequest) []any {
 	return conds
 }
 
-func ListBody(req datasource.TraceListRequest, timeout string) map[string]any {
+func listBody(req datasource.TraceListRequest, timeout string) map[string]any {
 	limit := cmp.Or(max(req.Limit, 0), datasource.TraceListBudget)
 	conds := listConditions(req)
 	filter := []any{spanRange(req.Range)}
@@ -149,7 +149,7 @@ func (s *SpanIndex) ListTraces(ctx context.Context, req datasource.TraceListRequ
 }
 
 func (s *SpanIndex) candidates(ctx context.Context, req datasource.TraceListRequest, limit int) ([]candidate, bool, error) {
-	body := ListBody(req, s.timeout())
+	body := listBody(req, s.timeout())
 	raw, err := s.search(ctx, body)
 	if err != nil {
 		return nil, false, err

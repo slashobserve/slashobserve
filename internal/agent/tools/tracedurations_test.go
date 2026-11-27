@@ -124,3 +124,14 @@ func TestTraceStatsKeepsTempoFiguresWhenTheExactReadFails(t *testing.T) {
 		}
 	}
 }
+
+func TestExactQuantilesKeepTheStoresNoteOnItsBuckets(t *testing.T) {
+	out := traceStatsOut{Spans: 3}
+	out.applyDurations(datasource.TraceDurations{Exact: true, Window: datasource.DurationQuantiles{Spans: 3, P50: 1, P95: 2, P99: 2}}, nil, "", bucketNoteOf("opensearch", "Per-bucket quantiles are estimates."))
+	if out.Quantiles != quantilesExact || !strings.HasSuffix(out.Note, " Per-bucket quantiles are estimates.") {
+		t.Fatalf("quantiles %q, note %q", out.Quantiles, out.Note)
+	}
+	if bucketNoteOf("tempo", "") != bucketQuantilesNote {
+		t.Error("Tempo lost its bucket note")
+	}
+}

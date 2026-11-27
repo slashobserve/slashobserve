@@ -180,6 +180,12 @@ What it answers:
 - A listing of the traces in a window, newest first, by service, operation, root span name, failure and least duration, which `trace_error_origins` and `trace_slow_path` read before they sample traces.
   A trace matches when each condition holds in some span of it, and its duration is its root span's, or its longest span's when no root is stored.
   With more than one condition the newest 8,000 traces that meet any of them are weighed, so a listing past that says it is not complete.
+- Span counts, failures and a duration histogram per time bucket, as `POST /api/v1/datasources/{uid}/trace-stats` and the `trace_stats` tool describe.
+  The filter is a query over the span documents in the datasource's query language, such as `process.serviceName:checkout`, and a Query DSL body may hold only `query`.
+  Nested tags are reached in KQL as `tags:{ key:"http.route" and value:"/cart" }`.
+  Per-bucket quantiles are the cluster's `percentiles` estimates (t-digest), so they are approximate.
+  The p50, p95 and p99 over the whole window and per group are exact: the server reads up to 20,000 matching span durations, newest first, and says they are a sample when the window holds more.
+  `group_by` takes `service`, `name`, `status`, `kind`, `statusMessage`, `span.<tag>` and `resource.<tag>`.
 - The log lines of a trace are not in a span index: read them from a logs datasource.
 
 ### Health

@@ -469,12 +469,19 @@ func (r *Registry) traceStats(ctx context.Context, input json.RawMessage) (Resul
 		req := datasource.TraceDurationRequest{Query: *in.Query, GroupBy: in.GroupBy, Range: rng, Limits: queryproxy.DraftLimits, User: queryproxy.UserFor(principal), MaxSpans: datasource.TraceDurationSpanBudget}
 		d, err := durations.TraceDurations(ctx, req)
 		datasource.NoteQuery(ctx, inst.UID, *in.Query, rng, len(d.Groups)+1)
-		out.applyDurations(d, err, in.GroupBy, inst.Datasource.Type() == "tempo")
+		out.applyDurations(d, err, in.GroupBy, bucketNoteOf(inst.Datasource.Type(), stats.Note))
 	}
 	return success(fmt.Sprintf("%s: %s, p95 %s", stepName, plural(int(out.Spans), "span", "spans"), describeP95(out)), out), nil
 }
 
-func (out *traceStatsOut) applyDurations(d datasource.TraceDurations, err error, groupBy string, tempo bool) {
+func bucketNoteOf(datasourceType, storeNote string) string {
+	if datasourceType == "tempo" {
+		return bucketQuantilesNote
+	}
+	return storeNote
+}
+
+func (out *traceStatsOut) applyDurations(d datasource.TraceDurations, err error, groupBy, bucketNote string) {
 	if err != nil {
 		if out.Window != nil || len(out.Groups) > 0 {
 			out.Note = strings.TrimSpace("The exact quantiles could not be read, so the window and group quantiles are Tempo's. " + out.Note)
@@ -495,8 +502,8 @@ func (out *traceStatsOut) applyDurations(d datasource.TraceDurations, err error,
 	if !exact {
 		note = fmt.Sprintf("Window and group quantiles rest on %d of the %d matching spans, the newest a trace search returned within its cap, so they are a sample and not exact; say so when you state one.", d.Window.Spans, out.Spans)
 	}
-	if tempo {
-		note += " " + bucketQuantilesNote
+	if bucketNote != "" {
+		note += " " + bucketNote
 	}
 	out.Note = note
 }
