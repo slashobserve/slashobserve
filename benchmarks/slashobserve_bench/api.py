@@ -23,14 +23,14 @@ class Client:
         self.base_url = base_url
         self._key = key
 
-    def _call(self, method: str, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
+    def _call(self, method: str, path: str, body: dict[str, Any] | None = None, timeout: float = 30) -> dict[str, Any]:
         data = None if body is None else json.dumps(body).encode()
         request = urllib.request.Request(f"{self.base_url}/api/v1{path}", data=data, method=method)
         request.add_header("Authorization", f"Bearer {self._key}")
         if data is not None:
             request.add_header("Content-Type", "application/json")
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
                 return json.loads(response.read() or b"{}")
         except urllib.error.HTTPError as error:
             raise ApiError(error.code, error.read().decode(errors="replace")) from None
@@ -46,6 +46,12 @@ class Client:
 
     def cancel_run(self, run_id: str) -> None:
         self._call("POST", f"/observe/{run_id}/cancel", {})
+
+    def import_grafana(self, grafana_export: dict[str, Any]) -> dict[str, Any]:
+        return self._call("POST", "/imports", {"json": json.dumps(grafana_export)}, timeout=180)
+
+    def dashboard_version(self, dashboard_id: str, version: int) -> dict[str, Any]:
+        return self._call("GET", f"/dashboards/{dashboard_id}/versions/{version}")["version"]
 
 
 def wait_for_terminal(

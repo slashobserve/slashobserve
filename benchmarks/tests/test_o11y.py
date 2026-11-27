@@ -9,8 +9,8 @@ def write_task(tasks_dir, name, category):
     (task_dir / "task.toml").write_text(f'version = "1.0"\n\n[metadata]\ncategory = "{category}"\n')
 
 
-def test_thirteen_grafana_state_tasks_are_skipped_with_a_reason():
-    assert len(o11y.SKIPPED) == 13
+def test_only_the_dashboard_tasks_are_skipped_with_a_reason():
+    assert len(o11y.SKIPPED) == 7
     assert all(o11y.skip_reason(task_id) for task_id in o11y.SKIPPED)
     assert o11y.skip_reason("promql-error-rate") is None
 
@@ -22,13 +22,14 @@ def test_thirteen_grafana_state_tasks_are_skipped_with_a_reason():
         ("prometheus_query", "ask"),
         ("loki_query", "ask"),
         ("tempo_query", "ask"),
+        ("grafana_api", "ask"),
     ],
 )
 def test_category_decides_the_run_kind(category, kind):
     assert o11y.run_kind(category) == kind
 
 
-@pytest.mark.parametrize("category", ["dashboarding", "grafana_api", "other"])
+@pytest.mark.parametrize("category", ["dashboarding", "other"])
 def test_other_categories_are_unsupported(category):
     with pytest.raises(o11y.UnsupportedTask):
         o11y.run_kind(category)
@@ -44,6 +45,11 @@ def test_question_body_is_an_ask_on_an_observation():
     assert body == {"kind": "ask", "prompt": "how many?", "as_of": "2026-11-20T10:00:00Z", "observation_id": "obs-1"}
 
 
+def test_grafana_question_body_is_an_ask_on_an_observation():
+    body = o11y.start_body("grafana_api", "which datasources?", "2026-11-20T10:00:00Z", "obs-1")
+    assert body["kind"] == "ask" and body["observation_id"] == "obs-1"
+
+
 def test_question_body_needs_an_observation():
     with pytest.raises(o11y.UnsupportedTask):
         o11y.start_body("loki_query", "how many?", "2026-11-20T10:00:00Z", None)
@@ -55,12 +61,13 @@ def test_category_is_read_from_task_toml():
         o11y.category_of('version = "1.0"\n')
 
 
-def test_store_task_names_leave_out_skipped_and_grafana_tasks(tmp_path):
+def test_task_names_leave_out_skipped_and_unknown_tasks(tmp_path):
     write_task(tmp_path, "promql-error-rate", "prometheus_query")
     write_task(tmp_path, "incident-triage", "investigation")
     write_task(tmp_path, "list-datasources", "grafana_api")
     write_task(tmp_path, "dashboard-create-service-overview", "dashboarding")
-    assert o11y.store_task_names(tmp_path) == ["incident-triage", "promql-error-rate"]
+    write_task(tmp_path, "new-task", "alerting")
+    assert o11y.task_names(tmp_path) == ["incident-triage", "list-datasources", "promql-error-rate"]
 
 
 def test_include_flags_repeat_per_task():

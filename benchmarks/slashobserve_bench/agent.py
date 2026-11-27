@@ -10,7 +10,7 @@ from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 from pydantic import Field, model_validator
 
-from slashobserve_bench import atif, o11y
+from slashobserve_bench import atif, grafana, o11y
 from slashobserve_bench.api import ApiError, Client, RunTimeout, wait_for_terminal
 from slashobserve_bench.ledger import SpendLedger
 from slashobserve_bench.loop_options import LoopOptions
@@ -35,6 +35,9 @@ class Options(AgentOptions, LoopOptions):
     spend_cap_usd: float | None = Field(default=None, gt=0)
     ledger_path: str | None = None
     wall_timeout_sec: int = Field(default=540, ge=30)
+    grafana_url: str | None = None
+    grafana_user: str | None = None
+    grafana_password: str | None = None
 
     @model_validator(mode="after")
     def _cap_needs_ledger(self) -> "Options":
@@ -113,6 +116,9 @@ class SlashObserveAgent(BaseAgent):
         if not as_of:
             raise o11y.UnsupportedTask(f"the task environment sets no {o11y.SCENARIO_TIME_ENV}")
         provider, model = split_model(self.model_name)
+        grafana_state = None
+        if self._category in o11y.GRAFANA_CATEGORIES:
+            grafana_state = await grafana.read_state(self._grafana_client(task_env, environment))
         config = ServerConfig(
             image=options.server_image,
             network=options.network,
@@ -126,12 +132,45 @@ class SlashObserveAgent(BaseAgent):
             run_max_cost_usd=options.run_max_cost_usd,
             replay_dir=Path(options.replay_dir) if options.replay_dir else None,
         )
-        stack = Stack(config, datasources_yaml(stores), self.logs_dir, self._llm_key(provider))
+        grafana_uids = grafana.grafana_uids_by_type(grafana_state.datasources) if grafana_state else None
+        stack = Stack(config, datasources_yaml(stores, grafana_uids), self.logs_dir, self._llm_key(provider))
         try:
             await stack.start()
-            await self._answer(stack, instruction, as_of, environment.environment_name, context, deadline)
+            prompt = instruction
+            if grafana_state is not None:
+                imported = await asyncio.to_thread(self._import_dashboards, Client(stack.base_url, stack.key), grafana_state)
+                prompt = grafana.question_prompt(instruction, grafana_state, imported)
+            await self._answer(stack, prompt, as_of, environment.environment_name, context, deadline)
         finally:
             await asyncio.to_thread(stack.stop)
+
+    def _grafana_client(self, task_env: dict[str, str], environment: BaseEnvironment) -> grafana.GrafanaClient:
+        options = self._options
+        auth = grafana.grafana_auth(task_env, options.grafana_user, options.grafana_password)
+        if options.grafana_url:
+            return grafana.GrafanaClient(options.grafana_url, grafana.host_transport(auth))
+        url = task_env.get(grafana.GRAFANA_URL_ENV)
+        if not url:
+            raise o11y.UnsupportedTask(f"the task environment sets no {grafana.GRAFANA_URL_ENV}")
+        return grafana.GrafanaClient(url, grafana.container_transport(environment, auth))
+
+    def _import_dashboards(self, client: Client, state: grafana.GrafanaState) -> dict[str, str]:
+        imported: dict[str, str] = {}
+        records = []
+        for entry in state.dashboards:
+            uid = entry["dashboard"].get("uid")
+            record: dict = {"grafana_uid": uid, "title": entry["dashboard"].get("title")}
+            try:
+                answer = client.import_grafana(entry)
+                record["dashboard_id"] = answer["dashboard"]["id"]
+                record["version"] = answer["version"]["version"]
+                imported[uid] = answer["dashboard"]["id"]
+            except ApiError as error:
+                record["error"] = str(error)
+            records.append(record)
+        self.logs_dir.mkdir(parents=True, exist_ok=True)
+        (self.logs_dir / "grafana-imports.json").write_text(json.dumps(records, indent=2) + "\n", encoding="utf-8")
+        return imported
 
     def _llm_key(self, provider: str) -> str | None:
         if provider == "replay":

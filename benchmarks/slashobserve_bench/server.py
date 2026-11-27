@@ -53,7 +53,7 @@ def service_accounts_yaml(key_file: str) -> str:
     )
 
 
-def datasources_yaml(stores: Stores) -> str:
+def datasources_yaml(stores: Stores, grafana_uids: dict[str, list[str]] | None = None) -> str:
     entries = (
         ("prometheus", "prometheus", "Prometheus", stores.prometheus),
         ("loki", "loki", "Loki", stores.loki),
@@ -65,6 +65,11 @@ def datasources_yaml(stores: Stores) -> str:
             f"  - uid: {uid}",
             f"    type: {kind}",
             f"    name: {name}",
+        ]
+        aliases = (grafana_uids or {}).get(kind)
+        if aliases:
+            lines.append(f"    grafanaUids: [{', '.join(json.dumps(alias) for alias in aliases)}]")
+        lines += [
             f"    {kind}:",
             f"      url: {json.dumps(url)}",
         ]

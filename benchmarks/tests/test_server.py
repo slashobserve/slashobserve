@@ -36,6 +36,14 @@ def test_datasources_file_points_each_store_at_the_stack():
     for uid, url in (("prometheus", "http://stack:9090"), ("loki", "http://stack:3100"), ("tempo", "http://stack:3200")):
         assert f"  - uid: {uid}\n    type: {uid}\n" in text
         assert f'    {uid}:\n      url: "{url}"\n' in text
+    assert "grafanaUids" not in text
+
+
+def test_datasources_file_lists_the_grafana_uids_each_store_stands_for():
+    text = server.datasources_yaml(STORES, {"prometheus": ["graf-prom", "Prometheus"], "loki": ["0123"]})
+    assert '    name: Prometheus\n    grafanaUids: ["graf-prom", "Prometheus"]\n    prometheus:\n' in text
+    assert '    grafanaUids: ["0123"]\n    loki:\n' in text
+    assert text.count("grafanaUids") == 2
 
 
 def test_replay_env_sets_fixture_dir_and_no_model(tmp_path):

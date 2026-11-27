@@ -133,16 +133,16 @@ def stub_environment(tmp_path, task_id, category):
     return SimpleNamespace(environment_name=task_id, environment_dir=task_dir / "environment")
 
 
-def test_setup_refuses_a_grafana_state_task_and_records_why(tmp_path):
-    environment = stub_environment(tmp_path, "list-datasources", "grafana_api")
+def test_setup_refuses_a_skipped_task_and_records_why(tmp_path):
+    environment = stub_environment(tmp_path, "dashboard-create-service-overview", "dashboarding")
     instance = bench_agent.SlashObserveAgent(logs_dir=tmp_path / "agent", model_name="replay/replay")
-    with pytest.raises(bench_agent.TaskSkipped, match="list-datasources is skipped"):
+    with pytest.raises(bench_agent.TaskSkipped, match="dashboard-create-service-overview is skipped"):
         asyncio.run(instance.setup(environment))
     assert (tmp_path / "agent" / "skipped.txt").read_text().startswith("skipped: ")
 
 
 def test_setup_refuses_an_unknown_category_before_touching_docker(tmp_path):
-    environment = stub_environment(tmp_path, "new-task", "dashboarding")
+    environment = stub_environment(tmp_path, "new-task", "alerting")
     instance = bench_agent.SlashObserveAgent(logs_dir=tmp_path / "agent", model_name="replay/replay")
     with pytest.raises(o11y.UnsupportedTask):
         asyncio.run(instance.setup(environment))
@@ -217,3 +217,40 @@ def test_a_timed_out_run_is_canceled_saved_and_charged_its_final_cost(tmp_path, 
     assert client.canceled
     assert json.loads((instance.logs_dir / "run.json").read_text())["state"] == "canceled"
     assert SpendLedger(ledger_path, 10).total() == 0.4
+
+
+class ImportClient:
+    def __init__(self):
+        self.sent = []
+
+    def import_grafana(self, export):
+        self.sent.append(export)
+        if export["dashboard"]["uid"] == "broken":
+            raise bench_agent.ApiError(422, '{"code": "datasources_unresolved"}')
+        return {"dashboard": {"id": f"sob-{export['dashboard']['uid']}"}, "version": {"version": 1, "spec": {}}}
+
+
+def test_every_grafana_dashboard_is_imported_and_a_failed_one_is_recorded(tmp_path):
+    instance = bench_agent.SlashObserveAgent(logs_dir=tmp_path / "agent", model_name="replay/replay")
+    state = bench_agent.grafana.GrafanaState(
+        datasources=[],
+        dashboards=[{"dashboard": {"uid": "svc", "title": "Service"}, "meta": {}}, {"dashboard": {"uid": "broken", "title": "Broken"}, "meta": {}}],
+    )
+    client = ImportClient()
+    assert instance._import_dashboards(client, state) == {"svc": "sob-svc"}
+    assert client.sent == state.dashboards
+    records = json.loads((tmp_path / "agent" / "grafana-imports.json").read_text())
+    assert records[0] == {"grafana_uid": "svc", "title": "Service", "dashboard_id": "sob-svc", "version": 1}
+    assert "datasources_unresolved" in records[1]["error"]
+
+
+def test_a_grafana_url_option_talks_to_grafana_from_the_host(tmp_path):
+    instance = bench_agent.SlashObserveAgent(logs_dir=tmp_path, model_name="replay/replay", grafana_url="http://127.0.0.1:3000")
+    client = instance._grafana_client({}, None)
+    assert client.base_url == "http://127.0.0.1:3000"
+
+
+def test_a_grafana_task_without_grafana_url_is_unsupported(tmp_path):
+    instance = bench_agent.SlashObserveAgent(logs_dir=tmp_path, model_name="replay/replay")
+    with pytest.raises(o11y.UnsupportedTask, match="GRAFANA_URL"):
+        instance._grafana_client({}, None)

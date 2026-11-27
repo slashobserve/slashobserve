@@ -13,6 +13,7 @@ Harbor starts the task, and `slashobserve_bench.agent:SlashObserveAgent` does th
 
 1. `setup` refuses a skipped task, checks the job's spend ledger, and pulls the server and Postgres images when they are missing.
 2. `run` reads the store URLs (`PROMETHEUS_URL`, `LOKI_URL`, `TEMPO_URL`) and `O11Y_SCENARIO_TIME_ISO` from the task's `main` container.
+   A Grafana task also reads `GRAFANA_URL` and the task's Grafana state; see [Grafana tasks](#grafana-tasks).
 3. It starts a throwaway Postgres and the SlashObserve server image on the Docker network `o11y-bench-shared`, with a generated Admin service-account key and a datasources file that points at the task's stores (uids `prometheus`, `loki` and `tempo`).
    The server's port is published on a free port of `127.0.0.1`, and the adapter waits for `/readyz`.
 4. It starts a run with the task statement as the prompt and `as_of` set to the scenario time, so every relative time the agent resolves is relative to where the task's data ends.
@@ -30,6 +31,7 @@ Full trace ids in the answer are the agent's job, not the adapter's.
 | `trajectory.json` | The ATIF trajectory: the task statement, one step per agent tool call as the run's progress steps report it, and the answer. `final_metrics` carries tokens, cache tokens and cost. |
 | `run.json` | The run exactly as `GET /api/v1/observe/{id}` returned it: steps, usage, the finding and its evidence. |
 | `server.log` | The server's log for the trial. |
+| `grafana-imports.json` | Only for a Grafana task: each Grafana dashboard's uid and title, and the SlashObserve dashboard it was imported as or why the import failed. |
 | `skipped.txt` | Only for a skipped task: why. |
 
 Harbor also gets `n_input_tokens` (cache included), `n_cache_tokens`, `n_output_tokens` and `cost_usd` on the trial result.
@@ -82,7 +84,7 @@ uv run --project benchmarks harbor run --yes \
 The key is read from the file that `SLASHOBSERVE_BENCH_LLM_KEY_FILE` names, passed to the server container through a private env file, and never printed, logged or written to a result.
 `--ae SLASHOBSERVE_BENCH_LLM_KEY_FILE=...` works too.
 
-To name every store task at once, print the flags:
+To name every task the adapter runs at once, print the flags:
 
 ```sh
 uv run --project benchmarks python -m slashobserve_bench.o11y include-flags --tasks /path/to/o11y-bench/tasks
@@ -109,11 +111,13 @@ The results file records the settings under `settings` with the values the serve
 | `run_max_cost_usd` | unset | `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD`: the server fails a run with `budget_exhausted` once its cost reaches it. The server refuses to start with it set when the model has no price, the replay model included. |
 | `spend_cap_usd`, `ledger_path` | unset | The job cap and its ledger file, which go together; see below. |
 | `wall_timeout_sec` | 540 | How long a trial may take from the start of `run`, server start-up included, under Harbor's 600 second agent timeout. |
+| `grafana_url` | unset | Reach Grafana from the host at this address instead of through the task's `main` container. |
+| `grafana_user`, `grafana_password` | unset | Grafana basic auth, used only when the task environment carries no Grafana credentials. |
 
 ## Cost
 
 A real run spends tokens: o11y-bench's published reference runs cost between about $0.02 and $0.30 per trial.
-The store tasks are 51, and a full job of three attempts each is 153 trials.
+The store tasks are 51 of the 64, and a full job of three attempts each over the 51 is 153 trials.
 The o11y-bench judge costs extra and runs in the verifier, not here.
 
 `spend_cap_usd` is a cap for the whole Harbor job.
@@ -167,13 +171,28 @@ The summary counts the flagged trials among the failed ones and among the passed
 The checks read only the agent's own answer and copy no task text.
 They are text rules, so they cannot see two different figures for one quantity or a wrong number; those need the typed answer the server will check at save time.
 
+## Grafana tasks
+
+The 6 `grafana_api` tasks ask about the task's Grafana: its datasources and its dashboards.
+Before the run, the adapter reads Grafana's datasource list and every dashboard that Grafana's search returns.
+It calls Grafana's HTTP API with `curl` inside the task's `main` container, because `GRAFANA_URL` names a host on the task's Docker network, and the adapter runs on the host.
+`--ak grafana_url=<address>` calls Grafana from the host instead, for a Grafana whose port is published there.
+The credentials come from the task environment: a token in `GRAFANA_SERVICE_ACCOUNT_TOKEN`, `GRAFANA_API_KEY` or `GRAFANA_TOKEN`, else a user and password in `GRAFANA_USER` (or `GRAFANA_USERNAME`, `GRAFANA_ADMIN_USER`) and `GRAFANA_PASSWORD` (or `GRAFANA_ADMIN_PASSWORD`).
+Without them the adapter uses `--ak grafana_user` and `--ak grafana_password`, which have no default, and without those it sends no credentials.
+The token or password reaches `curl` through the environment of the command, never its arguments, and is never written to the trial's folder.
+The datasources file lists each Grafana datasource's uid and name under `grafanaUids` of the store of the same type, so the imports match them.
+Each dashboard is then imported into the throwaway server through `POST /api/v1/imports`, and `agent/grafana-imports.json` records the result.
+The question is a `kind: ask` run on a throwaway observation, like a store question, with a note after the task statement: the Grafana datasources (name, type, uid, id, URL, access and whether it is the default) and the dashboards (title, uid, folder and tags, and the SlashObserve dashboard each was imported as).
+The note is cut short so that the prompt stays within the server's 4000 characters.
+The answer is the finding's text, as for the other questions.
+
 ## Skipped tasks
 
-The 7 `dashboarding` and 6 `grafana_api` tasks are graded on Grafana's own state, which this agent neither writes nor reads, so they do not apply.
+The 7 `dashboarding` tasks are graded on the dashboard saved in Grafana, which this agent does not write yet, so they do not apply.
 `python -m slashobserve_bench.o11y skipped` lists them with the reason.
 If one is run anyway, `setup` raises before any container starts, writes `agent/skipped.txt` and Harbor records an exception with the reason and no reward.
 `include-flags` leaves them out, so a normal run never meets one.
-A run over the 51 store tasks is not a leaderboard submission, which needs all 64.
+A run over the other 57 tasks is not a leaderboard submission, which needs all 64.
 
 ## Cleaning up
 
