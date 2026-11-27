@@ -122,12 +122,14 @@ type versionSavedJSON struct {
 	DashboardVersionJSON
 	MergedFrom *MergedFrom `json:"merged_from,omitempty"`
 	Warning    string      `json:"warning,omitempty"`
+	Outcome    string      `json:"outcome"`
 }
 
 type proposalCreatedJSON struct {
 	ProposalID string `json:"proposal_id"`
 	Revision   int    `json:"revision"`
 	Opened     bool   `json:"opened"`
+	Outcome    string `json:"outcome"`
 }
 
 func newAuthorJSON(a Author) authorJSON {
@@ -224,8 +226,8 @@ func newVersionMetaJSON(v VersionMeta) versionMetaJSON {
 	}
 }
 
-func editedJSON(d Dashboard, v Version) versionSavedJSON {
-	return versionSavedJSON{DashboardVersionJSON: NewDashboardVersionJSON(d, v), Warning: d.ManagedBy.EditWarning()}
+func editedJSON(d Dashboard, v Version, outcome string) versionSavedJSON {
+	return versionSavedJSON{DashboardVersionJSON: NewDashboardVersionJSON(d, v), Warning: d.ManagedBy.EditWarning(), Outcome: outcome}
 }
 
 func NewDashboardVersionJSON(d Dashboard, v Version) DashboardVersionJSON {

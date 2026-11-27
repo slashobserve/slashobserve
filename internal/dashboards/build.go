@@ -55,7 +55,7 @@ func (b Build) Progress() BuildProgress {
 
 type BuildSave struct {
 	RequestID     pgtype.UUID
-	Attempt       int
+	ClaimEpoch    int
 	DashboardID   pgtype.UUID
 	BaseVersion   int
 	FolderID      pgtype.UUID
@@ -227,8 +227,8 @@ type Commit struct {
 	Proposal  *ProposalRef
 }
 
-func (s *Service) CommitBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (Commit, error) {
-	if commit, replayed, err := s.replayedCommit(ctx, by, requestID, attempt); err != nil || replayed {
+func (s *Service) CommitBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, claimEpoch int) (Commit, error) {
+	if commit, replayed, err := s.replayedCommit(ctx, by, requestID, claimEpoch); err != nil || replayed {
 		return commit, err
 	}
 	build, found, err := s.Build(ctx, requestID)
@@ -243,7 +243,7 @@ func (s *Service) CommitBuild(ctx context.Context, by auth.Principal, requestID 
 		return Commit{}, err
 	}
 	build.Summary = note.summary
-	deleteBuild := deleteBuildFenced(ctx, requestID, attempt)
+	deleteBuild := deleteBuildFenced(ctx, requestID, claimEpoch)
 	if build.DashboardID.Valid {
 		access, err := s.need(ctx, by, build.DashboardID, folders.NeedView)
 		if err != nil {
@@ -265,9 +265,9 @@ func (s *Service) CommitBuild(ctx context.Context, by auth.Principal, requestID 
 	return Commit{Dashboard: dash, Version: ver, Replayed: replayed}, nil
 }
 
-func deleteBuildFenced(ctx context.Context, requestID pgtype.UUID, attempt int) func(q *dbsqlc.Queries) error {
+func deleteBuildFenced(ctx context.Context, requestID pgtype.UUID, claimEpoch int) func(q *dbsqlc.Queries) error {
 	return func(q *dbsqlc.Queries) error {
-		n, err := q.DeleteAgentRequestBuild(ctx, dbsqlc.DeleteAgentRequestBuildParams{AgentRequestID: requestID, Attempt: httpapi.Int32(attempt)})
+		n, err := q.DeleteAgentRequestBuild(ctx, dbsqlc.DeleteAgentRequestBuildParams{AgentRequestID: requestID, ClaimEpoch: httpapi.Int32(claimEpoch)})
 		if err != nil {
 			return fmt.Errorf("delete agent request build: %w", err)
 		}
@@ -278,13 +278,13 @@ func deleteBuildFenced(ctx context.Context, requestID pgtype.UUID, attempt int) 
 	}
 }
 
-func (s *Service) replayedCommit(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (Commit, bool, error) {
+func (s *Service) replayedCommit(ctx context.Context, by auth.Principal, requestID pgtype.UUID, claimEpoch int) (Commit, bool, error) {
 	dash, ver, saved, err := s.store.savedByRequest(ctx, requestID, pgtype.UUID{})
 	if err != nil {
 		return Commit{}, false, err
 	}
 	if saved {
-		if err := s.DiscardBuild(ctx, requestID, attempt); err != nil {
+		if err := s.DiscardBuild(ctx, requestID, claimEpoch); err != nil {
 			return Commit{}, false, err
 		}
 		dash, err = s.placed(ctx, by, dash)
@@ -293,7 +293,7 @@ func (s *Service) replayedCommit(ctx context.Context, by auth.Principal, request
 		}
 		return Commit{Dashboard: dash, Version: ver, Replayed: true}, true, nil
 	}
-	return s.proposedByRun(ctx, by, requestID, attempt)
+	return s.proposedByRun(ctx, by, requestID, claimEpoch)
 }
 
 func (s *Service) proposeBuild(ctx context.Context, by auth.Principal, build Build, access folders.DashboardAccess, deleteBuild func(q *dbsqlc.Queries) error) (Commit, error) {
@@ -319,7 +319,7 @@ func (s *Service) proposeBuild(ctx context.Context, by auth.Principal, build Bui
 	return Commit{Dashboard: dash.WithAccess(access), Proposal: &ref}, nil
 }
 
-func (s *Service) proposedByRun(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (Commit, bool, error) {
+func (s *Service) proposedByRun(ctx context.Context, by auth.Principal, requestID pgtype.UUID, claimEpoch int) (Commit, bool, error) {
 	row, err := s.store.db.Queries().GetRunProposal(ctx, requestID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Commit{}, false, nil
@@ -335,21 +335,21 @@ func (s *Service) proposedByRun(ctx context.Context, by auth.Principal, requestI
 	if err != nil {
 		return Commit{}, false, err
 	}
-	if err := s.DiscardBuild(ctx, requestID, attempt); err != nil {
+	if err := s.DiscardBuild(ctx, requestID, claimEpoch); err != nil {
 		return Commit{}, false, err
 	}
 	return Commit{Dashboard: dash.WithAccess(access), Proposal: &ProposalRef{ID: row.ID.String(), Revision: int(row.Revision)}}, true, nil
 }
 
-func (s *Service) DiscardBuild(ctx context.Context, requestID pgtype.UUID, attempt int) error {
-	_, err := s.store.db.Queries().DeleteAgentRequestBuild(ctx, dbsqlc.DeleteAgentRequestBuildParams{AgentRequestID: requestID, Attempt: httpapi.Int32(attempt)})
+func (s *Service) DiscardBuild(ctx context.Context, requestID pgtype.UUID, claimEpoch int) error {
+	_, err := s.store.db.Queries().DeleteAgentRequestBuild(ctx, dbsqlc.DeleteAgentRequestBuildParams{AgentRequestID: requestID, ClaimEpoch: httpapi.Int32(claimEpoch)})
 	if err != nil {
 		return fmt.Errorf("delete agent request build: %w", err)
 	}
 	return nil
 }
 
-func (s *Service) RebaseBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (int, bool, error) {
+func (s *Service) RebaseBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, claimEpoch int) (int, bool, error) {
 	build, found, err := s.Build(ctx, requestID)
 	if err != nil || !found || !build.DashboardID.Valid {
 		return 0, false, err
@@ -379,7 +379,7 @@ func (s *Service) RebaseBuild(ctx context.Context, by auth.Principal, requestID 
 		return 0, false, err
 	}
 	rebased := Build{RequestID: requestID, BaseVersion: latest.Number, Spec: merged, Unverified: carried, PlannedPanels: build.PlannedPanels}
-	if err := s.store.rebaseBuild(ctx, rebased, attempt); err != nil {
+	if err := s.store.rebaseBuild(ctx, rebased, claimEpoch); err != nil {
 		return 0, false, err
 	}
 	return latest.Number, true, nil
@@ -510,7 +510,7 @@ func (s *Service) commitRevision(ctx context.Context, by auth.Principal, build B
 	return dash.WithAccess(access), ver, false, nil
 }
 
-func (st store) rebaseBuild(ctx context.Context, b Build, attempt int) error {
+func (st store) rebaseBuild(ctx context.Context, b Build, claimEpoch int) error {
 	canonical, err := json.Marshal(b.Spec)
 	if err != nil {
 		return fmt.Errorf("marshal spec: %w", err)
@@ -520,7 +520,7 @@ func (st store) rebaseBuild(ctx context.Context, b Build, attempt int) error {
 		Spec:           canonical,
 		Panels:         httpapi.Int32(b.Progress().Panels),
 		AgentRequestID: b.RequestID,
-		Attempt:        httpapi.Int32(attempt),
+		ClaimEpoch:     httpapi.Int32(claimEpoch),
 	}
 	if !b.Unverified.Empty() {
 		if params.Unverified, err = json.Marshal(b.Unverified); err != nil {
@@ -546,7 +546,7 @@ func (st store) saveBuild(ctx context.Context, in BuildSave, folder pgtype.UUID,
 		Summary:        summary,
 		PlannedPanels:  httpapi.Int32(progress.PlannedPanels),
 		Panels:         httpapi.Int32(progress.Panels),
-		Attempt:        httpapi.Int32(in.Attempt),
+		ClaimEpoch:     httpapi.Int32(in.ClaimEpoch),
 	}
 	if in.DashboardID.Valid {
 		params.BaseVersion = pgtype.Int4{Int32: httpapi.Int32(in.BaseVersion), Valid: true}

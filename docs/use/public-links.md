@@ -179,6 +179,8 @@ Every route except the public ones needs a session or a service-account key with
 | `GET /api/v1/public/{token}/variables/{name}/values` | Lists one variable's values for the link. |
 
 Details of the list: each link has its prefix, label, variables mode, expiry, creator, last view and whether it is usable.
+A link that is not usable carries `unusable_reason`: `expired` when its expiry has passed, or `user_scoped` when the dashboard's latest version reads the viewer's identity.
+`unusable_reason` is null while the link is usable.
 It also has a `state`, `active` or `expired`; see [States](../reference/states.md).
 
 Details of the public view: the answer holds the latest version's Spec with every query's text, the dashboard's tags and its links left out, and the datasources it uses (uid and type).

@@ -506,7 +506,7 @@ A stream that resumes with the `Last-Event-ID` of a deleted event gets `reset`.
 | 403 | `forbidden_role` | Your role does not allow reading the log. |
 | 429 | `too_many_streams` | You hold 5 streams already. |
 | 503 | `too_many_streams` | The server holds 500 streams already. |
-| 503 | `shutting_down` | The server is stopping. |
+| 503 | `shutting_down` | The server is stopping: its [phase](../reference/states.md#server-process) is `stopping`. |
 
 ### Not recorded
 

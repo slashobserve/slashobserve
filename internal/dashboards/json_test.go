@@ -102,7 +102,7 @@ func TestTheDashboardReadNamesWhatManagesTheDashboard(t *testing.T) {
 
 func TestAnAnswerToAnEditCarriesTheWarningOfWhatManagesTheDashboard(t *testing.T) {
 	for _, managedBy := range []folders.ManagedBy{folders.ManagedByWorkspace, folders.ManagedByStarter, folders.ManagedByFile, folders.ManagedByApply} {
-		raw, err := json.Marshal(editedJSON(Dashboard{ManagedBy: managedBy}, Version{}))
+		raw, err := json.Marshal(editedJSON(Dashboard{ManagedBy: managedBy}, Version{}, OutcomeCreated))
 		if err != nil {
 			t.Fatal(err)
 		}
