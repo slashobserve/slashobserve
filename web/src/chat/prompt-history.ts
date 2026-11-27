@@ -1,5 +1,7 @@
 import { useState } from "react"
 
+import { scopedKey } from "@/lib/scoped-storage"
+
 const promptHistoryKey = "slashobserve-prompt-history"
 export const promptHistoryLimit = 20
 
@@ -53,16 +55,20 @@ export function stepHistory(
 }
 
 function readHistory(storageKey: string): string[] {
+  const key = scopedKey(storageKey)
+  if (key === null) return []
   try {
-    return parseStoredHistory(localStorage.getItem(storageKey))
+    return parseStoredHistory(localStorage.getItem(key))
   } catch {
     return []
   }
 }
 
 function writeHistory(storageKey: string, entries: readonly string[]) {
+  const key = scopedKey(storageKey)
+  if (key === null) return
   try {
-    localStorage.setItem(storageKey, JSON.stringify(entries))
+    localStorage.setItem(key, JSON.stringify(entries))
   } catch {
     return
   }

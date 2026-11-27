@@ -142,6 +142,16 @@ func TestProposalsCommands(t *testing.T) {
 			wantOut:    []string{"Already in the dashboard"},
 		},
 		{
+			name:       "merge prints the warning of a save to a dashboard that a file writes",
+			args:       []string{"proposals", "merge", testProposal, "--revision", "2"},
+			response:   strings.TrimSuffix(proposalJSON("merged", 2, "6", false), "}") + `,"warning":"A change to its file replaces this edit."}`,
+			wantMethod: http.MethodPost,
+			wantPath:   proposalPath + "/merge",
+			wantBody:   `{"revision":2}`,
+			wantOut:    []string{"Merged as version 6"},
+			wantErr:    "A change to its file replaces this edit.",
+		},
+		{
 			name:       "merge with --quiet prints nothing",
 			args:       []string{"-q", "proposals", "merge", testProposal, "--revision", "2"},
 			response:   proposalJSON("merged", 2, "6", false),

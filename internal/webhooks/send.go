@@ -20,6 +20,7 @@ const (
 	errorDomainNotAllowed = "domain_not_allowed"
 	errorTooLarge         = "too_large"
 	errorSkippedByAdmin   = "skipped_by_admin"
+	errorExpired          = "expired"
 )
 
 type Sender interface {

@@ -31,7 +31,7 @@ func contractEngineWithLogger(t *testing.T, logger *slog.Logger, register func(*
 		t.Fatal(err)
 	}
 	engine := gin.New()
-	engine.Use(securityHeaders)
+	engine.Use(securityHeaders(false))
 	group := engine.Group(apiPrefix)
 	group.Use(ct.middleware)
 	register(group)

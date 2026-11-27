@@ -22,14 +22,14 @@ function one(
 describe("convertFieldType", () => {
   it("turns text into numbers and unparseable values into null", () => {
     expect(
-      one(["1", "2.5", "", "abc", null, "Infinity"], {
+      one(["1", "2.5", "", "  ", "\t", "abc", null, "Infinity"], {
         field: "x",
         to: "number",
       })
     ).toEqual({
       name: "x",
       type: "number",
-      values: [1, 2.5, null, null, null, null],
+      values: [1, 2.5, null, null, null, null, null, null],
     })
   })
 

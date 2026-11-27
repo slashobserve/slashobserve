@@ -20,6 +20,47 @@ func (r *accessRig) starter(t *testing.T) pgtype.UUID {
 	return id
 }
 
+func TestGetDashboardNamesWhatManagesItAndAFileDashboardWarnsOnSaveOverMCP(t *testing.T) {
+	r := newAccessRig(t)
+	plain, bound := r.seed(t, "Plain board"), r.seed(t, "File board")
+	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `INSERT INTO provisioned_dashboards (path, dashboard_id, content_sha256, folder_title) VALUES ('a.json', $1, 'sha', 'General')`, bound.String()); err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		id                 pgtype.UUID
+		managedBy, warning string
+	}{
+		{plain, "workspace", ""},
+		{bound, "file", folders.ManagedByFile.EditWarning()},
+		{r.starter(t), "starter", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.managedBy, func(t *testing.T) {
+			res := r.call(t, adminCaller, nameGetDashboard, `{"dashboard_id":"`+tc.id.String()+`"}`)
+			read, ok := res.Content.(dashboardOut)
+			if res.IsError || !ok {
+				t.Fatalf("get_dashboard: %s", textOf(t, res))
+			}
+			if read.ManagedBy != tc.managedBy {
+				t.Fatalf("managed_by = %q, want %q", read.ManagedBy, tc.managedBy)
+			}
+			validateOutput(t, r.registry, nameGetDashboard, read)
+			if tc.managedBy == "starter" {
+				return
+			}
+			update := `{"dashboard_id":"` + tc.id.String() + `","parent_version":1,"summary":"s","spec":` + boardSpec("Renamed "+tc.managedBy) + `}`
+			res = r.call(t, adminCaller, nameUpdateDashboard, update)
+			saved, ok := res.Content.(savedOut)
+			if res.IsError || !ok {
+				t.Fatalf("update_dashboard: %s", textOf(t, res))
+			}
+			if saved.Warning != tc.warning {
+				t.Fatalf("update_dashboard warning = %q, want %q", saved.Warning, tc.warning)
+			}
+		})
+	}
+}
+
 func TestAStarterDashboardRefusesEveryWriteOverMCP(t *testing.T) {
 	r := newAccessRig(t)
 	id := r.starter(t).String()

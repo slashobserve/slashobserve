@@ -453,6 +453,10 @@ func (t *logTail) follow(ctx context.Context, c *client, uid string, req explore
 			continue
 		}
 		failures = 0
-		t.print(newestLines(logLines(body.Frames), keep))
+		polled := logLines(body.Frames)
+		if len(polled) >= keep {
+			t.out.notice("A poll returned %d lines, the --limit, so newer lines may have been skipped; raise --limit or narrow the query", keep)
+		}
+		t.print(newestLines(polled, keep))
 	}
 }

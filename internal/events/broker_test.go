@@ -207,6 +207,9 @@ func TestBrokerDropsSlowSubscriberOnBufferOverflow(t *testing.T) {
 
 	expectDone(t, slow)
 	expectNotDone(t, fast)
+	if !slow.Dropped() || fast.Dropped() {
+		t.Fatalf("dropped: slow %t, fast %t, want only the slow subscriber", slow.Dropped(), fast.Dropped())
+	}
 	if ev := recv(t, fast); ev.Version != 99 {
 		t.Fatalf("fast subscriber got %+v", ev)
 	}
@@ -265,6 +268,9 @@ func TestBrokerCloseEndsSubscriptionsAndRun(t *testing.T) {
 
 	for _, s := range subs {
 		expectDone(t, s)
+		if s.Dropped() {
+			t.Fatal("a subscription ended by Close reads as dropped for being slow")
+		}
 		s.Close()
 		s.Close()
 	}

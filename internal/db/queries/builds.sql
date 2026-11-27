@@ -6,7 +6,7 @@ SELECT @agent_request_id::uuid, sqlc.narg('dashboard_id')::uuid, sqlc.narg('base
   sqlc.narg('unverified')::jsonb, @planned_panels::integer, @summary::text, @panels::integer
 WHERE EXISTS (
   SELECT 1 FROM agent_requests r
-  WHERE r.id = @agent_request_id::uuid AND r.status = 'running' AND r.attempts = @attempt::integer
+  WHERE r.id = @agent_request_id::uuid AND r.status = 'running' AND r.claim_epoch = @claim_epoch::integer
 )
 ON CONFLICT (agent_request_id) DO UPDATE
 SET spec = EXCLUDED.spec,
@@ -27,7 +27,7 @@ SET base_version = @base_version::integer,
   updated_at = clock_timestamp()
 FROM agent_requests r
 WHERE b.agent_request_id = @agent_request_id::uuid
-  AND r.id = b.agent_request_id AND r.status = 'running' AND r.attempts = @attempt::integer;
+  AND r.id = b.agent_request_id AND r.status = 'running' AND r.claim_epoch = @claim_epoch::integer;
 
 -- name: GetAgentRequestBuild :one
 SELECT * FROM agent_request_builds WHERE agent_request_id = @agent_request_id;
@@ -43,15 +43,19 @@ WHERE b.agent_request_id = @agent_request_id;
 -- name: ListAgentRequestBuildState :many
 SELECT q.id::uuid AS id, b.saves, b.panels, b.planned_panels, coalesce(b.spec ->> 'title', '')::text AS title, b.updated_at,
   (SELECT c.id FROM agent_requests c WHERE c.continues_id = q.id) AS continued_by,
-  (SELECT t.id FROM agent_requests t WHERE t.retries_id = q.id) AS retried_by
+  (SELECT t.id FROM agent_requests t WHERE t.retries_id = q.id) AS retried_by,
+  b.base_version,
+  coalesce((SELECT d.latest_version FROM dashboards d WHERE d.id = b.dashboard_id), 0)::integer AS latest_version,
+  r.state AS run_state, r.result_kind, r.build_saved_at, r.finished_at
 FROM unnest(@ids::uuid[]) AS q(id)
+JOIN agent_requests r ON r.id = q.id
 LEFT JOIN agent_request_builds b ON b.agent_request_id = q.id;
 
 -- name: DeleteAgentRequestBuild :execrows
 DELETE FROM agent_request_builds b
 USING agent_requests r
 WHERE b.agent_request_id = @agent_request_id::uuid
-  AND r.id = b.agent_request_id AND r.status = 'running' AND r.attempts = @attempt::integer;
+  AND r.id = b.agent_request_id AND r.status = 'running' AND r.claim_epoch = @claim_epoch::integer;
 
 -- name: DeleteExpiredAgentRequestBuilds :execrows
 DELETE FROM agent_request_builds b

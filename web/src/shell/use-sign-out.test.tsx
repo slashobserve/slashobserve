@@ -25,4 +25,17 @@ describe("useSignOut", () => {
     expect(useInboxPanelStore.getState().view).toBe("for_you")
     expect(reset).toHaveBeenCalledOnce()
   })
+
+  it("removes the history older versions kept for every person", async () => {
+    localStorage.setItem("slashobserve-prompt-history", '["old"]')
+    localStorage.setItem("slashobserve-recent-dashboards", "[]")
+    localStorage.setItem("slashobserve-prompt-history:u1", '["new"]')
+    const { result } = renderHook(() => useSignOut())
+    await act(() => result.current.signOut())
+    expect(localStorage.getItem("slashobserve-prompt-history")).toBeNull()
+    expect(localStorage.getItem("slashobserve-recent-dashboards")).toBeNull()
+    expect(localStorage.getItem("slashobserve-prompt-history:u1")).toBe(
+      '["new"]'
+    )
+  })
 })

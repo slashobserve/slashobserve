@@ -459,7 +459,29 @@ def free_port() -> int:
         return probe.getsockname()[1]
 
 
-def port_forward_args(service: str, local_port: int, remote_port: int) -> list[str]:
+LOOPBACK = "127.0.0.1"
+
+
+def docker_bridge_gateway() -> str:
+    done = subprocess.run(
+        ["docker", "network", "inspect", "bridge", "--format", "{{(index .IPAM.Config 0).Gateway}}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    gateway = done.stdout.strip()
+    if done.returncode != 0 or not gateway:
+        raise UnsupportedProblem(f"docker network inspect bridge gave no gateway address: {done.stderr.strip()}")
+    return gateway
+
+
+def forward_addresses(platform: str = sys.platform) -> tuple[str, ...]:
+    if platform.startswith("linux"):
+        return (LOOPBACK, docker_bridge_gateway())
+    return (LOOPBACK,)
+
+
+def port_forward_args(service: str, local_port: int, remote_port: int, addresses: tuple[str, ...]) -> list[str]:
     return [
         "kubectl",
         "port-forward",
@@ -468,7 +490,7 @@ def port_forward_args(service: str, local_port: int, remote_port: int) -> list[s
         f"svc/{service}",
         f"{local_port}:{remote_port}",
         "--address",
-        "0.0.0.0",
+        ",".join(addresses),
     ]
 
 
@@ -489,7 +511,7 @@ class PortForward:
 
     def start(self, timeout_sec: float = 30) -> str:
         self.process = subprocess.Popen(
-            port_forward_args(self.service, self.local_port, self.remote_port),
+            port_forward_args(self.service, self.local_port, self.remote_port, forward_addresses()),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )

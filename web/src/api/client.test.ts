@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest"
 
-import { api, setRoleRefusedHandler } from "./client"
+import { api, setRoleRefusedHandler, setUnauthorizedHandler } from "./client"
 import { NetworkError } from "./errors"
 
 const baseUrl = "http://localhost/api/v1"
@@ -39,5 +39,26 @@ describe("api client", () => {
     await api.GET("/auth/session", { baseUrl })
     expect(handler).toHaveBeenCalledTimes(1)
     setRoleRefusedHandler(() => {})
+  })
+
+  test("tells the unauthorized handler about a 401 once and about no other status", async () => {
+    const handler = vi.fn()
+    setUnauthorizedHandler(handler)
+    const reply = (status: number) =>
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: "no", code: "x" }), {
+          status,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+    for (const status of [200, 403]) {
+      vi.stubGlobal("fetch", reply(status))
+      await api.GET("/auth/session", { baseUrl })
+      expect(handler).not.toHaveBeenCalled()
+    }
+    vi.stubGlobal("fetch", reply(401))
+    await api.GET("/auth/session", { baseUrl })
+    expect(handler).toHaveBeenCalledTimes(1)
+    setUnauthorizedHandler(() => {})
   })
 })

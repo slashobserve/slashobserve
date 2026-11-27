@@ -12,16 +12,18 @@ import (
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
-const (
-	settledSaved     = "saved"
-	settledProposed  = "proposed"
-	settledFinding   = "finding"
-	settledSuggested = "suggested"
-	settledRestarted = "restarted"
-	settledEnded     = "ended"
+type SettledKind string
 
-	maxStoredDigestBytes = 8 << 10
+const (
+	settledSaved     SettledKind = "saved"
+	settledProposed  SettledKind = "proposed"
+	settledFinding   SettledKind = "finding"
+	settledSuggested SettledKind = "suggested"
+	settledRestarted SettledKind = "restarted"
+	settledEnded     SettledKind = "ended"
 )
+
+const maxStoredDigestBytes = 8 << 10
 
 type State struct {
 	Guard             guard.State          `json:"guard"`
@@ -55,8 +57,8 @@ type State struct {
 }
 
 type Settled struct {
-	Kind    string `json:"kind,omitempty"`
-	Version int    `json:"version,omitempty"`
+	Kind    SettledKind `json:"kind,omitempty"`
+	Version int         `json:"version,omitempty"`
 }
 
 type OpenTurn struct {

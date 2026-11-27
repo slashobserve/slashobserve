@@ -20,6 +20,7 @@ A service-account key needs a folder grant that lets it create.
    Paste the dashboard JSON into **Grafana dashboard** and choose **Preview**, or choose or drop a file there.
    Home opens the **Import from Grafana** page at `/import` with your dashboard loaded; see [Home](home.md).
    On that page you can also drop a file, or paste JSON anywhere outside a text field.
+   While an import is saving, the page ignores a new file or pasted JSON, so its result always shows.
 2. Under **Datasources**, match each Grafana datasource to one of yours.
    SlashObserve matches the ones it can; [Match datasources](#match-datasources) says how.
    A row that is not matched has a **Choose a datasource** menu, and the import stays off until you pick one.
@@ -183,6 +184,7 @@ Importing the same uid again makes a separate dashboard whose record has an empt
 
 When you can see the dashboard that holds the uid, the preview's `existing` field names it.
 The import page then says "Already imported as `<title>` (version `<n>`)".
+The line stays when an import or an update fails, beside the reason.
 When you can edit it, the page also offers **Update `<title>`**.
 Updating saves the file as the dashboard's next version and refreshes its import record, so edits made since stay in the version history.
 **Import as new dashboard** still makes a second copy.
@@ -212,6 +214,18 @@ Later saves keep a failing panel or variable unverified for as long as these sta
 - its time override (`timeFrom` and `timeShift`), `maxDataPoints` and `interval`.
 
 A new or changed query must return data, and a panel whose queries pass again is no longer unverified.
+
+Over the API each item of a version's `unverified` list carries a `reason` that says why the save kept it:
+
+| `reason` | The save kept it because |
+|---|---|
+| `imported` | a Grafana import keeps every failing panel and variable |
+| `carried` | the parent version already listed it and it is unchanged |
+| `timeout` | its query timed out and the save did not change it |
+| `empty` | its query returned no data, on a new dashboard or after the dashboard's time range grew |
+| `restored` | the version that was restored listed it |
+
+A version saved before reasons were kept has none, and a duplicate keeps the reasons of its source.
 
 A save with the `update_dashboard` tool runs every query.
 A save with the `update_panels` tool runs only the queries it changed.

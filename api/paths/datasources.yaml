@@ -6,6 +6,9 @@ datasources:
       mcp: [list_datasources]
       cli: [observe doctor, observe datasources list]
     summary: Report the health and dashboard usage of every configured datasource, never its connection details.
+    description: >-
+      Each datasource carries `health_state` and, when its last check failed, `failure_kind`, so a client can tell a failure to wait out from one that needs the credentials or the settings changed without reading `message`.
+      A failing datasource is answered from the last check at once and checked again in the background once that check is 2 seconds old, which the state `rechecking` says.
     responses:
       "200":
         description: One status per configured datasource.
@@ -97,6 +100,7 @@ datasources-uid-recheck:
       Skips the 10 second cache of `GET /datasources` and returns the new status.
       Calls within 2 seconds of the last check return that check, so a loop cannot hammer the datasource.
       An unhealthy status carries `message` and, when known, `detail`.
+      A failed check also carries `failure_kind`, which says whether to try again later or to change the credentials or the settings.
     responses:
       "200":
         description: The datasource's status after the check.
@@ -121,8 +125,9 @@ datasources-test:
       Only Admins can call this endpoint.
       The body is a draft like the one for adding a datasource.
       With `base=<uid>`, the draft starts from that saved app datasource, credentials included, and the body changes only what it names, so a form can test an edit without asking for the credentials again.
+      When the body changes the address or the username, a stored credential is not sent to the new target: send every stored credential again in `secrets`, or remove it in `clear_secrets`, or the test answers 422 `secret_required`.
       The address passes the same outbound allowlist check as saving, but a test never changes the allowlist: a domain that is not listed is tested only while the list is unlocked, and saving adds it.
-      A failed check answers 200 with `healthy: false`, a fixed `message` and, when known, a `detail`; the answer never carries the address or a credential.
+      A failed check answers 200 with `healthy: false`, a fixed `message`, a `failure_kind` and, when known, a `detail`; the answer never carries the address or a credential.
       Every test is recorded as `datasource.test` with the host and the outcome, since it sends stored credentials to that host.
     parameters:
       - name: base
@@ -165,7 +170,8 @@ datasources-test:
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
-        description: The definition is not valid (`invalid_datasource`, with the fields to fix).
+        description: >-
+          The definition is not valid (`invalid_datasource`, with the fields to fix), or `base` is set, the address or username differs from the saved one and a stored credential would still be sent to it (`secret_required`).
         content:
           application/json:
             schema:
@@ -193,6 +199,7 @@ datasources-uid:
       `uid` and `type` cannot change.
       `secrets` replaces the credentials it names and `clear_secrets` removes them.
       A new address passes the outbound allowlist check like adding one.
+      Changing the address or the username never sends a stored credential to the new target: the request must send every stored credential again in `secrets`, or remove it in `clear_secrets`, or it answers 422 `secret_required`.
       The change applies at once on this server and within 15 seconds on the others.
       A datasource from the datasources file, and the built-in audit datasource, answer 409 `datasource_read_only`.
     requestBody:
@@ -222,7 +229,7 @@ datasources-uid:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
         description: >-
-          The datasource is from the file or built in (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`).
+          The datasource is from the file or built in (`datasource_read_only`), `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`), or the datasource changed while the request ran (`datasource_changed`).
           Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, `unlisted` counts the rest, and `hidden` counts those in people's My Dashboards, which an Admin cannot open and only their owners can move or remove.
         content:
           application/json:
@@ -233,7 +240,8 @@ datasources-uid:
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
-        description: The definition is not valid (`invalid_datasource`, with the fields to fix).
+        description: >-
+          The definition is not valid (`invalid_datasource`, with the fields to fix), or the address or username changed while a stored credential would still be sent to it (`secret_required`): send every stored credential again in `secrets`, or remove it in `clear_secrets`.
         content:
           application/json:
             schema:

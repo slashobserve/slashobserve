@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"strings"
 	"syscall"
 	"time"
@@ -52,6 +53,8 @@ type DatasourceUsage interface {
 type Options struct {
 	Logger          *slog.Logger
 	Readiness       []Check
+	Phase           func() Phase
+	PublicURL       *url.URL
 	Auth            Auth
 	Datasources     *datasource.Registry
 	DatasourceUsage DatasourceUsage
@@ -75,8 +78,8 @@ func New(opts Options) (http.Handler, error) {
 	if opts.Metrics != nil {
 		engine.Use(observeRequests(opts.Metrics))
 	}
-	engine.Use(logRequests(opts.Logger), recoverPanics(opts.Logger), securityHeaders)
-	registerHealthRoutes(engine, opts.Logger, opts.Readiness)
+	engine.Use(logRequests(opts.Logger), recoverPanics(opts.Logger), securityHeaders(servedOverHTTPS(opts.PublicURL)))
+	registerHealthRoutes(engine, opts.Logger, opts.Readiness, opts.Phase)
 	recordRequests, err := auditMiddleware(opts.Audit)
 	if err != nil {
 		return nil, err
@@ -223,10 +226,21 @@ func noStore(c *gin.Context) {
 
 const contentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'self'; base-uri 'none'; frame-ancestors 'none'"
 
-func securityHeaders(c *gin.Context) {
-	c.Header("X-Content-Type-Options", "nosniff")
-	c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
-	c.Header("Content-Security-Policy", contentSecurityPolicy)
-	c.Header("X-Frame-Options", "DENY")
-	c.Next()
+const strictTransportSecurity = "max-age=31536000"
+
+func servedOverHTTPS(publicURL *url.URL) bool {
+	return publicURL != nil && publicURL.Scheme == "https"
+}
+
+func securityHeaders(overHTTPS bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+		c.Header("Content-Security-Policy", contentSecurityPolicy)
+		c.Header("X-Frame-Options", "DENY")
+		if overHTTPS {
+			c.Header("Strict-Transport-Security", strictTransportSecurity)
+		}
+		c.Next()
+	}
 }

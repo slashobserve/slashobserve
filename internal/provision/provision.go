@@ -228,23 +228,31 @@ func (p *Provisioner) provisionFile(ctx context.Context, f specfiles.File, row d
 	}
 	summary := summaryPrefix + f.Path
 	if found {
-		latest, err := p.dashboards.LatestVersion(ctx, row.DashboardID)
+		_, latest, err := p.dashboards.Get(ctx, row.DashboardID)
 		if err != nil {
 			return p.fail(ctx, f, found, err)
 		}
-		_, ver, _, err := p.dashboards.AddVersion(ctx, Principal, row.DashboardID, latest, raw, summary)
+		res, err := p.dashboards.Save(ctx, Principal, dashboards.SaveInput{
+			DashboardID:     row.DashboardID,
+			Parent:          latest.Number,
+			Spec:            raw,
+			Summary:         summary,
+			ReplacedVersion: versionReplaced(latest.VersionMeta),
+			InTxSaved:       binding(f.Path, sum, row.FolderTitle),
+		})
 		if err != nil {
 			return p.fail(ctx, f, found, err)
 		}
-		p.saved(ctx, f, row.DashboardID.String(), ver.Number)
+		p.store.recordSaved(ctx, row.DashboardID)
+		p.saved(ctx, f, row.DashboardID.String(), res.Version.Number)
 		p.saves++
-		return false, p.store.saved(ctx, f.Path, row.DashboardID, sum, row.FolderTitle)
+		return false, nil
 	}
 	target, err := p.folders.ForImport(ctx, Principal, f.Folder)
 	if err != nil {
 		return p.fail(ctx, f, found, err)
 	}
-	dash, ver, err := p.dashboards.Create(ctx, Principal, target.Folder.ID, raw, summary)
+	dash, ver, err := p.dashboards.CreateSaved(ctx, Principal, target.Folder.ID, raw, summary, binding(f.Path, sum, target.Folder.Title))
 	if err != nil {
 		return p.fail(ctx, f, found, err)
 	}
@@ -252,9 +260,27 @@ func (p *Provisioner) provisionFile(ctx context.Context, f specfiles.File, row d
 	if err != nil {
 		return false, err
 	}
+	p.store.recordSaved(ctx, id)
 	p.saved(ctx, f, dash.ID, ver.Number)
 	p.saves++
-	return false, p.store.saved(ctx, f.Path, id, sum, target.Folder.Title)
+	return false, nil
+}
+
+func versionReplaced(latest dashboards.VersionMeta) int {
+	if latest.Author.ID == Principal.ID {
+		return 0
+	}
+	return latest.Number
+}
+
+func binding(path, sum, folder string) func(context.Context, *dbsqlc.Queries, dashboards.Dashboard, dashboards.Version) error {
+	return func(ctx context.Context, q *dbsqlc.Queries, dash dashboards.Dashboard, _ dashboards.Version) error {
+		id, err := db.ParseUUID(dash.ID)
+		if err != nil {
+			return err
+		}
+		return bind(ctx, q, path, id, sum, folder)
+	}
 }
 
 func (p *Provisioner) saved(ctx context.Context, f specfiles.File, dashboardID string, version int) {

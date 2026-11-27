@@ -69,9 +69,31 @@ export function usageLabel(count: number): string {
   return `${count} dashboards`
 }
 
+type FailureKind = NonNullable<DatasourceStatus["failure_kind"]>
+
+export function failureAdvice(
+  kind: FailureKind | undefined
+): string | undefined {
+  switch (kind) {
+    case "transient":
+      return "This is usually temporary. Try again in a moment."
+    case "credentials":
+      return "Check the username, password or token."
+    case "configuration":
+      return "A setting needs to change before this works."
+    case "unsupported":
+      return "Connect a version the server supports."
+    case "unknown":
+      return "The server could not tell why the check failed."
+    case undefined:
+      return undefined
+  }
+}
+
 export function statusOf(datasource: DatasourceStatus): {
   tone: StatusTone
   text: string
+  advice?: string
 } {
   if (datasource.healthy) return { tone: "ok", text: "Healthy" }
   return {
@@ -79,5 +101,6 @@ export function statusOf(datasource: DatasourceStatus): {
     text: datasource.message
       ? `Unavailable: ${datasource.message}`
       : "Unavailable",
+    advice: failureAdvice(datasource.failure_kind),
   }
 }

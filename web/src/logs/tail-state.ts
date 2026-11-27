@@ -1,5 +1,7 @@
 import { formatDate } from "@/lib/date-format"
 
+import type { TailConnection } from "./use-live-tail"
+
 export const arrivalMarkMs = 1500
 
 export type TailState = {
@@ -118,12 +120,22 @@ export function tailStatusText(
   received: number,
   cap: number,
   noun: string,
-  streaming = true
+  connection: TailConnection = "live"
 ): string {
   const since = formatDate(startedAt, "HH:mm:ss")
   const count = `${received.toLocaleString("en")} ${noun} received`
   const newest = cap.toLocaleString("en")
-  return streaming
-    ? `Streaming since ${since}, ${count}, keeping the newest ${newest}`
-    : `Stopped. Streamed since ${since}, ${count}, kept the newest ${newest}`
+  const interrupted = `Streamed since ${since}, ${count}, keeping the newest ${newest}`
+  switch (connection) {
+    case "connecting":
+    case "live":
+      return `Streaming since ${since}, ${count}, keeping the newest ${newest}`
+    case "retrying":
+      return `Reconnecting. ${interrupted}`
+    case "suspended":
+      return `Paused while the page is hidden. ${interrupted}`
+    case "off":
+    case "failed":
+      return `Stopped. Streamed since ${since}, ${count}, kept the newest ${newest}`
+  }
 }

@@ -201,5 +201,5 @@ func (r *Registry) restoreDashboardVersion(ctx context.Context, input json.RawMe
 	if err != nil {
 		return r.saveFailureOn(ctx, id, err)
 	}
-	return success(fmt.Sprintf("Restored version %d as version %d", *in.Version, ver.Number), r.savedOut(dash, ver, nil)), nil
+	return success(fmt.Sprintf("Restored version %d as version %d", *in.Version, ver.Number), r.editedOut(dash, ver, nil)), nil
 }

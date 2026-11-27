@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import {
   freshCursor,
@@ -9,6 +9,9 @@ import {
   stepHistory,
   usePromptHistory,
 } from "./prompt-history"
+
+const principal = vi.hoisted(() => ({ id: "u1" as string | undefined }))
+vi.mock("@/lib/auth", () => ({ signedInPrincipalId: () => principal.id }))
 
 describe("parseStoredHistory", () => {
   it.each([
@@ -89,7 +92,29 @@ describe("stepHistory", () => {
 })
 
 describe("usePromptHistory", () => {
+  beforeEach(() => {
+    principal.id = "u1"
+  })
   afterEach(() => localStorage.clear())
+
+  it("keeps each person's history apart", () => {
+    const first = renderHook(() => usePromptHistory())
+    act(() => first.result.current.record("mine"))
+    expect(localStorage.getItem("slashobserve-prompt-history:u1")).toBe(
+      '["mine"]'
+    )
+    principal.id = "u2"
+    expect(renderHook(() => usePromptHistory()).result.current.entries).toEqual(
+      []
+    )
+  })
+
+  it("records nothing while nobody is signed in", () => {
+    principal.id = undefined
+    const history = renderHook(() => usePromptHistory())
+    act(() => history.result.current.record("secret"))
+    expect(localStorage.length).toBe(0)
+  })
 
   it("keeps each storage key's history apart", () => {
     const asks = renderHook(() => usePromptHistory("ask-history-logs"))

@@ -167,7 +167,7 @@ func (r *Registry) buildBase(ctx context.Context, run Run) (base *spec.Dashboard
 func (r *Registry) saveToBuild(ctx context.Context, in buildSave) (Result, error) {
 	save := dashboards.BuildSave{
 		RequestID:     in.requestID,
-		Attempt:       in.run.Attempt,
+		ClaimEpoch:    in.run.ClaimEpoch,
 		DashboardID:   in.dashboardID,
 		FolderID:      in.folderID,
 		Spec:          in.raw,
@@ -210,7 +210,7 @@ func (r *Registry) saveToBuild(ctx context.Context, in buildSave) (Result, error
 }
 
 func (r *Registry) commitBuild(ctx context.Context, in buildSave, saveStep string) (Result, error) {
-	commit, err := r.deps.Dashboards.CommitBuild(ctx, in.principal, in.requestID, in.run.Attempt)
+	commit, err := r.deps.Dashboards.CommitBuild(ctx, in.principal, in.requestID, in.run.ClaimEpoch)
 	if res, ok := createFolderFailure(err); ok {
 		return res, nil
 	}
@@ -220,7 +220,7 @@ func (r *Registry) commitBuild(ctx context.Context, in buildSave, saveStep strin
 	if commit.Proposal != nil {
 		return r.proposed(dashboards.SaveResult{Dashboard: commit.Dashboard, Proposal: commit.Proposal}), nil
 	}
-	out := withAdvice(ctx, r.savedOut(commit.Dashboard, commit.Version, &commit.Replayed), commit.Version.Spec)
+	out := withAdvice(ctx, r.editedOut(commit.Dashboard, commit.Version, &commit.Replayed), commit.Version.Spec)
 	out.noteDroppedVariables(in.before, commit.Version.Spec)
 	return success(finishStep(saveStep, in.changes, commit.Version.Number, versionShape(commit.Version.Spec)), out), nil
 }

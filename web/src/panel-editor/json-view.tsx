@@ -39,6 +39,8 @@ export type JsonViewProps = {
 
 type PendingLeave = { leave: () => void; stay?: () => void }
 
+const validateDelayMs = 250
+
 export function JsonView({
   spec,
   draft,
@@ -55,6 +57,9 @@ export function JsonView({
   const applied = useRef(appliedKey(draft))
   const draftRef = useRef(draft)
   const uncheckedEdit = useRef(false)
+  const unvalidated = useRef<string | null>(null)
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const invalidRef = useRef(false)
   const invalid = issues.length > 0
 
   useEffect(() => {
@@ -68,25 +73,7 @@ export function JsonView({
     setText(next)
   }, [draft, invalid])
 
-  useEffect(() => () => onValidityChange(true), [onValidityChange])
-
-  const guard = useCallback<LeaveGuard>(
-    (leave, stay) => {
-      if (!invalid) {
-        leave()
-        return
-      }
-      pending.current = { leave, stay }
-      setAsking(true)
-    },
-    [invalid]
-  )
-  useEffect(() => {
-    onLeaveRequest(guard)
-  }, [guard, onLeaveRequest])
-
-  function edit(next: string) {
-    setText(next)
+  function evaluate(next: string) {
     if (!validate) {
       uncheckedEdit.current = true
       onValidityChange(false)
@@ -94,6 +81,7 @@ export function JsonView({
     }
     const result = evaluateJson(next, spec, draftRef.current, validate)
     if (result.kind === "invalid") {
+      invalidRef.current = true
       setIssues(result.issues)
       onValidityChange(false)
       return
@@ -103,14 +91,59 @@ export function JsonView({
       dispatch({ type: "replace", panel: result.panel })
     }
     applied.current = appliedKey(result.panel)
+    invalidRef.current = false
     setIssues([])
     onValidityChange(true)
+  }
+
+  function flush() {
+    clearTimeout(timer.current)
+    const next = unvalidated.current
+    unvalidated.current = null
+    if (next !== null) evaluate(next)
+  }
+  const flushRef = useRef(flush)
+  useEffect(() => {
+    flushRef.current = flush
+  })
+
+  useEffect(
+    () => () => {
+      flushRef.current()
+      onValidityChange(true)
+    },
+    [onValidityChange]
+  )
+
+  const guard = useCallback<LeaveGuard>((leave, stay) => {
+    flushRef.current()
+    if (!invalidRef.current) {
+      leave()
+      return
+    }
+    pending.current = { leave, stay }
+    setAsking(true)
+  }, [])
+  useEffect(() => {
+    onLeaveRequest(guard)
+  }, [guard, onLeaveRequest])
+
+  function edit(next: string) {
+    setText(next)
+    if (!validate) {
+      evaluate(next)
+      return
+    }
+    unvalidated.current = next
+    onValidityChange(false)
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => flushRef.current(), validateDelayMs)
   }
 
   const checkEarlyEdit = useEffectEvent(() => {
     if (!uncheckedEdit.current) return
     uncheckedEdit.current = false
-    edit(text)
+    evaluate(text)
   })
   useEffect(() => {
     if (validate) checkEarlyEdit()
@@ -131,6 +164,7 @@ export function JsonView({
     const taken = takePending()
     if (!taken) return
     applied.current = appliedKey(draftRef.current)
+    invalidRef.current = false
     setText(formatPanel(draftRef.current))
     setIssues([])
     onValidityChange(true)

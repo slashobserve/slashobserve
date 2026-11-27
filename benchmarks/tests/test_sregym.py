@@ -1,4 +1,5 @@
 import shlex
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -434,10 +435,45 @@ def test_run_budget_keeps_time_for_the_submission(wall, remaining, budget):
     assert sregym.deadline_sec(wall, remaining) == budget
 
 
-def test_port_forward_listens_where_the_server_container_can_reach_it():
-    assert sregym.port_forward_args("prometheus-server", 40001, 80) == [
-        "kubectl", "port-forward", "-n", "observe", "svc/prometheus-server", "40001:80", "--address", "0.0.0.0",
+def test_port_forward_listens_only_on_the_named_addresses():
+    args = sregym.port_forward_args("prometheus-server", 40001, 80, ("127.0.0.1", "172.17.0.1"))
+    assert args == [
+        "kubectl", "port-forward", "-n", "observe", "svc/prometheus-server", "40001:80", "--address", "127.0.0.1,172.17.0.1",
     ]
+    assert "0.0.0.0" not in args
+
+
+def test_port_forward_on_linux_adds_the_docker_gateway_so_the_server_container_reaches_it(monkeypatch):
+    monkeypatch.setattr(sregym, "docker_bridge_gateway", lambda: "172.17.0.1")
+    assert sregym.forward_addresses("linux") == ("127.0.0.1", "172.17.0.1")
+
+
+def test_port_forward_off_linux_stays_on_loopback(monkeypatch):
+    def fail() -> str:
+        raise AssertionError("the docker gateway must not be asked off Linux")
+
+    monkeypatch.setattr(sregym, "docker_bridge_gateway", fail)
+    assert sregym.forward_addresses("darwin") == ("127.0.0.1",)
+
+
+def test_docker_bridge_gateway_reads_the_inspect_output(monkeypatch):
+    seen = []
+
+    def fake_run(args, **kwargs):
+        seen.append(args)
+        return subprocess.CompletedProcess(args, 0, stdout="172.17.0.1\n", stderr="")
+
+    monkeypatch.setattr(sregym.subprocess, "run", fake_run)
+    assert sregym.docker_bridge_gateway() == "172.17.0.1"
+    assert seen[0][:4] == ["docker", "network", "inspect", "bridge"]
+
+
+def test_docker_bridge_gateway_refuses_when_docker_gives_none(monkeypatch):
+    monkeypatch.setattr(
+        sregym.subprocess, "run", lambda args, **kwargs: subprocess.CompletedProcess(args, 1, stdout="", stderr="no such network")
+    )
+    with pytest.raises(sregym.UnsupportedProblem):
+        sregym.docker_bridge_gateway()
 
 
 def test_subset_is_the_ten_lite_problems_the_owner_chose(capsys):

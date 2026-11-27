@@ -465,6 +465,8 @@ The stream sends Server-Sent Events, polls the datasource every second and ends 
 
 - You may hold 5 tails at a time.
 - A tail reconnects by itself after a dropped connection or at the server's 30 minute limit, from the newest line it already holds, so no line is lost or repeated.
+  The status line reads "Reconnecting" until the stream is back.
+- A tail closes its stream once the page has been hidden for 15 seconds, so a tab in the background does not hold one of your 5 tails, and opens it again from the newest line when you return.
 - On every one of these datasources the server reads the last 5 seconds again at each poll and drops the lines it already sent.
   A line that arrives out of order or is indexed late still appears, and a line stamped in the future does not hide the lines that follow it.
 - When the store says a poll did not cover everything, such as a failed shard, the stream flags that poll as partial with the store's text.
@@ -766,6 +768,7 @@ The trace search finds traces by service, span name, minimum and maximum duratio
 Use it to find the slow or failing requests of a service, then open one in the trace view.
 
 1. Open **Traces** in the sidebar, then a trace source: a Tempo, Jaeger or ClickHouse datasource.
+   The server decides which datasources the page and `observe traces` can search, and reports it as `trace_search` in `GET /api/v1/datasources`.
 2. Fill in **Service**, **Span name**, a duration or **Errors only**, or leave them empty.
 3. Press **Search traces**, or Ctrl+Enter or Cmd+Enter.
    The search also runs as soon as the page opens, with the fields the address carries, or with none.

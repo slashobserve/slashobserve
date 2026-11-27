@@ -40,13 +40,20 @@ func (s store) dashboards(ctx context.Context) ([]dbsqlc.ProvisionedDashboard, e
 	return s.db.Queries().ListProvisionedDashboards(ctx)
 }
 
-func (s store) saved(ctx context.Context, path string, dashboardID pgtype.UUID, sum, folder string) error {
-	return inTxWithEvent(ctx, s.db, audit.Event{Action: provisionAction, Target: dashboardTarget(dashboardID)}, func(q *dbsqlc.Queries) error {
-		if err := q.UpsertProvisionedDashboard(ctx, dbsqlc.UpsertProvisionedDashboardParams{Path: path, DashboardID: dashboardID, ContentSha256: sum, FolderTitle: folder}); err != nil {
-			return err
-		}
-		return q.DeleteProvisionError(ctx, path)
+func bind(ctx context.Context, q *dbsqlc.Queries, path string, dashboardID pgtype.UUID, sum, folder string) error {
+	if err := q.UpsertProvisionedDashboard(ctx, dbsqlc.UpsertProvisionedDashboardParams{Path: path, DashboardID: dashboardID, ContentSha256: sum, FolderTitle: folder}); err != nil {
+		return err
+	}
+	return q.DeleteProvisionError(ctx, path)
+}
+
+func (s store) recordSaved(ctx context.Context, dashboardID pgtype.UUID) {
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		return audit.Record(ctx, q, audit.Event{Action: provisionAction, Target: dashboardTarget(dashboardID)})
 	})
+	if err != nil {
+		audit.Dropped(audit.DroppedRecordFailed)
+	}
 }
 
 func (s store) unchanged(ctx context.Context) error {

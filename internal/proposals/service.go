@@ -54,6 +54,7 @@ type Proposal struct {
 	Changes   []spec.UnitChange
 	Diff      []spec.Change
 	Conflicts []spec.Conflict
+	Warning   string
 }
 
 type ListQuery struct {
@@ -442,7 +443,11 @@ func (s *Service) Merge(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 	s.logger.InfoContext(ctx, "proposal merged",
 		slog.String("actor_id", by.ID), slog.String("proposal_id", id.String()), slog.String("dashboard_id", h.row.DashboardID.String()))
 	s.announceClosed(ctx, by, Closure{ProposalID: id, State: StateMerged, Version: savedVersion})
-	return s.Get(ctx, by, id)
+	p, err := s.Get(ctx, by, id)
+	if savedVersion != nil {
+		p.Warning = res.Dashboard.ManagedBy.EditWarning()
+	}
+	return p, err
 }
 
 func (s *Service) lost(ctx context.Context, id pgtype.UUID, can func(lifecycle.Who) bool, a Action) error {

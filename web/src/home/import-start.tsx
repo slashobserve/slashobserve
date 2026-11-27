@@ -22,6 +22,7 @@ import { handOffImport, type HandedImport } from "@/import/handoff"
 import {
   MAX_FILE_BYTES,
   TOO_LARGE_MESSAGE,
+  UNREADABLE_MESSAGE,
   exceedsImportLimit,
 } from "@/import/read-source"
 import { roleAtLeast } from "@/lib/roles"
@@ -97,7 +98,14 @@ export function ImportStart({ autoFocus }: { autoFocus: boolean }) {
       setProblem(TOO_LARGE_MESSAGE)
       return
     }
-    hand({ name: file.name, text: await file.text(), pasted: false })
+    let text: string
+    try {
+      text = await file.text()
+    } catch {
+      setProblem(UNREADABLE_MESSAGE)
+      return
+    }
+    hand({ name: file.name, text, pasted: false })
   }
 
   function onChosen(event: ChangeEvent<HTMLInputElement>) {

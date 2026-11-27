@@ -7,7 +7,7 @@ import {
   tracesLink,
   tracesPath,
 } from "@/lib/links"
-import { eligibleDatasources } from "@/logs/datasource-picker"
+import { eligibleDatasources, ofTypes } from "@/logs/datasource-picker"
 import {
   isSearchFamily,
   logsDatasourceTypes,
@@ -16,7 +16,7 @@ import {
 } from "@/logs/search"
 import { metricsDatasourceTypes, type MetricsSearch } from "@/metrics/search"
 import type { SubNavRow } from "@/shell/nav"
-import { traceDatasourceTypes, type TraceSearch } from "@/traces/search"
+import { canSearchTraces, type TraceSearch } from "@/traces/search"
 
 import type { DatasourceStatus } from "./queries"
 
@@ -46,17 +46,20 @@ export function isSourcePage(kind: ExploreKind, pathname: string): boolean {
 
 const listedSourceCap = 5
 
-const datasourceTypesOf: Record<ExploreKind, readonly string[]> = {
-  logs: logsDatasourceTypes,
-  traces: traceDatasourceTypes,
-  metrics: metricsDatasourceTypes,
+const acceptedBy: Record<
+  ExploreKind,
+  (datasource: DatasourceStatus) => boolean
+> = {
+  logs: ofTypes(logsDatasourceTypes),
+  traces: canSearchTraces,
+  metrics: ofTypes(metricsDatasourceTypes),
 }
 
 export function sourcesOf(
   kind: ExploreKind,
   list: readonly DatasourceStatus[] | undefined
 ): DatasourceStatus[] {
-  return eligibleDatasources(list, datasourceTypesOf[kind])
+  return eligibleDatasources(list, acceptedBy[kind])
 }
 
 export function browsableSources(

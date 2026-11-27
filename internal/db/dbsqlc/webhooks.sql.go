@@ -142,8 +142,8 @@ const failWebhook = `-- name: FailWebhook :execrows
 UPDATE webhooks
 SET consecutive_failures = $1,
   next_attempt_at = $2,
-  disabled_at = $3,
-  disabled_reason = $4
+  disabled_at = coalesce(disabled_at, $3),
+  disabled_reason = coalesce(disabled_reason, $4)
 WHERE id = $5 AND lease_id = $6
 `
 
@@ -226,6 +226,46 @@ func (q *Queries) GetWebhook(ctx context.Context, id pgtype.UUID) (GetWebhookRow
 		&i.UpdatedAt,
 		&i.Format,
 		&i.OwnerName,
+	)
+	return i, err
+}
+
+const getWebhookForSkip = `-- name: GetWebhookForSkip :one
+SELECT w.id, w.name, w.url, w.secret_ciphertext, w.event_types, w.owner_kind, w.owner_id, w.cursor_xid, w.cursor_seq, w.consecutive_failures, w.next_attempt_at, w.lease_id, w.leased_by, w.lease_until, w.disabled_at, w.disabled_reason, w.created_at, w.updated_at, w.format, coalesce(w.lease_until >= clock_timestamp(), false)::boolean AS leased
+FROM webhooks w
+WHERE w.id = $1
+FOR UPDATE
+`
+
+type GetWebhookForSkipRow struct {
+	Webhook Webhook
+	Leased  bool
+}
+
+func (q *Queries) GetWebhookForSkip(ctx context.Context, id pgtype.UUID) (GetWebhookForSkipRow, error) {
+	row := q.db.QueryRow(ctx, getWebhookForSkip, id)
+	var i GetWebhookForSkipRow
+	err := row.Scan(
+		&i.Webhook.ID,
+		&i.Webhook.Name,
+		&i.Webhook.Url,
+		&i.Webhook.SecretCiphertext,
+		&i.Webhook.EventTypes,
+		&i.Webhook.OwnerKind,
+		&i.Webhook.OwnerID,
+		&i.Webhook.CursorXid,
+		&i.Webhook.CursorSeq,
+		&i.Webhook.ConsecutiveFailures,
+		&i.Webhook.NextAttemptAt,
+		&i.Webhook.LeaseID,
+		&i.Webhook.LeasedBy,
+		&i.Webhook.LeaseUntil,
+		&i.Webhook.DisabledAt,
+		&i.Webhook.DisabledReason,
+		&i.Webhook.CreatedAt,
+		&i.Webhook.UpdatedAt,
+		&i.Webhook.Format,
+		&i.Leased,
 	)
 	return i, err
 }
@@ -607,6 +647,9 @@ SET cursor_xid = $1,
   cursor_seq = $2,
   consecutive_failures = 0,
   next_attempt_at = clock_timestamp(),
+  lease_id = NULL,
+  leased_by = NULL,
+  lease_until = NULL,
   updated_at = now()
 WHERE id = $3
 `
@@ -637,8 +680,11 @@ SET name = $1,
   next_attempt_at = $8,
   disabled_at = $9,
   disabled_reason = $10,
+  lease_id = CASE WHEN $11::boolean THEN NULL ELSE lease_id END,
+  leased_by = CASE WHEN $11::boolean THEN NULL ELSE leased_by END,
+  lease_until = CASE WHEN $11::boolean THEN NULL ELSE lease_until END,
   updated_at = now()
-WHERE id = $11
+WHERE id = $12
 RETURNING id, name, url, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq, consecutive_failures, next_attempt_at, lease_id, leased_by, lease_until, disabled_at, disabled_reason, created_at, updated_at, format
 `
 
@@ -653,6 +699,7 @@ type UpdateWebhookParams struct {
 	NextAttemptAt       pgtype.Timestamptz
 	DisabledAt          pgtype.Timestamptz
 	DisabledReason      pgtype.Text
+	DropsLease          bool
 	ID                  pgtype.UUID
 }
 
@@ -668,6 +715,7 @@ func (q *Queries) UpdateWebhook(ctx context.Context, arg UpdateWebhookParams) (W
 		arg.NextAttemptAt,
 		arg.DisabledAt,
 		arg.DisabledReason,
+		arg.DropsLease,
 		arg.ID,
 	)
 	var i Webhook

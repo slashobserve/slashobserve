@@ -2,7 +2,8 @@
 -- name: ListInbox :many
 SELECT sqlc.embed(a),
        coalesce(n.reason, '')::text AS reason,
-       coalesce(st.unread, ic.user_id IS NULL OR (a.xid, a.seq) > (ic.read_xid, ic.read_seq))::boolean AS unread
+       coalesce(st.unread, ic.user_id IS NULL OR (a.xid, a.seq) > (ic.read_xid, ic.read_seq))::boolean AS unread,
+       coalesce(st.done, false)::boolean AS done
 FROM activity a
 CROSS JOIN LATERAL (SELECT inbox_reason(a, @reader_id::uuid, @editable::uuid[], @repair_prefix::text) AS reason OFFSET 0) n
 LEFT JOIN inbox_cursors ic ON ic.user_id = @reader_id::uuid

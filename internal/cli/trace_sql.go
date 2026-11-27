@@ -18,13 +18,14 @@ func (a *app) queryTraces(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	ctx := cmd.Context()
-	kind, err := datasourceType(ctx, c, opts.datasource)
+	ds, err := datasourceFor(ctx, c, opts.datasource)
 	if err != nil {
 		return err
 	}
-	if err := tracesKindUsage(opts.datasource, kind); err != nil {
+	if err := tracesKindUsage(ds); err != nil {
 		return err
 	}
+	kind := ds.Type
 	if kind != "clickhouse" {
 		request := exploreRequest{Query: opts.query, Kind: "instant", From: opts.from, To: opts.to, Limit: traceSearchLimit}
 		return a.printTraceSearch(ctx, c, request, sort)

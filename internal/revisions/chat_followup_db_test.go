@@ -241,7 +241,7 @@ func TestContinueOnADashboardChatKeepsItsEarlierTurns(t *testing.T) {
 		t.Fatalf("claim = %+v, found %v; want the second turn", claimed, found)
 	}
 	if _, err := d.Queries().UpsertAgentRequestBuild(ctx, dbsqlc.UpsertAgentRequestBuildParams{
-		AgentRequestID: second.ID, DashboardID: dash, BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, Spec: []byte(`{}`), Panels: 2, Attempt: claimed.Attempts,
+		AgentRequestID: second.ID, DashboardID: dash, BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, Spec: []byte(`{}`), Panels: 2, ClaimEpoch: claimed.ClaimEpoch,
 	}); err != nil {
 		t.Fatal(err)
 	}

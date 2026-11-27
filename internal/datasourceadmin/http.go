@@ -10,6 +10,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/egress"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -63,9 +64,10 @@ func newRecordJSON(r Record) recordJSON {
 }
 
 type testJSON struct {
-	Healthy bool   `json:"healthy"`
-	Message string `json:"message,omitempty"`
-	Detail  string `json:"detail,omitempty"`
+	Healthy     bool                   `json:"healthy"`
+	Message     string                 `json:"message,omitempty"`
+	Detail      string                 `json:"detail,omitempty"`
+	FailureKind datasource.FailureKind `json:"failure_kind,omitempty"`
 }
 
 type userJSON struct {
@@ -159,11 +161,12 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 	if clientgone.Handle(c, h.logger, action, err) {
 		return
 	}
+	if abortRefusedChange(c, err) {
+		return
+	}
 	switch {
 	case errors.As(err, &invalidErr):
 		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, gin.H{"error": invalidErr.Error(), "code": "invalid_datasource", "fields": invalidErr.Fields})
-	case errors.Is(err, ErrIdentityChanged):
-		httpapi.AbortError(c, http.StatusUnprocessableEntity, "invalid_datasource", err.Error())
 	case errors.Is(err, ErrNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, ErrReadOnly), errors.Is(err, ErrBuiltIn):
@@ -192,6 +195,20 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 		h.logger.ErrorContext(c.Request.Context(), action, logattrs.Failure("internal", err, slog.String("actor_id", httpapi.Caller(c).ID))...)
 		httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
 	}
+}
+
+func abortRefusedChange(c *gin.Context, err error) bool {
+	switch {
+	case errors.Is(err, ErrIdentityChanged):
+		httpapi.AbortError(c, http.StatusUnprocessableEntity, "invalid_datasource", err.Error())
+	case errors.Is(err, ErrSecretRequired):
+		httpapi.AbortError(c, http.StatusUnprocessableEntity, "secret_required", err.Error())
+	case errors.Is(err, ErrChanged):
+		httpapi.AbortError(c, http.StatusConflict, "datasource_changed", err.Error())
+	default:
+		return false
+	}
+	return true
 }
 
 func (h *Handler) failInUse(c *gin.Context, inUse *InUseError) {

@@ -24,7 +24,7 @@ func TestReadinessFailureLogsOnlyCodeAndType(t *testing.T) {
 	engine := gin.New()
 	registerHealthRoutes(engine, logger, []Check{{Name: "database", Run: func(context.Context) error {
 		return &pgconn.PgError{Code: "57P03", Message: `failed to connect to "user=bob host=db.internal"`}
-	}}})
+	}}}, nil)
 	rec := httptest.NewRecorder()
 	engine.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
 	if rec.Code != http.StatusServiceUnavailable {

@@ -68,6 +68,7 @@ type Dashboard struct {
 	Folder        folders.Folder
 	Abilities     folders.Abilities
 	Provisioned   bool
+	ManagedBy     folders.ManagedBy
 }
 
 type VersionMeta struct {
@@ -105,7 +106,9 @@ type newVersion struct {
 	unverified     Unverified
 	folder         folders.Folder
 	mergedProposal pgtype.UUID
+	replaced       int
 	before         func(ctx context.Context, q *dbsqlc.Queries) (stayedPut bool, err error)
+	inTx           func(q *dbsqlc.Queries, dash Dashboard, ver Version) error
 }
 
 type store struct {
@@ -128,7 +131,7 @@ func (in newVersion) contentRun() pgtype.UUID {
 }
 
 func (st store) create(ctx context.Context, in newVersion) (Dashboard, Version, error) {
-	return st.createWith(ctx, in, nil)
+	return st.createWith(ctx, in, in.inTx)
 }
 
 func (st store) createWith(ctx context.Context, in newVersion, inTx func(q *dbsqlc.Queries, dash Dashboard, ver Version) error) (Dashboard, Version, error) {
@@ -412,7 +415,7 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 		TargetID: in.dashboardID,
 		Owner:    activity.OnDashboard(in.dashboardID),
 		Actor:    versionActor(meta),
-		Data:     versionActivityData(in.spec.Title, meta),
+		Data:     versionActivityData(in.spec.Title, meta, in.replaced),
 	}
 	if _, err := activity.Append(ctx, q, entry, &ev); err != nil {
 		return VersionMeta{}, err
@@ -432,20 +435,22 @@ func versionActivityType(meta VersionMeta) string {
 }
 
 type versionActivityFields struct {
-	Version       int    `json:"version"`
-	ParentVersion *int   `json:"parent_version,omitempty"`
-	RestoredFrom  *int   `json:"restored_from,omitempty"`
-	Title         string `json:"title"`
-	Summary       string `json:"summary"`
+	Version         int    `json:"version"`
+	ParentVersion   *int   `json:"parent_version,omitempty"`
+	RestoredFrom    *int   `json:"restored_from,omitempty"`
+	ReplacedVersion int    `json:"replaced_version,omitempty"`
+	Title           string `json:"title"`
+	Summary         string `json:"summary"`
 }
 
-func versionActivityData(title string, meta VersionMeta) versionActivityFields {
+func versionActivityData(title string, meta VersionMeta, replaced int) versionActivityFields {
 	return versionActivityFields{
-		Version:       meta.Number,
-		ParentVersion: meta.ParentVersion,
-		RestoredFrom:  meta.RestoredFrom,
-		Title:         title,
-		Summary:       meta.Summary,
+		Version:         meta.Number,
+		ParentVersion:   meta.ParentVersion,
+		RestoredFrom:    meta.RestoredFrom,
+		ReplacedVersion: replaced,
+		Title:           title,
+		Summary:         meta.Summary,
 	}
 }
 
@@ -689,7 +694,7 @@ func listItemsOf(rows []dbsqlc.ListDashboardsRow) []ListItem {
 	return items
 }
 
-func (st store) provisionedAmong(ctx context.Context, ids []string) (map[string]bool, error) {
+func (st store) managersAmong(ctx context.Context, ids []string) (map[string]folders.DashboardAccess, error) {
 	parsed := make([]pgtype.UUID, 0, len(ids))
 	for _, id := range ids {
 		uuid, err := db.ParseUUID(id)
@@ -698,13 +703,13 @@ func (st store) provisionedAmong(ctx context.Context, ids []string) (map[string]
 		}
 		parsed = append(parsed, uuid)
 	}
-	refs, err := st.db.Queries().ProvisionedAmong(ctx, parsed)
+	rows, err := st.db.Queries().DashboardManagersAmong(ctx, parsed)
 	if err != nil {
-		return nil, fmt.Errorf("find provisioned dashboards: %w", err)
+		return nil, fmt.Errorf("find what manages the dashboards: %w", err)
 	}
-	found := make(map[string]bool, len(refs))
-	for _, ref := range refs {
-		found[ref.String()] = true
+	found := make(map[string]folders.DashboardAccess, len(rows))
+	for _, row := range rows {
+		found[row.ID.String()] = folders.DashboardAccess{DashboardID: row.ID, Provisioned: row.Provisioned, FromFile: row.FromFile, Applied: row.Applied}
 	}
 	return found, nil
 }

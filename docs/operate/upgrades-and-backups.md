@@ -249,7 +249,7 @@ Set `SLASHOBSERVE_ADMIN_EMAILS` before that first start; otherwise the earliest 
 
 ### Shutdown and leases
 
-On `SIGTERM` the server stops accepting requests, gives running requests 15 seconds, and hands a running agent request back to the queue without using up an attempt.
+On `SIGTERM` the server answers 503 on `/readyz` (`status` and `phase` are `stopping`) for 5 seconds while it keeps serving, so a load balancer or Kubernetes Service stops sending new requests, then it stops accepting requests, gives running requests the rest of 15 seconds from the signal, and hands a running agent request back to the queue without using up an attempt.
 After 10 seconds it ends the requests still open, such as live tails, event streams and `/mcp` streams.
 Each one records its audit event before the server writes its last buffered audit events and exits.
 

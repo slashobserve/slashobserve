@@ -72,7 +72,7 @@ func TestMetaNamesTheSettledStateAndHidesTheBuildOfAnEndedRun(t *testing.T) {
 		name      string
 		state     State
 		restarted bool
-		settled   string
+		settled   SettledKind
 		build     bool
 	}{
 		{"nothing settled", State{Build: build}, false, "", true},
@@ -82,7 +82,7 @@ func TestMetaNamesTheSettledStateAndHidesTheBuildOfAnEndedRun(t *testing.T) {
 	}
 	for _, tc := range cases {
 		got := tc.state.meta(tc.restarted)
-		gotSettled := ""
+		gotSettled := SettledKind("")
 		if got.Settled != nil {
 			gotSettled = *got.Settled
 		}

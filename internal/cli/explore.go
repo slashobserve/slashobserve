@@ -76,17 +76,22 @@ func firstOfType(f frame, typ string) int {
 	return -1
 }
 
-func datasourceType(ctx context.Context, c *client, uid string) (string, error) {
+func datasourceFor(ctx context.Context, c *client, uid string) (datasourceEntry, error) {
 	list, err := listDatasources(ctx, c)
 	if err != nil {
-		return "", err
+		return datasourceEntry{}, err
 	}
 	for _, ds := range list {
 		if ds.UID == uid {
-			return ds.Type, nil
+			return ds, nil
 		}
 	}
-	return "", usagef("no datasource has uid %q; observe doctor lists them", text(uid))
+	return datasourceEntry{}, usagef("no datasource has uid %q; observe doctor lists them", text(uid))
+}
+
+func datasourceType(ctx context.Context, c *client, uid string) (string, error) {
+	ds, err := datasourceFor(ctx, c, uid)
+	return ds.Type, err
 }
 
 func (f frame) rows() int {

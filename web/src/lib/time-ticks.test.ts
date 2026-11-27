@@ -38,6 +38,13 @@ describe("timeTicks", () => {
     expect(labels("UTC")).toEqual(["00:00", "01:00", "02:00", "03:00"])
     expect(labels("Asia/Kolkata")).toEqual(["06:00", "07:00", "08:00"])
   })
+
+  it("keeps day ticks on local midnight across a daylight saving change", () => {
+    const xs = steps(85, 60 * minute, Date.UTC(2026, 2, 7, 0, 0, 0))
+    expect(
+      timeTicks(xs, 4, "America/New_York").map((tick) => tick.label)
+    ).toEqual(["03-07 00:00", "03-08 00:00", "03-09 00:00", "03-10 00:00"])
+  })
 })
 
 describe("timeLabel", () => {

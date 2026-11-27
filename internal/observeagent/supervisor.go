@@ -49,6 +49,7 @@ type Supervisor struct {
 
 	mu    sync.Mutex
 	token string
+	state State
 }
 
 func FindBinary() (string, error) {
@@ -65,6 +66,8 @@ func NewSupervisor(c SupervisorConfig) *Supervisor {
 
 func (s *Supervisor) Run(ctx context.Context) {
 	delay := initialBackoff
+	s.move(ActionStart, StateStarting)
+	defer s.move(ActionStop, StateStopping)
 	for ctx.Err() == nil {
 		ran := s.runChild(ctx)
 		if ctx.Err() != nil {
@@ -73,8 +76,10 @@ func (s *Supervisor) Run(ctx context.Context) {
 		if ran >= stableRun {
 			delay = initialBackoff
 		}
+		s.move(ActionBackOff, StateBackoff)
 		s.sleep(ctx, delay)
 		delay = min(delay*2, maxBackoff)
+		s.move(ActionRestart, StateStarting)
 	}
 }
 
@@ -110,6 +115,7 @@ func (s *Supervisor) runChild(ctx context.Context) time.Duration {
 		return 0
 	}
 	started := s.now()
+	s.move(ActionRun, StateRunning)
 
 	var relays sync.WaitGroup
 	for _, r := range []io.Reader{outR, errR} {
@@ -135,6 +141,7 @@ func (s *Supervisor) wait(ctx context.Context, cmd *exec.Cmd) error {
 		return err
 	case <-ctx.Done():
 	}
+	s.move(ActionStop, StateStopping)
 	_ = cmd.Process.Signal(syscall.SIGTERM)
 	grace := time.NewTimer(s.grace)
 	defer grace.Stop()

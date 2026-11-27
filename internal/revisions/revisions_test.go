@@ -335,6 +335,25 @@ func TestRunIsReleasedWhenTheRequesterCannotBeLoaded(t *testing.T) {
 	}
 }
 
+func TestRunFailsWhenTheRequesterCannotBeLoadedThreeTimes(t *testing.T) {
+	var calls atomic.Int32
+	d := dbtest.New(t)
+	svc := newTestService(d.DB, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+		calls.Add(1)
+		return revisions.Result{Version: 2}, nil
+	}), quietLogger(), revisions.WithPrincipals(principalsFunc(func(context.Context, auth.PrincipalKind, string) (auth.Principal, error) {
+		return auth.Principal{}, errors.New("database unavailable")
+	})))
+	dash := seedDashboard(t, d, 1)
+	rev := submit(t, svc, dash, "go")
+	startWorker(t, svc, d, revisions.WorkerOptions{})
+	failed := waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
+	if failed.Error != "could not load the person or key that asked for this run" || calls.Load() != 0 {
+		t.Fatalf("revision = %+v after %d calls", failed, calls.Load())
+	}
+	assertFailureCode(t, svc, rev.ID, revisions.FailureCheckFailed)
+}
+
 func TestEventsAnnounceEveryStatusChange(t *testing.T) {
 	var svc *revisions.Service
 	var d *dbtest.Database
