@@ -8,6 +8,7 @@ import { api } from "@/api/client"
 import { type ProblemTexts, unwrap } from "@/api/errors"
 import { userKeys } from "@/api/keys"
 import type { paths } from "@/api/schema.gen"
+import { followCursor } from "@/lib/follow-cursor"
 import type { Role } from "@/lib/roles"
 
 export type User =
@@ -25,18 +26,20 @@ export function byNameThenId(a: User, b: User): number {
 }
 
 async function fetchAllUsers(signal: AbortSignal): Promise<User[]> {
-  const users: User[] = []
-  const seen = new Set<string>()
-  let cursor: string | undefined
-  for (let pages = 0; pages < maxPages; pages++) {
-    const page = await api
-      .GET("/users", { params: { query: { limit: pageSize, cursor } }, signal })
-      .then(unwrap)
-    users.push(...page.users)
-    cursor = page.next_cursor ?? undefined
-    if (cursor === undefined || seen.has(cursor)) break
-    seen.add(cursor)
-  }
+  const users = await followCursor(
+    (cursor) =>
+      api
+        .GET("/users", {
+          params: { query: { limit: pageSize, cursor } },
+          signal,
+        })
+        .then(unwrap)
+        .then((page) => ({
+          items: page.users,
+          next: page.next_cursor ?? null,
+        })),
+    maxPages
+  )
   return users.sort(byNameThenId)
 }
 

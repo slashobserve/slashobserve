@@ -8,6 +8,7 @@ import { api } from "@/api/client"
 import { type ProblemTexts, unwrap } from "@/api/errors"
 import { userKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
+import { followCursor } from "@/lib/follow-cursor"
 import type { Role } from "@/lib/roles"
 
 export type Invite = components["schemas"]["Invite"]
@@ -17,23 +18,21 @@ const maxPages = 20
 const maxEmailBytes = 254
 const invitesKey = [...userKeys.all, "invites"] as const
 
-async function fetchAllInvites(signal: AbortSignal): Promise<Invite[]> {
-  const invites: Invite[] = []
-  const seen = new Set<string>()
-  let cursor: string | undefined
-  for (let pages = 0; pages < maxPages; pages++) {
-    const page = await api
-      .GET("/invites", {
-        params: { query: { limit: pageSize, cursor } },
-        signal,
-      })
-      .then(unwrap)
-    invites.push(...page.invites)
-    cursor = page.next_cursor ?? undefined
-    if (cursor === undefined || seen.has(cursor)) break
-    seen.add(cursor)
-  }
-  return invites
+function fetchAllInvites(signal: AbortSignal): Promise<Invite[]> {
+  return followCursor(
+    (cursor) =>
+      api
+        .GET("/invites", {
+          params: { query: { limit: pageSize, cursor } },
+          signal,
+        })
+        .then(unwrap)
+        .then((page) => ({
+          items: page.invites,
+          next: page.next_cursor ?? null,
+        })),
+    maxPages
+  )
 }
 
 export function invitesQuery() {

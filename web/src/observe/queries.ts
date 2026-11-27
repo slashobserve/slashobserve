@@ -29,6 +29,7 @@ import {
 } from "@/api/keys"
 import type { components, paths } from "@/api/schema.gen"
 import type { StatusTone } from "@/components/status-label"
+import { uniqueById } from "@/lib/unique-by-id"
 import { askZone } from "@/lib/time"
 
 export type ObserveRequest =
@@ -195,18 +196,10 @@ export function useMyRequests(
     enabled,
     ...(pollsWhileWorking ? {} : { refetchInterval: false as const }),
   })
-  const requests = useMemo(() => {
-    const seen = new Set<string>()
-    const unique: RequestSummary[] = []
-    for (const page of query.data?.pages ?? []) {
-      for (const request of page.requests) {
-        if (seen.has(request.id)) continue
-        seen.add(request.id)
-        unique.push(request)
-      }
-    }
-    return unique
-  }, [query.data])
+  const requests = useMemo(
+    () => uniqueById(query.data?.pages, (page) => page.requests),
+    [query.data]
+  )
   return { requests, query }
 }
 

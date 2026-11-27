@@ -22,9 +22,28 @@ describe("followCursor", () => {
     let calls = 0
     const items = await followCursor(async () => {
       calls++
-      return { items: [calls], next: "more" }
+      return { items: [calls], next: `page-${calls}` }
     })
     expect(calls).toBe(10)
     expect(items).toHaveLength(10)
+  })
+
+  it("takes another page limit", async () => {
+    let calls = 0
+    await followCursor(async () => {
+      calls++
+      return { items: [calls], next: `page-${calls}` }
+    }, 3)
+    expect(calls).toBe(3)
+  })
+
+  it("stops when the server repeats a cursor", async () => {
+    let calls = 0
+    const items = await followCursor(async () => {
+      calls++
+      return { items: [calls], next: "same" }
+    })
+    expect(calls).toBe(2)
+    expect(items).toEqual([1, 2])
   })
 })
