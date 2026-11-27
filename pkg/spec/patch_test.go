@@ -800,3 +800,53 @@ func TestPatchRejectsBadDashboardFieldsWithTheirPath(t *testing.T) {
 		})
 	}
 }
+
+func TestPatchRejectsMalformedUpsertBytes(t *testing.T) {
+	const good = `"id":"t","type":"stat","gridPos":{"x":0,"y":11,"w":12,"h":4},"datasource":"ch","queries":[{"query":"SELECT 1"}]`
+	tests := []struct {
+		name  string
+		draft string
+		path  string
+	}{
+		{"duplicate key", `{"title":"a","title":"b",` + good + `}`, "/upsert/0/title"},
+		{"invalid utf-8", "{\"title\":\"a\xff\"," + good + "}", "/upsert/0"},
+		{"lone surrogate", `{"title":"\ud800",` + good + `}`, "/upsert/0"},
+		{"trailing garbage", `{"title":"a",` + good + `} garbage`, "/upsert/0"},
+		{"extra closing brace", `{"title":"a",` + good + `}}`, "/upsert/0"},
+		{"trailing comma", `{"title":"a",` + good + `},`, "/upsert/0"},
+		{"not json", `{"title":`, "/upsert/0"},
+		{"too deep", `{"title":"a",` + good + `,"x":` + strings.Repeat("[", 99) + strings.Repeat("]", 99) + `}`, "/upsert/0"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pe := rejected(t, patchBase(t), spec.PanelPatch{Upsert: raws(tt.draft)})
+			for _, i := range pe.Issues {
+				if i.Code != spec.CodeMalformedJSON && i.Code != spec.CodeDuplicateKey {
+					t.Errorf("issue %+v: want malformed_json or duplicate_key", i)
+				}
+			}
+			if got := pe.Issues[0].Path; got != tt.path {
+				t.Errorf("path = %q, want %q", got, tt.path)
+			}
+		})
+	}
+}
+
+func TestPatchReplacesAPanelInPlaceAndKeepsItsText(t *testing.T) {
+	parent := patchBase(t)
+	draft := `{"id":"t","type":"stat","title":"a<b&c>","datasource":"ch","queries":[{"query":"SELECT 2"}]}`
+	got := apply(t, parent, spec.PanelPatch{Upsert: raws(draft)})
+	entry, ok := got.FindPanel("t")
+	if !ok || entry.Pointer != "/panels/2" {
+		t.Fatalf("entry = %+v, want t at /panels/2", entry)
+	}
+	if entry.Panel.Title != "a<b&c>" || entry.Panel.Queries[0].Query != "SELECT 2" {
+		t.Errorf("panel = %+v", entry.Panel)
+	}
+	if entry.Panel.GridPos != (spec.GridPos{X: 0, Y: 11, W: 12, H: 4}) {
+		t.Errorf("gridPos = %+v, want the stored one", entry.Panel.GridPos)
+	}
+	if before, _ := parent.FindPanel("t"); before.Panel.Title != "t" {
+		t.Error("the parent dashboard was mutated")
+	}
+}

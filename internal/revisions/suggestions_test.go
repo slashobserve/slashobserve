@@ -327,7 +327,7 @@ func draftWithCompactSize(t *testing.T, base *spec.Dashboard, size int) json.Raw
 		return raw
 	}
 	compact := func(raw json.RawMessage) int {
-		placed, err := spec.WithPanel(base, "p1", raw)
+		placed, err := spec.ApplyPanelPatch(base, spec.PanelPatch{Upsert: []json.RawMessage{raw}})
 		if err != nil {
 			t.Fatal(err)
 		}

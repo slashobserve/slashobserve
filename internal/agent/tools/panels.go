@@ -289,32 +289,12 @@ func (r *Registry) suggestPatch(ctx context.Context, principal auth.Principal, r
 		return invalid("this run proposes a change to panel %s; send exactly one upsert with that panel and nothing else", run.PanelID), nil
 	}
 	var head struct {
-		ID   string         `json:"id"`
-		Type spec.PanelType `json:"type"`
+		ID string `json:"id"`
 	}
 	if err := json.Unmarshal(p.Upsert[0], &head); err != nil || head.ID != run.PanelID {
 		return invalid("this run proposes a change to panel %s; the upserted panel must have that id", run.PanelID), nil
 	}
-	if res, ok := panelStaysPanel(run, head.Type); !ok {
-		return res, nil
-	}
-	merged, err := spec.ApplyPanelPatch(run.Base, spec.PanelPatch{Upsert: p.Upsert})
-	var patchErr *spec.PatchError
-	if errors.As(err, &patchErr) {
-		return suggestionRejected(patchErr.Issues), nil
-	}
-	if err != nil {
-		return Result{}, err
-	}
-	entry, ok := merged.FindPanel(run.PanelID)
-	if !ok {
-		return invalid("this run proposes a change to panel %s; the upserted panel must have that id", run.PanelID), nil
-	}
-	raw, err := json.Marshal(entry.Panel)
-	if err != nil {
-		return Result{}, err
-	}
-	return r.proposePanel(ctx, principal, run, raw)
+	return r.proposePanel(ctx, principal, run, p.Upsert[0])
 }
 
 func patchRejected(issues []spec.Issue, panelIDs map[string]string) Result {

@@ -161,14 +161,20 @@ func (h *Handler) requireComment(c *gin.Context, principal auth.Principal, id pg
 }
 
 func (h *Handler) placeDraft(c *gin.Context, saved *spec.Dashboard, req previewRequest, uid string) (d *spec.Dashboard, draft *spec.Panel, ok bool) {
-	d, pointer, err := withDraftPanel(saved, req)
-	var invalid *spec.ValidationError
+	invalidRequest := func(message string) (*spec.Dashboard, *spec.Panel, bool) {
+		abortError(c, http.StatusBadRequest, string(queryproxy.CodeInvalidRequest), message)
+		return nil, nil, false
+	}
+	var head struct {
+		ID string `json:"id"`
+	}
+	if json.Unmarshal(req.Panel, &head) == nil && head.ID != req.PanelID {
+		return invalidRequest("the panel's id must be " + req.PanelID)
+	}
+	d, err := spec.ApplyPanelPatch(saved, spec.PanelPatch{Upsert: []json.RawMessage{req.Panel}})
 	var patchErr *spec.PatchError
 	switch {
 	case err == nil:
-	case errors.As(err, &invalid):
-		httpapi.AbortInvalidSpec(c, "the draft panel is not valid", invalid.Issues)
-		return nil, nil, false
 	case errors.As(err, &patchErr):
 		httpapi.AbortInvalidSpec(c, "the draft panel is not valid", patchErr.Issues)
 		return nil, nil, false
@@ -176,21 +182,14 @@ func (h *Handler) placeDraft(c *gin.Context, saved *spec.Dashboard, req previewR
 		h.internalFailure(c, uid, err)
 		return nil, nil, false
 	}
-	invalidRequest := func(message string) (*spec.Dashboard, *spec.Panel, bool) {
-		abortError(c, http.StatusBadRequest, string(queryproxy.CodeInvalidRequest), message)
-		return nil, nil, false
-	}
-	entries := d.AllPanels()
-	at := slices.IndexFunc(entries, func(e spec.PanelEntry) bool { return e.Pointer == pointer })
-	if at < 0 {
+	entry, found := d.FindPanel(req.PanelID)
+	if !found {
 		return invalidRequest("the panel's id must be " + req.PanelID)
 	}
-	draft = entries[at].Panel
+	draft = entry.Panel
 	switch {
 	case !draft.Type.IsData() || len(draft.Queries) == 0:
 		return invalidRequest("only data panels can be previewed")
-	case draft.ID != req.PanelID:
-		return invalidRequest("the panel's id must be " + req.PanelID)
 	case slices.ContainsFunc(draft.Queries, spec.Query.IsDashboardSource):
 		return invalidRequest("a panel that reuses another panel's results has no preview")
 	case isOtherUID(draft.Datasource, uid):
@@ -199,15 +198,6 @@ func (h *Handler) placeDraft(c *gin.Context, saved *spec.Dashboard, req previewR
 		return invalidRequest(queryDatasourceMessage(uid))
 	}
 	return d, draft, true
-}
-
-func withDraftPanel(saved *spec.Dashboard, req previewRequest) (d *spec.Dashboard, pointer string, err error) {
-	if original, found := saved.FindPanel(req.PanelID); found {
-		d, err = spec.WithPanel(saved, req.PanelID, req.Panel)
-		return d, original.Pointer, err
-	}
-	d, err = spec.ApplyPanelPatch(saved, spec.PanelPatch{Upsert: []json.RawMessage{req.Panel}})
-	return d, "/panels/" + strconv.Itoa(len(saved.Panels)), err
 }
 
 func isOtherUID(ref, uid string) bool {
