@@ -60,19 +60,29 @@ func (q *Queries) DashboardFolder(ctx context.Context, id pgtype.UUID) (pgtype.U
 }
 
 const dashboardPlacement = `-- name: DashboardPlacement :one
-SELECT d.folder_id, EXISTS (SELECT 1 FROM starter_content s WHERE s.ref = d.id)::boolean AS provisioned
+SELECT d.folder_id,
+  EXISTS (SELECT 1 FROM starter_content s WHERE s.ref = d.id)::boolean AS provisioned,
+  EXISTS (SELECT 1 FROM provisioned_dashboards p WHERE p.dashboard_id = d.id)::boolean AS from_file,
+  EXISTS (SELECT 1 FROM applied_dashboards a WHERE a.dashboard_id = d.id)::boolean AS applied
 FROM dashboards d WHERE d.id = $1
 `
 
 type DashboardPlacementRow struct {
 	FolderID    pgtype.UUID
 	Provisioned bool
+	FromFile    bool
+	Applied     bool
 }
 
 func (q *Queries) DashboardPlacement(ctx context.Context, id pgtype.UUID) (DashboardPlacementRow, error) {
 	row := q.db.QueryRow(ctx, dashboardPlacement, id)
 	var i DashboardPlacementRow
-	err := row.Scan(&i.FolderID, &i.Provisioned)
+	err := row.Scan(
+		&i.FolderID,
+		&i.Provisioned,
+		&i.FromFile,
+		&i.Applied,
+	)
 	return i, err
 }
 

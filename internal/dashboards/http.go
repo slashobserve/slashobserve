@@ -313,6 +313,7 @@ func (s *Service) getDashboard(c *gin.Context) {
 	}
 	dash.Abilities = folders.DashboardFrom(c).Shown()
 	dash.Provisioned = folders.DashboardFrom(c).Provisioned
+	dash.Origin = folders.DashboardFrom(c).Origin()
 	audit.Conclude(c.Request.Context(), audit.Result{
 		Outcome: audit.OutcomeSuccess,
 		Target:  audit.Target{Kind: "dashboard", ID: c.Param("id")},
@@ -395,6 +396,7 @@ func (s *Service) getVersion(c *gin.Context) {
 	}
 	dash.Abilities = folders.DashboardFrom(c).Shown()
 	dash.Provisioned = folders.DashboardFrom(c).Provisioned
+	dash.Origin = folders.DashboardFrom(c).Origin()
 	httpapi.RevalidatedJSON(c, NewDashboardVersionJSON(dash, ver))
 }
 
@@ -452,7 +454,7 @@ func (s *Service) answerSave(c *gin.Context, res SaveResult) {
 		c.JSON(http.StatusAccepted, proposalCreatedJSON{ProposalID: res.Proposal.ID, Revision: res.Proposal.Revision, Opened: res.Proposal.Opened})
 		return
 	}
-	body := versionSavedJSON{DashboardVersionJSON: NewDashboardVersionJSON(res.Dashboard, res.Version), MergedFrom: res.MergedFrom}
+	body := versionSavedJSON{DashboardVersionJSON: NewDashboardVersionJSON(res.Dashboard, res.Version), MergedFrom: res.MergedFrom, Warning: res.Warning}
 	if res.Replayed {
 		c.Header("Idempotent-Replay", "true")
 		c.JSON(http.StatusOK, body)

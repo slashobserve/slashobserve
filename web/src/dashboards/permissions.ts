@@ -37,6 +37,19 @@ export function mayEditBesidesContent(
 export const starterNote =
   "This starter dashboard is kept current by SlashObserve releases, so it cannot be edited."
 
+export const fileOwnedNote =
+  "This dashboard comes from a file on the server. The next change to that file replaces edits made here, which stay in the version history."
+
+export function editNote(
+  dashboard: Pick<components["schemas"]["DashboardSummary"], "origin"> & {
+    permissions: Pick<DashboardPermissions, "edit">
+  }
+): string | null {
+  return dashboard.origin === "file" && dashboard.permissions.edit
+    ? fileOwnedNote
+    : null
+}
+
 export type ComposerMode = "full" | "comment-only" | "provisioned" | "read-only"
 
 export function composerMode(
@@ -94,6 +107,21 @@ export function useLatestProvisioned(dashboardId: string): boolean {
       staleTime: Infinity,
       select: selectProvisioned,
     }).data ?? false
+  )
+}
+
+function selectEditNote(envelope: DashboardEnvelope) {
+  return editNote(envelope.dashboard)
+}
+
+export function useLatestEditNote(dashboardId: string): string | null {
+  const queryClient = useQueryClient()
+  return (
+    useQuery({
+      ...latestDashboardQuery(queryClient, dashboardId),
+      staleTime: Infinity,
+      select: selectEditNote,
+    }).data ?? null
   )
 }
 

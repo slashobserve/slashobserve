@@ -857,6 +857,8 @@ Lists the dashboards the key can see, with `id`, `title`, `tags`, `folder`, `lat
 Reads a dashboard's Spec at the latest version, or at `version`.
 
 - The result has `saved_by`, `origin`, `saved_at` and `summary` of that version, its `url`, its `folder` and its `unverified` panels and variables.
+- `dashboard_origin` says what else writes the dashboard: `starter` (a release, so it is read-only), `file` (a file in the server's [provisioning directory](../operate/provisioning.md#edits-made-in-the-app)), `applied` (`observe dashboards apply`) or `editable` (nothing).
+  `origin` is a different value: where that version was saved from.
 - It also has `view_count`, with `window_days`.
 - A Spec over 128 KiB returns `too_large`; read its panels with `get_panels` instead.
 
@@ -892,6 +894,7 @@ Use it only to rewrite most of a dashboard; for anything smaller, use `update_pa
 - If both changed the same panel, variable or setting, it returns the tool error `version_conflict` with `latest_version` and `conflicts`.
   Each conflict has a `kind`, an `id`, a `reason` and a `message`.
   The client reads the latest version and applies its change again.
+- A save to a dashboard whose `dashboard_origin` is `file` works, and the result carries a `warning`: the next change to the file replaces the edit, which stays in the version history.
 - It saves a [proposal](../concepts/proposals.md) instead when the caller can comment but not edit, or when its connection is in propose mode.
   The answer is a success, not a tool error.
   Its code is `proposed`, and it carries `proposal_id`, `revision`, `opened` (false when the save added a revision to the caller's open proposal) and the dashboard's `url`.
@@ -917,7 +920,7 @@ Behavior:
 - It runs only the queries it changed, and every query when `time` changes to a different range, as [What a save checks](../concepts/agent.md#what-a-save-checks) describes.
 - A rejection lists `failing_panels`, so the client resends only those panels.
 - An overlap is reported at the panel the patch upserted or moved, with both panels' positions in the message.
-- Merging, `version_conflict`, `proposed` and `proposal_required` work as for `update_dashboard`.
+- Merging, the `warning` on a dashboard from a provisioning file, `version_conflict`, `proposed` and `proposal_required` work as for `update_dashboard`.
 
 #### `list_dashboard_versions`
 

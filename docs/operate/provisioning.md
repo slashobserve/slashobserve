@@ -70,6 +70,16 @@ An edit someone made in the app since then is replaced by the file's content, an
 Versions are authored by `Provisioning` and their origin is `api`.
 Dashboards provisioned from files are ordinary dashboards: people can edit, move and comment on them, and the next change to the file adds a version again.
 
+### Edits made in the app
+
+A dashboard read tells an editor where the dashboard comes from, so the edit does not come as a surprise later:
+
+- `GET /api/v1/dashboards/{id}` returns `origin`: `file` for a dashboard bound to a provisioning file, `applied` for one that `observe dashboards apply` wrote, `starter` for a [starter dashboard](#starter-dashboards) and `editable` for every other dashboard.
+  `get_dashboard` returns the same value as `dashboard_origin`.
+- The web app shows a note on a `file` dashboard, where an edit starts: in the panel editor and above the prompt.
+- A save to a `file` dashboard works, and its answer carries a `warning` that the next change to the file replaces the edit.
+  `update_dashboard` and `update_panels` return the same `warning`.
+
 A save checks the file the way every save is checked: the Spec must be valid and every panel and variable query must run.
 Unlike a Grafana import, a provisioned file is never saved with failing queries.
 

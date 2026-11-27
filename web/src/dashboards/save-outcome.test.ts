@@ -8,7 +8,7 @@ describe("saveToast", () => {
   it.each<[string, SaveOutcome, string]>([
     [
       "a plain save",
-      { kind: "saved", envelope, version: 4, mergedFrom: null },
+      { kind: "saved", envelope, version: 4, mergedFrom: null, warning: null },
       "Saved version 4",
     ],
     [
@@ -18,8 +18,20 @@ describe("saveToast", () => {
         envelope,
         version: 6,
         mergedFrom: { base_version: 3, onto_version: 5 },
+        warning: null,
       },
       "Saved version 6, merged with changes made since version 3",
+    ],
+    [
+      "a save the server warns about",
+      {
+        kind: "saved",
+        envelope,
+        version: 7,
+        mergedFrom: null,
+        warning: "The next change to its file replaces this edit.",
+      },
+      "Saved version 7. The next change to its file replaces this edit.",
     ],
     [
       "a proposal the save opened",

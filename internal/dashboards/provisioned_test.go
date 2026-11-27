@@ -30,6 +30,92 @@ func (r *rig) starterDashboard(t *testing.T) pgtype.UUID {
 	return id
 }
 
+func (r *rig) bindToProvisioningFile(t *testing.T, id pgtype.UUID) {
+	t.Helper()
+	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `INSERT INTO provisioned_dashboards (path, dashboard_id, content_sha256, folder_title) VALUES ('a.json', $1, 'sha', 'General')`, id.String()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func (r *rig) bindToAppliedFile(t *testing.T, id pgtype.UUID) {
+	t.Helper()
+	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `INSERT INTO applied_dashboards (path, dashboard_id, content_sha256, applied_by_id) VALUES ('a.json', $1, 'sha', $2)`, id.String(), adminUser.ID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type savedWithOrigin struct {
+	Dashboard struct {
+		Origin      string `json:"origin"`
+		Provisioned bool   `json:"provisioned"`
+		Permissions struct{ Edit bool }
+	}
+	Warning string `json:"warning"`
+}
+
+func TestADashboardReadsItsOriginAndOnlyAFileDashboardWarnsOnSave(t *testing.T) {
+	r := newRig(t, false)
+	b := boards{rig: r}
+	cases := []struct {
+		origin  string
+		bind    func(*testing.T, pgtype.UUID)
+		warning string
+	}{
+		{"editable", func(*testing.T, pgtype.UUID) {}, ""},
+		{"file", r.bindToProvisioningFile, folders.FileOwnedWarning},
+		{"applied", r.bindToAppliedFile, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.origin, func(t *testing.T) {
+			id := r.createDashboard(t)
+			tc.bind(t, id)
+			path := "/dashboards/" + id.String()
+
+			var read savedWithOrigin
+			rec := b.serve(adminUser, http.MethodGet, path, "")
+			if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &read) != nil {
+				t.Fatalf("get answered %d %s", rec.Code, rec.Body.String())
+			}
+			if read.Dashboard.Origin != tc.origin || read.Dashboard.Provisioned || !read.Dashboard.Permissions.Edit {
+				t.Fatalf("dashboard = %+v, want origin %s, not provisioned, editable", read.Dashboard, tc.origin)
+			}
+
+			var saved savedWithOrigin
+			rec = b.serve(adminUser, http.MethodPost, path+"/versions", `{"spec":`+string(panelsSpec("changed", "rps"))+`,"summary":"s","parent_version":1}`)
+			if rec.Code != http.StatusCreated || json.Unmarshal(rec.Body.Bytes(), &saved) != nil {
+				t.Fatalf("save answered %d %s", rec.Code, rec.Body.String())
+			}
+			if saved.Warning != tc.warning || saved.Dashboard.Origin != tc.origin {
+				t.Fatalf("save answered warning %q and origin %q, want %q and %q", saved.Warning, saved.Dashboard.Origin, tc.warning, tc.origin)
+			}
+
+			moved, _, err := r.service.Move(reading(t.Context()), testUser, id, r.newFolder(t, "Ops "+tc.origin))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := moved.Origin.String(); got != tc.origin {
+				t.Fatalf("the move answered origin %q, want %q", got, tc.origin)
+			}
+		})
+	}
+}
+
+func TestAStarterDashboardReadsAsAStarter(t *testing.T) {
+	r := newRig(t, false)
+	b := boards{rig: r}
+	id := r.starterDashboard(t)
+	r.bindToProvisioningFile(t, id)
+
+	var read savedWithOrigin
+	rec := b.serve(adminUser, http.MethodGet, "/dashboards/"+id.String(), "")
+	if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &read) != nil {
+		t.Fatalf("get answered %d %s", rec.Code, rec.Body.String())
+	}
+	if read.Dashboard.Origin != "starter" || !read.Dashboard.Provisioned {
+		t.Fatalf("dashboard = %+v, want origin starter and provisioned", read.Dashboard)
+	}
+}
+
 func codeOf(t *testing.T, body string) string {
 	t.Helper()
 	var parsed struct{ Code string }

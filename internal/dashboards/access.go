@@ -36,6 +36,7 @@ func withAccess(d Dashboard, a folders.DashboardAccess) Dashboard {
 	d.Folder = a.Folder
 	d.Abilities = a.Shown()
 	d.Provisioned = a.Provisioned
+	d.Origin = a.Origin()
 	return d
 }
 

@@ -228,11 +228,7 @@ func (a *Applier) update(ctx context.Context, by auth.Principal, res Result, id 
 	if access.Provisioned {
 		return refused(res, CodeProvisioned, folders.ErrProvisioned.Error()), nil
 	}
-	provisioned, err := a.db.Queries().IsProvisionedDashboard(ctx, id)
-	if err != nil {
-		return Result{}, fmt.Errorf("check provisioned dashboard: %w", err)
-	}
-	if provisioned {
+	if access.FromFile {
 		return refused(res, CodeProvisioned, "the dashboard comes from a file in the server's provisioning directory; change that file instead"), nil
 	}
 	latest, err := a.dashboards.LatestVersion(ctx, id)

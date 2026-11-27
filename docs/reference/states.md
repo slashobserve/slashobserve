@@ -107,6 +107,18 @@ A proposal is a change to a dashboard that someone who can edit merges or discar
 | `merge` | `open` | `merged` | `proposal.merged` | editor |
 | `discard` | `open` | `discarded` | `proposal.discarded` | requester, editor |
 
+## Dashboard origin
+
+`GET /dashboards/{id}` returns the `origin` of the dashboard: what else writes its content.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `starter` | The server ships the dashboard and keeps it current with each release. Every change to its content answers 409 `provisioned`; duplicate it to change a copy. |
+| `file` | A file in the server's provisioning directory is bound to the dashboard. It can be edited, and the next change to that file replaces the edit, which stays in the version history. |
+| `applied` | `observe dashboards apply` last bound a file to the dashboard. It can be edited, and applying that file again after it changed saves the file's content on top. |
+| `editable` | None of the above: no file and no release writes the dashboard. |
+
 ## Dashboard health
 
 `GET /health` returns the `state` of each dashboard that has a problem.

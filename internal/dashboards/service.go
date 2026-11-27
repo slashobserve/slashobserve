@@ -626,6 +626,7 @@ func (s *Service) moveOnce(ctx context.Context, by auth.Principal, id, folderID 
 		return Dashboard{}, Version{}, err
 	}
 	dash.Abilities = abilities
+	dash.Origin = source.Origin()
 	s.logger.InfoContext(ctx, "dashboard moved",
 		slog.String("actor_id", by.ID), slog.String("dashboard_id", dash.ID), slog.String("folder_id", target.ID.String()))
 	return dash, ver, nil

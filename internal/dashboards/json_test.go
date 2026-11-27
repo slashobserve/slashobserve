@@ -1,6 +1,11 @@
 package dashboards
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+
+	"github.com/slashobserve/slashobserve/internal/folders"
+)
 
 func TestVersionActorLabels(t *testing.T) {
 	author := Author{Kind: "user", ID: "11111111-1111-4111-8111-111111111111", Name: "Ada", Email: "ada@example.com"}
@@ -48,5 +53,79 @@ func TestCreatorActorLabels(t *testing.T) {
 				t.Fatalf("label = %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+func originOf(t *testing.T, d Dashboard) string {
+	t.Helper()
+	raw, err := json.Marshal(NewDashboardVersionJSON(d, Version{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		Dashboard struct {
+			Origin      *string `json:"origin"`
+			Provisioned bool    `json:"provisioned"`
+		} `json:"dashboard"`
+	}
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Dashboard.Origin == nil {
+		t.Fatalf("the dashboard read has no origin: %s", raw)
+	}
+	if got.Dashboard.Provisioned != d.Provisioned {
+		t.Fatalf("provisioned = %v, want %v as before", got.Dashboard.Provisioned, d.Provisioned)
+	}
+	return *got.Dashboard.Origin
+}
+
+func TestTheDashboardReadNamesWhereTheDashboardComesFrom(t *testing.T) {
+	if got := originOf(t, Dashboard{}); got != "editable" {
+		t.Fatalf("origin = %q, want editable for a dashboard made in the app", got)
+	}
+	cases := []struct {
+		access folders.DashboardAccess
+		want   string
+	}{
+		{folders.DashboardAccess{}, "editable"},
+		{folders.DashboardAccess{Provisioned: true}, "starter"},
+		{folders.DashboardAccess{FromFile: true}, "file"},
+		{folders.DashboardAccess{Applied: true}, "applied"},
+	}
+	for _, tc := range cases {
+		if got := originOf(t, withAccess(Dashboard{}, tc.access)); got != tc.want {
+			t.Errorf("origin = %q, want %q", got, tc.want)
+		}
+	}
+}
+
+func TestOnlyASaveToAFileDashboardCarriesTheWarning(t *testing.T) {
+	for _, access := range []folders.DashboardAccess{{}, {Provisioned: true}, {Applied: true}} {
+		if got := saveWarning(access); got != "" {
+			t.Errorf("a save to a dashboard with origin %s warns %q, want no warning", access.Origin(), got)
+		}
+	}
+	warning := saveWarning(folders.DashboardAccess{FromFile: true})
+	if warning != folders.FileOwnedWarning {
+		t.Fatalf("warning = %q, want the file warning", warning)
+	}
+
+	fields := func(body versionSavedJSON) map[string]json.RawMessage {
+		raw, err := json.Marshal(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &got); err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	if got := fields(versionSavedJSON{Warning: warning}); string(got["warning"]) != `"`+warning+`"` {
+		t.Errorf("the save answer carries warning %s, want the file warning", got["warning"])
+	}
+	if _, ok := fields(versionSavedJSON{})["warning"]; ok {
+		t.Error("a save with nothing to warn about has a warning key")
 	}
 }

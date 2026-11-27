@@ -45,6 +45,7 @@ type dashboardJSON struct {
 	Folder        dashboardFolderJSON `json:"folder"`
 	Permissions   folders.Permissions `json:"permissions"`
 	Provisioned   bool                `json:"provisioned"`
+	Origin        string              `json:"origin"`
 }
 
 type dashboardListItemJSON struct {
@@ -119,6 +120,7 @@ type conflictJSON struct {
 type versionSavedJSON struct {
 	DashboardVersionJSON
 	MergedFrom *MergedFrom `json:"merged_from,omitempty"`
+	Warning    string      `json:"warning,omitempty"`
 }
 
 type proposalCreatedJSON struct {
@@ -144,6 +146,7 @@ func newDashboardJSON(d Dashboard) dashboardJSON {
 		Folder:        newDashboardFolderJSON(d.Folder),
 		Permissions:   folders.PermissionsJSON(d.Abilities),
 		Provisioned:   d.Provisioned,
+		Origin:        d.Origin.String(),
 	}
 }
 

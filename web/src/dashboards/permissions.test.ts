@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest"
 import {
   composerMode,
   contentChange,
+  editNote,
+  fileOwnedNote,
   mayEditBesidesContent,
   readerNote,
   type DashboardPermissions,
@@ -85,4 +87,22 @@ describe("mayEditBesidesContent", () => {
       false
     )
   })
+})
+
+describe("editNote", () => {
+  it.each([
+    ["file", { edit: true }, fileOwnedNote],
+    ["file", { comment: true }, null],
+    ["file", {}, null],
+    ["applied", { edit: true }, null],
+    ["starter", { edit: true }, null],
+    ["editable", { edit: true }, null],
+  ] as const)(
+    "on a dashboard with origin %s and permissions %j says %j",
+    (origin, flags, expected) => {
+      expect(editNote({ origin, permissions: permissions(flags) })).toBe(
+        expected
+      )
+    }
+  )
 })

@@ -49,6 +49,7 @@ type SaveResult struct {
 	Replayed   bool
 	MergedFrom *MergedFrom
 	Proposal   *ProposalRef
+	Warning    string
 }
 
 type ProposeInput struct {
@@ -131,7 +132,15 @@ func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Sa
 		return SaveResult{}, err
 	}
 	res.Dashboard = withAccess(res.Dashboard, access)
+	res.Warning = saveWarning(access)
 	return res, nil
+}
+
+func saveWarning(access folders.DashboardAccess) string {
+	if access.Origin() == folders.OriginFile {
+		return folders.FileOwnedWarning
+	}
+	return ""
 }
 
 func (s *Service) propose(ctx context.Context, by auth.Principal, in SaveInput, access folders.DashboardAccess) (SaveResult, error) {
