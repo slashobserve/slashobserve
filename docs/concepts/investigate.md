@@ -77,7 +77,8 @@ How the agent reads and answers:
 - Slowness is judged from the slow requests, not a percentile alone: the agent calls `trace_slow_path`, with the question's threshold when it gives one, and reports for each route the slow count, the span with the most self time, every service in the slow traces with its count and an example trace with its exact duration.
 - A quantile over a window comes from `trace_stats` with `group_by`, which reads it exactly or says it rests on a sample.
 - When it found an onset, the annotations show no deploy and a change is a plausible cause, it searches the involved services' logs at every level for deploy, rollout, version or restart lines in a short window before the onset.
-- When a second service shows errors during an incident, it classifies them as knock-on from the incident, pre-existing background (checked against the rate before the onset) or a separate incident, and says which with the evidence.
+- It lists every cause the evidence supports, most confident first, and adds none to be safe: a second service's errors are a cause of their own only with their own onset or trigger, and otherwise a knock-on of the cause they follow or background checked against the rate before the onset.
+- It names a cause's trigger by its key exactly as the system spells it, such as a flag key, a setting or a version, with its value.
 - It does not say something does not exist, is not happening, is not recurring or was not deployed unless a query checked it, and it says what was checked.
 - It reads durations and rates at the series' native step in a short range around the event.
 - It takes a baseline such as typical or normal from the question's whole window without the event's own span, read at an aggregate or coarser step.

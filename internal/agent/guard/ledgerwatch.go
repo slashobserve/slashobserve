@@ -41,12 +41,13 @@ func (s *State) ledgerBehind(input json.RawMessage) (fault, bool) {
 
 func namesConclusion(input json.RawMessage) bool {
 	var in struct {
-		RootCause json.RawMessage `json:"root_cause"`
-		RuledOut  []string        `json:"ruled_out"`
+		RootCause json.RawMessage   `json:"root_cause"`
+		RuledOut  []string          `json:"ruled_out"`
+		Causes    []json.RawMessage `json:"causes"`
 	}
 	if json.Unmarshal(input, &in) != nil {
 		return false
 	}
 	cause := string(in.RootCause)
-	return len(in.RuledOut) > 0 || (cause != "" && cause != "null" && cause != "{}")
+	return len(in.RuledOut) > 0 || len(in.Causes) > 0 || (cause != "" && cause != "null" && cause != "{}")
 }
