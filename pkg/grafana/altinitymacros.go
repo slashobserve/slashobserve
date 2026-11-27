@@ -110,7 +110,7 @@ func sqlWords(s string) []sqlWord {
 			depth--
 		case c == '$':
 			i = skipReferenceName(s, i)
-		case (c == '_' || unicode.IsLetter(rune(c))) && (i == 0 || !isSQLIdentByte(s[i-1])):
+		case isSQLIdentByte(c) && !unicode.IsDigit(rune(c)) && (i == 0 || !isSQLIdentByte(s[i-1])):
 			j := i
 			for j < len(s) && isSQLIdentByte(s[j]) {
 				j++
