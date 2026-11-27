@@ -142,7 +142,7 @@ function sessionFailure(error: unknown): FailureCode {
   return "provider_error"
 }
 
-function failedCallFields(runId: string, error: CallError): Fields {
+export function failedCallFields(error: CallError): Fields {
   const retryAfterSeconds = error.retryAfterMs / 1_000
   const optional: Array<[string, string]> = [
     ["provider_error_type", error.type],
@@ -153,7 +153,6 @@ function failedCallFields(runId: string, error: CallError): Fields {
     ["provider_error_message", error.providerMessage],
   ]
   return {
-    run_id: runId,
     provider: error.provider,
     status: error.status,
     failure_code: error.failure,
@@ -527,11 +526,10 @@ class RunLoop {
       this.throwIfQuiet(error)
       this.failedCalls++
       if (error instanceof CallError) {
-        log(
-          "warn",
-          "llm call finished",
-          failedCallFields(this.runRef.run_id, error)
-        )
+        log("warn", "llm call finished", {
+          run_id: this.runRef.run_id,
+          ...failedCallFields(error),
+        })
       }
       if (
         error instanceof CallError &&

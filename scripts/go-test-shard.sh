@@ -3,7 +3,7 @@ set -euo pipefail
 
 named="grafana db datasource agent"
 
-weights="internal/cli=8 internal/runsession=4 internal/server/mcp=4 internal/activity=3 internal/audit=3 internal/auth=3 internal/findings=3 internal/mcpauth=2 internal/config=2 internal/folders=2 internal/llm/providers=2 internal/datasourceadmin=2 internal/public=2 internal/imports=2 internal/proposals=2"
+weights="internal/cli=8 internal/runsession=4 internal/server/mcp=4 internal/activity=3 internal/audit=3 internal/auth=3 internal/findings=3 internal/mcpauth=2 internal/config=2 internal/folders=2 internal/datasourceadmin=2 internal/public=2 internal/imports=2 internal/proposals=2"
 
 packages() {
   case "$1" in

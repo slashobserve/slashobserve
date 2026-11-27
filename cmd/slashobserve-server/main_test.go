@@ -18,7 +18,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/findings"
-	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 	"github.com/slashobserve/slashobserve/internal/logtest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -148,36 +147,29 @@ func TestReportedEffortIsOnlyAnAnthropicSetting(t *testing.T) {
 	}
 }
 
-type namedModel struct {
-	llm.Provider
-	model string
-}
-
-func (m namedModel) Model() string { return m.model }
-
 func TestCostLimitNeedsAModelWithAFullPrice(t *testing.T) {
 	prices, err := pricing.Parse([]byte("models:\n  full: { input: 1, output: 2, cache_read: 0, cache_write: 0 }\n  dated: { input: 1, output: 2, cache_read: 0, cache_write: 0, match: [dated-] }\n  partial: { input: 1, output: 2 }\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	tests := []struct {
-		name     string
-		limit    float64
-		provider llm.Provider
-		wantErr  bool
+		name    string
+		limit   float64
+		model   string
+		wantErr bool
 	}{
-		{"no limit and an unpriced model", 0, namedModel{model: "unknown"}, false},
-		{"a limit and the agent off", 1, nil, false},
-		{"a limit and a fully priced model", 1, namedModel{model: "full"}, false},
-		{"a limit and a model priced by prefix", 1, namedModel{model: "dated-2026"}, false},
-		{"a limit and a dated id of a model with no prefix", 1, namedModel{model: "full-2026"}, true},
-		{"a limit and an unpriced model", 1, namedModel{model: "unknown"}, true},
-		{"a limit and a model missing cache rates", 1, namedModel{model: "partial"}, true},
+		{"no limit and an unpriced model", 0, "unknown", false},
+		{"a limit and the agent off", 1, "", false},
+		{"a limit and a fully priced model", 1, "full", false},
+		{"a limit and a model priced by prefix", 1, "dated-2026", false},
+		{"a limit and a dated id of a model with no prefix", 1, "full-2026", true},
+		{"a limit and an unpriced model", 1, "unknown", true},
+		{"a limit and a model missing cache rates", 1, "partial", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := config.Config{LLM: config.LLM{Prices: prices}, Agent: config.Agent{MaxRunCostUSD: tt.limit}}
-			err := requirePricedModel(cfg, tt.provider)
+			err := requirePricedModel(cfg, tt.model)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("requirePricedModel = %v, want error %v", err, tt.wantErr)
 			}
@@ -261,18 +253,9 @@ func TestFindingURLIsEmptyUntilTheAnswerIsSaved(t *testing.T) {
 	}
 }
 
-type fixedProvider struct {
-	llm.Provider
-	name  string
-	model string
-}
-
-func (p fixedProvider) Name() string  { return p.name }
-func (p fixedProvider) Model() string { return p.model }
-
 func TestBuiltInAgentIsDecidedOnceForEveryRunPath(t *testing.T) {
-	cfg := config.LLM{Provider: config.LLMProviderAnthropic, Effort: "high"}
-	observe, opts := withBuiltInAgent(fixedProvider{name: "anthropic", model: "claude-haiku-5-5"}, cfg, revisions.ObserveOptions{}, nil)
+	cfg := config.LLM{Provider: config.LLMProviderAnthropic, Model: "claude-haiku-5-5", Effort: "high"}
+	observe, opts := withBuiltInAgent(cfg, revisions.ObserveOptions{}, nil)
 	if !revisions.NewService(nil, slog.New(slog.DiscardHandler), opts...).Available() {
 		t.Error("a service built from the options is not available with a provider configured")
 	}
@@ -282,7 +265,7 @@ func TestBuiltInAgentIsDecidedOnceForEveryRunPath(t *testing.T) {
 }
 
 func TestNoProviderLeavesTheBuiltInAgentOff(t *testing.T) {
-	observe, opts := withBuiltInAgent(nil, config.LLM{Provider: config.LLMProviderAnthropic}, revisions.ObserveOptions{}, nil)
+	observe, opts := withBuiltInAgent(config.LLM{}, revisions.ObserveOptions{}, nil)
 	if revisions.NewService(nil, slog.New(slog.DiscardHandler), opts...).Available() {
 		t.Error("a service is available with no provider configured")
 	}

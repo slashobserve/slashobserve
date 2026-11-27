@@ -2,6 +2,7 @@ import { userMessage } from "./brief/render"
 import { log } from "./log"
 import type { DraftApi } from "./mcp"
 import type { DraftFailure, DraftJob, FinishDraftInput } from "./protocol"
+import { failedCallFields } from "./run"
 import {
   CallError,
   NoFixtureError,
@@ -190,6 +191,12 @@ export async function runDraft(
         })
         report = turnReport(job.id, turn, Date.now() - turnStarted)
       } catch (error) {
+        if (error instanceof CallError) {
+          log("warn", "llm call finished", {
+            draft_id: job.id,
+            ...failedCallFields(error),
+          })
+        }
         report = {
           id: job.id,
           failure: draftFailure(error),

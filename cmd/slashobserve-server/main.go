@@ -61,8 +61,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/inboundmcp"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/livetext"
-	"github.com/slashobserve/slashobserve/internal/llm"
-	"github.com/slashobserve/slashobserve/internal/llm/providers"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/mcpauth"
 	"github.com/slashobserve/slashobserve/internal/metrics"
@@ -370,11 +368,11 @@ func run() error {
 	serverMetrics := metrics.New()
 	serverMetrics.ServerPhase(server.PhaseNames(), func() string { return string(phases.Current()) })
 
-	llmProvider, err := newLLMProvider(cfg, logger, serverMetrics)
+	modelConfigured, err := checkModel(cfg, logger)
 	if err != nil {
 		return err
 	}
-	sidecar, err := prepareAgentRuntime(cfg, llmProvider != nil, serverMetrics.ModelCalls(), logger)
+	sidecar, err := prepareAgentRuntime(cfg, modelConfigured, serverMetrics.ModelCalls(), logger)
 	if err != nil {
 		return err
 	}
@@ -492,7 +490,7 @@ func run() error {
 		revisions.WithThreads(threads.NewRuns()),
 		revisions.WithMetrics(serverMetrics.AgentRequests()),
 	}
-	observeOpts, revisionOpts := withBuiltInAgent(llmProvider, cfg.LLM, baseObserveOpts, revisionOpts)
+	observeOpts, revisionOpts := withBuiltInAgent(cfg.LLM, baseObserveOpts, revisionOpts)
 	revisionsService := revisions.NewService(database, logger, revisionOpts...)
 	findingsService.RecordAnswerReadsWith(revisionsService.RecordAnswerRead)
 	threadsService.ReadAnswersWith(revisionsService, threadAnswers{findings: findingsService, url: findingURL})
@@ -500,7 +498,7 @@ func run() error {
 		_, err := threadsService.ReadMessage(ctx, by, messageID)
 		return err
 	})
-	asks := threads.NewAsks(threadsService, revisionsService, llmProvider != nil)
+	asks := threads.NewAsks(threadsService, revisionsService, modelConfigured)
 	claimsConfig := claims.Config{
 		DB: database, Runs: revisionsService, Listen: database.Listen, PublicURL: cfg.PublicURL, InternalURL: sidecar.internalURL(),
 		InstanceID: serverID, Model: sidecar.modelSettings(cfg), Agent: sidecar.agentSettings(cfg), RunTimeout: cfg.Agent.RunTimeout, Logger: logger,
@@ -922,28 +920,32 @@ func metricsMounts(enabled bool, registry *metrics.Registry) []server.Mount {
 	return []server.Mount{{Path: "/metrics", Handler: registry.Handler()}}
 }
 
-func newLLMProvider(cfg config.Config, logger *slog.Logger, serverMetrics *metrics.Registry) (llm.Provider, error) {
-	provider, err := providers.New(cfg.LLM, logger)
-	if err != nil {
-		return nil, described("llm_provider_failed", err)
+func configuredModel(llm config.LLM) (provider, model string, ok bool) {
+	if llm.Provider == "" {
+		return "", "", false
 	}
-	if provider == nil {
-		logger.Info("no llm provider configured; the agent is off")
-		return nil, nil
-	}
-	logger.Info("llm provider configured", slog.String("provider", provider.Name()), slog.String("model", provider.Model()))
-	if err := requirePricedModel(cfg, provider); err != nil {
-		return nil, described("invalid_config", err)
-	}
-	return provider, nil
+	return llm.Provider, cmp.Or(llm.Model, llm.Provider), true
 }
 
-func requirePricedModel(cfg config.Config, provider llm.Provider) error {
-	if provider == nil || cfg.Agent.MaxRunCostUSD <= 0 {
+func checkModel(cfg config.Config, logger *slog.Logger) (bool, error) {
+	provider, model, ok := configuredModel(cfg.LLM)
+	if !ok {
+		logger.Info("no llm provider configured; the agent is off")
+		return false, nil
+	}
+	logger.Info("llm provider configured", slog.String("provider", provider), slog.String("model", model))
+	if err := requirePricedModel(cfg, model); err != nil {
+		return false, described("invalid_config", err)
+	}
+	return true, nil
+}
+
+func requirePricedModel(cfg config.Config, model string) error {
+	if model == "" || cfg.Agent.MaxRunCostUSD <= 0 {
 		return nil
 	}
-	if price, ok := cfg.LLM.Prices.Lookup(provider.Model()); !ok || !price.Complete() {
-		return fmt.Errorf("SLASHOBSERVE_AGENT_RUN_MAX_COST_USD is set but model %q has no price for every token class; add it to SLASHOBSERVE_LLM_PRICES_FILE", provider.Model())
+	if price, ok := cfg.LLM.Prices.Lookup(model); !ok || !price.Complete() {
+		return fmt.Errorf("SLASHOBSERVE_AGENT_RUN_MAX_COST_USD is set but model %q has no price for every token class; add it to SLASHOBSERVE_LLM_PRICES_FILE", model)
 	}
 	return nil
 }
@@ -954,11 +956,12 @@ func warnOptInLogging(logger *slog.Logger, cfg config.Config) {
 	}
 }
 
-func withBuiltInAgent(provider llm.Provider, cfg config.LLM, observe revisions.ObserveOptions, opts []revisions.Option) (revisions.ObserveOptions, []revisions.Option) {
-	if provider == nil {
+func withBuiltInAgent(cfg config.LLM, observe revisions.ObserveOptions, opts []revisions.Option) (revisions.ObserveOptions, []revisions.Option) {
+	provider, model, ok := configuredModel(cfg)
+	if !ok {
 		return observe, opts
 	}
-	observe.Provider, observe.Model = provider.Name(), provider.Model()
+	observe.Provider, observe.Model = provider, model
 	observe.Effort = reportedEffort(cfg)
 	return observe, append(opts, revisions.WithBuiltInAgent())
 }
