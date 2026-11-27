@@ -218,14 +218,26 @@ func TestHTTPAdminRoutesRefuseLowerRoles(t *testing.T) {
 	}
 }
 
-func TestHTTPServiceAccountAdminsCanConnect(t *testing.T) {
+func TestHTTPKeysCannotCreateChangeTestOrDeleteAConnection(t *testing.T) {
 	h := newHTTPRig(t, newRig(t))
+	id := h.connect(t).ID
 	h.caller = serviceAccount
-	created := h.call(t, http.MethodPost, "/api/v1/grafana", `{"name":"CI","url":"`+grafanaURL+`","token":"`+grafanaToken+`"}`)
-	expect(t, created, http.StatusCreated, "")
-	if !strings.Contains(created.Body.String(), `"created_by":"`+serviceAccount.ID+`"`) {
-		t.Fatalf("created %s", created.Body)
+	base := "/api/v1/grafana/" + id
+	routes := []struct{ method, path, body string }{
+		{http.MethodPost, "/api/v1/grafana", `{"name":"CI","url":"` + grafanaURL + `","token":"` + grafanaToken + `"}`},
+		{http.MethodPatch, base, `{"name":"x"}`},
+		{http.MethodPost, base + "/test", ""},
+		{http.MethodDelete, base, ""},
 	}
+	for _, r := range routes {
+		expect(t, h.call(t, r.method, r.path, r.body), http.StatusForbidden, "forbidden")
+	}
+	if n := h.count(t, "SELECT count(*) FROM grafana_connections"); n != 1 {
+		t.Fatalf("%d connections, want the one the Admin made", n)
+	}
+	expect(t, h.call(t, http.MethodGet, "/api/v1/grafana", ""), http.StatusOK, "")
+	expect(t, h.call(t, http.MethodGet, base, ""), http.StatusOK, "")
+	expect(t, h.call(t, http.MethodGet, base+"/folders", ""), http.StatusOK, "")
 }
 
 func TestHTTPRefusesBadRequests(t *testing.T) {

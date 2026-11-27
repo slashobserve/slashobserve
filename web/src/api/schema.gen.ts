@@ -3543,7 +3543,7 @@ export interface paths {
         put?: never;
         /**
          * Store a Grafana URL and service-account token.
-         * @description Only Admins can call this endpoint. The URL may be http or https on any port, and its host may resolve to a private or loopback address, because Grafana usually runs inside the network. The host must be a domain name, and it is added to the outbound allowlist when it is not allowed yet. The token is encrypted with a key derived from `SLASHOBSERVE_SECRET_KEY` and is never returned.
+         * @description Only signed-in Admins can call this endpoint: a service-account key gets 403 `forbidden`, whatever its role, because storing a credential is a person's decision. The URL may be http or https on any port, and its host may resolve to a private or loopback address, because Grafana usually runs inside the network. The host must be a domain name, and it is added to the outbound allowlist when it is not allowed yet. The token is encrypted with a key derived from `SLASHOBSERVE_SECRET_KEY` and is never returned.
          */
         post: operations["createGrafanaConnection"];
         delete?: never;
@@ -3570,14 +3570,14 @@ export interface paths {
         post?: never;
         /**
          * Delete a connection and its stored token.
-         * @description Only Admins can call this endpoint. Imported dashboards stay. The host's outbound allowlist entry, when the connection added it, is removed unless a webhook, a datasource or another connection still uses the host.
+         * @description Only signed-in Admins can call this endpoint: a service-account key gets 403 `forbidden`, whatever its role. Imported dashboards stay. The host's outbound allowlist entry, when the connection added it, is removed unless a webhook, a datasource or another connection still uses the host.
          */
         delete: operations["deleteGrafanaConnection"];
         options?: never;
         head?: never;
         /**
          * Change a connection's name, URL or token.
-         * @description Only Admins can call this endpoint. A new URL needs the token again, so a stored token never reaches another host. Changing the URL or the token clears the last test.
+         * @description Only signed-in Admins can call this endpoint: a service-account key gets 403 `forbidden`, whatever its role. A new URL needs the token again, so a stored token never reaches another host. Changing the URL or the token clears the last test.
          */
         patch: operations["updateGrafanaConnection"];
         trace?: never;
@@ -3595,7 +3595,7 @@ export interface paths {
         put?: never;
         /**
          * Check that Grafana answers with the stored token.
-         * @description Only Admins can call this endpoint. The server reads `/api/health`, `/api/folders` and the first page of `/api/search`, and stores the outcome in `last_test`. A Grafana that cannot be reached or refuses the token still answers 200, with `last_test.ok` false and a fixed message. Every test is recorded as `grafana_connection.test` with the host and the outcome.
+         * @description Only signed-in Admins can call this endpoint: a service-account key gets 403 `forbidden`, whatever its role. The server reads `/api/health`, `/api/folders` and the first page of `/api/search`, and stores the outcome in `last_test`. A Grafana that cannot be reached or refuses the token still answers 200, with `last_test.ok` false and a fixed message. Every test is recorded as `grafana_connection.test` with the host and the outcome.
          */
         post: operations["testGrafanaConnection"];
         delete?: never;
@@ -18783,7 +18783,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
-            /** @description The role is too low (`forbidden_role`), or `SLASHOBSERVE_OUTBOUND_DOMAINS` is set and does not allow the host (`outbound_domain_not_allowed`). */
+            /** @description The role is too low (`forbidden_role`), the caller is a service-account key (`forbidden`), or `SLASHOBSERVE_OUTBOUND_DOMAINS` is set and does not allow the host (`outbound_domain_not_allowed`). */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -18892,7 +18892,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
-            /** @description The role is too low (`forbidden_role`), or `SLASHOBSERVE_OUTBOUND_DOMAINS` is set and does not allow the new host (`outbound_domain_not_allowed`). */
+            /** @description The role is too low (`forbidden_role`), the caller is a service-account key (`forbidden`), or `SLASHOBSERVE_OUTBOUND_DOMAINS` is set and does not allow the new host (`outbound_domain_not_allowed`). */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -19223,7 +19223,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
-            /** @description The role is too low (`forbidden_role`), or `SLASHOBSERVE_OUTBOUND_DOMAINS` is set and does not allow the host (`outbound_domain_not_allowed`). */
+            /** @description The role is too low (`forbidden_role`), the caller is a service-account key (`forbidden`), or `SLASHOBSERVE_OUTBOUND_DOMAINS` is set and does not allow the host (`outbound_domain_not_allowed`). */
             403: {
                 headers: {
                     [name: string]: unknown;
