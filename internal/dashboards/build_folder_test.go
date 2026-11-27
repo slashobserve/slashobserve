@@ -17,13 +17,13 @@ func TestANewDashboardBuildCommitsIntoTheFolderItNamedAndAnUnnamedOneIntoMyDashb
 	general := r.generalFolder(t)
 
 	named := r.runningRequestFor(t, ada)
-	if build, err := r.service.SaveBuild(reading(t.Context()), ada.principal, BuildSave{RequestID: named, Attempt: buildAttempt, FolderID: general, Spec: panelsSpec("t", "p1")}); err != nil || build.FolderID != general {
+	if build, err := r.service.SaveBuild(reading(t.Context()), ada.principal, BuildSave{RequestID: named, ClaimEpoch: buildEpoch, FolderID: general, Spec: panelsSpec("t", "p1")}); err != nil || build.FolderID != general {
 		t.Fatalf("save with a folder: folder %v, err %v", build.FolderID, err)
 	}
-	if again, err := r.service.SaveBuild(reading(t.Context()), ada.principal, BuildSave{RequestID: named, Attempt: buildAttempt, Spec: panelsSpec("t", "p1", "p2")}); err != nil || again.FolderID != general {
+	if again, err := r.service.SaveBuild(reading(t.Context()), ada.principal, BuildSave{RequestID: named, ClaimEpoch: buildEpoch, Spec: panelsSpec("t", "p1", "p2")}); err != nil || again.FolderID != general {
 		t.Fatalf("a later save without a folder: folder %v, err %v", again.FolderID, err)
 	}
-	commit, err := r.service.CommitBuild(reading(t.Context()), ada.principal, named, buildAttempt)
+	commit, err := r.service.CommitBuild(reading(t.Context()), ada.principal, named, buildEpoch)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestANewDashboardBuildCommitsIntoTheFolderItNamedAndAnUnnamedOneIntoMyDashb
 
 	unnamed := r.runningRequestFor(t, ada)
 	r.saveBuildAs(t, ada, unnamed, "p1")
-	commit, err = r.service.CommitBuild(reading(t.Context()), ada.principal, unnamed, buildAttempt)
+	commit, err = r.service.CommitBuild(reading(t.Context()), ada.principal, unnamed, buildEpoch)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestANewDashboardBuildRefusesAFolderTheRequesterCannotCreateIn(t *testing.T
 		if tc.by {
 			by = commenterNoGrant
 		}
-		_, err := r.service.SaveBuild(reading(t.Context()), by, BuildSave{RequestID: request, Attempt: buildAttempt, FolderID: tc.folder, Spec: panelsSpec("t", "p1")})
+		_, err := r.service.SaveBuild(reading(t.Context()), by, BuildSave{RequestID: request, ClaimEpoch: buildEpoch, FolderID: tc.folder, Spec: panelsSpec("t", "p1")})
 		if !errors.Is(err, tc.want) {
 			t.Errorf("%s: error = %v, want %v", name, err, tc.want)
 		}

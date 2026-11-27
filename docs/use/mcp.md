@@ -370,7 +370,8 @@ The loop of an agent that takes runs:
    - `system_prompt`, the prompt to read with the run's `kind`: its `name` (`observe`) and `arguments`.
 
       The `run` holds these fields:
-   - `id`, `attempt`, `kind` (`build` or `investigate`), `intent` (`ask`, `apply` or `suggest`) and `prompt`.
+   - `id`, `attempt`, `claim_epoch`, `kind` (`build` or `investigate`), `intent` (`ask`, `apply` or `suggest`) and `prompt`.
+     `claim_epoch` is a number that grows every time the run is claimed, while `attempt` is reused when a claim is handed back.
    - Its target: `dashboard_id`, `base_version`, `panel_id`, `from` and `to`, each null when the run has none.
    - `continue_note`, and `requested_by`, the person it acts for, with their `kind`, `id` and `name`.
    - `thread_context`, the earlier messages of the thread oldest first, when a message in a comment thread started the run; read it before you answer.
@@ -385,20 +386,21 @@ The loop of an agent that takes runs:
 3. Read the `observe` prompt with that `kind`; it is the system text SlashObserve's own agent works from for that kind of run.
    `get_run_brief` returns the same text with the first message SlashObserve's own agent starts each model session with, and is optional.
 4. Open a second MCP connection to the session `url` with the token as the Bearer, and work with the tools it lists.
-5. Call `report_run` at least every 30 seconds with the `run_id` and `attempt`.
+5. Call `report_run` at least every 30 seconds with the `run_id`, `attempt` and `claim_epoch`.
    The lease ends 60 seconds after the last call, and `stop: true` in the answer means the run was canceled or has ended.
    `note`, one line of at most 500 characters, shows in the run's steps.
    When the server has no run time limit, the session's `expires_at` is a minute out and every `report_run` moves it a minute on, so a run lasts as long as it keeps reporting.
 6. Call `finish_run` with `outcome` `succeeded` or `failed`.
 
 A claim tool called with a run that is not yours at that attempt answers `not_your_run`.
+`claim_epoch` is optional on `report_run`, `finish_run` and `get_run_brief`; send it, because with it a call from a claim that was handed back and taken again also answers `not_your_run`.
 
 The session lists the tools SlashObserve's own agent has for that kind of run, with the same text, and none above the requester's role.
 It lists none of the 22 tools that no run has, such as the claim tools, `start_run` and the comment writes; [the agent](../concepts/agent.md#tools-in-a-run) lists them with their reasons.
 It acts for the person who asked and records every call in the run's steps.
 Its prompt list is empty, because the `observe` prompt is read on the first connection.
 
-The token stops working when the attempt changes, when the run is canceled or ends, when the lease lapses, or when the run passes its time limit.
+The token stops working when the run is claimed again, when the run is canceled or ends, when the lease lapses, or when the run passes its time limit.
 A report that arrives after the time limit ends the run as failed.
 A run that saved a dashboard version, a [proposal](../concepts/proposals.md) or a finding ends as succeeded whatever `finish_run` says, and one that saved nothing ends as failed.
 A run that no outside agent took within 10 minutes fails as `agent_unavailable`.
@@ -446,7 +448,7 @@ Some results also carry a note after the content, which an agent reads like any 
 
 ### Briefs, usage and live text
 
-`get_run_brief` takes `run_id`, `attempt` and an optional `reason` (`restart`, `output_limit`, `pending`, `conflict`, `continue`, `renewed`, `call_timeout`, `no_finding` or `no_answer`) and answers `system`, `message`, `reason` and `build`.
+`get_run_brief` takes `run_id`, `attempt`, an optional `claim_epoch` and an optional `reason` (`restart`, `output_limit`, `pending`, `conflict`, `continue`, `renewed`, `call_timeout`, `no_finding` or `no_answer`) and answers `system`, `message`, `reason` and `build`.
 `message` is the first message of a model session.
 Calling it starts a session: it resets the read guard and pins the parent version the run's saves are checked against.
 The server may replace `reason`, with `conflict` after a rebase and with the resume reason when the run has a build.

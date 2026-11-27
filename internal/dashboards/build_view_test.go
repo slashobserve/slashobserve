@@ -33,7 +33,7 @@ func (r *rig) personalRevisionBuild(t *testing.T, owner person) pgtype.UUID {
 		t.Fatalf("claimed %v, want %v, err %v", claimed.AgentRequest.ID, row.ID, err)
 	}
 	_, err = r.service.SaveBuild(reading(t.Context()), owner.principal, BuildSave{
-		RequestID: row.ID, Attempt: buildAttempt, DashboardID: dashID, BaseVersion: 1, Spec: panelsSpec("t", "rps", "p99"),
+		RequestID: row.ID, ClaimEpoch: buildEpoch, DashboardID: dashID, BaseVersion: 1, Spec: panelsSpec("t", "rps", "p99"),
 	})
 	if err != nil {
 		t.Fatal(err)
