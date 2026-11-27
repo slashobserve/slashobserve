@@ -177,8 +177,8 @@ func TestContentHoldingAnAnswerThatReadAdminOnlyDataStaysWhereOnlyAdminsRead(t *
 			if !errors.Is(err, folders.ErrRestrictedAnswer) {
 				t.Fatalf("opening the folder: err = %v, want the restricted answer refusal", err)
 			}
-			if err := h.move(g, r, t, id, general); !errors.Is(err, folders.ErrRestrictedAnswer) {
-				t.Fatalf("moving it to General: err = %v, want the restricted answer refusal", err)
+			if err := h.move(g, r, t, id, general); !errors.Is(err, folders.ErrRestrictedAnswer) || folders.RestrictedAnswerReason(err) != folders.ConfinedPermanent {
+				t.Fatalf("moving it to General: err = %v, want the permanent restricted answer refusal", err)
 			}
 			if err := h.move(g, r, t, id, foldertest.AdminsOnly(t, r.d, name+" too")); err != nil {
 				t.Fatalf("moving it to another folder only Admins read: %v", err)
@@ -227,10 +227,10 @@ func TestARunInFlightKeepsWhatItIsAboutWhereOnlyAdminsReadUntilItEnds(t *testing
 			r.d.Exec(t, `UPDATE agent_requests SET `+h.about+` = $2::uuid, status = 'running', state = 'running' WHERE id = $1::uuid`, run, raw)
 
 			err := g.OpeningGuard()(t.Context(), r.d.Queries(), dbsqlc.Folder{ID: folder})
-			if !errors.Is(err, folders.ErrRestrictedAnswer) || !strings.Contains(err.Error(), "has not finished") {
+			if !errors.Is(err, folders.ErrRestrictedAnswer) || !strings.Contains(err.Error(), "has not finished") || folders.RestrictedAnswerReason(err) != folders.ConfinedRunInFlight {
 				t.Fatalf("opening the folder while a run is working: err = %v", err)
 			}
-			if err := h.move(id, general); !errors.Is(err, folders.ErrRestrictedAnswer) || !strings.Contains(err.Error(), "wait for it to end") {
+			if err := h.move(id, general); !errors.Is(err, folders.ErrRestrictedAnswer) || !strings.Contains(err.Error(), "wait for it to end") || folders.RestrictedAnswerReason(err) != folders.ConfinedRunInFlight {
 				t.Fatalf("moving it to General while a run is working: err = %v", err)
 			}
 			shared := r.uuid(t, r.scalar(t, `INSERT INTO folders (title) VALUES ($1) RETURNING id::text`, name+" shared"))

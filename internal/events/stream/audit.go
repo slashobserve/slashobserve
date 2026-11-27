@@ -69,8 +69,8 @@ func (h *AuditHandler) serve(c *gin.Context) {
 	ctx := c.Request.Context()
 	principal, _ := auth.FromContext(ctx)
 	key := string(principal.Kind) + ":" + principal.ID
-	if status, code := h.slots.acquire(key); status != 0 {
-		abort(c, http.StatusTooManyRequests, code, tooManyAuditStreams)
+	if status, reason := h.slots.acquire(key); status != 0 {
+		abortTooManyStreams(c, http.StatusTooManyRequests, reason, tooManyAuditStreams)
 		return
 	}
 	defer h.slots.release(key)
@@ -121,6 +121,10 @@ type auditPump struct {
 }
 
 func (h *AuditHandler) pump(c *gin.Context, follow *trail.Follow, follower *events.Follower) {
+	sayClosed(c, h.follow(c, follow, follower))
+}
+
+func (h *AuditHandler) follow(c *gin.Context, follow *trail.Follow, follower *events.Follower) closeReason {
 	poll := time.NewTicker(h.pollInterval)
 	defer poll.Stop()
 	ping := time.NewTicker(h.pingInterval)
@@ -128,48 +132,49 @@ func (h *AuditHandler) pump(c *gin.Context, follow *trail.Follow, follower *even
 	lifetime := time.NewTimer(h.lifetime)
 	defer lifetime.Stop()
 	p := &auditPump{h: h, c: c, follow: follow}
-	if !p.poll() {
-		return
+	if end := p.poll(); end != stillOpen {
+		return end
 	}
 	for {
 		select {
 		case <-poll.C:
-			if !p.poll() {
-				return
+			if end := p.poll(); end != stillOpen {
+				return end
 			}
 		case <-ping.C:
-			if !p.ping() {
-				return
+			if end := p.ping(); end != stillOpen {
+				return end
 			}
 		case <-lifetime.C:
-			return
+			return closedLifetime
 		case <-follower.Done():
-			return
+			return closedStopping
 		case <-c.Request.Context().Done():
-			return
+			return unannounced
 		}
 	}
 }
 
-func (p *auditPump) poll() bool {
+func (p *auditPump) poll() closeReason {
 	err := p.h.drain(p.c, p.follow)
 	switch {
 	case err == nil:
 		p.timeouts = 0
-		return true
+		return stillOpen
 	case errors.Is(err, trail.ErrTimeout):
 		if p.timeouts++; p.timeouts < maxAuditPollTimeouts {
-			return true
+			return stillOpen
 		}
 		writeEvent(p.c, "error", trail.Problem{Code: codeTooExpensive, Message: tooExpensive})
+		return unannounced
 	case errors.Is(err, errWriteFailed), p.c.Request.Context().Err() != nil:
-	default:
-		p.h.logger.ErrorContext(p.c.Request.Context(), "read audit stream", logattrs.Failure("audit_stream_failed", err)...)
+		return unannounced
 	}
-	return false
+	p.h.logger.ErrorContext(p.c.Request.Context(), "read audit stream", logattrs.Failure("audit_stream_failed", err)...)
+	return closedReadFailed
 }
 
-func (p *auditPump) ping() bool {
+func (p *auditPump) ping() closeReason {
 	still, failed := p.h.stillAdmin(p.c.Request)
 	if failed {
 		p.failedChecks++
@@ -178,9 +183,15 @@ func (p *auditPump) ping() bool {
 	}
 	if !still {
 		writeEvent(p.c, "forbidden", forbidden.NeedsRole(string(auth.RoleAdmin)))
-		return false
+		return unannounced
 	}
-	return p.failedChecks < maxFailedChecks && write(p.c, ": ping\n\n")
+	if p.failedChecks >= maxFailedChecks {
+		return closedCheckFailed
+	}
+	if !write(p.c, ": ping\n\n") {
+		return unannounced
+	}
+	return stillOpen
 }
 
 var errWriteFailed = errors.New("write audit stream frame")

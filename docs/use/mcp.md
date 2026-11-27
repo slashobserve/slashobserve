@@ -82,6 +82,10 @@ The connection has these limits:
 - You can have at most 20 connected agents, and approving a client you already connected replaces that connection.
 - An approval the client has not yet finished lasts 60 seconds and counts toward the 20.
 
+When a connection has ended, the token endpoint still answers a refresh with `invalid_grant`, and says why: `error_description` names the cause, `grant_state` is `revoked`, `expired` or `aged_out`, and `revoked_reason` is set for a revoked one.
+A client can so tell "connect again" from "you were disconnected".
+A refresh token that was already exchanged, and an authorization code that expired or was already used, each get their own `error_description`; an unknown token and one sent by another client keep the general text.
+
 ### Disconnect an agent
 
 In the web app, open Settings, Connected agents.
@@ -94,6 +98,7 @@ In Claude Code, `claude mcp logout slashobserve` clears only the credentials Cla
 Over the HTTP API, any signed-in person lists and disconnects their own agents with `GET /api/v1/me/grants` and `DELETE /api/v1/me/grants/{id}`.
 An Admin lists and disconnects everyone's with `GET /api/v1/grants` and `DELETE /api/v1/grants/{id}`.
 Each connected agent in the list has a `state`, always `active` there because the list leaves out revoked and expired connections; see [States](../reference/states.md).
+Add `include_ended=true` to either list to also get the connections that ended in the last 30 days: `state` is then `revoked`, `expired` (the refresh token went unused for 30 days) or `aged_out` (the 90 day limit), and `revoked_reason` says how a revoked one ended: `person`, `admin`, `client`, `replaced`, `refresh_reuse` or `code_reuse`.
 Service-account keys cannot call any of these routes.
 
 ## Make your first tool call
@@ -370,7 +375,8 @@ The loop of an agent that takes runs:
    - `system_prompt`, the prompt to read with the run's `kind`: its `name` (`observe`) and `arguments`.
 
       The `run` holds these fields:
-   - `id`, `attempt`, `kind` (`build` or `investigate`), `intent` (`ask`, `apply` or `suggest`) and `prompt`.
+   - `id`, `attempt`, `claim_epoch`, `kind` (`build` or `investigate`), `intent` (`ask`, `apply` or `suggest`) and `prompt`.
+     `claim_epoch` is a number that grows every time the run is claimed, while `attempt` is reused when a claim is handed back.
    - Its target: `dashboard_id`, `base_version`, `panel_id`, `from` and `to`, each null when the run has none.
    - `continue_note`, and `requested_by`, the person it acts for, with their `kind`, `id` and `name`.
    - `thread_context`, the earlier messages of the thread oldest first, when a message in a comment thread started the run; read it before you answer.
@@ -385,20 +391,21 @@ The loop of an agent that takes runs:
 3. Read the `observe` prompt with that `kind`; it is the system text SlashObserve's own agent works from for that kind of run.
    `get_run_brief` returns the same text with the first message SlashObserve's own agent starts each model session with, and is optional.
 4. Open a second MCP connection to the session `url` with the token as the Bearer, and work with the tools it lists.
-5. Call `report_run` at least every 30 seconds with the `run_id` and `attempt`.
+5. Call `report_run` at least every 30 seconds with the `run_id`, `attempt` and `claim_epoch`.
    The lease ends 60 seconds after the last call, and `stop: true` in the answer means the run was canceled or has ended.
    `note`, one line of at most 500 characters, shows in the run's steps.
    When the server has no run time limit, the session's `expires_at` is a minute out and every `report_run` moves it a minute on, so a run lasts as long as it keeps reporting.
 6. Call `finish_run` with `outcome` `succeeded` or `failed`.
 
 A claim tool called with a run that is not yours at that attempt answers `not_your_run`.
+`claim_epoch` is optional on `report_run`, `finish_run` and `get_run_brief`; send it, because with it a call from a claim that was handed back and taken again also answers `not_your_run`.
 
 The session lists the tools SlashObserve's own agent has for that kind of run, with the same text, and none above the requester's role.
 It lists none of the 22 tools that no run has, such as the claim tools, `start_run` and the comment writes; [the agent](../concepts/agent.md#tools-in-a-run) lists them with their reasons.
 It acts for the person who asked and records every call in the run's steps.
 Its prompt list is empty, because the `observe` prompt is read on the first connection.
 
-The token stops working when the attempt changes, when the run is canceled or ends, when the lease lapses, or when the run passes its time limit.
+The token stops working when the run is claimed again, when the run is canceled or ends, when the lease lapses, or when the run passes its time limit.
 A report that arrives after the time limit ends the run as failed.
 A run that saved a dashboard version, a [proposal](../concepts/proposals.md) or a finding ends as succeeded whatever `finish_run` says, and one that saved nothing ends as failed.
 A run that no outside agent took within 10 minutes fails as `agent_unavailable`.
@@ -442,11 +449,13 @@ Every result of a run session carries `_meta["slashobserve.com/run"]` with `{"se
 - `null` otherwise.
 
 `build` is the saved panel progress, `{"saves", "panels", "planned_panels"}`, or `null` when the run has no build.
+`get_run` and `GET /api/v1/observe/{id}` return the same `settled` value for a running run (never `restarted`, which describes one call), so a reader can tell a run that already has its result from one still working.
+They also return `check_failures` and `check_failures_max`: a run going back to the queue with that count rising is waiting on a server check, and it fails with `check_failed` at the limit.
 Some results also carry a note after the content, which an agent reads like any other tool text.
 
 ### Briefs, usage and live text
 
-`get_run_brief` takes `run_id`, `attempt` and an optional `reason` (`restart`, `output_limit`, `pending`, `conflict`, `continue`, `renewed`, `call_timeout`, `no_finding` or `no_answer`) and answers `system`, `message`, `reason` and `build`.
+`get_run_brief` takes `run_id`, `attempt`, an optional `claim_epoch` and an optional `reason` (`restart`, `output_limit`, `pending`, `conflict`, `continue`, `renewed`, `call_timeout`, `no_finding` or `no_answer`) and answers `system`, `message`, `reason` and `build`.
 `message` is the first message of a model session.
 Calling it starts a session: it resets the read guard and pins the parent version the run's saves are checked against.
 The server may replace `reason`, with `conflict` after a rebase and with the resume reason when the run has a build.
@@ -459,7 +468,8 @@ A request on the run's token after the run ended is answered with HTTP 409 and `
 - `text`, at most 4,000 characters: the end of what the model is writing, shown on the run as live text while the run is running and never stored.
 - `usage`: the agent's model use so far, cumulative, with `provider`, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `cost_usd`, `model_calls`, `failed_calls`, `retries`, `compactions`, `renewals`, `model_ms` and `max_save_output_tokens`.
 
-Its answer has, next to `state`, `stop` and `lease_until`, the run's `build` progress.
+Its answer has, next to `state`, `stop` and `lease_until`, the run's `build` progress and `server_time`, the server's clock when it renewed the lease.
+`lease_until` minus `server_time` is how long the lease has left, so an agent can time it on its own clock from the moment it sent the report, whatever the difference between its clock and the server's.
 
 `finish_run` also takes `failure_code`, one of `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `no_finding`, `refused`, `no_fixture` and `internal`, with `outcome` `failed`.
 The server stores its own text for the code, so no `message` is needed.
@@ -844,19 +854,21 @@ Its content is described under [Tool text and instructions](#tool-text-and-instr
 
 #### `list_dashboards`
 
-Lists the dashboards the key can see, with `id`, `title`, `tags`, `folder`, `latest_version`, `updated_at`, `view_count` and `url`.
+Lists the dashboards the key can see, with `id`, `title`, `tags`, `folder`, `latest_version`, `updated_at`, `view_count`, `url` and `managed_by`.
 
 - `limit` is 1 to 50, 20 by default, and `cursor` takes the `next_cursor` of the previous page.
 - `order` is `updated` (the default), `views` for the most viewed first, or `name` for A to Z by title.
   Pass a `next_cursor` back with the order that produced it.
 - `exclude_audit: true` leaves out the dashboards in the [Audit folder](activity.md#audit-folder).
 - `view_count` is the number of people-days on which the dashboard was opened in the last 30 days.
+- `managed_by` has the values it has on [`get_dashboard`](#get_dashboard).
 
 #### `get_dashboard`
 
 Reads a dashboard's Spec at the latest version, or at `version`.
 
 - The result has `saved_by`, `origin`, `saved_at` and `summary` of that version, its `url`, its `folder` and its `unverified` panels and variables.
+- `managed_by` says what writes the dashboard: `starter` (a release, so it is read-only), `file` (a file in the server's [provisioning directory](../operate/provisioning.md#edits-made-in-the-app)), `apply` (`observe dashboards apply`) or `workspace` (only people in the app).
 - It also has `view_count`, with `window_days`.
 - A Spec over 128 KiB returns `too_large`; read its panels with `get_panels` instead.
 
@@ -889,9 +901,13 @@ Use it only to rewrite most of a dashboard; for anything smaller, use `update_pa
 - It runs every panel query before it saves, as `create_dashboard` does.
 - If a newer version has been saved since and your save changed none of the panels, variables and settings that version changed, the server merges the two.
   The result then carries `merged_from`, with the `base_version` you read and the `onto_version` it merged onto.
+- The result's `outcome` says whether the save made a version: `created` or `merged` did, `replayed` returned a version that already exists, and `proposed` opened or revised a proposal.
+  `update_panels` answers with it too.
 - If both changed the same panel, variable or setting, it returns the tool error `version_conflict` with `latest_version` and `conflicts`.
   Each conflict has a `kind`, an `id`, a `reason` and a `message`.
   The client reads the latest version and applies its change again.
+- A save to a dashboard whose `managed_by` is `file` or `apply` works, and the result carries a `warning`: a change to the provisioning file, or applying the file again after it changes, replaces the edit, which stays in the version history.
+- Every result that answers with a saved version has the dashboard's `managed_by`: a create, a save, a restore, a move, a duplicate and a build commit.
 - It saves a [proposal](../concepts/proposals.md) instead when the caller can comment but not edit, or when its connection is in propose mode.
   The answer is a success, not a tool error.
   Its code is `proposed`, and it carries `proposal_id`, `revision`, `opened` (false when the save added a revision to the caller's open proposal) and the dashboard's `url`.
@@ -917,7 +933,7 @@ Behavior:
 - It runs only the queries it changed, and every query when `time` changes to a different range, as [What a save checks](../concepts/agent.md#what-a-save-checks) describes.
 - A rejection lists `failing_panels`, so the client resends only those panels.
 - An overlap is reported at the panel the patch upserted or moved, with both panels' positions in the message.
-- Merging, `version_conflict`, `proposed` and `proposal_required` work as for `update_dashboard`.
+- Merging, the `warning` on a dashboard that a file writes, `version_conflict`, `proposed` and `proposal_required` work as for `update_dashboard`.
 
 #### `list_dashboard_versions`
 
@@ -934,6 +950,7 @@ It takes `dashboard_id`, `from` (0 compares against an empty dashboard; by defau
 Saves an earlier version as a new one.
 It takes `dashboard_id`, `version`, the `parent_version` you read as the latest, and an optional `summary` of at most 200 characters.
 It applies the same `parent_version` check as a save.
+Its result carries the same `warning` as a save when a file writes the dashboard.
 A connection in propose mode cannot restore a dashboard directly and gets `proposal_required`.
 It can save the change with `update_dashboard`, which becomes a proposal.
 
@@ -964,7 +981,7 @@ See [Import Grafana dashboards](import-grafana.md).
 - A file whose Grafana uid an earlier import already holds, in a dashboard you can see, is not imported twice.
   The call fails with `already_imported`, and `existing` names that dashboard with its `dashboard_id`, `title`, `version`, `url` and `can_update`.
   - Pass its `dashboard_id` as the tool's `update_dashboard` argument, which is not the `update_dashboard` tool, to save the JSON as its next version.
-    That needs Edit, keeps the folder, and answers `updated: true`.
+    That needs Edit, keeps the folder, and answers `updated: true`, with the `warning` of a save when a file writes the dashboard.
   - Or set `import_as_new` to make another dashboard on purpose.
 - An update with a file that has another Grafana uid than the dashboard was imported from fails with `grafana_uid_mismatch` and changes nothing.
 - A retried call of the same agent request still answers with the dashboard it made.
@@ -1367,6 +1384,7 @@ Returns a proposal with these fields:
 
 - Its `spec` and its `changes`.
 - The `conflicts` a merge would hit while it is open and behind the dashboard.
+- Its `mergeability` while it is open: `current`, `behind_clean`, `behind_conflicting` (send a choice per conflict) or `blocked` (a conflict has the reason `invalid`, so no merge succeeds until the author saves a new revision).
 - The `allowed_actions` of the caller.
 - The field-by-field `diff`.
   The diff is left out, with the step saying so, when it would take the result over 128 KiB.
@@ -1379,6 +1397,7 @@ Saves a proposal as a new version.
 - It takes the `proposal_id`, the `revision` read with `get_proposal` and, for each conflict, a choice such as `{ "kind": "panel", "id": "p1", "take": "theirs" }`.
   `ours` keeps the dashboard's unit and `theirs` takes the proposal's.
 - It needs Edit on the dashboard, and runs the queries of the panels it changes like any save.
+- Its result carries the `warning` of a save when it saved a version of a dashboard whose `managed_by` is `file` or `apply`.
 - It answers `proposal_changed` with the newest `revision` when the author added one.
   It answers `version_conflict` with `conflicts` when a conflict has no choice.
   It answers `invalid_transition` with the `state` and `allowed_actions` when the proposal is already closed.
@@ -1421,6 +1440,7 @@ Opens a thread on a `target`.
   With `block_id` on an observation, it is a spot in that block.
 - `client_id` is a UUID you make for the message.
   Sending the same call again returns the message already posted with `replayed` true, and starts nothing.
+  It carries the same `run` or `run_refusal` as the first answer, so a retry of an ask that was refused still says no run started.
 
 #### `reply_to_comment`
 
@@ -1806,6 +1826,7 @@ The built-in agent also has it, so a request that names a folder can place the d
   A save that reads an Admins-only datasource, and is refused with `restricted_content`, goes in one of those.
   A key below Admin never sees the field.
 - Each folder carries `audit`, true when it is the [Audit folder](activity.md#audit-folder) and false otherwise.
+- Each folder carries `kind`: `general`, `personal`, `audit`, `admins_only`, `restricted` or `open`, as [the folder routes](../teams/folders.md#folder-routes-and-commands) return it.
 - No tool changes a folder's access: an Admin sets it with `observe folders permissions admins-only`.
 
 #### `create_folder`
@@ -1868,7 +1889,7 @@ It covers dashboard saves, restores, moves and deletes, annotations, findings an
 #### `list_inbox`
 
 Lists the [inbox](inbox.md) of the person who signed in to the connected agent: what asks something of them.
-Each item has the `reason` and whether it is `unread`, and the result has `unread_count`.
+Each item has the `reason`, whether it is `unread` and its `state` (`unread`, `read` or `done`), and the result has `unread_count`.
 
 - Pass `view` (`for_you`, `proposals`, `mentions` or `everything`, `for_you` by default), `filter`, `limit` and `cursor` from `next_cursor`.
   `filter` is `open` by default, `unread` for the open items that are unread, or `done` for the items marked done.

@@ -10,6 +10,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -38,12 +39,35 @@ type RCASummaryJSON struct {
 	CreatedAt        string     `json:"created_at"`
 }
 
+type rcaReadJSON struct {
+	RCAJSON
+	State          string   `json:"state"`
+	AllowedActions []string `json:"allowed_actions"`
+}
+
+type rcaSummaryReadJSON struct {
+	RCASummaryJSON
+	State          string   `json:"state"`
+	AllowedActions []string `json:"allowed_actions"`
+}
+
 type rcaEnvelopeJSON struct {
-	RCA RCAJSON `json:"rca"`
+	RCA rcaReadJSON `json:"rca"`
 }
 
 type rcaListJSON struct {
-	RCAs []RCASummaryJSON `json:"rcas"`
+	RCAs []rcaSummaryReadJSON `json:"rcas"`
+}
+
+type rcaRefusalJSON struct {
+	Error          string   `json:"error"`
+	Code           string   `json:"code"`
+	State          string   `json:"state"`
+	AllowedActions []string `json:"allowed_actions"`
+}
+
+func rcaReadOf(r RCA) rcaReadJSON {
+	return rcaReadJSON{RCAJSON: RCAOf(r), State: string(r.RevisionState), AllowedActions: named(r.AllowedActions)}
 }
 
 func RCAOf(r RCA) RCAJSON {
@@ -100,7 +124,7 @@ func (h *RCAHandler) publish(c *gin.Context) {
 		h.fail(c, "publish observation", err)
 		return
 	}
-	c.JSON(http.StatusCreated, rcaEnvelopeJSON{RCA: RCAOf(rca)})
+	c.JSON(http.StatusCreated, rcaEnvelopeJSON{RCA: rcaReadOf(rca)})
 }
 
 func (h *RCAHandler) list(c *gin.Context) {
@@ -113,9 +137,9 @@ func (h *RCAHandler) list(c *gin.Context) {
 		h.fail(c, "list observation RCAs", err)
 		return
 	}
-	body := rcaListJSON{RCAs: make([]RCASummaryJSON, len(rcas))}
+	body := rcaListJSON{RCAs: make([]rcaSummaryReadJSON, len(rcas))}
 	for i, r := range rcas {
-		body.RCAs[i] = RCASummaryOf(r)
+		body.RCAs[i] = rcaSummaryReadJSON{RCASummaryJSON: RCASummaryOf(r), State: string(r.RevisionState), AllowedActions: named(r.AllowedActions)}
 	}
 	c.JSON(http.StatusOK, body)
 }
@@ -143,7 +167,7 @@ func (h *RCAHandler) get(c *gin.Context) {
 		h.fail(c, "get observation RCA", err)
 		return
 	}
-	c.JSON(http.StatusOK, rcaEnvelopeJSON{RCA: RCAOf(rca)})
+	c.JSON(http.StatusOK, rcaEnvelopeJSON{RCA: rcaReadOf(rca)})
 }
 
 func (h *RCAHandler) withdraw(c *gin.Context) {
@@ -165,7 +189,10 @@ func (h *RCAHandler) withdraw(c *gin.Context) {
 func (h *RCAHandler) fail(c *gin.Context, action string, err error) {
 	var failed *PanelFailedError
 	var unchanged *RCAUnchangedError
+	var refusal *RCARefusal
 	switch {
+	case errors.As(err, &refusal):
+		c.AbortWithStatusJSON(http.StatusConflict, rcaRefusalJSON{Error: refusal.Error(), Code: refusal.Code, State: refusal.State, AllowedActions: refusal.Allowed})
 	case errors.As(err, &unchanged):
 		httpapi.AbortError(c, http.StatusConflict, CodeRCAUnchanged, unchanged.Error())
 	case errors.Is(err, ErrRevisionNotFound):
@@ -177,7 +204,7 @@ func (h *RCAHandler) fail(c *gin.Context, action string, err error) {
 	case errors.Is(err, ErrObservationChanged):
 		httpapi.AbortError(c, http.StatusConflict, CodeObservationChanged, ErrObservationChanged.Error())
 	case errors.Is(err, ErrPublishPersonal):
-		httpapi.AbortError(c, http.StatusConflict, "personal_folder", ErrPublishPersonal.Error())
+		folders.AbortPersonalFolder(c, ErrPublishPersonal.Error())
 	case errors.As(err, &failed):
 		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, httpapi.InvalidSpecBody{Error: failed.Error(), Code: CodePanelFailed, Issues: []spec.Issue{failed.Issue()}})
 	default:

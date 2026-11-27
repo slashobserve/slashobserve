@@ -70,6 +70,7 @@ func (a *app) dashboardPanelsCommand() *cobra.Command {
 					return err
 				}
 				out.confirm("Saved version %d of %s", saved.Version.Version, text(saved.Dashboard.Title))
+				out.warnOfEdit(saved.Warning)
 				return nil
 			})
 		},

@@ -40,6 +40,7 @@ type fakeClaims struct {
 	answers   []claims.ReportAnswer
 	offer     claims.Offer
 	claimedBy claims.Claimer
+	lookedUp  []int
 }
 
 func (f *fakeClaims) Claim(_ context.Context, c claims.Claimer, _ time.Duration) (claims.Offer, error) {
@@ -47,7 +48,8 @@ func (f *fakeClaims) Claim(_ context.Context, c claims.Claimer, _ time.Duration)
 	return f.offer, nil
 }
 
-func (f *fakeClaims) ClaimedRun(context.Context, claims.Claimer, string, int) (revisions.Request, error) {
+func (f *fakeClaims) ClaimedRun(_ context.Context, _ claims.Claimer, _ string, _, claimEpoch int) (revisions.Request, error) {
+	f.lookedUp = append(f.lookedUp, claimEpoch)
 	return f.req, f.runErr
 }
 
@@ -132,29 +134,32 @@ func TestClaimToolsRejectABadInput(t *testing.T) {
 	claimer := &claims.Claimer{Kind: revisions.AssignGrant, ID: "g1", Person: "u1"}
 	longText := strings.Repeat("x", maxRunTextRunes+1)
 	cases := map[string]struct{ tool, input string }{
-		"wait above 30":          {nameClaimRun, `{"wait_seconds":31}`},
-		"negative wait":          {nameClaimRun, `{"wait_seconds":-1}`},
-		"fractional wait":        {nameClaimRun, `{"wait_seconds":1.5}`},
-		"unknown claim field":    {nameClaimRun, `{"wait":5}`},
-		"report without run":     {nameReportRun, `{"attempt":1}`},
-		"report bad uuid":        {nameReportRun, `{"run_id":"nope","attempt":1}`},
-		"report attempt zero":    {nameReportRun, `{"run_id":"` + runID + `","attempt":0}`},
-		"report missing attempt": {nameReportRun, `{"run_id":"` + runID + `"}`},
-		"report long note":       {nameReportRun, `{"run_id":"` + runID + `","attempt":1,"note":"` + longText + `"}`},
-		"report long text":       {nameReportRun, `{"run_id":"` + runID + `","attempt":1,"text":"` + strings.Repeat("x", maxLiveTextRunes+1) + `"}`},
-		"report unknown usage":   {nameReportRun, `{"run_id":"` + runID + `","attempt":1,"usage":{"tokens":1}}`},
-		"brief bad uuid":         {nameGetRunBrief, `{"run_id":"nope","attempt":1}`},
-		"brief attempt zero":     {nameGetRunBrief, `{"run_id":"` + runID + `","attempt":0}`},
-		"brief unknown field":    {nameGetRunBrief, `{"run_id":"` + runID + `","attempt":1,"why":"x"}`},
-		"report unknown field":   {nameReportRun, `{"run_id":"` + runID + `","attempt":1,"extra":1}`},
-		"finish bad uuid":        {nameFinishRun, `{"run_id":"nope","attempt":1,"outcome":"succeeded"}`},
-		"finish attempt zero":    {nameFinishRun, `{"run_id":"` + runID + `","attempt":0,"outcome":"succeeded"}`},
-		"finish unknown outcome": {nameFinishRun, `{"run_id":"` + runID + `","attempt":1,"outcome":"done"}`},
-		"finish no outcome":      {nameFinishRun, `{"run_id":"` + runID + `","attempt":1}`},
-		"finish long message":    {nameFinishRun, `{"run_id":"` + runID + `","attempt":1,"outcome":"failed","message":"` + longText + `"}`},
-		"finish unknown field":   {nameFinishRun, `{"run_id":"` + runID + `","attempt":1,"outcome":"failed","why":"x"}`},
-		"finish unknown usage":   {nameFinishRun, `{"run_id":"` + runID + `","attempt":1,"outcome":"failed","usage":{"tokens":1}}`},
-		"finish bad usage type":  {nameFinishRun, `{"run_id":"` + runID + `","attempt":1,"outcome":"failed","usage":{"model":3}}`},
+		"wait above 30":           {nameClaimRun, `{"wait_seconds":31}`},
+		"negative wait":           {nameClaimRun, `{"wait_seconds":-1}`},
+		"fractional wait":         {nameClaimRun, `{"wait_seconds":1.5}`},
+		"unknown claim field":     {nameClaimRun, `{"wait":5}`},
+		"report without run":      {nameReportRun, `{"attempt":1}`},
+		"report bad uuid":         {nameReportRun, `{"run_id":"nope","attempt":1}`},
+		"report attempt zero":     {nameReportRun, `{"run_id":"` + runID + `","attempt":0}`},
+		"report missing attempt":  {nameReportRun, `{"run_id":"` + runID + `"}`},
+		"report long note":        {nameReportRun, `{"run_id":"` + runID + `","attempt":1,"note":"` + longText + `"}`},
+		"report long text":        {nameReportRun, `{"run_id":"` + runID + `","attempt":1,"text":"` + strings.Repeat("x", maxLiveTextRunes+1) + `"}`},
+		"report unknown usage":    {nameReportRun, `{"run_id":"` + runID + `","attempt":1,"usage":{"tokens":1}}`},
+		"brief bad uuid":          {nameGetRunBrief, `{"run_id":"nope","attempt":1}`},
+		"brief attempt zero":      {nameGetRunBrief, `{"run_id":"` + runID + `","attempt":0}`},
+		"brief epoch below zero":  {nameGetRunBrief, `{"run_id":"` + runID + `","attempt":1,"claim_epoch":-1}`},
+		"report epoch below zero": {nameReportRun, `{"run_id":"` + runID + `","attempt":1,"claim_epoch":-1}`},
+		"finish epoch below zero": {nameFinishRun, `{"run_id":"` + runID + `","attempt":1,"claim_epoch":-1,"outcome":"failed"}`},
+		"brief unknown field":     {nameGetRunBrief, `{"run_id":"` + runID + `","attempt":1,"why":"x"}`},
+		"report unknown field":    {nameReportRun, `{"run_id":"` + runID + `","attempt":1,"extra":1}`},
+		"finish bad uuid":         {nameFinishRun, `{"run_id":"nope","attempt":1,"outcome":"succeeded"}`},
+		"finish attempt zero":     {nameFinishRun, `{"run_id":"` + runID + `","attempt":0,"outcome":"succeeded"}`},
+		"finish unknown outcome":  {nameFinishRun, `{"run_id":"` + runID + `","attempt":1,"outcome":"done"}`},
+		"finish no outcome":       {nameFinishRun, `{"run_id":"` + runID + `","attempt":1}`},
+		"finish long message":     {nameFinishRun, `{"run_id":"` + runID + `","attempt":1,"outcome":"failed","message":"` + longText + `"}`},
+		"finish unknown field":    {nameFinishRun, `{"run_id":"` + runID + `","attempt":1,"outcome":"failed","why":"x"}`},
+		"finish unknown usage":    {nameFinishRun, `{"run_id":"` + runID + `","attempt":1,"outcome":"failed","usage":{"tokens":1}}`},
+		"finish bad usage type":   {nameFinishRun, `{"run_id":"` + runID + `","attempt":1,"outcome":"failed","usage":{"model":3}}`},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -359,8 +364,8 @@ func TestReportRunKeepsTheRenewedLeaseWhenNoteUsageTimesOut(t *testing.T) {
 	previous := usageNoteTimeout
 	usageNoteTimeout = 20 * time.Millisecond
 	t.Cleanup(func() { usageNoteTimeout = previous })
-	until := "2026-01-01T00:00:00Z"
-	fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "running", LeaseUntil: &until}}}
+	until, at := "2026-01-01T00:00:00Z", "2025-12-31T23:59:00Z"
+	fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "running", LeaseUntil: &until, ServerTime: &at}}}
 	rs := &fakeRunSessions{blockNoteUsage: true, progress: &BuildProgress{Saves: 1, Panels: 2, PlannedPanels: 5}}
 	live := &fakeLiveText{}
 
@@ -371,7 +376,7 @@ func TestReportRunKeepsTheRenewedLeaseWhenNoteUsageTimesOut(t *testing.T) {
 	}
 
 	out := jsonOf(t, res)
-	if out["state"] != "running" || out["stop"] != false || out["lease_until"] != until || out["build"] == nil {
+	if out["state"] != "running" || out["stop"] != false || out["lease_until"] != until || out["server_time"] != at || out["build"] == nil {
 		t.Fatalf("answer = %v", out)
 	}
 	if len(fc.reports) != 1 || len(live.texts) != 1 {
@@ -481,6 +486,37 @@ func TestClaimToolsOnARunThatIsNotTheClaimersAnswerNotYourRun(t *testing.T) {
 		if err != nil || errorCode(t, res) != codeNotYourRun {
 			t.Errorf("%s: res = %#v, err = %v", tool, res, err)
 		}
+	}
+}
+
+func TestClaimToolsLookTheRunUpByTheClaimEpochTheyAreSent(t *testing.T) {
+	for tool, input := range map[string]string{
+		nameReportRun:   `{"run_id":"` + runID + `","attempt":2,"claim_epoch":7}`,
+		nameFinishRun:   `{"run_id":"` + runID + `","attempt":2,"claim_epoch":7,"outcome":"failed"}`,
+		nameGetRunBrief: `{"run_id":"` + runID + `","attempt":2,"claim_epoch":7}`,
+	} {
+		fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "running"}}}
+		res, err := callClaimToolWith(t, Deps{Claims: fc, RunSessions: &fakeRunSessions{}}, outsideClaimer, tool, input)
+		if err != nil || res.IsError {
+			t.Errorf("%s: res = %#v, err = %v", tool, res, err)
+		}
+		if len(fc.lookedUp) != 1 || fc.lookedUp[0] != 7 {
+			t.Errorf("%s looked the run up by claim epochs %v, want [7]", tool, fc.lookedUp)
+		}
+		if tool == nameReportRun && (len(fc.reports) != 1 || fc.reports[0].ClaimEpoch != 7) {
+			t.Errorf("report_run reported as %+v, want claim epoch 7", fc.reports)
+		}
+	}
+}
+
+func TestClaimToolsWithoutAClaimEpochLookTheRunUpByItsAttemptAlone(t *testing.T) {
+	fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "running"}}}
+	res, err := callClaimToolWith(t, Deps{Claims: fc, RunSessions: &fakeRunSessions{}}, outsideClaimer, nameReportRun, `{"run_id":"`+runID+`","attempt":2}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v, err = %v", res, err)
+	}
+	if len(fc.lookedUp) != 1 || fc.lookedUp[0] != 0 || fc.reports[0].ClaimEpoch != 0 {
+		t.Fatalf("looked up by claim epochs %v and reported as %+v, want no claim epoch", fc.lookedUp, fc.reports)
 	}
 }
 

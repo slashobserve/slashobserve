@@ -4,7 +4,7 @@ me-grants:
     x-audit: { none: "list read; lists are not recorded" }
     summary: List the MCP clients the signed-in person has connected.
     description: >-
-      Newest first, live connections only: a disconnected or expired one is not listed.
+      Newest first, live connections only: a disconnected or expired one is not listed unless `include_ended=true` asks for it.
       `client.name` is the name the client registered under and is not verified, and null when it registered none.
       `redirect_host` and `local` describe the client's first registered redirect URI.
       `last_used_at` is null until the client first uses an access token.
@@ -21,6 +21,12 @@ me-grants:
         in: query
         schema:
           type: string
+      - name: include_ended
+        in: query
+        schema:
+          type: boolean
+          default: false
+        description: With true the list also holds connections that were revoked, expired or aged out in the last 30 days, each with its `state` and `revoked_reason`.
     responses:
       "200":
         description: One page of connected agents.
@@ -118,6 +124,12 @@ grants:
         in: query
         schema:
           type: string
+      - name: include_ended
+        in: query
+        schema:
+          type: boolean
+          default: false
+        description: With true the list also holds connections that were revoked, expired or aged out in the last 30 days, each with its `state` and `revoked_reason`.
     responses:
       "200":
         description: One page of connected agents.

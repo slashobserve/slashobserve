@@ -76,6 +76,12 @@ The server merges a stale save when it changed different panels, variables or se
 It saves the merged document on top of the latest version after its queries run.
 The response carries `merged_from` with the version the save was based on and the version it was merged onto.
 
+Every answer to a save names what happened in `outcome`, over the API and in the results of `update_dashboard` and `update_panels`.
+`created` means your save is the new version, and `merged` means the new version is your save merged onto the latest one.
+`replayed` means the save repeats a version that already exists, so that version is returned and no version was made.
+`proposed` means the change became a [proposal](proposals.md) and no version was made.
+The [states reference](../reference/states.md) lists them.
+
 When the newer versions changed the same panel, variable or setting, the save is refused with `409` and the response lists them under `conflicts`.
 Read the latest version, redo your change on it, and save again.
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/observations"
@@ -73,5 +74,52 @@ func TestADashboardMadeFromAnObservationIsACopyOfThatObservation(t *testing.T) {
 	want := placement.Copied{Kind: folders.ContentObservation, ID: id}
 	if len(r.made.from) != 1 || r.made.from[0] != want {
 		t.Fatalf("made from %+v, want a copy of the observation %+v", r.made.from, want)
+	}
+}
+
+func (r rig) runWorkingOn(t *testing.T, by auth.Principal, o observations.Observation) string {
+	t.Helper()
+	var run string
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO agent_requests (intent, kind, prompt, requested_by_kind, requested_by_id, requested_by_name)
+VALUES ('ask', 'investigate', 'why', 'user', $1::uuid, $2) RETURNING id::text`, by.ID, by.Name).Scan(&run); err != nil {
+		t.Fatal(err)
+	}
+	r.db.Exec(t, `UPDATE agent_requests SET subject_observation_id = $2::uuid, status = 'running', state = 'running' WHERE id = $1::uuid`, run, o.ID)
+	return run
+}
+
+func TestAnObservationReadSaysWhatKeepsItWhereOnlyAdminsRead(t *testing.T) {
+	r := newRig(t)
+	confinement := func(o observations.Observation) folders.Confinement {
+		t.Helper()
+		read, err := r.service.Get(reading(t.Context()), admin, mustUUID(t, o.ID))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return read.Confinement
+	}
+	o := r.create(t, admin, foldertest.AdminsOnly(t, r.db, "Audit"))
+	if got := confinement(o); got != folders.NotConfined {
+		t.Fatalf("a new observation: confinement = %q, want none", got)
+	}
+
+	run := r.runWorkingOn(t, admin, o)
+	if got := confinement(o); got != folders.ConfinedRunInFlight {
+		t.Fatalf("while a run about it is working: confinement = %q, want run_in_flight", got)
+	}
+	r.db.Exec(t, `UPDATE agent_requests SET status = 'succeeded', state = 'succeeded', finished_at = now() WHERE id = $1::uuid`, run)
+	if got := confinement(o); got != folders.NotConfined {
+		t.Fatalf("after the run ended: confinement = %q, want none", got)
+	}
+
+	r.restrictedAnswerIn(t, o)
+	if got := confinement(o); got != folders.ConfinedPermanent {
+		t.Fatalf("holding an answer that read Admin-only data: confinement = %q, want permanent", got)
+	}
+
+	shared := r.create(t, editor, r.shared)
+	r.runWorkingOn(t, editor, shared)
+	if got := confinement(shared); got != folders.NotConfined {
+		t.Fatalf("a run in flight in a shared folder: confinement = %q, want none", got)
 	}
 }

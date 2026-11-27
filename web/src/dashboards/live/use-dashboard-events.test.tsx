@@ -14,6 +14,13 @@ const router = vi.hoisted(() => ({
   invalidate: vi.fn(),
 }))
 
+const session = vi.hoisted(() => ({ authenticated: true }))
+
+vi.mock("@/lib/auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/auth")>()),
+  refreshSession: async () => ({ session, changed: false }),
+}))
+
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
   useRouter: () => router,
@@ -228,4 +235,88 @@ it("checks the dashboard as soon as its stream ends, so a dashboard the caller l
   act(() => source.onerror?.())
   await Promise.resolve()
   expect(requested).toEqual(["/api/v1/dashboards/d1"])
+})
+
+function answerDashboardReadsWith(status: number, code: string) {
+  const requested: string[] = []
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (request: Request) => {
+      requested.push(new URL(request.url).pathname)
+      return new Response(JSON.stringify({ error: code, code }), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      })
+    })
+  )
+  return requested
+}
+
+function liveStream() {
+  const rendered = renderHook(() => useDashboardEvents("d1", {}), {
+    wrapper: wrapperWith(testQueryClient()),
+  })
+  const source = openSources()[0]
+  act(() => source.send("ready", { dashboard_id: "d1", latest_version: 1 }))
+  return { source, ...rendered }
+}
+
+it("reopens the stream at once, without checking the dashboard, when the server says it closed it at its lifetime", () => {
+  const requested = answerDashboardReadsWith(404, "not_found")
+  const { source, result } = liveStream()
+
+  act(() => source.send("closed", { reason: "lifetime" }))
+
+  expect(source.closed).toBe(true)
+  expect(openSources()).toHaveLength(1)
+  expect(openSources()[0]).not.toBe(source)
+  expect(result.current.status).toBe("live")
+  expect(requested).toEqual([])
+})
+
+it("stops the stream and shows the dashboard as gone when the server says the caller lost access", async () => {
+  const requested = answerDashboardReadsWith(403, "forbidden_role")
+  router.invalidate.mockClear()
+  const { source } = liveStream()
+
+  act(() => source.send("closed", { reason: "access_lost" }))
+
+  await waitFor(() => expect(router.invalidate).toHaveBeenCalledTimes(1))
+  expect(requested).toEqual(["/api/v1/dashboards/d1"])
+  expect(source.closed).toBe(true)
+  await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+  expect(FakeEventSource.instances).toHaveLength(1)
+})
+
+it("sends the caller to sign in when access was lost because the session ended", async () => {
+  answerDashboardReadsWith(401, "unauthenticated")
+  router.invalidate.mockClear()
+  session.authenticated = false
+  try {
+    const { source } = liveStream()
+
+    act(() => source.send("closed", { reason: "access_lost" }))
+
+    await waitFor(() => expect(router.invalidate).toHaveBeenCalledTimes(1))
+    expect(FakeEventSource.instances).toHaveLength(1)
+  } finally {
+    session.authenticated = true
+  }
+})
+
+it("reconnects after a delay when the server closed the stream for any other reason", async () => {
+  vi.useFakeTimers()
+  try {
+    const { source } = liveStream()
+
+    act(() => source.send("closed", { reason: "stopping" }))
+    expect(source.closed).toBe(true)
+    await act(() => vi.advanceTimersByTimeAsync(499))
+    expect(openSources()).toHaveLength(0)
+
+    await act(() => vi.advanceTimersByTimeAsync(501))
+    expect(openSources()).toHaveLength(1)
+  } finally {
+    vi.useRealTimers()
+  }
 })

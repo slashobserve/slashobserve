@@ -33,6 +33,7 @@ type Observation struct {
 	Folder         folders.Folder
 	Abilities      folders.Abilities
 	AllowedActions []Action
+	Confinement    folders.Confinement
 	Blocks         []Block
 	Findings       []RunFields
 	ChatRename     revisions.SharedTitle

@@ -119,6 +119,14 @@ func TestOfferedRunMapsARequest(t *testing.T) {
 	}
 }
 
+func TestOfferedRunCarriesTheClaimEpochBesideTheAttempt(t *testing.T) {
+	run := offeredRun(revisions.Request{ID: "r1", Source: revisions.SourcePrompt, Prompt: "why", Attempt: 1, ClaimEpoch: 3, DashboardID: "d1"})
+	encoded, err := json.Marshal(run)
+	if err != nil || !strings.Contains(string(encoded), `"attempt":1,"claim_epoch":3,`) {
+		t.Fatalf("encoded run = %s, err %v, want attempt 1 and claim_epoch 3", encoded, err)
+	}
+}
+
 func TestOfferedRunCarriesTheThreadContextOnlyWhenThereIsOne(t *testing.T) {
 	requester := auth.Principal{Kind: auth.KindUser, ID: "11111111-1111-4111-8111-111111111111", Name: "Ada"}
 	asked := offeredRun(revisions.Request{ID: "r1", Source: revisions.SourceComment, Prompt: "why", Attempt: 1, DashboardID: "d1", ThreadContext: "Ada: why did errors rise?", RequestedBy: requester})
@@ -184,5 +192,23 @@ func TestCleanTextCutsAtRunesAndDropsInvalidBytes(t *testing.T) {
 		if got := CleanText(tc.in, tc.max); got != tc.want {
 			t.Errorf("%s: CleanText(%q, %d) = %q, want %q", name, tc.in, tc.max, got, tc.want)
 		}
+	}
+}
+
+func TestRenewedAnswerGivesTheLeaseLengthOnTheServersOwnClock(t *testing.T) {
+	now := time.Date(2026, 11, 27, 10, 0, 0, 999_000_000, time.FixedZone("ahead", 5*60*60))
+
+	answer := renewedAnswer(now)
+
+	if answer.State != string(revisions.StateRunning) || answer.Stop || answer.LeaseUntil == nil || answer.ServerTime == nil {
+		t.Fatalf("answer = %+v, want running with lease_until and server_time", answer)
+	}
+	if *answer.ServerTime != "2026-11-27T05:00:00Z" {
+		t.Fatalf("server_time = %q, want the given instant in UTC", *answer.ServerTime)
+	}
+	at, atErr := time.Parse(time.RFC3339, *answer.ServerTime)
+	until, untilErr := time.Parse(time.RFC3339, *answer.LeaseUntil)
+	if atErr != nil || untilErr != nil || until.Sub(at) != revisions.LeaseTTL {
+		t.Fatalf("lease_until %q minus server_time %q = %v (%v, %v), want %v", *answer.LeaseUntil, *answer.ServerTime, until.Sub(at), atErr, untilErr, revisions.LeaseTTL)
 	}
 }

@@ -89,11 +89,12 @@ func (q *Queries) InsertRCA(ctx context.Context, arg InsertRCAParams) (Observati
 }
 
 const listRCAs = `-- name: ListRCAs :many
-SELECT id, observation_id, revision, title, summary, observation_state,
-  created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, created_at
-FROM observation_rcas
-WHERE observation_id = $1
-ORDER BY revision DESC
+SELECT r.id, r.observation_id, r.revision, r.title, r.summary, r.observation_state,
+  r.created_by_kind, r.created_by_id, r.created_by_name, r.origin, r.origin_client, r.run_id, r.created_at,
+  (SELECT count(*) FROM public_links p WHERE p.rca_id = r.id AND (p.expires_at IS NULL OR p.expires_at > now()))::int AS live_links
+FROM observation_rcas r
+WHERE r.observation_id = $1
+ORDER BY r.revision DESC
 `
 
 type ListRCAsRow struct {
@@ -110,6 +111,7 @@ type ListRCAsRow struct {
 	OriginClient     pgtype.Text
 	RunID            pgtype.UUID
 	CreatedAt        pgtype.Timestamptz
+	LiveLinks        int32
 }
 
 func (q *Queries) ListRCAs(ctx context.Context, observationID pgtype.UUID) ([]ListRCAsRow, error) {
@@ -135,6 +137,7 @@ func (q *Queries) ListRCAs(ctx context.Context, observationID pgtype.UUID) ([]Li
 			&i.OriginClient,
 			&i.RunID,
 			&i.CreatedAt,
+			&i.LiveLinks,
 		); err != nil {
 			return nil, err
 		}

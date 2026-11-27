@@ -213,3 +213,33 @@ func TestTheFirstBriefShowsTheSeededLedger(t *testing.T) {
 		t.Fatalf("the first brief lacks the seeded ledger:\n%s", got.Message)
 	}
 }
+
+type ledgerStep struct {
+	reads  int
+	ledger revisions.Hypothesis
+}
+
+func TestATransientClosingMadeTooEarlyCanBeRedoneAfterReadingAgain(t *testing.T) {
+	early := closedAs("c2", revisions.ClosingTransient, "ad p95 2.5 s at 09:50")
+	later := closedAs("c2", revisions.ClosingTransient, "ad p95 2.5 s at 09:50", "ad p95 90 ms at 10:10")
+	reopened := revisions.Hypothesis{ID: "c2", Text: "t", Status: revisions.HypothesisOpen}
+	cases := []struct {
+		name  string
+		steps []ledgerStep
+		want  int
+	}{
+		{"closed again with new evidence after more reads", []ledgerStep{{0, early}, {2, later}}, 2},
+		{"the same ledger sent again keeps its first mark", []ledgerStep{{1, early}, {3, early}}, 1},
+		{"reopened and closed again", []ledgerStep{{0, early}, {2, reopened}, {2, later}}, 2},
+	}
+	for _, c := range cases {
+		s := &State{Guard: guard.New(tools.ModeInvestigate), Loop: true, Task: route.Incident, Triage: &Triage{Leads: twoLeads}}
+		for _, step := range c.steps {
+			s.DataReads = step.reads
+			s.noteLedger([]revisions.Hypothesis{step.ledger})
+		}
+		if got := s.TransientAt["c2"]; got != c.want {
+			t.Errorf("%s: TransientAt = %d, want %d", c.name, got, c.want)
+		}
+	}
+}

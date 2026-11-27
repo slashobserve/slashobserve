@@ -1,6 +1,11 @@
 package dashboards
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+
+	"github.com/slashobserve/slashobserve/internal/folders"
+)
 
 func TestVersionActorLabels(t *testing.T) {
 	author := Author{Kind: "user", ID: "11111111-1111-4111-8111-111111111111", Name: "Ada", Email: "ada@example.com"}
@@ -48,5 +53,111 @@ func TestCreatorActorLabels(t *testing.T) {
 				t.Fatalf("label = %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+func managedByOf(t *testing.T, d Dashboard) string {
+	t.Helper()
+	raw, err := json.Marshal(NewDashboardVersionJSON(d, Version{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		Dashboard struct {
+			ManagedBy   *string `json:"managed_by"`
+			Provisioned bool    `json:"provisioned"`
+		} `json:"dashboard"`
+	}
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Dashboard.ManagedBy == nil {
+		t.Fatalf("the dashboard read has no managed_by: %s", raw)
+	}
+	if got.Dashboard.Provisioned != d.Provisioned {
+		t.Fatalf("provisioned = %v, want %v as before", got.Dashboard.Provisioned, d.Provisioned)
+	}
+	return *got.Dashboard.ManagedBy
+}
+
+func TestTheDashboardReadNamesWhatManagesTheDashboard(t *testing.T) {
+	if got := managedByOf(t, Dashboard{}); got != "workspace" {
+		t.Fatalf("managed_by = %q, want workspace for a dashboard made in the app", got)
+	}
+	cases := []struct {
+		access folders.DashboardAccess
+		want   string
+	}{
+		{folders.DashboardAccess{}, "workspace"},
+		{folders.DashboardAccess{Provisioned: true}, "starter"},
+		{folders.DashboardAccess{FromFile: true}, "file"},
+		{folders.DashboardAccess{Applied: true}, "apply"},
+	}
+	for _, tc := range cases {
+		if got := managedByOf(t, Dashboard{}.WithAccess(tc.access)); got != tc.want {
+			t.Errorf("managed_by = %q, want %q", got, tc.want)
+		}
+	}
+}
+
+func TestAnAnswerToAnEditCarriesTheWarningOfWhatManagesTheDashboard(t *testing.T) {
+	for _, managedBy := range []folders.ManagedBy{folders.ManagedByWorkspace, folders.ManagedByStarter, folders.ManagedByFile, folders.ManagedByApply} {
+		raw, err := json.Marshal(editedJSON(Dashboard{ManagedBy: managedBy}, Version{}, OutcomeCreated))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got struct {
+			Warning *string `json:"warning"`
+		}
+		if err := json.Unmarshal(raw, &got); err != nil {
+			t.Fatal(err)
+		}
+		want := managedBy.EditWarning()
+		switch {
+		case want == "" && got.Warning != nil:
+			t.Errorf("an edit to a dashboard managed by %s answers warning %q, want no warning key", managedBy, *got.Warning)
+		case want != "" && (got.Warning == nil || *got.Warning != want):
+			t.Errorf("an edit to a dashboard managed by %s answers %s, want warning %q", managedBy, raw, want)
+		}
+	}
+}
+
+func TestAVersionEventNamesTheVersionItReplacedOnlyWhenThereIsOne(t *testing.T) {
+	parent := 4
+	meta := VersionMeta{Number: 5, ParentVersion: &parent, Summary: "Provisioned from a.json"}
+	fields := func(replaced int) map[string]any {
+		raw, err := json.Marshal(versionActivityData("A", meta, replaced))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got map[string]any
+		if err := json.Unmarshal(raw, &got); err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	if got := fields(4); got["replaced_version"] != float64(4) || got["version"] != float64(5) || got["parent_version"] != float64(4) {
+		t.Errorf("event data = %v, want replaced_version 4 beside version 5", got)
+	}
+	if got := fields(0); len(got) != 4 {
+		t.Errorf("event data = %v, want only version, parent_version, title and summary", got)
+	}
+}
+
+func TestADashboardInAListNamesWhatManagesIt(t *testing.T) {
+	for _, managedBy := range []folders.ManagedBy{folders.ManagedByWorkspace, folders.ManagedByStarter, folders.ManagedByFile, folders.ManagedByApply} {
+		raw, err := json.Marshal(newDashboardListItemJSON(ListItem{Dashboard: Dashboard{ManagedBy: managedBy}}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got struct {
+			ManagedBy *string `json:"managed_by"`
+		}
+		if err := json.Unmarshal(raw, &got); err != nil {
+			t.Fatal(err)
+		}
+		if got.ManagedBy == nil || *got.ManagedBy != managedBy.String() {
+			t.Errorf("the list item of a dashboard managed by %s reads %s, want managed_by %q", managedBy, raw, managedBy)
+		}
 	}
 }

@@ -3,9 +3,11 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/slashobserve/slashobserve/internal/agent/prompts"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -20,6 +22,16 @@ func callLedger(t *testing.T, mode Mode, input string) Result {
 		t.Fatal(err)
 	}
 	return res
+}
+
+func TestTheLedgerPromptStatesTheLimitTheToolEnforces(t *testing.T) {
+	text := prompts.InvestigateWithLedger()
+	if want := fmt.Sprintf("at most %d hypotheses in all, the `<triage>` candidates already in it included", MaxHypotheses); !strings.Contains(text, want) {
+		t.Fatalf("the ledger section does not say %q", want)
+	}
+	if strings.Contains(text, "write 2 to 4 hypotheses") {
+		t.Fatal("the ledger section still asks for 2 to 4 hypotheses over a seeded ledger")
+	}
 }
 
 func TestTheLedgerToolIsRegisteredOnlyWhenTheLoopIsOn(t *testing.T) {

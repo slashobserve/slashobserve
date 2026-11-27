@@ -249,9 +249,10 @@ Set `SLASHOBSERVE_ADMIN_EMAILS` before that first start; otherwise the earliest 
 
 ### Shutdown and leases
 
-On `SIGTERM` the server answers 503 on `/readyz` (`status` is `stopping`) for 5 seconds while it keeps serving, so a load balancer or Kubernetes Service stops sending new requests, then it stops accepting requests, gives running requests the rest of 15 seconds from the signal, and hands a running agent request back to the queue without using up an attempt.
+On `SIGTERM` the server answers 503 on `/readyz` (`status` and `phase` are `stopping`) for 5 seconds while it keeps serving, so a load balancer or Kubernetes Service stops sending new requests, then it stops accepting requests, gives running requests the rest of 15 seconds from the signal, and hands a running agent request back to the queue without using up an attempt.
 After 10 seconds it ends the requests still open, such as live tails, event streams and `/mcp` streams.
 Each one records its audit event before the server writes its last buffered audit events and exits.
 
 A worker holds a 60-second lease on its request and renews it every 5 seconds while the run is in flight.
 A crash instead leaves the lease to expire, so the next process picks the request up within a minute.
+The built-in agent gives a run up when the lease ends without a renewal the server answered: it makes no further model call or report for that run and logs `lease lapsed without a successful report` at `WARN`.

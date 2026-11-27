@@ -10,7 +10,8 @@ For example, `activity_prune` runs every hour.
 If you run three servers against one Postgres, one of them runs it at 10:00, one of them runs it at 11:00, and the others skip each run.
 You do not configure the schedule, and you do not start a second scheduler.
 
-You see jobs in two places.
+You see jobs in three places.
+An Admin lists them with `GET /api/v1/jobs`, which gives each job's `state`: `running`, `interrupted`, `due` or `waiting`.
 The `jobs` table of the database has one row per job, and [two metrics](#metrics) report runs.
 A failed run also leaves a `job.run` event in the audit trail.
 
@@ -38,7 +39,7 @@ The lease lasts the job's interval, at most 10 minutes.
 When the lease ends, the job's context is cancelled, so a job must stop when its context is done.
 
 - A server that crashes mid-run leaves its lease behind.
-  The first server that finds the job due after the lease ends takes it over.
+  The first server that finds the job due after the lease ends takes it over, and records the crashed run's outcome as `interrupted` with no error.
 - A server that shuts down mid-run gives the lease back at once and records no outcome.
   Another server runs the job without waiting for the lease to end.
 - A job that ignores its context is not killed.
@@ -62,8 +63,20 @@ When the job already holds a lease, the request records a `job.run` event with t
 | `next_run_at` | When the job is next due. |
 | `leased_by`, `lease_until` | The server that holds the job and when its lease ends. |
 | `last_started_at`, `last_finished_at` | When the last run began and ended. |
-| `last_outcome` | `succeeded` or `failed`. |
+| `last_outcome` | `succeeded` or `failed`, or `interrupted` after a server took over the lease of a run that crashed. |
 | `last_error` | A short description of a failure. |
+
+### States of a job
+
+`GET /api/v1/jobs` computes a job's `state` from its row on every read; nothing stores it.
+The [states reference](../reference/states.md#scheduled-job) lists the same four.
+
+| State | When |
+| --- | --- |
+| `running` | A server holds its lease and is running it. |
+| `interrupted` | Its last run did not finish, because the server crashed or shut down. The next server that finds it due runs it again. |
+| `due` | Its next run time has passed and no server has claimed it yet. |
+| `waiting` | Its last run finished, or it never ran, and the next run time is ahead. |
 
 Details of `last_error`:
 

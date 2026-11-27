@@ -23,27 +23,82 @@ func CallContext(ctx context.Context, timeout time.Duration) (context.Context, c
 	return context.WithTimeout(ctx, timeout)
 }
 
-func CheckResults(provider string, ended bool, pending []string, results []ToolResult) error {
-	if ended {
-		return fmt.Errorf("%s session: the previous turn made no tool calls, so the session has ended", provider)
+type TurnState string
+
+const (
+	TurnStarted         TurnState = "started"
+	TurnAwaitingResults TurnState = "awaiting_results"
+	TurnEnded           TurnState = "ended"
+	TurnCompacted       TurnState = "compacted"
+)
+
+type ProtocolFault string
+
+const (
+	FaultSessionEnded   ProtocolFault = "session_ended"
+	FaultResultCount    ProtocolFault = "tool_result_count"
+	FaultResultMismatch ProtocolFault = "tool_result_mismatch"
+)
+
+var ErrProtocol = errors.New("llm turn protocol violated")
+
+type ProtocolError struct {
+	Provider string
+	Fault    ProtocolFault
+	State    TurnState
+	text     string
+}
+
+func (e *ProtocolError) Error() string { return e.text }
+
+func (e *ProtocolError) Unwrap() error { return ErrProtocol }
+
+type TurnGuard struct {
+	provider string
+	state    TurnState
+	pending  []string
+}
+
+func NewTurnGuard(provider string) *TurnGuard {
+	return &TurnGuard{provider: provider, state: TurnStarted}
+}
+
+func (g *TurnGuard) State() TurnState { return g.state }
+
+func (g *TurnGuard) fault(fault ProtocolFault, format string, args ...any) error {
+	return &ProtocolError{Provider: g.provider, Fault: fault, State: g.state, text: g.provider + " session: " + fmt.Sprintf(format, args...)}
+}
+
+func (g *TurnGuard) Accept(results []ToolResult) error {
+	if g.state == TurnEnded {
+		return g.fault(FaultSessionEnded, "the previous turn made no tool calls, so the session has ended")
 	}
-	if len(results) != len(pending) {
-		return fmt.Errorf("%s session: got %d tool results for %d tool calls", provider, len(results), len(pending))
+	if len(results) != len(g.pending) {
+		return g.fault(FaultResultCount, "got %d tool results for %d tool calls", len(results), len(g.pending))
 	}
 	for i, r := range results {
-		if r.CallID != pending[i] {
-			return fmt.Errorf("%s session: tool result %d answers %q, want %q", provider, i, r.CallID, pending[i])
+		if r.CallID != g.pending[i] {
+			return g.fault(FaultResultMismatch, "tool result %d answers %q, want %q", i, r.CallID, g.pending[i])
 		}
 	}
 	return nil
 }
 
-func PendingIDs(calls []ToolCall) []string {
-	var ids []string
+func (g *TurnGuard) Answered(calls []ToolCall) {
+	g.pending = g.pending[:0]
 	for _, c := range calls {
-		ids = append(ids, c.ID)
+		g.pending = append(g.pending, c.ID)
 	}
-	return ids
+	g.state = TurnAwaitingResults
+	if len(calls) == 0 {
+		g.state = TurnEnded
+	}
+}
+
+func (g *TurnGuard) Reopen() {
+	if g.state == TurnEnded {
+		g.state = TurnCompacted
+	}
 }
 
 type APIError struct {

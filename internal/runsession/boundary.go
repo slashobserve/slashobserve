@@ -27,7 +27,7 @@ type Call struct {
 }
 
 type RunMeta struct {
-	Settled *string              `json:"settled"`
+	Settled *SettledKind         `json:"settled"`
 	Build   *tools.BuildProgress `json:"build"`
 }
 
@@ -257,8 +257,13 @@ func (sess *session) endRead(c guard.Call, a admitted) {
 
 func (sess *session) settleFailed(ctx context.Context, c guard.Call, a admitted, step revisions.Step) error {
 	step.Status, step.Message = "error", internalStep
-	if tools.Phase(c.Name) == tools.PhaseWrite && a.adm.Verdict == guard.Dispatch {
-		sess.state.Guard.ForgetWrite(c)
+	if a.adm.Verdict == guard.Dispatch {
+		switch tools.Phase(c.Name) {
+		case tools.PhaseWrite:
+			sess.state.Guard.ForgetWrite(c)
+		case tools.PhaseSave:
+			sess.state.Guard.ForgetSave(c)
+		}
 	}
 	sess.record(step)
 	_, err := sess.complete(ctx, a.seq)

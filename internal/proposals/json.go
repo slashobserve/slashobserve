@@ -38,14 +38,16 @@ type SummaryJSON struct {
 	Behind         bool        `json:"behind"`
 	LatestVersion  int         `json:"latest_version"`
 	AllowedActions []string    `json:"allowed_actions"`
+	Warning        string      `json:"warning,omitempty"`
 }
 
 type ProposalJSON struct {
 	SummaryJSON
-	Spec      *spec.Dashboard   `json:"spec"`
-	Changes   []spec.UnitChange `json:"changes"`
-	Diff      []spec.Change     `json:"diff"`
-	Conflicts []spec.Conflict   `json:"conflicts"`
+	Spec         *spec.Dashboard   `json:"spec"`
+	Changes      []spec.UnitChange `json:"changes"`
+	Diff         []spec.Change     `json:"diff"`
+	Conflicts    []spec.Conflict   `json:"conflicts"`
+	Mergeability *string           `json:"mergeability"`
 }
 
 type listJSON struct {
@@ -78,6 +80,12 @@ func timeText(t *time.Time) *string {
 		return nil
 	}
 	return httpapi.OptionalString(httpapi.FormatTime(*t))
+}
+
+func NewMergedJSON(p Proposal) SummaryJSON {
+	body := NewSummaryJSON(p.Item)
+	body.Warning = p.Warning
+	return body
 }
 
 func NewSummaryJSON(i Item) SummaryJSON {
@@ -115,5 +123,12 @@ func NewSummaryJSON(i Item) SummaryJSON {
 }
 
 func NewProposalJSON(p Proposal) ProposalJSON {
-	return ProposalJSON{SummaryJSON: NewSummaryJSON(p.Item), Spec: p.Spec, Changes: p.Changes, Diff: p.Diff, Conflicts: p.Conflicts}
+	return ProposalJSON{
+		SummaryJSON:  NewSummaryJSON(p.Item),
+		Spec:         p.Spec,
+		Changes:      p.Changes,
+		Diff:         p.Diff,
+		Conflicts:    p.Conflicts,
+		Mergeability: httpapi.OptionalString(string(p.Mergeability())),
+	}
 }

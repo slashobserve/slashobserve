@@ -101,7 +101,7 @@ func TestACommittedCreateBuildSummarisesAllItsPanelsNotTheLastSave(t *testing.T)
 	r.saveBuild(t, id, pgtype.UUID{}, 0, "a")
 	r.saveBuild(t, id, pgtype.UUID{}, 0, "a", "b")
 
-	commit, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildAttempt)
+	commit, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildEpoch)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestACommittedRevisionBuildThatUndoesAVersionIsMarkedRestored(t *testing.T)
 	id := r.runningRequest(t, dash)
 	r.saveBuild(t, id, dash, 2, "rps")
 
-	commit, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildAttempt)
+	commit, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildEpoch)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestACommittedRevisionBuildThatChangesSomethingNewIsNotMarkedRestored(t *te
 	id := r.runningRequest(t, dash)
 	r.saveBuild(t, id, dash, 1, "rps", "p99")
 
-	commit, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildAttempt)
+	commit, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildEpoch)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -491,7 +491,7 @@ observe-id-build-save:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
         description: >-
-          The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base.
+          The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, each with the build's `state`, the request's `allowed_actions` and a `reason`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base.
           Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
           Or the request read data only Admins can query, such as the audit trail, and the build's folder is not one only Admins can read (`restricted_answer`, saying why).
         content:
@@ -500,6 +500,7 @@ observe-id-build-save:
               oneOf:
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/VersionConflict"
+                - $ref: "../openapi.yaml#/components/schemas/BuildRefusal"
                 - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
@@ -656,7 +657,7 @@ observe-id-cancel:
       A running request whose worker is gone, because its lease expired, ends `canceled` at once, and no worker picks a canceling request up again.
       The build is kept, so the requester can still save it or continue it.
       A run that saved its version before the cancel took effect ends `succeeded`, because a saved version always wins.
-      Canceling a request that is already canceled answers 200 with the request; any other finished request answers 409 `request_finished`.
+      Canceling a request that is already canceled answers 200 with the request; any other finished request answers 409 `request_finished` with its `state` and the `allowed_actions` the caller has.
     responses:
       "200":
         description: The request, with `cancel_requested_at` set.
@@ -673,11 +674,11 @@ observe-id-cancel:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The request already finished and was not canceled (`request_finished`).
+        description: The request already finished and was not canceled (`request_finished`, with its `state` and the `allowed_actions` the caller has).
         content:
           application/json:
             schema:
-              $ref: "../openapi.yaml#/components/schemas/Error"
+              $ref: "../openapi.yaml#/components/schemas/RunRefusal"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
 observe-id-continue:
@@ -697,7 +698,7 @@ observe-id-continue:
     description: >-
       The new request copies the stopped request's intent, dashboard, comment, panel, prompt and base version, records `continues_id`, and takes the build, so the agent continues from the panels already built with its own model-call budget.
       The stopped request gains `continued_by` and can no longer be saved or continued.
-      A request is continuable when it is `failed`, its build was not saved, it still has its build, and nothing continues it yet; otherwise the call answers 409 `not_continuable`.
+      A request is continuable when it is `failed`, its build was not saved, it still has its build, and nothing continues it yet; otherwise the call answers 409 `not_continuable` with its `state`, the `allowed_actions` the caller has and, when the state alone does not say why, a `reason`: `no_build`, `kept`, `continued`, `retried`, `investigation`, or `lost_race` when another continue, retry or save took the build while the call ran.
       Continue and `POST /observe/{id}/build/save` on the same request are exclusive: Continue after a save answers 409 `not_continuable`, and a save after Continue answers 404 `not_found` because the build moved to the new request.
       Only the principal that made the request may call it, with the same access as starting a run; someone else gets 403 `forbidden` on a revision they can see and 404 on a new-dashboard request.
       The new request keeps the stopped request's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one.
@@ -737,11 +738,12 @@ observe-id-continue:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
         description: >-
-          The request cannot be continued: `not_continuable`, `assignee_unavailable` when the agent it was assigned to is a revoked, expired or foreign grant or a service account that no longer takes runs, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base.
+          The request cannot be continued: `not_continuable` with its `state`, the `allowed_actions` the caller has and a `reason`, `assignee_unavailable` when the agent it was assigned to is a revoked, expired or foreign grant or a service account that no longer takes runs, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base.
         content:
           application/json:
             schema:
               oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/RunRefusal"
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/VersionConflict"
       "429":
@@ -781,7 +783,7 @@ observe-id-retry:
       A comment or suggestion request cannot be retried, and neither can a request that something continues.
       An ask from an observation thread whose answer was saved as an observation starts again in that thread for a caller who can comment on the thread's observation; anyone else gets a private ask of their own about the saved observation, with no thread and nothing posted in it.
       A failed or stopped request can be retried once by its requester: the new request is its `retried_by`, and a second call, including one racing the first or a continue, is refused instead of queuing a duplicate. Anyone else's retry is a request of their own and leaves the original retryable.
-      A request that is not finished, one of those, or one the caller reads `redacted`, answers 409 `invalid_transition` with its `state` and the `allowed_actions` the caller has.
+      A request that is not finished, one of those, or one the caller reads `redacted`, answers 409 `invalid_transition` with its `state`, the `allowed_actions` the caller has and the `reason` `continued` or `retried` when that is why.
       A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`.
       A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`.
       The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing.
@@ -807,12 +809,12 @@ observe-id-retry:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The request cannot be retried now (`invalid_transition`), or the agent it was assigned to cannot take it again (`assignee_unavailable`).
+        description: The request cannot be retried now (`invalid_transition`, with a `reason` when it was already continued or retried), or the agent it was assigned to cannot take it again (`assignee_unavailable`).
         content:
           application/json:
             schema:
               oneOf:
-                - $ref: "../openapi.yaml#/components/schemas/InvalidTransition"
+                - $ref: "../openapi.yaml#/components/schemas/RunRefusal"
                 - $ref: "../openapi.yaml#/components/schemas/Error"
       "422":
         description: The panel an investigation was about no longer exists (`unknown_panel`).

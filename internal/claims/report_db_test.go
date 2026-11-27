@@ -32,8 +32,8 @@ func TestReportRenewsTheLeaseOfALiveRun(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if answer.State != "running" || answer.Stop || answer.LeaseUntil == nil {
-		t.Fatalf("answer = %+v, want running without stop and a lease", answer)
+	if answer.State != "running" || answer.Stop || answer.LeaseUntil == nil || answer.ServerTime == nil {
+		t.Fatalf("answer = %+v, want running without stop, a lease and the server's time", answer)
 	}
 	if after := f.stored(t, queued.ID).LeaseUntil.Time; !after.After(before.Add(30 * time.Second)) {
 		t.Fatalf("lease_until moved from %v to %v, want it renewed to about a minute", before, after)
@@ -41,6 +41,41 @@ func TestReportRenewsTheLeaseOfALiveRun(t *testing.T) {
 	until, err := time.Parse(time.RFC3339, *answer.LeaseUntil)
 	if err != nil || time.Until(until) < 50*time.Second || time.Until(until) > 70*time.Second {
 		t.Fatalf("lease_until %q (%v), want about a minute from now", *answer.LeaseUntil, err)
+	}
+}
+
+func TestReportOfAReleasedClaimIsNotYourRunOnceTheRunIsClaimedAgain(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	queued, first := f.claimed(t)
+	f.runs.Release(ctx, f.stored(t, queued.ID))
+	second := f.claim(t, grantClaimer)
+	if second.Run.Attempt != first.Run.Attempt || second.Run.ClaimEpoch <= first.Run.ClaimEpoch {
+		t.Fatalf("second claim = attempt %d epoch %d after attempt %d epoch %d, want the same attempt under a later epoch",
+			second.Run.Attempt, second.Run.ClaimEpoch, first.Run.Attempt, first.Run.ClaimEpoch)
+	}
+	f.d.Exec(t, "UPDATE agent_requests SET lease_until = now() + interval '5 seconds' WHERE id = $1", queued.ID)
+	before := f.stored(t, queued.ID).LeaseUntil.Time
+	reportAt := func(epoch int) ReportInput {
+		return ReportInput{RunID: queued.ID.String(), Attempt: first.Run.Attempt, ClaimEpoch: epoch}
+	}
+
+	if _, err := f.svc.Report(ctx, grantClaimer, reportAt(first.Run.ClaimEpoch)); !errors.Is(err, ErrNotYourRun) {
+		t.Fatalf("report of the released claim = %v, want ErrNotYourRun", err)
+	}
+	if _, err := f.svc.ClaimedRun(ctx, grantClaimer, queued.ID.String(), first.Run.Attempt, first.Run.ClaimEpoch); !errors.Is(err, ErrNotYourRun) {
+		t.Fatalf("the released claim looked its run up = %v, want ErrNotYourRun", err)
+	}
+	if after := f.stored(t, queued.ID).LeaseUntil.Time; !after.Equal(before) {
+		t.Fatalf("the released claim moved the lease of the claim that replaced it from %v to %v", before, after)
+	}
+
+	answer, err := f.svc.Report(ctx, grantClaimer, reportAt(second.Run.ClaimEpoch))
+	if err != nil || answer.State != "running" || answer.Stop {
+		t.Fatalf("report of the second claim = %+v, %v, want running", answer, err)
+	}
+	if after := f.stored(t, queued.ID).LeaseUntil.Time; !after.After(before.Add(30 * time.Second)) {
+		t.Fatalf("lease_until moved from %v to %v, want the second claim to renew it", before, after)
 	}
 }
 
