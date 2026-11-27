@@ -2,8 +2,6 @@ package metrics_test
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -16,7 +14,6 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
-	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/metrics"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/server"
@@ -53,7 +50,7 @@ func TestScrapeServesEverySeries(t *testing.T) {
 	r.AgentRequests().AgentRun("create", "succeeded")
 	r.AgentRequests().RequestClaimed("prompt", 3*time.Second)
 	r.AgentRequests().ThreadRepliesAbandoned(2)
-	r.ModelCalls().ModelCall("anthropic", "claude-haiku-5-5", "ok", 3*time.Second, llm.Usage{InputTokens: 1200, OutputTokens: 300, CacheReadTokens: 900, CacheWriteTokens: 50})
+	r.ModelCalls().ModelCall("anthropic", "claude-haiku-5-5", "ok", 3*time.Second, metrics.Tokens{InputTokens: 1200, OutputTokens: 300, CacheReadTokens: 900, CacheWriteTokens: 50})
 	r.Proxy().ProxyQuery("prometheus", "ok", 40*time.Millisecond)
 	r.Proxy().ProxyCache(true)
 	r.Scheduler().JobStarted("annotations")
@@ -184,9 +181,9 @@ func TestHTTPLabelsStayBounded(t *testing.T) {
 func TestModelCallSkipsZeroTokenDirectionsAndAddsUp(t *testing.T) {
 	r := metrics.New()
 	calls := r.ModelCalls()
-	calls.ModelCall("openai", "m", "rate_limited", time.Second, llm.Usage{})
-	calls.ModelCall("openai", "m", "ok", time.Second, llm.Usage{InputTokens: 10, OutputTokens: 5})
-	calls.ModelCall("openai", "m", "ok", time.Second, llm.Usage{InputTokens: 7})
+	calls.ModelCall("openai", "m", "rate_limited", time.Second, metrics.Tokens{})
+	calls.ModelCall("openai", "m", "ok", time.Second, metrics.Tokens{InputTokens: 10, OutputTokens: 5})
+	calls.ModelCall("openai", "m", "ok", time.Second, metrics.Tokens{InputTokens: 7})
 
 	body := scrape(t, r)
 	for _, want := range []string{
@@ -258,55 +255,6 @@ func TestSchedulerServesARegisteredJobAtZeroBeforeItRuns(t *testing.T) {
 	}
 	if n := strings.Count(body, "slashobserve_scheduler_jobs_total{"); n != 3 {
 		t.Errorf("scrape serves %d job counter samples, want 3:\n%s", n, body)
-	}
-}
-
-type fakeSession struct {
-	turn llm.Turn
-	err  error
-}
-
-func (s fakeSession) Next(context.Context, []llm.ToolResult) (llm.Turn, error) { return s.turn, s.err }
-func (fakeSession) Compact(llm.Compaction) error                               { return nil }
-
-type fakeProvider struct{ session fakeSession }
-
-func (fakeProvider) Name() string  { return "anthropic" }
-func (fakeProvider) Model() string { return "claude-haiku-5-5" }
-func (p fakeProvider) Start(context.Context, llm.Request) (llm.Session, error) {
-	return p.session, nil
-}
-
-func nextOnce(t *testing.T, p llm.Provider) {
-	t.Helper()
-	session, err := p.Start(t.Context(), llm.Request{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, _ = session.Next(t.Context(), nil)
-}
-
-func TestMeteredProviderRecordsEveryModelCallWithItsOutcome(t *testing.T) {
-	r := metrics.New()
-	nextOnce(t, llm.WithMetrics(fakeProvider{fakeSession{turn: llm.Turn{Usage: llm.Usage{InputTokens: 40, OutputTokens: 4}}}}, r.ModelCalls()))
-	nextOnce(t, llm.WithMetrics(fakeProvider{fakeSession{err: fmt.Errorf("wrapped: %w", &llm.CallError{Failure: llm.RateLimited})}}, r.ModelCalls()))
-	nextOnce(t, llm.WithMetrics(fakeProvider{fakeSession{err: context.Canceled}}, r.ModelCalls()))
-	nextOnce(t, llm.WithMetrics(fakeProvider{fakeSession{err: context.DeadlineExceeded}}, r.ModelCalls()))
-	nextOnce(t, llm.WithMetrics(fakeProvider{fakeSession{err: errors.New("boom")}}, r.ModelCalls()))
-
-	body := scrape(t, r)
-	for _, want := range []string{
-		`slashobserve_model_call_duration_seconds_count{model="claude-haiku-5-5",outcome="ok",provider="anthropic"} 1`,
-		`slashobserve_model_call_duration_seconds_count{model="claude-haiku-5-5",outcome="rate_limited",provider="anthropic"} 1`,
-		`slashobserve_model_call_duration_seconds_count{model="claude-haiku-5-5",outcome="canceled",provider="anthropic"} 1`,
-		`slashobserve_model_call_duration_seconds_count{model="claude-haiku-5-5",outcome="call_timeout",provider="anthropic"} 1`,
-		`slashobserve_model_call_duration_seconds_count{model="claude-haiku-5-5",outcome="error",provider="anthropic"} 1`,
-		`slashobserve_model_tokens_total{direction="input"} 40`,
-		`slashobserve_model_tokens_total{direction="output"} 4`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Errorf("scrape lacks %q", want)
-		}
 	}
 }
 

@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/claims"
+	"github.com/slashobserve/slashobserve/internal/metrics"
 )
 
 type clock struct{ now time.Time }
@@ -199,4 +202,62 @@ func queued(q *Queue, n int) bool {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	return len(q.waiting) == n
+}
+
+type modelCall struct {
+	provider, model, outcome string
+	took                     time.Duration
+	usage                    metrics.Tokens
+}
+
+type fakeMetrics struct {
+	mu    sync.Mutex
+	calls []modelCall
+}
+
+func (f *fakeMetrics) ModelCall(provider, model, outcome string, took time.Duration, usage metrics.Tokens) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls = append(f.calls, modelCall{provider, model, outcome, took, usage})
+}
+
+func TestEachReportedModelCallIsCountedWithItsOutcomeAndTokens(t *testing.T) {
+	m := &fakeMetrics{}
+	q := New(Config{
+		Model:   func() *claims.ModelSettings { return &claims.ModelSettings{Provider: "replay"} },
+		Timeout: time.Minute,
+		Metrics: m,
+	})
+	listening(t, q)
+	reports := []tools.DraftReport{
+		{Turn: &tools.DraftTurn{Stop: tools.DraftStopEndTurn, Usage: tools.DraftUsage{InputTokens: 40, OutputTokens: 4, CacheReadTokens: 2}}, DurationMS: 1500},
+		{Failure: tools.DraftFailureRateLimited, DurationMS: 20},
+		{Failure: tools.DraftFailureNoFixture},
+		{Failure: tools.DraftFailureError},
+	}
+	for _, report := range reports {
+		s, err := q.Start(t.Context(), tools.DraftRequest{Prompt: "p"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		pending := nextAsync(t.Context(), s, nil)
+		report.ID = claimOne(t, q).ID
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			_, _ = q.Finish(t.Context(), report)
+		}()
+		<-pending
+		s.Close()
+		<-done
+	}
+	want := []modelCall{
+		{"replay", "replay", "ok", 1500 * time.Millisecond, metrics.Tokens{InputTokens: 40, OutputTokens: 4, CacheReadTokens: 2}},
+		{"replay", "replay", "rate_limited", 20 * time.Millisecond, metrics.Tokens{}},
+		{"replay", "replay", "error", 0, metrics.Tokens{}},
+		{"replay", "replay", "error", 0, metrics.Tokens{}},
+	}
+	if !slices.Equal(m.calls, want) {
+		t.Fatalf("model calls = %+v, want %+v", m.calls, want)
+	}
 }

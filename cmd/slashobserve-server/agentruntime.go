@@ -44,7 +44,7 @@ type sidecarSetup struct {
 	drafts *drafts.Queue
 }
 
-func prepareAgentRuntime(cfg config.Config, providerConfigured bool, logger *slog.Logger) (*sidecarSetup, error) {
+func prepareAgentRuntime(cfg config.Config, providerConfigured bool, modelCalls drafts.Metrics, logger *slog.Logger) (*sidecarSetup, error) {
 	if !providerConfigured {
 		return nil, nil
 	}
@@ -57,7 +57,7 @@ func prepareAgentRuntime(cfg config.Config, providerConfigured bool, logger *slo
 		return nil, described("invalid_config", err)
 	}
 	model := modelSettingsOf(cfg.LLM, cfg.Agent.SessionRenewBytes)
-	queue := drafts.New(drafts.Config{Model: func() *claims.ModelSettings { return model(false) }, Timeout: tools.DraftDeadline})
+	queue := drafts.New(drafts.Config{Model: func() *claims.ModelSettings { return model(false) }, Timeout: tools.DraftDeadline, Metrics: modelCalls})
 	return &sidecarSetup{path: path, url: serverURL, drafts: queue}, nil
 }
 

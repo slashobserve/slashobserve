@@ -77,7 +77,7 @@ The 95th percentile time an agent request waited for a worker:
 histogram_quantile(0.95, sum by (le) (rate(slashobserve_agent_queue_wait_seconds_bucket[15m])))
 ```
 
-The 95th percentile time of a model call, by model:
+The 95th percentile time of a query draft's model call, by model:
 
 ```promql
 histogram_quantile(0.95, sum by (model, le) (rate(slashobserve_model_call_duration_seconds_bucket[15m])))
@@ -105,8 +105,8 @@ sum(rate(slashobserve_proxy_cache_total{result="hit"}[15m])) / sum(rate(slashobs
 | `slashobserve_agent_runs_total` | counter | `kind`, `outcome` | Agent runs that ended. |
 | `slashobserve_agent_queue_wait_seconds` | histogram | `source` | Time an agent request waited before the agent claimed it. |
 | `slashobserve_thread_replies_abandoned_total` | counter | none | Replies of finished agent runs that could not be posted in their comment thread within 24 hours, so the server stopped trying; the run reads `reply.state` `abandoned`. |
-| `slashobserve_model_call_duration_seconds` | histogram | `provider`, `model`, `outcome` | Time of one model call, including its retries. |
-| `slashobserve_model_tokens_total` | counter | `direction` | Tokens the model provider reported. |
+| `slashobserve_model_call_duration_seconds` | histogram | `provider`, `model`, `outcome` | Time of one model call of a query draft, including its retries, as the agent process reports it. |
+| `slashobserve_model_tokens_total` | counter | `direction` | Tokens the model provider reported for query drafts. |
 | `slashobserve_proxy_query_duration_seconds` | histogram | `datasource_type`, `outcome` | Time of one datasource call from the query proxy. |
 | `slashobserve_proxy_cache_total` | counter | `result` | Panel data lookups in the query proxy's shared result cache. |
 | `slashobserve_scheduler_jobs_total` | counter | `job`, `outcome` | Scheduled job runs that ended. |
@@ -146,7 +146,8 @@ Details of the series that need more than a cell:
 - `kind` is `create` for a new dashboard, `revise` for a change to an existing one, `suggest` for a single suggested panel, and `investigate` for an investigation.
 - `source` on `slashobserve_agent_queue_wait_seconds` is the request's source: `comment`, `prompt`, `observe`, `suggest` or `investigate`.
 - `outcome` on `slashobserve_agent_runs_total` is `succeeded` or the failure code the request shows, such as `rate_limited`, `run_timeout` or `canceled`.
-- `outcome` on `slashobserve_model_call_duration_seconds` is `ok`, `rate_limited`, `call_timeout`, `provider_error`, `canceled`, or `error` for any other failure.
+- `outcome` on `slashobserve_model_call_duration_seconds` is `ok`, `rate_limited`, `call_timeout`, `provider_error`, or `error` for any other failure.
+- The model calls of agent runs are not in these two series; each run's model use and cost are on the run (`usage`).
 - `direction` is `input`, `output`, `cache_read` or `cache_write`.
 - `datasource_type` is the datasource type, such as `prometheus` or `clickhouse`.
 - `outcome` on `slashobserve_proxy_query_duration_seconds` is `ok` or the query error code a panel shows, such as `query_invalid`, `query_timeout`, `limit_exceeded` or `datasource_unavailable`.

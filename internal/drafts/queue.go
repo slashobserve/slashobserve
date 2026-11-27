@@ -1,6 +1,7 @@
 package drafts
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"sync"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/claims"
+	"github.com/slashobserve/slashobserve/internal/metrics"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 )
 
@@ -19,9 +21,14 @@ var (
 	errNoModel   = errors.New("no model is configured")
 )
 
+type Metrics interface {
+	ModelCall(provider, model, outcome string, took time.Duration, usage metrics.Tokens)
+}
+
 type Config struct {
 	Model   func() *claims.ModelSettings
 	Timeout time.Duration
+	Metrics Metrics
 	Now     func() time.Time
 }
 
@@ -194,6 +201,7 @@ func (q *Queue) Finish(ctx context.Context, report tools.DraftReport) (tools.Dra
 	default:
 		return tools.DraftReply{}, errOutOfTurn
 	}
+	q.record(report)
 	select {
 	case results := <-j.replies:
 		return tools.DraftReply{Results: results}, nil
@@ -202,6 +210,30 @@ func (q *Queue) Finish(ctx context.Context, report tools.DraftReport) (tools.Dra
 	case <-ctx.Done():
 		return tools.DraftReply{}, ctx.Err()
 	}
+}
+
+// record counts the reported call the way the Go model clients counted their own: no_fixture is not a
+// provider failure, so it is "error".
+func (q *Queue) record(report tools.DraftReport) {
+	if q.cfg.Metrics == nil {
+		return
+	}
+	settings := q.cfg.Model()
+	if settings == nil {
+		return
+	}
+	outcome := "ok"
+	var usage metrics.Tokens
+	switch {
+	case report.Turn != nil:
+		u := report.Turn.Usage
+		usage = metrics.Tokens{InputTokens: u.InputTokens, OutputTokens: u.OutputTokens, CacheReadTokens: u.CacheReadTokens, CacheWriteTokens: u.CacheWriteTokens}
+	case report.Failure == tools.DraftFailureCallTimeout, report.Failure == tools.DraftFailureRateLimited, report.Failure == tools.DraftFailureProviderError:
+		outcome = report.Failure
+	default:
+		outcome = "error"
+	}
+	q.cfg.Metrics.ModelCall(settings.Provider, cmp.Or(settings.Model, settings.Provider), outcome, time.Duration(report.DurationMS)*time.Millisecond, usage)
 }
 
 type session struct {

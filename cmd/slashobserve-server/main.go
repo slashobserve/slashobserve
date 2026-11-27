@@ -374,7 +374,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	sidecar, err := prepareAgentRuntime(cfg, llmProvider != nil, logger)
+	sidecar, err := prepareAgentRuntime(cfg, llmProvider != nil, serverMetrics.ModelCalls(), logger)
 	if err != nil {
 		return err
 	}
@@ -931,7 +931,6 @@ func newLLMProvider(cfg config.Config, logger *slog.Logger, serverMetrics *metri
 		logger.Info("no llm provider configured; the agent is off")
 		return nil, nil
 	}
-	provider = llm.WithMetrics(provider, serverMetrics.ModelCalls())
 	logger.Info("llm provider configured", slog.String("provider", provider.Name()), slog.String("model", provider.Model()))
 	if err := requirePricedModel(cfg, provider); err != nil {
 		return nil, described("invalid_config", err)
