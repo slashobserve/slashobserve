@@ -30,9 +30,9 @@ test(
     const child = Bun.spawn(["bun", join(import.meta.dir, "../src/main.ts")], {
       env: {
         PATH: process.env.PATH ?? "",
-        OBSERVE_AGENT_SERVER_URL: `http://127.0.0.1:${neverAnswers.port}`,
-        OBSERVE_AGENT_TOKEN: "sob_test",
-        OBSERVE_AGENT_SLOTS: "1",
+        HARNESS_SERVER_URL: `http://127.0.0.1:${neverAnswers.port}`,
+        HARNESS_TOKEN: "sob_test",
+        HARNESS_SLOTS: "1",
       },
       stderr: "pipe",
       stdout: "ignore",
@@ -40,9 +40,9 @@ test(
     try {
       const lines: string[] = []
       const stopped = (line: string): boolean =>
-        line.includes("observe-agent stopped")
+        line.includes("harness stopped")
       const reader = linesUntil(child.stderr, lines, stopped)
-      while (!lines.some((line) => line.includes("observe-agent started"))) {
+      while (!lines.some((line) => line.includes("harness started"))) {
         await Bun.sleep(20)
       }
       await Bun.sleep(200)
@@ -53,7 +53,7 @@ test(
       await reader
       expect(code).toBe(exitCodes.forced)
       expect(JSON.parse(lines.find(stopped) ?? "{}")).toMatchObject({
-        msg: "observe-agent stopped",
+        msg: "harness stopped",
         shutdown: "forced",
       })
     } finally {

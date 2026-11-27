@@ -1,4 +1,4 @@
-package observeagent
+package harness
 
 import (
 	"context"
@@ -16,7 +16,7 @@ func TestSupervisorMachineIsConsistent(t *testing.T) {
 
 func TestSupervisorIsInBackoffWhileTheChildCannotStart(t *testing.T) {
 	h := newHarness(t, "exit")
-	h.s.cfg.Path = filepath.Join(t.TempDir(), "missing", "observe-agent")
+	h.s.cfg.Path = filepath.Join(t.TempDir(), "missing", "slashobserve-harness")
 	var waiting []State
 	h.s.sleep = func(context.Context, time.Duration) {
 		waiting = append(waiting, h.s.State())
@@ -36,7 +36,7 @@ func TestSupervisorIsInBackoffWhileTheChildCannotStart(t *testing.T) {
 	if got := h.s.State(); got != StateStopping {
 		t.Fatalf("state after Run returned = %s, want stopping", got)
 	}
-	backoff := h.rec.next(t, "observe-agent waiting to restart")
+	backoff := h.rec.next(t, "harness waiting to restart")
 	if backoff.attrs[stateLogKey] != string(StateBackoff) {
 		t.Fatalf("record = %+v, want %s=%s", backoff, stateLogKey, StateBackoff)
 	}

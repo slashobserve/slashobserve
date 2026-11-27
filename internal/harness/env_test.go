@@ -1,4 +1,4 @@
-package observeagent
+package harness
 
 import (
 	"log/slog"
@@ -18,10 +18,10 @@ func TestChildEnv(t *testing.T) {
 	env := childEnv("http://127.0.0.1:8080", "sob_token", 4, slog.LevelWarn)
 
 	want := []string{
-		"OBSERVE_AGENT_SERVER_URL=http://127.0.0.1:8080",
-		"OBSERVE_AGENT_TOKEN=sob_token",
-		"OBSERVE_AGENT_SLOTS=4",
-		"OBSERVE_AGENT_LOG_LEVEL=warn",
+		"HARNESS_SERVER_URL=http://127.0.0.1:8080",
+		"HARNESS_TOKEN=sob_token",
+		"HARNESS_SLOTS=4",
+		"HARNESS_LOG_LEVEL=warn",
 		"PATH=/usr/local/bin:/usr/bin",
 		"HOME=/home/slashobserve",
 		"TZ=UTC",
@@ -64,7 +64,7 @@ func TestChildEnvLogLevel(t *testing.T) {
 	}
 	for _, tt := range tests {
 		env := childEnv("http://127.0.0.1:1", "sob_t", 1, tt.level)
-		if want := "OBSERVE_AGENT_LOG_LEVEL=" + tt.want; env[3] != want {
+		if want := "HARNESS_LOG_LEVEL=" + tt.want; env[3] != want {
 			t.Errorf("level %v: got %q, want %q", tt.level, env[3], want)
 		}
 	}

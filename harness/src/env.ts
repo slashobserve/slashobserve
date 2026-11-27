@@ -27,27 +27,27 @@ function parseServerUrl(text: string): URL | undefined {
 }
 
 export function parseEnv(source: Source): EnvResult {
-  const serverText = source["OBSERVE_AGENT_SERVER_URL"]?.trim() ?? ""
+  const serverText = source["HARNESS_SERVER_URL"]?.trim() ?? ""
   if (serverText === "") {
-    return { ok: false, message: "OBSERVE_AGENT_SERVER_URL is not set" }
+    return { ok: false, message: "HARNESS_SERVER_URL is not set" }
   }
   const serverUrl = parseServerUrl(serverText)
   if (serverUrl === undefined) {
     return {
       ok: false,
-      message: "OBSERVE_AGENT_SERVER_URL is not an http or https URL",
+      message: "HARNESS_SERVER_URL is not an http or https URL",
     }
   }
-  const token = source["OBSERVE_AGENT_TOKEN"]?.trim() ?? ""
+  const token = source["HARNESS_TOKEN"]?.trim() ?? ""
   if (token === "") {
-    return { ok: false, message: "OBSERVE_AGENT_TOKEN is not set" }
+    return { ok: false, message: "HARNESS_TOKEN is not set" }
   }
-  const slotsText = source["OBSERVE_AGENT_SLOTS"]?.trim() ?? "1"
+  const slotsText = source["HARNESS_SLOTS"]?.trim() ?? "1"
   const slots = /^\d+$/.test(slotsText) ? Number(slotsText) : 0
   if (slots < minSlots || slots > maxSlots) {
     return {
       ok: false,
-      message: `OBSERVE_AGENT_SLOTS must be a whole number from ${minSlots} to ${maxSlots}`,
+      message: `HARNESS_SLOTS must be a whole number from ${minSlots} to ${maxSlots}`,
     }
   }
   return {
@@ -56,7 +56,7 @@ export function parseEnv(source: Source): EnvResult {
       serverUrl,
       token,
       slots,
-      logLevel: parseLevel(source["OBSERVE_AGENT_LOG_LEVEL"]) ?? "info",
+      logLevel: parseLevel(source["HARNESS_LOG_LEVEL"]) ?? "info",
     },
   }
 }
@@ -64,7 +64,7 @@ export function parseEnv(source: Source): EnvResult {
 export function loadEnv(): Env {
   const result = parseEnv(process.env)
   if (!result.ok) {
-    process.stderr.write(`observe-agent: ${result.message}\n`)
+    process.stderr.write(`harness: ${result.message}\n`)
     process.exit(exitUsage)
   }
   return result.env

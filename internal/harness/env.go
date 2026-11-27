@@ -1,4 +1,4 @@
-package observeagent
+package harness
 
 import (
 	"log/slog"
@@ -7,10 +7,10 @@ import (
 )
 
 const (
-	EnvServerURL = "OBSERVE_AGENT_SERVER_URL"
-	EnvToken     = "OBSERVE_AGENT_TOKEN"
-	EnvSlots     = "OBSERVE_AGENT_SLOTS"
-	EnvLogLevel  = "OBSERVE_AGENT_LOG_LEVEL"
+	EnvServerURL = "HARNESS_SERVER_URL"
+	EnvToken     = "HARNESS_TOKEN"
+	EnvSlots     = "HARNESS_SLOTS"
+	EnvLogLevel  = "HARNESS_LOG_LEVEL"
 
 	TokenPrefix = "sob_"
 )

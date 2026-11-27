@@ -1,5 +1,5 @@
 {
-  "name": "@slashobserve/observe-agent",
+  "name": "@slashobserve/harness",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,7 +9,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "bun test",
-    "build": "bun build --compile --minify src/main.ts --outfile ../bin/observe-agent"
+    "build": "bun build --compile --minify src/main.ts --outfile ../bin/slashobserve-harness"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "4.0.91",

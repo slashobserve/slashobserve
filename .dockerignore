@@ -18,7 +18,7 @@ e2e-compose.log
 internal/server/webdist
 internal/server/mcp/panelapp/panel.html
 web/node_modules
-observe-agent/node_modules
+harness/node_modules
 web/dist
 web/dist-panel
 web/playwright-report

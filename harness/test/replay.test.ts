@@ -28,7 +28,7 @@ afterAll(async () => {
 })
 
 async function fixtureDir(files: Record<string, string>): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "observe-agent-replay-"))
+  const dir = await mkdtemp(join(tmpdir(), "harness-replay-"))
   roots.push(dir)
   for (const [name, content] of Object.entries(files)) {
     await writeFile(join(dir, name), content)
@@ -501,7 +501,7 @@ describe("loading", () => {
   })
 
   test("a missing directory is an error", async () => {
-    const dir = join(tmpdir(), "observe-agent-no-such-dir")
+    const dir = join(tmpdir(), "harness-no-such-dir")
     const error = await failureOf(ReplayProvider.load(dir, 0, capture().logger))
     expect((error as Error).message).toBe(
       `read replay fixture directory: open ${dir}: no such file or directory`

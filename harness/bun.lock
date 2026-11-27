@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@slashobserve/observe-agent",
+      "name": "@slashobserve/harness",
       "dependencies": {
         "@ai-sdk/anthropic": "4.0.91",
         "@ai-sdk/openai-compatible": "3.0.80",

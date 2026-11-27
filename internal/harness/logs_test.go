@@ -1,4 +1,4 @@
-package observeagent
+package harness
 
 import (
 	"context"
@@ -73,74 +73,74 @@ func TestRelay(t *testing.T) {
 			name:  "a json line is logged at its level with its fields",
 			input: `{"level":"warn","msg":"claim failed","attempt":3,"ratio":0.5,"retry":true,"run":"r-1","nested":{"a":1},"list":[1]}` + "\n",
 			want: []record{{level: slog.LevelWarn, msg: "claim failed", attrs: map[string]any{
-				"attempt": int64(3), "ratio": 0.5, "retry": true, "run": "r-1", "component": "observe-agent",
+				"attempt": int64(3), "ratio": 0.5, "retry": true, "run": "r-1", "component": "harness",
 			}}},
 		},
 		{
 			name:  "every known level is mapped and an unknown one is info",
 			input: `{"level":"debug","msg":"a"}` + "\n" + `{"level":"error","msg":"b"}` + "\n" + `{"level":"info","msg":"c"}` + "\n" + `{"level":"trace","msg":"d"}` + "\n",
 			want: []record{
-				{level: slog.LevelDebug, msg: "a", attrs: map[string]any{"component": "observe-agent"}},
-				{level: slog.LevelError, msg: "b", attrs: map[string]any{"component": "observe-agent"}},
-				{level: slog.LevelInfo, msg: "c", attrs: map[string]any{"component": "observe-agent"}},
-				{level: slog.LevelInfo, msg: "d", attrs: map[string]any{"component": "observe-agent"}},
+				{level: slog.LevelDebug, msg: "a", attrs: map[string]any{"component": "harness"}},
+				{level: slog.LevelError, msg: "b", attrs: map[string]any{"component": "harness"}},
+				{level: slog.LevelInfo, msg: "c", attrs: map[string]any{"component": "harness"}},
+				{level: slog.LevelInfo, msg: "d", attrs: map[string]any{"component": "harness"}},
 			},
 		},
 		{
 			name:  "a plain line is logged as output",
 			input: "listening on :9\n",
-			want: []record{{level: slog.LevelInfo, msg: "observe-agent output", attrs: map[string]any{
-				"line": "listening on :9", "component": "observe-agent",
+			want: []record{{level: slog.LevelInfo, msg: "harness output", attrs: map[string]any{
+				"line": "listening on :9", "component": "harness",
 			}}},
 		},
 		{
 			name:  "a last line without a newline is still logged",
 			input: "bye",
-			want: []record{{level: slog.LevelInfo, msg: "observe-agent output", attrs: map[string]any{
-				"line": "bye", "component": "observe-agent",
+			want: []record{{level: slog.LevelInfo, msg: "harness output", attrs: map[string]any{
+				"line": "bye", "component": "harness",
 			}}},
 		},
 		{
 			name:  "invalid json is a plain line",
 			input: `{"level":"warn","msg":` + "\n",
-			want: []record{{level: slog.LevelInfo, msg: "observe-agent output", attrs: map[string]any{
-				"line": `{"level":"warn","msg":`, "component": "observe-agent",
+			want: []record{{level: slog.LevelInfo, msg: "harness output", attrs: map[string]any{
+				"line": `{"level":"warn","msg":`, "component": "harness",
 			}}},
 		},
 		{
 			name:  "json without a string level or msg is a plain line",
 			input: `{"level":3,"msg":"x"}` + "\n" + `{"msg":"x"}` + "\n",
 			want: []record{
-				{level: slog.LevelInfo, msg: "observe-agent output", attrs: map[string]any{"line": `{"level":3,"msg":"x"}`, "component": "observe-agent"}},
-				{level: slog.LevelInfo, msg: "observe-agent output", attrs: map[string]any{"line": `{"msg":"x"}`, "component": "observe-agent"}},
+				{level: slog.LevelInfo, msg: "harness output", attrs: map[string]any{"line": `{"level":3,"msg":"x"}`, "component": "harness"}},
+				{level: slog.LevelInfo, msg: "harness output", attrs: map[string]any{"line": `{"msg":"x"}`, "component": "harness"}},
 			},
 		},
 		{
 			name:  "a child field named component cannot replace the real one",
 			input: `{"level":"info","msg":"m","component":"spoof","truncated":true}` + "\n",
-			want:  []record{{level: slog.LevelInfo, msg: "m", attrs: map[string]any{"component": "observe-agent"}}},
+			want:  []record{{level: slog.LevelInfo, msg: "m", attrs: map[string]any{"component": "harness"}}},
 		},
 		{
 			name:  "windows line endings and blank lines",
 			input: "one\r\n\r\ntwo\r\n",
 			want: []record{
-				{level: slog.LevelInfo, msg: "observe-agent output", attrs: map[string]any{"line": "one", "component": "observe-agent"}},
-				{level: slog.LevelInfo, msg: "observe-agent output", attrs: map[string]any{"line": "two", "component": "observe-agent"}},
+				{level: slog.LevelInfo, msg: "harness output", attrs: map[string]any{"line": "one", "component": "harness"}},
+				{level: slog.LevelInfo, msg: "harness output", attrs: map[string]any{"line": "two", "component": "harness"}},
 			},
 		},
 		{
 			name:  "a line over 4 KiB is cut and marked, and the next line is intact",
 			input: longLine + "\nnext\n",
 			want: []record{
-				{level: slog.LevelInfo, msg: "observe-agent output", attrs: map[string]any{"line": longLine[:4096], "component": "observe-agent", "truncated": true}},
-				{level: slog.LevelInfo, msg: "observe-agent output", attrs: map[string]any{"line": "next", "component": "observe-agent"}},
+				{level: slog.LevelInfo, msg: "harness output", attrs: map[string]any{"line": longLine[:4096], "component": "harness", "truncated": true}},
+				{level: slog.LevelInfo, msg: "harness output", attrs: map[string]any{"line": "next", "component": "harness"}},
 			},
 		},
 		{
 			name:  "a line of exactly 4 KiB is not cut",
 			input: longLine[:4096] + "\n",
 			want: []record{
-				{level: slog.LevelInfo, msg: "observe-agent output", attrs: map[string]any{"line": longLine[:4096], "component": "observe-agent"}},
+				{level: slog.LevelInfo, msg: "harness output", attrs: map[string]any{"line": longLine[:4096], "component": "harness"}},
 			},
 		},
 	}

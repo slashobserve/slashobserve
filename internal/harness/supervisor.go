@@ -1,4 +1,4 @@
-package observeagent
+package harness
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	binaryName     = "observe-agent"
+	binaryName     = "slashobserve-harness"
 	initialBackoff = time.Second
 	maxBackoff     = 30 * time.Second
 	stableRun      = 60 * time.Second
@@ -26,8 +26,8 @@ const (
 )
 
 var (
-	errBinaryNotFound = errors.New("observe-agent is not on PATH; the server image ships it at /usr/local/bin/observe-agent and a source build gets it from make agent")
-	errExitedCleanly  = errors.New("observe-agent exited with status 0")
+	errBinaryNotFound = errors.New("slashobserve-harness is not on PATH; the server image ships it at /usr/local/bin/slashobserve-harness and a source build gets it from make harness")
+	errExitedCleanly  = errors.New("harness exited with status 0")
 )
 
 type SupervisorConfig struct {
@@ -166,17 +166,17 @@ func (s *Supervisor) releaseRuns(ctx context.Context) {
 func (s *Supervisor) logExit(ctx context.Context, cmd *exec.Cmd, waitErr error, ran time.Duration) {
 	attrs := []any{slog.Int("exit_code", cmd.ProcessState.ExitCode()), slog.Duration("ran_for", ran)}
 	if ctx.Err() != nil {
-		s.cfg.Logger.Info("observe-agent exited", attrs...)
+		s.cfg.Logger.Info("harness exited", attrs...)
 		return
 	}
 	if waitErr == nil {
 		waitErr = errExitedCleanly
 	}
-	s.cfg.Logger.Warn("observe-agent exited", logattrs.Failure("observe_agent_exited", waitErr, attrs...)...)
+	s.cfg.Logger.Warn("harness exited", logattrs.Failure("harness_exited", waitErr, attrs...)...)
 }
 
 func (s *Supervisor) logStartFailure(err error) {
-	s.cfg.Logger.Error("observe-agent could not be started", logattrs.Failure("observe_agent_start_failed", err)...)
+	s.cfg.Logger.Error("harness could not be started", logattrs.Failure("harness_start_failed", err)...)
 }
 
 func sleepContext(ctx context.Context, d time.Duration) {

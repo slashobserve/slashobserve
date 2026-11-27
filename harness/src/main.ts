@@ -18,7 +18,7 @@ async function main(): Promise<number> {
   const stop = (): void => controller.abort()
   process.on("SIGTERM", stop)
   process.on("SIGINT", stop)
-  log("info", "observe-agent started", { version, slots: env.slots })
+  log("info", "harness started", { version, slots: env.slots })
   const handback: Handback = { held: 0, released: 0 }
   const work = claimLoop(
     new ClaimClient(base),
@@ -32,7 +32,7 @@ async function main(): Promise<number> {
     controller.signal,
     shutdownGraceMs
   )
-  log(outcome === "forced" ? "warn" : "info", "observe-agent stopped", {
+  log(outcome === "forced" ? "warn" : "info", "harness stopped", {
     shutdown: outcome,
     released: handback.released,
     not_released: handback.held,

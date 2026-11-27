@@ -92,7 +92,7 @@ These behave differently without a provider:
 
 ## Allow the agent's network calls
 
-The model calls come from `observe-agent`, the process the server starts whenever a provider is configured, not from the server itself.
+The model calls come from `slashobserve-harness`, the process the server starts whenever a provider is configured, not from the server itself.
 It calls `api.anthropic.com` for `anthropic` and `api.openai.com` for `openai`, over HTTPS, unless `SLASHOBSERVE_LLM_BASE_URL` names another server.
 The [outbound allowlist](../operate/outbound-access.md) does not cover these calls, so a firewall that restricts egress must allow the host.
 

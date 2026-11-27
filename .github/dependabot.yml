@@ -28,7 +28,7 @@ updates:
         update-types: [minor, patch]
 
   - package-ecosystem: bun
-    directory: /observe-agent
+    directory: /harness
     schedule:
       interval: weekly
     cooldown:

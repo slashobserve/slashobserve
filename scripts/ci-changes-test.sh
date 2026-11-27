@@ -46,9 +46,9 @@ expect "an agent tool needs the stack" \
 expect "an agent prompt is not prose" \
   "go=true web=true build=true stack=true image=false audit=false" internal/agent/prompts/spec_guide.md
 expect "the sidecar does not run Go" \
-  "go=false web=true build=true stack=true image=false audit=false" observe-agent/src/main.ts
+  "go=false web=true build=true stack=true image=false audit=false" harness/src/main.ts
 expect "the sidecar protocol runs Go too" \
-  "go=true web=true build=true stack=true image=false audit=false" observe-agent/src/protocol.ts
+  "go=true web=true build=true stack=true image=false audit=false" harness/src/protocol.ts
 expect "a test fixture that the web reads runs web" \
   "go=true web=true build=true stack=true image=false audit=false" internal/kql/testdata/cases.json
 expect "a datasource adapter needs the stack" \
@@ -76,11 +76,11 @@ all="$("$here/ci-changes.sh" all | tr '\n' ' ')"
 
 declared="$("$here/ci-changes.sh" go-reads | LC_ALL=C sort)"
 literal_paths() {
-  grep -rhoE '"(\.\./)+(web|observe-agent)/[^"]+"' --include='*.go' internal pkg cmd loadtest | tr -d '"'
+  grep -rhoE '"(\.\./)+(web|harness)/[^"]+"' --include='*.go' internal pkg cmd loadtest | tr -d '"'
 }
 
 joined_paths() {
-  grep -rhoE 'filepath\.Join\("\.\."(, "[^"]+")*, "(web|observe-agent)"(, "[^"]+")+\)' --include='*.go' internal pkg cmd loadtest |
+  grep -rhoE 'filepath\.Join\("\.\."(, "[^"]+")*, "(web|harness)"(, "[^"]+")+\)' --include='*.go' internal pkg cmd loadtest |
     sed -E 's/^filepath\.Join\(//; s/\)$//; s/", "/\//g' | tr -d '"'
 }
 

@@ -19,9 +19,9 @@ On Kubernetes, the chart values `logLevel` and `logFormat` set them.
 SLASHOBSERVE_LOG_LEVEL=debug SLASHOBSERVE_LOG_FORMAT=text slashobserve-server
 ```
 
-The built-in agent runs in a child process, `observe-agent`, and logs at the same level.
-The server copies the child's log lines into its own log with `component=observe-agent`.
-When the child stops it logs `observe-agent stopped` with `shutdown` set to `drained`, or to `forced` when it did not finish within 5 seconds of `SIGTERM`; the server's `observe-agent exited` line then has `exit_code` 0 or 124.
+The built-in agent runs in a child process, `slashobserve-harness`, and logs at the same level.
+The server copies the child's log lines into its own log with `component=harness`.
+When the child stops it logs `harness stopped` with `shutdown` set to `drained`, or to `forced` when it did not finish within 5 seconds of `SIGTERM`; the server's `harness exited` line then has `exit_code` 0 or 124.
 The line also has `released`, the runs the child handed back with `release_run`, and `not_released`, the runs it still held when it logged the line.
 A `not_released` above 0 is no fault to fix: the server requeues those runs when the child exits.
 
@@ -106,7 +106,7 @@ It is never added to the error stored on an agent request or returned by the API
 | Level | Meaning |
 | --- | --- |
 | `DEBUG` | Detail for each step, such as the health checks, scrapes of `/metrics` and the agent's `run brief loaded`. |
-| `INFO` | Normal lifecycle: startup, `observe-agent started`, an agent request that saved, a run that started, finished or was ended by the server. |
+| `INFO` | Normal lifecycle: startup, `harness started`, an agent request that saved, a run that started, finished or was ended by the server. |
 | `WARN` | Degraded or recoverable: a failed model call, an agent request or run that failed, a datasource that turned unhealthy. |
 | `ERROR` | A failure you must act on: the database, a migration, a run result the server could not record, or `run loop crashed` in the agent. |
 
@@ -125,5 +125,5 @@ The path never includes the query string, and the token of a public link is repl
   It does not log again until the datasource has recovered.
 - A refused sign-in also logs the domain of the email address.
   A failed code exchange logs the provider's `oauth_error` code, such as `invalid_grant`, when it is a plain code.
-- A line of the `observe-agent` child that is not JSON is logged as `observe-agent output` with the text in `line`.
+- A line of the harness child that is not JSON is logged as `harness output` with the text in `line`.
   A line longer than 4096 bytes is cut and marked `truncated=true`.

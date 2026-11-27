@@ -22,7 +22,7 @@ Docker runs the database-backed tests through testcontainers, and the demo.
     make build
     make demo-build
 
-`make build` installs the web dependencies, builds the web app, and builds `bin/slashobserve-server`, `bin/observe` and `bin/observe-agent`.
+`make build` installs the web dependencies, builds the web app, and builds `bin/slashobserve-server`, `bin/observe` and `bin/slashobserve-harness`.
 `make demo-build` builds the server image from your working tree and starts the demo with it; `make demo` pulls the published image instead.
 The demo is for local use only; see the [quick start](docs/get-started/quick-start.md).
 
@@ -34,7 +34,7 @@ The conventions for each area are in [internal/CLAUDE.md](internal/CLAUDE.md), [
 | Command | What it does |
 | --- | --- |
 | `make lint` | Go, web and agent linters, formatting and type checks, checks that generated files match their sources, the docs lint and the Helm chart checks. |
-| `make test` | Go tests with the race detector, the web unit tests, the `observe-agent` tests, the benchmark adapter tests (they need `uv`) and the script tests. |
+| `make test` | Go tests with the race detector, the web unit tests, the `harness/` tests, the benchmark adapter tests (they need `uv`) and the script tests. |
 | `make ci` | `lint`, `test`, a `go mod tidy` check and `make build`, which is what the `check` job in CI runs. |
 | `make generate` | Regenerates the sqlc code, the Spec types and validator for the web app, and the API types, after you edit migrations, queries, the schema or `api/`. |
 

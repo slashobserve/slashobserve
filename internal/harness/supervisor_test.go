@@ -1,4 +1,4 @@
-package observeagent
+package harness
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	childArg           = "--observe-agent-test-child"
+	childArg           = "--harness-test-child"
 	testTimeout        = 30 * time.Second
 	forcedStopExitCode = 124
 )
@@ -204,9 +204,9 @@ func TestSupervisorExitReleasesRunsOnceAndRotatesTheToken(t *testing.T) {
 		t.Fatalf("second event = %q, want sleep 1s: OnExit must run once, before the backoff", got)
 	}
 
-	exited := h.rec.next(t, "observe-agent exited")
-	if exited.level != slog.LevelWarn || exited.attrs["error_code"] != "observe_agent_exited" || exited.attrs["exit_code"] != int64(3) {
-		t.Fatalf("exit record = %+v, want a warning coded observe_agent_exited with exit_code 3", exited)
+	exited := h.rec.next(t, "harness exited")
+	if exited.level != slog.LevelWarn || exited.attrs["error_code"] != "harness_exited" || exited.attrs["exit_code"] != int64(3) {
+		t.Fatalf("exit record = %+v, want a warning coded harness_exited with exit_code 3", exited)
 	}
 
 	h.stop(t)
@@ -268,7 +268,7 @@ func (c *scriptedClock) now() time.Time {
 
 func TestSupervisorStartFailureIsCodedAndBacksOff(t *testing.T) {
 	h := newHarness(t, "exit")
-	h.s.cfg.Path = filepath.Join(t.TempDir(), "missing", "observe-agent")
+	h.s.cfg.Path = filepath.Join(t.TempDir(), "missing", "slashobserve-harness")
 	var slept []time.Duration
 	h.s.sleep = func(ctx context.Context, d time.Duration) {
 		slept = append(slept, d)
@@ -279,9 +279,9 @@ func TestSupervisorStartFailureIsCodedAndBacksOff(t *testing.T) {
 	h.start()
 	h.wait(t)
 
-	failed := h.rec.next(t, "observe-agent could not be started")
-	if failed.level != slog.LevelError || failed.attrs["error_code"] != "observe_agent_start_failed" {
-		t.Fatalf("record = %+v, want an error coded observe_agent_start_failed", failed)
+	failed := h.rec.next(t, "harness could not be started")
+	if failed.level != slog.LevelError || failed.attrs["error_code"] != "harness_start_failed" {
+		t.Fatalf("record = %+v, want an error coded harness_start_failed", failed)
 	}
 	if want := []time.Duration{time.Second, 2 * time.Second}; !slices.Equal(slept, want) {
 		t.Fatalf("backoff = %v, want %v", slept, want)
@@ -302,7 +302,7 @@ func TestSupervisorTerminatesTheChildWhenContextEnds(t *testing.T) {
 	h.stop(t)
 
 	h.rec.next(t, "terminated")
-	exited := h.rec.next(t, "observe-agent exited")
+	exited := h.rec.next(t, "harness exited")
 	if exited.level != slog.LevelInfo || exited.attrs["exit_code"] != int64(0) {
 		t.Fatalf("exit record = %+v, want an info record with exit_code 0", exited)
 	}
@@ -318,7 +318,7 @@ func TestSupervisorStopOfAChildThatExitsNonZeroIsNeitherAFailureNorARestart(t *t
 
 	h.stop(t)
 
-	exited := h.rec.next(t, "observe-agent exited")
+	exited := h.rec.next(t, "harness exited")
 	if exited.level != slog.LevelInfo || exited.attrs["exit_code"] != int64(forcedStopExitCode) || exited.attrs["error_code"] != nil {
 		t.Fatalf("exit record = %+v, want an info record with exit_code %d and no error code", exited, forcedStopExitCode)
 	}
@@ -340,7 +340,7 @@ func TestSupervisorKillsAChildThatIgnoresTerminate(t *testing.T) {
 
 	h.stop(t)
 
-	exited := h.rec.next(t, "observe-agent exited")
+	exited := h.rec.next(t, "harness exited")
 	if exited.attrs["exit_code"] != int64(-1) {
 		t.Fatalf("exit record = %+v, want exit_code -1 for a killed child", exited)
 	}
@@ -353,14 +353,14 @@ func TestSupervisorRelaysTheChildsLogs(t *testing.T) {
 	h := newHarness(t, "log")
 	h.start()
 
-	seen := h.rec.collect(t, "hello", "observe-agent output")
+	seen := h.rec.collect(t, "hello", "harness output")
 	hello := seen["hello"]
-	if hello.level != slog.LevelWarn || hello.attrs["k"] != "v" || hello.attrs["component"] != "observe-agent" {
-		t.Fatalf("relayed record = %+v, want a warning with k=v and component=observe-agent", hello)
+	if hello.level != slog.LevelWarn || hello.attrs["k"] != "v" || hello.attrs["component"] != "harness" {
+		t.Fatalf("relayed record = %+v, want a warning with k=v and component=harness", hello)
 	}
-	oops := seen["observe-agent output"]
-	if oops.attrs["line"] != "oops" || oops.attrs["component"] != "observe-agent" {
-		t.Fatalf("stderr record = %+v, want line=oops and component=observe-agent", oops)
+	oops := seen["harness output"]
+	if oops.attrs["line"] != "oops" || oops.attrs["component"] != "harness" {
+		t.Fatalf("stderr record = %+v, want line=oops and component=harness", oops)
 	}
 	h.stop(t)
 }
@@ -370,7 +370,7 @@ func TestSupervisorNeverLogsTheToken(t *testing.T) {
 	h.s.sleep = func(context.Context, time.Duration) {}
 	h.start()
 	token, _ := h.rec.next(t, "child started").attrs["token"].(string)
-	h.rec.next(t, "observe-agent exited")
+	h.rec.next(t, "harness exited")
 	h.stop(t)
 
 	for _, rec := range h.rec.all() {
@@ -386,7 +386,7 @@ func TestSupervisorNeverLogsTheToken(t *testing.T) {
 func TestFindBinary(t *testing.T) {
 	t.Run("found on PATH", func(t *testing.T) {
 		dir := t.TempDir()
-		want := filepath.Join(dir, "observe-agent")
+		want := filepath.Join(dir, "slashobserve-harness")
 		if err := os.WriteFile(want, []byte("#!/bin/sh\n"), 0o755); err != nil { //nolint:gosec // a stand-in executable must be runnable
 			t.Fatal(err)
 		}
@@ -399,7 +399,7 @@ func TestFindBinary(t *testing.T) {
 	t.Run("not on PATH", func(t *testing.T) {
 		t.Setenv("PATH", t.TempDir())
 		_, err := FindBinary()
-		if err == nil || !strings.Contains(err.Error(), "observe-agent is not on PATH") || !strings.Contains(err.Error(), "make agent") {
+		if err == nil || !strings.Contains(err.Error(), "slashobserve-harness is not on PATH") || !strings.Contains(err.Error(), "make harness") {
 			t.Fatalf("FindBinary error = %v, want the not-on-PATH message", err)
 		}
 	})

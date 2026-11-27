@@ -1,8 +1,8 @@
-# observe-agent
+# harness
 
-`observe-agent` is the built-in agent as a separate process: an ordinary claimer that runs the model loop and works a run through the claim tools over MCP.
+The harness is the built-in agent (the Observe Agent people see in the app) as a separate process, `slashobserve-harness`: an ordinary claimer that runs the model loop and works a run through the claim tools over MCP.
 The server enforces the run's guards in `internal/runsession`; `src/guard/` is their port, which the run loop does not call yet.
-The server starts it whenever a model provider is configured; the image ships it at `/usr/local/bin/observe-agent` and `make agent` builds `bin/observe-agent`.
+The server starts it whenever a model provider is configured; the image ships it at `/usr/local/bin/slashobserve-harness` and `make harness` builds `bin/slashobserve-harness`.
 
 ## Layout
 
@@ -32,15 +32,15 @@ The server starts it whenever a model provider is configured; the image ships it
 - Never log settings, keys, prompts, tool inputs, tool results or model text.
   `log()` takes only scalar fields.
 - A claim-protocol change starts in Go and its docs (`docs/use/mcp.md`), then the zod schemas follow.
-- Nothing observe-agent needs may become a requirement for other claimers.
+- Nothing the harness needs may become a requirement for other claimers.
 
 ## Commands
 
-Run from `observe-agent/`:
+Run from `harness/`:
 
 - `bun install --frozen-lockfile`
 - `bun run typecheck`
 - `bun run format:check`
 - `bun test`
 
-From the repository root, `make agent` builds `bin/observe-agent`, and `make lint` and `make test` run the checks above.
+From the repository root, `make harness` builds `bin/slashobserve-harness`, and `make lint` and `make test` run the checks above.

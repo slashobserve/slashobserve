@@ -251,7 +251,7 @@ describe("claim loop", () => {
       run_id: "a",
       attempt: 1,
       outcome: "failed",
-      message: "observe-agent received the run without model settings",
+      message: "harness received the run without model settings",
     })
     expect(client.finishes[0]?.failure_code).toBeUndefined()
   })

@@ -1,4 +1,4 @@
-package observeagent
+package harness
 
 import (
 	"bufio"
@@ -13,8 +13,8 @@ import (
 
 const (
 	maxLineBytes = 4096
-	component    = "observe-agent"
-	plainMessage = "observe-agent output"
+	component    = "harness"
+	plainMessage = "harness output"
 )
 
 var reservedFields = []string{"level", "msg", "component", "truncated"}

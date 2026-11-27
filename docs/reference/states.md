@@ -386,22 +386,22 @@ This state is computed from stored fields on every read; nothing stores it.
 
 ## Built-in agent supervisor
 
-The server starts the built-in agent as the `observe-agent` process and restarts it when it exits; each move writes a server log line with the state under the key `agent_state`, not an activity event.
+The server starts the built-in agent as the `slashobserve-harness` process and restarts it when it exits; each move writes a server log line with the state under the key `agent_state`, not an activity event.
 
 | State | Meaning | Actions |
 | --- | --- | --- |
-| `starting` | The server is starting the `observe-agent` process. | - |
+| `starting` | The server is starting the `slashobserve-harness` process. | - |
 | `running` | The process runs and can claim runs. | - |
 | `backoff` | The process exited or could not be started, and the server waits 1 to 30 seconds before it starts it again. | - |
 | `stopping` | The server is shutting down and stops the process. Final. | - |
 
 | Action | From | To | Event | By |
 | --- | --- | --- | --- | --- |
-| `start` | - | `starting` | `observe-agent starting` | server |
-| `run` | `starting` | `running` | `observe-agent running` | server |
-| `back_off` | `starting`, `running` | `backoff` | `observe-agent waiting to restart` | server |
-| `restart` | `backoff` | `starting` | `observe-agent starting` | server |
-| `stop` | `starting`, `running`, `backoff` | `stopping` | `observe-agent supervisor stopping` | server |
+| `start` | - | `starting` | `harness starting` | server |
+| `run` | `starting` | `running` | `harness running` | server |
+| `back_off` | `starting`, `running` | `backoff` | `harness waiting to restart` | server |
+| `restart` | `backoff` | `starting` | `harness starting` | server |
+| `stop` | `starting`, `running`, `backoff` | `stopping` | `harness supervisor stopping` | server |
 
 ## Panel and variable verification
 

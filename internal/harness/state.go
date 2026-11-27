@@ -1,4 +1,4 @@
-package observeagent
+package harness
 
 import (
 	"log/slog"
@@ -32,16 +32,16 @@ var SupervisorMachine = lifecycle.Machine[State, Action]{
 	States:   []State{StateStarting, StateRunning, StateBackoff, StateStopping},
 	Terminal: []State{StateStopping},
 	Meaning: map[State]string{
-		StateStarting: "The server is starting the `observe-agent` process.",
+		StateStarting: "The server is starting the `slashobserve-harness` process.",
 		StateRunning:  "The process runs and can claim runs.",
 		StateBackoff:  "The process exited or could not be started, and the server waits 1 to 30 seconds before it starts it again.",
 		StateStopping: "The server is shutting down and stops the process.",
 	},
 	Arrive: map[State]string{
-		StateStarting: "observe-agent starting",
-		StateRunning:  "observe-agent running",
-		StateBackoff:  "observe-agent waiting to restart",
-		StateStopping: "observe-agent supervisor stopping",
+		StateStarting: "harness starting",
+		StateRunning:  "harness running",
+		StateBackoff:  "harness waiting to restart",
+		StateStopping: "harness supervisor stopping",
 	},
 	Moves: []lifecycle.Move[State, Action]{
 		{Action: ActionStart, To: []State{StateStarting}, Who: []lifecycle.Who{lifecycle.System}},

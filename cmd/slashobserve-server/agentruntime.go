@@ -13,9 +13,9 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/config"
+	"github.com/slashobserve/slashobserve/internal/harness"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/mcpauth"
-	"github.com/slashobserve/slashobserve/internal/observeagent"
 	"github.com/slashobserve/slashobserve/internal/server/mcp"
 )
 
@@ -46,7 +46,7 @@ func prepareAgentRuntime(cfg config.Config, providerConfigured bool, logger *slo
 	if !providerConfigured {
 		return nil, nil
 	}
-	path, err := observeagent.FindBinary()
+	path, err := harness.FindBinary()
 	if err != nil {
 		return nil, described("agent_runtime_unavailable", err)
 	}
@@ -98,15 +98,15 @@ func agentSettingsOf(a config.Agent) *claims.AgentSettings {
 	}
 }
 
-func (s *sidecarSetup) start(ctx context.Context, cfg config.Config, service *claims.Service, logger *slog.Logger) (*observeagent.Supervisor, func()) {
+func (s *sidecarSetup) start(ctx context.Context, cfg config.Config, service *claims.Service, logger *slog.Logger) (*harness.Supervisor, func()) {
 	if s == nil {
 		return nil, func() {}
 	}
-	supervisor := observeagent.NewSupervisor(observeagent.SupervisorConfig{
+	supervisor := harness.NewSupervisor(harness.SupervisorConfig{
 		Path: s.path, ServerURL: s.url.String(), Slots: cfg.Agent.Workers,
 		LogLevel: cfg.LogLevel, Logger: logger, OnExit: observeAgentExit(service, logger),
 	})
-	return supervisor, startBackground(ctx, "observe-agent supervisor", supervisor.Run, logger)
+	return supervisor, startBackground(ctx, "harness supervisor", supervisor.Run, logger)
 }
 
 func modelSettingsOf(llm config.LLM, sessionRenewBytes int) func(question bool) *claims.ModelSettings {
@@ -138,12 +138,12 @@ type mcpCredentials struct {
 	keys       *auth.Service
 	runs       *claims.Service
 	oauth      *mcpauth.Server
-	supervisor *observeagent.Supervisor
+	supervisor *harness.Supervisor
 }
 
 func (m mcpCredentials) observeAgent(header string) (mcp.Credential, bool, bool) {
 	scheme, token, found := strings.Cut(header, " ")
-	if !found || !strings.EqualFold(scheme, "Bearer") || !strings.HasPrefix(token, observeagent.TokenPrefix) {
+	if !found || !strings.EqualFold(scheme, "Bearer") || !strings.HasPrefix(token, harness.TokenPrefix) {
 		return mcp.Credential{}, false, false
 	}
 	if m.supervisor == nil || !m.supervisor.Authenticate(token) {
@@ -156,7 +156,7 @@ func (m mcpCredentials) observeAgent(header string) (mcp.Credential, bool, bool)
 func observeAgentExit(service *claims.Service, logger *slog.Logger) func(context.Context) {
 	return func(ctx context.Context) {
 		if err := service.ReleaseHeld(ctx, service.BuiltIn()); err != nil {
-			logger.Error("release the runs observe-agent held", logattrs.Failure("observe_agent_release_failed", err)...)
+			logger.Error("release the runs the harness held", logattrs.Failure("harness_release_failed", err)...)
 		}
 	}
 }

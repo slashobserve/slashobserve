@@ -588,11 +588,11 @@ See [LLM providers](../connect/llm-providers.md).
 
 ## The agent process
 
-The server starts `observe-agent` as a child process, which claims the built-in agent's runs and works them through the same MCP tools as a connected agent does.
+The server starts `slashobserve-harness` as a child process, which claims the built-in agent's runs and works them through the same MCP tools as a connected agent does.
 The server enforces the guards and the limits and stores the saved result.
 The claim answer to the built-in agent carries the model settings, which no other claimer receives, so the sidecar needs no provider configuration of its own.
 A claim that reaches the sidecar without them is a setup fault: the sidecar hands the run back to the queue with `release_run` and waits before it claims again, 1 second at first and doubling to 30.
-A run that comes back without them after 3 releases is ended as failed with `observe-agent received the run without model settings`, so it does not stay queued with no reason shown.
+A run that comes back without them after 3 releases is ended as failed with `harness received the run without model settings`, so it does not stay queued with no reason shown.
 
 The sidecar reaches the server only over the loopback address, with a token that is new for every start of the process.
 The server refuses that token on any request that carries a forwarding header (`Forwarded`, `X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Proto` or `X-Real-Ip`).
@@ -601,13 +601,13 @@ So configure it to send `X-Forwarded-For` or keep `/mcp` off it.
 
 When the server stops, it sends the sidecar `SIGTERM`.
 The sidecar stops each run it holds and asks the server to requeue it with `release_run`.
-It then logs `observe-agent stopped` with `shutdown` `drained` and exits with status 0.
+It then logs `harness stopped` with `shutdown` `drained` and exits with status 0.
 `drained` means every run loop stopped in time, not that every run was handed back.
 The same line counts the runs: `released` for the ones the server took back, and `not_released` for the ones whose `release_run` failed or whose loop had not stopped.
 A sidecar that has not finished 5 seconds after the signal logs `shutdown` `forced` and exits with status 124.
 The server then hands back whatever the sidecar still held, so a run returns to the queue either way.
 
-When an LLM provider is configured, the server looks for `observe-agent` on `PATH`.
+When an LLM provider is configured, the server looks for `slashobserve-harness` on `PATH`.
 It does not start when the binary is missing or when `SLASHOBSERVE_HTTP_ADDR` names a host other than a loopback address or all addresses.
 Without a provider it makes neither check.
 

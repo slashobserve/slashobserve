@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GO_READS_FROM_WEB=('web/src/panels/*/manifest.ts' web/src/mcp-panel/fixtures/show-panel-result.json web/src/spec/defaults.gen.ts observe-agent/src/protocol.ts)
+GO_READS_FROM_WEB=('web/src/panels/*/manifest.ts' web/src/mcp-panel/fixtures/show-panel-result.json web/src/spec/defaults.gen.ts harness/src/protocol.ts)
 
 usage() {
   cat >&2 <<USAGE
@@ -30,11 +30,11 @@ matches_any() {
 is_prose() {
   matches_any "$1" 'docs/*' && return 0
   [[ "$1" == *.md ]] || return 1
-  ! matches_any "$1" 'internal/*' 'pkg/*' 'web/*' 'observe-agent/*' 'e2e/*' 'spec/*'
+  ! matches_any "$1" 'internal/*' 'pkg/*' 'web/*' 'harness/*' 'e2e/*' 'spec/*'
 }
 
 is_unit_test() {
-  matches_any "$1" '*_test.go' 'web/src/*.test.ts' 'web/src/*.test.tsx' 'observe-agent/*.test.ts'
+  matches_any "$1" '*_test.go' 'web/src/*.test.ts' 'web/src/*.test.tsx' 'harness/*.test.ts'
 }
 
 emit() {
@@ -76,7 +76,7 @@ while IFS= read -r path; do
     continue
   fi
 
-  if ! matches_any "$path" 'web/*' 'observe-agent/*' || matches_any "$path" "${GO_READS_FROM_WEB[@]}"; then
+  if ! matches_any "$path" 'web/*' 'harness/*' || matches_any "$path" "${GO_READS_FROM_WEB[@]}"; then
     go=true
   fi
 
@@ -94,7 +94,7 @@ while IFS= read -r path; do
   fi
 
   if matches_any "$path" go.mod go.sum 'tools/*' web/package.json web/bun.lock \
-    observe-agent/package.json observe-agent/bun.lock; then
+    harness/package.json harness/bun.lock; then
     audit=true
   fi
 done

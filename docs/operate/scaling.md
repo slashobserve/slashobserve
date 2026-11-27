@@ -60,7 +60,7 @@ A second server is for availability first.
 Capacity per server depends on your hardware, so [measure it](#measure-your-own-hardware) before you size a fleet by it.
 The ceiling of the agent is usually the rate limit of your model provider, not the number of servers.
 
-Each server with a model provider runs one `observe-agent` child process that works that server's runs, so the fleet runs one per server.
+Each server with a model provider runs one `slashobserve-harness` child process that works that server's runs, so the fleet runs one per server.
 Measured on a compose stack with the replay model, an idle child holds about 50 MiB resident (`docker top`).
 The whole server container, child included, shows about 48 MiB in `docker stats`, and the compose server limit is 512M.
 

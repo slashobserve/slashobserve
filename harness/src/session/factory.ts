@@ -23,7 +23,7 @@ export const createSession: SessionFactory = async (
       return createOpenAISession(settings, start, signal)
     default:
       throw new SessionError(
-        `observe-agent cannot call provider ${settings.provider}`
+        `harness cannot call provider ${settings.provider}`
       )
   }
 }

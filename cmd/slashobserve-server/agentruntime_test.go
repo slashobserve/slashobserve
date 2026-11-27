@@ -11,7 +11,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/datasource"
-	"github.com/slashobserve/slashobserve/internal/observeagent"
+	"github.com/slashobserve/slashobserve/internal/harness"
 )
 
 func TestLoopbackURLPointsTheSidecarAtThisServer(t *testing.T) {
@@ -106,19 +106,19 @@ func TestAQuestionRunsAtTheQuestionEffort(t *testing.T) {
 }
 
 func TestObserveAgentTokenIsNeverAcceptedWithoutARunningChild(t *testing.T) {
-	supervisor := observeagent.NewSupervisor(observeagent.SupervisorConfig{})
+	supervisor := harness.NewSupervisor(harness.SupervisorConfig{})
 	for name, m := range map[string]mcpCredentials{
 		"no supervisor":  {},
 		"no child yet":   {supervisor: supervisor},
 		"empty token":    {supervisor: supervisor},
 		"lowercase auth": {supervisor: supervisor},
 	} {
-		header := "Bearer " + observeagent.TokenPrefix + "guess"
+		header := "Bearer " + harness.TokenPrefix + "guess"
 		if name == "empty token" {
-			header = "Bearer " + observeagent.TokenPrefix
+			header = "Bearer " + harness.TokenPrefix
 		}
 		if name == "lowercase auth" {
-			header = "bearer " + observeagent.TokenPrefix + "guess"
+			header = "bearer " + harness.TokenPrefix + "guess"
 		}
 		cred, ok, owned := m.observeAgent(header)
 		if ok || !owned || cred.Claimer != nil {
@@ -128,7 +128,7 @@ func TestObserveAgentTokenIsNeverAcceptedWithoutARunningChild(t *testing.T) {
 }
 
 func TestOtherBearerTokensFallThroughToTheNormalCredentials(t *testing.T) {
-	m := mcpCredentials{supervisor: observeagent.NewSupervisor(observeagent.SupervisorConfig{})}
+	m := mcpCredentials{supervisor: harness.NewSupervisor(harness.SupervisorConfig{})}
 	for _, header := range []string{"", "Bearer sok_abc", "Bearer sot_abc", "Basic sob_abc", "sob_abc"} {
 		if _, ok, owned := m.observeAgent(header); ok || owned {
 			t.Errorf("%q: ok=%v owned=%v, want it left to the other credentials", header, ok, owned)
@@ -137,7 +137,7 @@ func TestOtherBearerTokensFallThroughToTheNormalCredentials(t *testing.T) {
 }
 
 func TestOAuthAccessTokensAreNotClaimedByTheBuiltInAgent(t *testing.T) {
-	m := mcpCredentials{supervisor: observeagent.NewSupervisor(observeagent.SupervisorConfig{})}
+	m := mcpCredentials{supervisor: harness.NewSupervisor(harness.SupervisorConfig{})}
 	header := "Bearer soa_" + strings.Repeat("a", 43)
 	if _, ok, owned := m.observeAgent(header); ok || owned {
 		t.Fatalf("ok=%v owned=%v, want an OAuth access token left to the OAuth check", ok, owned)

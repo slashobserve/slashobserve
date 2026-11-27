@@ -154,7 +154,7 @@ export class McpClient implements RunTools {
       requestInit: { headers: { Authorization: `Bearer ${this.token}` } },
     })
     const client = new Client(
-      { name: "observe-agent", version },
+      { name: "slashobserve-harness", version },
       { capabilities: {} }
     )
     try {
@@ -279,7 +279,7 @@ export class McpClient implements RunTools {
     )
     if (!parsed.success) {
       throw new ProtocolError(
-        `${name} answered a shape observe-agent cannot read`
+        `${name} answered a shape the harness cannot read`
       )
     }
     return parsed.data

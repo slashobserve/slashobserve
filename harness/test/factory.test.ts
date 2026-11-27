@@ -15,7 +15,7 @@ describe("createSession", () => {
     ).catch((e: unknown) => e)
     expect(failure).toBeInstanceOf(SessionError)
     expect((failure as Error).message).toBe(
-      "observe-agent cannot call provider gemini"
+      "harness cannot call provider gemini"
     )
   })
 

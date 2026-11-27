@@ -125,7 +125,7 @@ async function failWithoutSettings(
       run_id: run.id,
       attempt: run.attempt,
       outcome: "failed",
-      message: "observe-agent received the run without model settings",
+      message: "harness received the run without model settings",
       usage: noUsage,
     })
   } catch (error) {

@@ -158,6 +158,6 @@ It ends at the first ping after its session or key stops being valid, or after t
 
 ### The image
 
-The image carries `observe-agent` at `/usr/local/bin/observe-agent` beside `slashobserve-server`.
-The server starts `observe-agent` whenever a model provider is configured.
-The base is `distroless/base-nossl`, which has glibc for the `observe-agent` binary and still runs as the non-root user `nonroot`.
+The image carries `slashobserve-harness` at `/usr/local/bin/slashobserve-harness` beside `slashobserve-server`.
+The server starts `slashobserve-harness` whenever a model provider is configured.
+The base is `distroless/base-nossl`, which has glibc for the `slashobserve-harness` binary and still runs as the non-root user `nonroot`.

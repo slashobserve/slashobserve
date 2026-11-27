@@ -15,10 +15,10 @@ WEB_TEST_FLAGS := $(if $(COVER),--coverage)
 # zod 3 under the shadcn CLI, a dev-only tool that pins zod ^3 and ships in no build
 WEB_AUDIT_IGNORE := GHSA-mrhx-c7xc-m3w5
 
-.PHONY: build server cli agent agent-deps web web-deps generate test test-go test-web test-agent test-scripts test-benchmarks lint lint-go lint-web lint-web-types lint-web-eslint lint-web-knip lint-web-format lint-agent lint-deploy ci audit demo demo-build demo-search demo-code demo-down demo-reset demo-check demo-fault demo-fault-reset helm-kind helm-kind-down replicas-up replicas-down replicas-check loadtest e2e e2e-warm e2e-up e2e-browser e2e-all golden tidy-check clean
+.PHONY: build server cli harness harness-deps web web-deps generate test test-go test-web test-harness test-scripts test-benchmarks lint lint-go lint-web lint-web-types lint-web-eslint lint-web-knip lint-web-format lint-harness lint-deploy ci audit demo demo-build demo-search demo-code demo-down demo-reset demo-check demo-fault demo-fault-reset helm-kind helm-kind-down replicas-up replicas-down replicas-check loadtest e2e e2e-warm e2e-up e2e-browser e2e-all golden tidy-check clean
 
 build: web
-	$(MAKE) server cli agent
+	$(MAKE) server cli harness
 
 server:
 	CGO_ENABLED=0 go build -trimpath -ldflags '$(GO_LDFLAGS)' -o bin/slashobserve-server ./cmd/slashobserve-server
@@ -29,11 +29,11 @@ cli:
 web-deps:
 	cd web && bun install --frozen-lockfile
 
-agent-deps:
-	cd observe-agent && bun install --frozen-lockfile
+harness-deps:
+	cd harness && bun install --frozen-lockfile
 
-agent: agent-deps
-	cd observe-agent && bun build --compile --minify --define OBSERVE_AGENT_VERSION='"$(VERSION)"' src/main.ts --outfile ../bin/observe-agent
+harness: harness-deps
+	cd harness && bun build --compile --minify --define HARNESS_VERSION='"$(VERSION)"' src/main.ts --outfile ../bin/slashobserve-harness
 
 web: web-deps
 	cd web && bun run build
@@ -44,7 +44,7 @@ generate: web-deps
 	cd web && bun run spec:generate
 	cd web && bun run api:generate
 
-test: test-go test-web test-agent test-scripts test-benchmarks
+test: test-go test-web test-harness test-scripts test-benchmarks
 
 test-go:
 	go test $(GO_TEST_FLAGS) $(GO_TEST_PKGS)
@@ -53,8 +53,8 @@ test-go:
 test-web: web-deps
 	cd web && bun run test $(WEB_TEST_FLAGS)
 
-test-agent: agent-deps
-	cd observe-agent && bun test
+test-harness: harness-deps
+	cd harness && bun test
 
 test-scripts:
 	scripts/release-scripts-test.sh
@@ -68,7 +68,7 @@ test-benchmarks:
 	uv run --locked --project benchmarks pytest benchmarks/tests
 	uv run --locked --project benchmarks/orca pytest benchmarks/orca/tests
 
-lint: lint-go lint-web lint-agent lint-deploy
+lint: lint-go lint-web lint-harness lint-deploy
 
 lint-go:
 	$(GOLANGCI_LINT) config verify
@@ -92,9 +92,9 @@ lint-web-knip: web-deps
 lint-web-format: web-deps
 	cd web && bun run format:check
 
-lint-agent: agent-deps
-	cd observe-agent && bun run typecheck
-	cd observe-agent && bun run format:check
+lint-harness: harness-deps
+	cd harness && bun run typecheck
+	cd harness && bun run format:check
 
 lint-deploy:
 	scripts/docs-lint.sh
@@ -118,8 +118,8 @@ audit:
 	go tool -modfile=tools/govulncheck/go.mod govulncheck ./...
 	cd web && bun audit --prod
 	cd web && bun audit --audit-level=high $(addprefix --ignore=,$(WEB_AUDIT_IGNORE))
-	cd observe-agent && bun audit --prod
-	cd observe-agent && bun audit --audit-level=high
+	cd harness && bun audit --prod
+	cd harness && bun audit --audit-level=high
 
 demo:
 	scripts/astronomy.sh up --published
