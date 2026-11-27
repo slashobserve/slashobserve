@@ -9,6 +9,8 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/imports"
+	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -35,29 +37,38 @@ func TestGetDashboardPromisesExactlyTheDeclaredManagedByValues(t *testing.T) {
 	}
 }
 
-func TestASaveResultCarriesTheWarningOfTheSave(t *testing.T) {
+func TestEveryEditAnswerOverMCPCarriesTheWarningOfWhatManagesTheDashboard(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
-	saved := dashboards.SaveResult{
-		Dashboard: dashboards.Dashboard{ID: "d1", Title: "t"},
-		Version:   dashboards.Version{VersionMeta: dashboards.VersionMeta{Number: 2}, Spec: &spec.Dashboard{Title: "t"}},
-	}
-	fields := func(saved dashboards.SaveResult) map[string]json.RawMessage {
-		body, err := json.Marshal(r.saveSucceeded(t.Context(), saved, nil).Content)
+	version := dashboards.Version{VersionMeta: dashboards.VersionMeta{Number: 2}, Spec: &spec.Dashboard{Title: "t"}}
+	warningOf := func(content any) (string, bool) {
+		body, err := json.Marshal(content)
 		if err != nil {
 			t.Fatal(err)
 		}
-		var got map[string]json.RawMessage
+		var got struct {
+			Warning *string `json:"warning"`
+		}
 		if err := json.Unmarshal(body, &got); err != nil {
 			t.Fatal(err)
 		}
-		return got
+		if got.Warning == nil {
+			return "", false
+		}
+		return *got.Warning, true
 	}
-	if _, ok := fields(saved)["warning"]; ok {
-		t.Error("a save with nothing to warn about has a warning key")
-	}
-	saved.Warning = folders.ManagedByFile.EditWarning()
-	var warning string
-	if err := json.Unmarshal(fields(saved)["warning"], &warning); err != nil || warning != folders.ManagedByFile.EditWarning() {
-		t.Errorf("warning = %q (%v), want the file warning", warning, err)
+	for _, managedBy := range []folders.ManagedBy{folders.ManagedByWorkspace, folders.ManagedByFile, folders.ManagedByApply} {
+		dash := dashboards.Dashboard{ID: "d1", Title: "t", ManagedBy: managedBy}
+		answers := map[string]any{
+			"a save":                r.saveSucceeded(t.Context(), dashboards.SaveResult{Dashboard: dash, Version: version}, nil).Content,
+			"a restore or a build":  r.editedOut(dash, version, nil),
+			"a Grafana update":      newImportedOut(nil, imports.Imported{Dashboard: dash, Version: version, Updated: true}),
+			"a merge of a proposal": proposals.NewMergedJSON(proposals.Proposal{Warning: managedBy.EditWarning()}),
+		}
+		for name, content := range answers {
+			got, has := warningOf(content)
+			if want := managedBy.EditWarning(); got != want || has != (want != "") {
+				t.Errorf("%s on a dashboard managed by %s answers warning %q (key present: %t), want %q", name, managedBy, got, has, want)
+			}
+		}
 	}
 }

@@ -53,7 +53,7 @@ type savedWithManager struct {
 	Warning string `json:"warning"`
 }
 
-func TestADashboardReadsWhatManagesItAndAFileOrAppliedDashboardWarnsOnSave(t *testing.T) {
+func TestADashboardReadsWhatManagesItAndAFileOrAppliedDashboardWarnsOnAnEdit(t *testing.T) {
 	r := newRig(t, false)
 	b := boards{rig: r}
 	cases := []struct {
@@ -87,6 +87,15 @@ func TestADashboardReadsWhatManagesItAndAFileOrAppliedDashboardWarnsOnSave(t *te
 			}
 			if saved.Warning != tc.warning || saved.Dashboard.ManagedBy != tc.managedBy {
 				t.Fatalf("save answered warning %q and managed_by %q, want %q and %q", saved.Warning, saved.Dashboard.ManagedBy, tc.warning, tc.managedBy)
+			}
+
+			var restored savedWithManager
+			rec = b.serve(adminUser, http.MethodPost, path+"/versions/1/restore", `{"parent_version":2}`)
+			if rec.Code != http.StatusCreated || json.Unmarshal(rec.Body.Bytes(), &restored) != nil {
+				t.Fatalf("restore answered %d %s", rec.Code, rec.Body.String())
+			}
+			if restored.Warning != tc.warning || restored.Dashboard.ManagedBy != tc.managedBy {
+				t.Fatalf("restore answered warning %q and managed_by %q, want %q and %q", restored.Warning, restored.Dashboard.ManagedBy, tc.warning, tc.managedBy)
 			}
 
 			moved, _, err := r.service.Move(reading(t.Context()), testUser, id, r.newFolder(t, "Ops "+tc.managedBy))

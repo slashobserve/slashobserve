@@ -100,25 +100,25 @@ func TestTheDashboardReadNamesWhatManagesTheDashboard(t *testing.T) {
 	}
 }
 
-func TestTheSaveAnswerCarriesAWarningOnlyWhenThereIsOne(t *testing.T) {
-	warning := folders.ManagedByApply.EditWarning()
-
-	fields := func(body versionSavedJSON) map[string]json.RawMessage {
-		raw, err := json.Marshal(body)
+func TestAnAnswerToAnEditCarriesTheWarningOfWhatManagesTheDashboard(t *testing.T) {
+	for _, managedBy := range []folders.ManagedBy{folders.ManagedByWorkspace, folders.ManagedByStarter, folders.ManagedByFile, folders.ManagedByApply} {
+		raw, err := json.Marshal(editedJSON(Dashboard{ManagedBy: managedBy}, Version{}))
 		if err != nil {
 			t.Fatal(err)
 		}
-		var got map[string]json.RawMessage
+		var got struct {
+			Warning *string `json:"warning"`
+		}
 		if err := json.Unmarshal(raw, &got); err != nil {
 			t.Fatal(err)
 		}
-		return got
-	}
-	if got := fields(versionSavedJSON{Warning: warning}); string(got["warning"]) != `"`+warning+`"` {
-		t.Errorf("the save answer carries warning %s, want the apply warning", got["warning"])
-	}
-	if _, ok := fields(versionSavedJSON{})["warning"]; ok {
-		t.Error("a save with nothing to warn about has a warning key")
+		want := managedBy.EditWarning()
+		switch {
+		case want == "" && got.Warning != nil:
+			t.Errorf("an edit to a dashboard managed by %s answers warning %q, want no warning key", managedBy, *got.Warning)
+		case want != "" && (got.Warning == nil || *got.Warning != want):
+			t.Errorf("an edit to a dashboard managed by %s answers %s, want warning %q", managedBy, raw, want)
+		}
 	}
 }
 

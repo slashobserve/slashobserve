@@ -936,6 +936,7 @@ It takes `dashboard_id`, `from` (0 compares against an empty dashboard; by defau
 Saves an earlier version as a new one.
 It takes `dashboard_id`, `version`, the `parent_version` you read as the latest, and an optional `summary` of at most 200 characters.
 It applies the same `parent_version` check as a save.
+Its result carries the same `warning` as a save when a file writes the dashboard.
 A connection in propose mode cannot restore a dashboard directly and gets `proposal_required`.
 It can save the change with `update_dashboard`, which becomes a proposal.
 
@@ -966,7 +967,7 @@ See [Import Grafana dashboards](import-grafana.md).
 - A file whose Grafana uid an earlier import already holds, in a dashboard you can see, is not imported twice.
   The call fails with `already_imported`, and `existing` names that dashboard with its `dashboard_id`, `title`, `version`, `url` and `can_update`.
   - Pass its `dashboard_id` as the tool's `update_dashboard` argument, which is not the `update_dashboard` tool, to save the JSON as its next version.
-    That needs Edit, keeps the folder, and answers `updated: true`.
+    That needs Edit, keeps the folder, and answers `updated: true`, with the `warning` of a save when a file writes the dashboard.
   - Or set `import_as_new` to make another dashboard on purpose.
 - An update with a file that has another Grafana uid than the dashboard was imported from fails with `grafana_uid_mismatch` and changes nothing.
 - A retried call of the same agent request still answers with the dashboard it made.
@@ -1381,6 +1382,7 @@ Saves a proposal as a new version.
 - It takes the `proposal_id`, the `revision` read with `get_proposal` and, for each conflict, a choice such as `{ "kind": "panel", "id": "p1", "take": "theirs" }`.
   `ours` keeps the dashboard's unit and `theirs` takes the proposal's.
 - It needs Edit on the dashboard, and runs the queries of the panels it changes like any save.
+- Its result carries the `warning` of a save when it saved a version of a dashboard whose `managed_by` is `file` or `apply`.
 - It answers `proposal_changed` with the newest `revision` when the author added one.
   It answers `version_conflict` with `conflicts` when a conflict has no choice.
   It answers `invalid_transition` with the `state` and `allowed_actions` when the proposal is already closed.

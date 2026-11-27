@@ -5880,7 +5880,7 @@ export interface components {
             dashboard: components["schemas"]["DashboardSummary"];
             version: components["schemas"]["Version"];
             merged_from?: components["schemas"]["MergedFrom"];
-            /** @description Present when the save went to a dashboard whose `managed_by` is `file` or `apply`. It says what replaces this version, which stays in the version history. That is a change to the provisioning file, or applying the file again after it changes. */
+            /** @description Present when the save or restore went to a dashboard whose `managed_by` is `file` or `apply`. It says what replaces this version, which stays in the version history. That is a change to the provisioning file, or applying the file again after it changes. */
             warning?: string;
         };
         /** @description Present when a stale save was merged on the server. */
@@ -5958,6 +5958,8 @@ export interface components {
             latest_version: number;
             /** @description What the caller may do now. `update` means saving again to add a revision and has no route of its own; `merge` needs Edit on the dashboard and a connection that is not in propose mode; `discard` is for the author or someone who may merge. See docs/reference/states.md. */
             allowed_actions: ("update" | "merge" | "discard")[];
+            /** @description Only on the answer to a merge that saved a version of a dashboard whose `managed_by` is `file` or `apply`. It is the `warning` of a save to that dashboard. */
+            warning?: string;
         };
         /** @description A proposed change to a dashboard with its head revision's document and what it changes. */
         Proposal: {
@@ -7861,6 +7863,8 @@ export interface components {
             import: components["schemas"]["ImportRecord"];
             /** @description Why the dashboard is not in the requested folder, or null when it is where the request or the source asked. */
             folder_note: string | null;
+            /** @description Present when `update_dashboard` saved a version of a dashboard whose `managed_by` is `file` or `apply`. It is the `warning` of a save to that dashboard. */
+            warning?: string;
         };
         DatasourcesUnresolved: {
             error: string;
@@ -11822,14 +11826,14 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The new version, with `restored_from` naming the restored one. */
+            /** @description The new version, with `restored_from` naming the restored one, and a `warning` when a file writes the dashboard. */
             201: {
                 headers: {
                     Location: string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DashboardWithVersion"];
+                    "application/json": components["schemas"]["DashboardVersionSaved"];
                 };
             };
             400: components["responses"]["BadRequest"];

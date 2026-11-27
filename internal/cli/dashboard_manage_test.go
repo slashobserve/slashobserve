@@ -142,6 +142,14 @@ func TestDashboardRestore(t *testing.T) {
 			t.Fatalf("stdout %q, want %q", stdout, want)
 		}
 	})
+	t.Run("prints the warning of a restore on a dashboard that a file writes", func(t *testing.T) {
+		warned := strings.TrimSuffix(restored, "}") + `,"warning":"A change to its file replaces this edit."}`
+		f := newManageFake(t, manageReply{http.MethodPost, restorePath, 201, warned})
+		stdout, stderr, code := f.run("dashboards", "restore", testDashboard, "--version", "2", "--parent", "5")
+		if code != 0 || stdout != "Restored version 2 as version 6\n" || stderr != "A change to its file replaces this edit.\n" {
+			t.Fatalf("exit %d, stdout %q, stderr %q, want the restore line and the warning on stderr", code, stdout, stderr)
+		}
+	})
 	t.Run("sends the given parent and summary without reading the dashboard", func(t *testing.T) {
 		f := newManageFake(t, manageReply{http.MethodPost, restorePath, 201, restored})
 		if _, stderr, code := f.run("dashboards", "restore", testDashboard, "--version", "2", "--parent", "4", "--summary", "back to good"); code != 0 {

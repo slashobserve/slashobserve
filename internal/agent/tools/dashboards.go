@@ -610,9 +610,8 @@ func (r *Registry) saveSucceeded(ctx context.Context, saved dashboards.SaveResul
 	if saved.Proposal != nil {
 		return r.proposed(saved)
 	}
-	out := r.savedOut(saved.Dashboard, saved.Version, &saved.Replayed)
+	out := r.editedOut(saved.Dashboard, saved.Version, &saved.Replayed)
 	out.MergedFrom = saved.MergedFrom
-	out.Warning = saved.Warning
 	out = withAdvice(ctx, out, saved.Version.Spec)
 	out.noteDroppedVariables(before, saved.Version.Spec)
 	return success(savedStep(saved), out)
@@ -751,6 +750,12 @@ func summaryOr(summary, fallback string) string {
 		return fallback
 	}
 	return summary
+}
+
+func (r *Registry) editedOut(dash dashboards.Dashboard, ver dashboards.Version, replayed *bool) savedOut {
+	out := r.savedOut(dash, ver, replayed)
+	out.Warning = dash.ManagedBy.EditWarning()
+	return out
 }
 
 func (r *Registry) savedOut(dash dashboards.Dashboard, ver dashboards.Version, replayed *bool) savedOut {

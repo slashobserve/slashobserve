@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { saveToast, type SaveOutcome } from "./save-outcome"
+import { saveToast, withWarning, type SaveOutcome } from "./save-outcome"
 
 const envelope = {} as Extract<SaveOutcome, { kind: "saved" }>["envelope"]
 
@@ -45,5 +45,19 @@ describe("saveToast", () => {
     ],
   ])("words %s", (_, outcome, text) => {
     expect(saveToast(outcome)).toBe(text)
+  })
+})
+
+describe("withWarning", () => {
+  it.each([
+    [undefined, "Restored version 2 as version 6"],
+    [null, "Restored version 2 as version 6"],
+    ["", "Restored version 2 as version 6"],
+    [
+      "A change to its file replaces this edit.",
+      "Restored version 2 as version 6. A change to its file replaces this edit.",
+    ],
+  ])("adds the server's warning %j to what was done", (warning, text) => {
+    expect(withWarning("Restored version 2 as version 6", warning)).toBe(text)
   })
 })

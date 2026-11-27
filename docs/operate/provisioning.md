@@ -78,7 +78,9 @@ A dashboard read tells an editor where the dashboard comes from, so the edit doe
 - The web app shows a note on a `file` or `apply` dashboard, where an edit starts: in the panel editor and above the prompt.
 - A save to a `file` dashboard works, and its answer carries a `warning` that a change to the file replaces the edit.
   A save to an `apply` dashboard carries a `warning` that applying its file again after the file changes replaces the edit.
-  `update_dashboard` and `update_panels` return the same `warning`.
+  A restore, a proposal merge and an update from a Grafana file write the dashboard too, so their answers carry the same `warning`.
+  Over MCP that is `update_dashboard`, `update_panels`, `restore_dashboard_version`, `merge_proposal`, `import_grafana_dashboard` with its `update_dashboard` argument, and the save at the end of an agent build.
+  The CLI prints it on stderr after `observe dashboards panels`, `observe dashboards restore`, `observe proposals merge` and `observe import --update`.
 - When the file changes and its content replaces a version that `Provisioning` did not save, the `dashboard.version_created` event of the new version has `replaced_version`, the number of the version it replaced.
   An apply that replaces a version no apply saved records the same field.
   `observe activity` prints it as `saved version 5 of "Checkout" from its file, replacing version 4`.

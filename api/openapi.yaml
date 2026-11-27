@@ -3028,7 +3028,7 @@ components:
         warning:
           type: string
           description: >-
-            Present when the save went to a dashboard whose `managed_by` is `file` or `apply`.
+            Present when the save or restore went to a dashboard whose `managed_by` is `file` or `apply`.
             It says what replaces this version, which stays in the version history.
             That is a change to the provisioning file, or applying the file again after it changes.
     MergedFrom:
@@ -3185,6 +3185,9 @@ components:
             What the caller may do now. `update` means saving again to add a revision and has no route of its own;
             `merge` needs Edit on the dashboard and a connection that is not in propose mode; `discard` is for the author or someone who may merge.
             See docs/reference/states.md.
+        warning:
+          type: string
+          description: Only on the answer to a merge that saved a version of a dashboard whose `managed_by` is `file` or `apply`. It is the `warning` of a save to that dashboard.
     Proposal:
       type: object
       additionalProperties: false
@@ -6778,6 +6781,9 @@ components:
           type: string
           nullable: true
           description: Why the dashboard is not in the requested folder, or null when it is where the request or the source asked.
+        warning:
+          type: string
+          description: Present when `update_dashboard` saved a version of a dashboard whose `managed_by` is `file` or `apply`. It is the `warning` of a save to that dashboard.
     DatasourcesUnresolved:
       type: object
       additionalProperties: false

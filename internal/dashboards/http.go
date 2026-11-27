@@ -454,7 +454,8 @@ func (s *Service) answerSave(c *gin.Context, res SaveResult) {
 		c.JSON(http.StatusAccepted, proposalCreatedJSON{ProposalID: res.Proposal.ID, Revision: res.Proposal.Revision, Opened: res.Proposal.Opened})
 		return
 	}
-	body := versionSavedJSON{DashboardVersionJSON: NewDashboardVersionJSON(res.Dashboard, res.Version), MergedFrom: res.MergedFrom, Warning: res.Warning}
+	body := editedJSON(res.Dashboard, res.Version)
+	body.MergedFrom = res.MergedFrom
 	if res.Replayed {
 		c.Header("Idempotent-Replay", "true")
 		c.JSON(http.StatusOK, body)
@@ -522,7 +523,7 @@ func (s *Service) restoreVersion(c *gin.Context) {
 		return
 	}
 	c.Header("Location", versionLocation(dash.ID, ver.Number))
-	c.JSON(http.StatusCreated, NewDashboardVersionJSON(dash, ver))
+	c.JSON(http.StatusCreated, editedJSON(dash, ver))
 }
 
 func (s *Service) diff(c *gin.Context) {

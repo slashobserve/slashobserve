@@ -83,6 +83,7 @@ type dashboardList struct {
 type dashboardWithVersion struct {
 	Dashboard dashboardSummary `json:"dashboard"`
 	Version   versionBody      `json:"version"`
+	Warning   string           `json:"warning"`
 }
 
 type versionList struct {

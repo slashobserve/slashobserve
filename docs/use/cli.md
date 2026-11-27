@@ -583,6 +583,7 @@ A version that does not exist answers `version_not_found` with the latest versio
 `observe dashboards restore <dashboard-id> --version <n>` saves an earlier version as the newest version.
 It prints `Restored version <n> as version <m>`.
 `--summary <text>` sets the version's summary.
+When a provisioning file or `observe dashboards apply` writes the dashboard, `restore`, `panels`, `proposals merge` and `import --update` also print the server's warning on stderr: [what replaces the edit](../operate/provisioning.md#edits-made-in-the-app).
 
 `restore` reads the latest version for `--parent` when you leave it out, and `--parent <n>` names it yourself.
 It answers `version_conflict` when someone saved since, so read the dashboard again and rerun it.

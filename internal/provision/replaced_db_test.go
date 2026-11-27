@@ -45,8 +45,8 @@ func TestAFileChangeOverAPersonsEditRecordsTheVersionItReplaced(t *testing.T) {
 	if err != nil {
 		t.Fatalf("a person's save to a file dashboard: %v", err)
 	}
-	if edited.Version.Number != 2 || edited.Warning != folders.ManagedByFile.EditWarning() || edited.Dashboard.ManagedBy != folders.ManagedByFile {
-		t.Fatalf("saved version %d with warning %q, managed by %s, want version 2, the file warning and managed by file", edited.Version.Number, edited.Warning, edited.Dashboard.ManagedBy)
+	if edited.Version.Number != 2 || edited.Dashboard.ManagedBy != folders.ManagedByFile {
+		t.Fatalf("saved version %d, managed by %s, want version 2 managed by file", edited.Version.Number, edited.Dashboard.ManagedBy)
 	}
 
 	r.write(t, "a.json", specJSON("A from the file", "up"))
@@ -76,8 +76,8 @@ func TestAnApplyOverAPersonsEditRecordsTheVersionItReplaced(t *testing.T) {
 	if err != nil {
 		t.Fatalf("a person's save to an applied dashboard: %v", err)
 	}
-	if edited.Version.Number != 2 || edited.Warning != folders.ManagedByApply.EditWarning() || edited.Dashboard.ManagedBy != folders.ManagedByApply {
-		t.Fatalf("saved version %d with warning %q, managed by %s, want version 2, the apply warning and managed by apply", edited.Version.Number, edited.Warning, edited.Dashboard.ManagedBy)
+	if edited.Version.Number != 2 || edited.Dashboard.ManagedBy != folders.ManagedByApply {
+		t.Fatalf("saved version %d, managed by %s, want version 2 managed by apply", edited.Version.Number, edited.Dashboard.ManagedBy)
 	}
 
 	if same := r.apply(t, r.editor, "Shop/checkout.json", specJSON("Checkout", "up")); same.Outcome != provision.OutcomeUnchanged || same.Version != 2 {

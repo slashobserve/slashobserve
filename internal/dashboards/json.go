@@ -222,6 +222,10 @@ func newVersionMetaJSON(v VersionMeta) versionMetaJSON {
 	}
 }
 
+func editedJSON(d Dashboard, v Version) versionSavedJSON {
+	return versionSavedJSON{DashboardVersionJSON: NewDashboardVersionJSON(d, v), Warning: d.ManagedBy.EditWarning()}
+}
+
 func NewDashboardVersionJSON(d Dashboard, v Version) DashboardVersionJSON {
 	return DashboardVersionJSON{
 		Dashboard: newDashboardJSON(d),

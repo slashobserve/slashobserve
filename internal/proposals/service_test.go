@@ -273,6 +273,24 @@ func TestAProposalBehindTheDashboardReportsItsConflicts(t *testing.T) {
 	}
 }
 
+func TestMergingIntoAnAppliedDashboardCarriesTheWarningOfTheSave(t *testing.T) {
+	r := newRig(t)
+	plain, applied := r.createDashboard(t, steady, second), r.createDashboard(t, steady, second)
+	if _, err := r.db.SQLDB(t).ExecContext(reading(t.Context()), `INSERT INTO applied_dashboards (path, dashboard_id, content_sha256, applied_by_id) VALUES ('a.json', $1, 'sha', $2)`, applied.String(), editorID); err != nil {
+		t.Fatal(err)
+	}
+	for id, want := range map[pgtype.UUID]string{plain: "", applied: folders.ManagedByApply.EditWarning()} {
+		ref := r.propose(t, commenter, id, 1, changed, second)
+		merged, err := r.service.Merge(reading(t.Context()), editor, proposalID(t, ref), 1, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if merged.MergedVersion == nil || merged.Warning != want {
+			t.Fatalf("merged version %v with warning %q, want a new version with warning %q", merged.MergedVersion, merged.Warning, want)
+		}
+	}
+}
+
 func TestAnEditorMergesAProposalIntoTheNextVersion(t *testing.T) {
 	r := newRig(t)
 	id := r.createDashboard(t, steady, second)

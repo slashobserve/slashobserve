@@ -50,7 +50,6 @@ type SaveResult struct {
 	Replayed   bool
 	MergedFrom *MergedFrom
 	Proposal   *ProposalRef
-	Warning    string
 }
 
 type ProposeInput struct {
@@ -133,7 +132,6 @@ func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Sa
 		return SaveResult{}, err
 	}
 	res.Dashboard = withAccess(res.Dashboard, access)
-	res.Warning = access.ManagedBy().EditWarning()
 	return res, nil
 }
 

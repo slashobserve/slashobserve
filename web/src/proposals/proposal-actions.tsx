@@ -24,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { withWarning } from "@/dashboards/save-outcome"
 import { dashboardLink } from "@/lib/links"
 import { loadProblemText } from "@/service-accounts/queries"
 
@@ -194,7 +195,10 @@ export function ProposalActions({
           toast.success(
             merged.merged_version === null
               ? "Merged without a new version"
-              : `Merged as version ${merged.merged_version}`,
+              : withWarning(
+                  `Merged as version ${merged.merged_version}`,
+                  merged.warning
+                ),
             {
               description: droppedText(proposal, picks) ?? undefined,
               action: {

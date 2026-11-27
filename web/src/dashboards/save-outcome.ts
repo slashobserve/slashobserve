@@ -22,5 +22,12 @@ export function saveToast(outcome: SaveOutcome): string {
     outcome.mergedFrom === null
       ? `Saved version ${outcome.version}`
       : `Saved version ${outcome.version}, merged with changes made since version ${outcome.mergedFrom.base_version}`
-  return outcome.warning === null ? saved : `${saved}. ${outcome.warning}`
+  return withWarning(saved, outcome.warning)
+}
+
+export function withWarning(
+  done: string,
+  warning: string | null | undefined
+): string {
+  return warning ? `${done}. ${warning}` : done
 }
