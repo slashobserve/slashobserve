@@ -81,6 +81,7 @@ func TestMCPSourcesFileRefusals(t *testing.T) {
 		"long description":      {"mcpSources:\n  - uid: a\n    url: https://a.example.com\n    description: " + strings.Repeat("x", 301) + "\n", "mcpSources[0].description"},
 		"empty tool name":       {"mcpSources:\n  - uid: a\n    url: https://a.example.com\n    approve: [\"\"]\n", "mcpSources[0].approve"},
 		"bad tool name":         {"mcpSources:\n  - uid: a\n    url: https://a.example.com\n    approve: [\"a b\"]\n", "is not a tool name"},
+		"punctuation-only name": {"mcpSources:\n  - uid: a\n    url: https://a.example.com\n    approve: [\"---\"]\n", "is not a tool name"},
 		"duplicate tool name":   {"mcpSources:\n  - uid: a\n    url: https://a.example.com\n    approve: [x, x]\n", "is listed twice"},
 		"two documents":         {"mcpSources: []\n---\nmcpSources: []\n", "multiple YAML documents"},
 	}

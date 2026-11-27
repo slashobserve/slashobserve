@@ -89,7 +89,7 @@ func TestServiceAccountsFileRefusals(t *testing.T) {
 		{"two documents", func(t *testing.T) string { return "serviceAccounts: []\n---\nserviceAccounts: []\n" }, "multiple YAML documents"},
 		{"bad name", func(t *testing.T) string {
 			return "serviceAccounts:\n" + accountEntry("Demo_Bot", "editor", "", writeFile(t, "k", key))
-		}, "serviceAccounts[0].name: must match"},
+		}, "serviceAccounts[0].name: must be lowercase letters"},
 		{"commenter role", func(t *testing.T) string {
 			return "serviceAccounts:\n" + accountEntry("bot", "commenter", "", writeFile(t, "k", key))
 		}, `serviceAccounts[0].role: must be viewer, editor or admin, got "commenter"`},

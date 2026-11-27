@@ -14,15 +14,15 @@ import (
 
 	"github.com/goccy/go-yaml"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
 const maxServiceAccountDescription = 256
 
 var (
-	serviceAccountNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
-	serviceAccountKeyPattern  = regexp.MustCompile(`^sok_[A-Za-z0-9_-]{43}$`)
-	serviceAccountRoles       = []string{"viewer", "editor", "admin"}
+	serviceAccountKeyPattern = regexp.MustCompile(`^sok_[A-Za-z0-9_-]{43}$`)
+	serviceAccountRoles      = []string{"viewer", "editor", "admin"}
 )
 
 type ServiceAccount struct {
@@ -96,8 +96,8 @@ func convertServiceAccount(path string, raw fileServiceAccount) (ServiceAccount,
 		errs = append(errs, fmt.Errorf("%s.%s: %s", path, field, fmt.Sprintf(format, args...)))
 	}
 	account := ServiceAccount{Name: raw.Name, Role: raw.Role, Description: raw.Description, TakesRuns: raw.TakesRuns}
-	if !serviceAccountNamePattern.MatchString(raw.Name) {
-		fail("name", "must match %s", serviceAccountNamePattern)
+	if !auth.ValidServiceAccountName(raw.Name) {
+		fail("name", "%s", strings.TrimPrefix(auth.ServiceAccountNameMessage, "name "))
 	}
 	if !slices.Contains(serviceAccountRoles, raw.Role) {
 		fail("role", "must be viewer, editor or admin, got %q", raw.Role)

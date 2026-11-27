@@ -158,6 +158,7 @@ mcpSources:
   A source with it shows `private: true` in the API and the web app, and every audit event of the source carries `private: true`.
   Removing the line makes the source public again, resets its check and refuses an `http` address.
 - `approve` is an optional list of tool names, such as `approve: [list_dir, read_file]`.
+  A name is 1 to 128 letters, digits, dots, dashes or underscores with at least one letter or digit, the rule a discovered tool's name must meet, so a name no tool can have stops the server at start.
   At every start, after it makes the entries match, the server runs a discovery for each source with a list, in the background, so the tools can be a few seconds behind the start.
   It approves a listed tool the first time the server sees it, when the tool is `offered` and was not known before that discovery.
   That is the only definition the file ever pins: a tool an Admin revoked, a tool an Admin or an earlier discovery already knew and left unapproved, and a tool that is `changed` stay as they are until an Admin approves them, so a revoke sticks across restarts and the file never approves a definition nobody read.
