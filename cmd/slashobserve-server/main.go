@@ -664,7 +664,6 @@ func run() error {
 			search.NewHandler(searchService, logger),
 			stream.NewActivityHandler(broker, activityStore, authService, logger),
 			stream.NewAuditHandler(broker, auditReader, authService, logger),
-			threads.NewComments(threadsService, revisionsService),
 			threads.NewThreads(threadsService, asks),
 			revisionsService,
 			revisions.NewObserveHandler(revisionsService, observeOpts),

@@ -86,8 +86,7 @@ These behave differently without a provider:
 - The endpoints that start the built-in agent answer `503 agent_unavailable`.
   They are `POST /api/v1/observe` for a request the built-in agent would take, revision prompts, suggestions, health repairs and query drafts.
 - A message that mentions `@observe` is saved, and its `run_refusal` is `agent_unavailable`.
-- A comment sent with `request_revision` is saved and queues no revision.
-  Turning the agent on later replays neither.
+  Turning the agent on later does not replay it.
 - Home's **Ask Observe Agent** tab says no model is connected.
 - `GET /api/v1/agent` answers `available: false`, and `observe doctor` reports that no model is configured.
 

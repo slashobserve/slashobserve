@@ -92,7 +92,6 @@ func (r runObservations) OpenForRun(ctx context.Context, q *dbsqlc.Queries, in r
 type rig struct {
 	db           *dbtest.Database
 	service      *Service
-	comments     *Comments
 	asks         *Asks
 	revisions    *revisions.Service
 	dashboards   *dashboards.Service
@@ -134,7 +133,6 @@ func newAgentRig(t *testing.T, agent bool) *rig {
 	return &rig{
 		db:           database,
 		service:      service,
-		comments:     NewComments(service, queue),
 		asks:         NewAsks(service, queue, agent),
 		revisions:    queue,
 		dashboards:   dashboardService,

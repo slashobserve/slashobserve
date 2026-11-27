@@ -99,7 +99,6 @@ threads:
       A started run is in `message.run`, and `to` in the answer says how the message was delivered.
       `client_id` is a UUID the caller makes for the message; sending it again answers 200 with the message already posted, `replayed: true`, the same `message.run` or `message.run_refusal` as the first time and no new run, and reusing it on another target answers 422 `client_id_reused`.
       The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream; a change of the thread's agent is audited as `thread.agent_set`.
-      A comment sent to a dashboard with `request_revision` has its own path.
       Writing needs Comment on the target; a caller who can see it but not comment gets 403.
     requestBody:
       required: true

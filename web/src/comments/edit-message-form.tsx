@@ -12,7 +12,7 @@ import { maxPromptLength } from "@/revisions/queries"
 
 import { MentionButton } from "./mention-button"
 import { toDisplay, type MentionAgent, type MentionPerson } from "./mentions"
-import { useEditMessage } from "./queries"
+import { useEditMessage } from "./thread-queries"
 import { SendHint } from "./send-hint"
 import { useInlineMention } from "./use-inline-mention"
 import { useMentionPicks } from "./use-mention-picks"

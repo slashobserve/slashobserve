@@ -189,25 +189,32 @@ test("links a failed comment revision back to its dashboard", async ({
     ...loadSpec("overview"),
     title: uniqueTitle("Comment revision"),
   })
-  const commented = await page.request.post(
-    `/api/v1/dashboards/${dashboardId}/comments`,
+  const commented = await page.request.post("/api/v1/threads", {
+    data: {
+      target: `dashboard:${dashboardId}`,
+      version: 1,
+      panel_id: "rps",
+      body: unanswerablePrompt,
+    },
+    headers: mutationHeaders,
+  })
+  expect(commented.status()).toBe(201)
+  const { thread } = (await commented.json()) as { thread: { id: string } }
+  const queued = await page.request.post(
+    `/api/v1/dashboards/${dashboardId}/revisions`,
     {
       data: {
-        version: 1,
-        panel_id: "rps",
-        body: unanswerablePrompt,
-        request_revision: true,
+        prompt: unanswerablePrompt,
+        base_version: 1,
+        comment_id: thread.id,
       },
       headers: mutationHeaders,
     }
   )
-  expect(commented.status()).toBe(201)
-  const { comment } = (await commented.json()) as {
-    comment: { revision: { id: string } | null }
-  }
-  expect(comment.revision).not.toBeNull()
+  expect(queued.status()).toBe(202)
+  const { revision } = (await queued.json()) as { revision: { id: string } }
 
-  await page.goto(`/c/${comment.revision?.id}`)
+  await page.goto(`/c/${revision.id}`)
   const alert = page.getByRole("alert")
   await expect(alert).toContainText("no replay fixture", { timeout: 30_000 })
   await expect(alert.getByRole("button", { name: "Try again" })).toHaveCount(0)

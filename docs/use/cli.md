@@ -1266,11 +1266,9 @@ A comment is for everyone and asks no agent unless you add `--to agent`.
 
 - `comments reply <comment-id> <text...>` adds a reply to a thread, and the id can be any comment of the thread.
   It prints `Replied to thread <id> as <id>`, even with `-q`.
-  - `comments reply <dashboard-id> <comment-id> <text...>` does the same on a dashboard through the dashboard comment endpoint.
-    When the first two arguments are both ids, the first is the dashboard id.
-  - Everything after the ids is the reply text, so flags such as `--json`, `-q`, `--block`, `--reply-to` or `--to` must come before the ids.
+  - Everything after the id is the reply text, so flags such as `--json`, `-q`, `--block`, `--reply-to` or `--to` must come before the id.
+    A second id after the first is part of the text.
   - `--block <block-id>` anchors the reply to one block of an observation, and `--reply-to <comment-id>` names the comment of the same thread that the reply answers, which the web app shows quoted.
-  - `--to`, `--block` and `--reply-to` work only with the comment id alone, because the dashboard comment endpoint takes none of them.
 - `comments edit <comment-id> <text...>` replaces the text of your own comment, while you can still comment on its target.
   Everyone else gets 403 `not_author`.
   It prints `Edited comment <id>`, and the flags go before the id, as for `add`.
@@ -1282,7 +1280,7 @@ A comment is for everyone and asks no agent unless you add `--to agent`.
 
 #### Resolve and reopen threads
 
-`comments resolve <comment-id>` resolves a thread, and `comments resolve <dashboard-id> <comment-id>` does the same through the dashboard endpoint.
+`comments resolve <comment-id>` resolves a thread on any target.
 It prints `Resolved thread <id>`, or `Resolved thread <id> by version N` with `--version N`, which records the version that fixed a dashboard thread.
 A Commenter gets `not_starter` on a thread someone else started, and an Editor resolves any.
 When the thread was already resolved, `--version` is not applied and the command exits 1.

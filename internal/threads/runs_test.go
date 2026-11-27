@@ -10,12 +10,23 @@ import (
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
-func (r *rig) runFor(t *testing.T, dash pgtype.UUID, comment Comment, resultVersion int32) dbsqlc.AgentRequest {
+func (r *rig) commentRevision(t *testing.T, dash pgtype.UUID, panelID *string, body string) (thread string, run pgtype.UUID) {
 	t.Helper()
-	if comment.Revision == nil {
-		t.Fatal("the comment queued no revision")
+	opened, _ := r.open(t, testUser, OpenInput{Target: target(KindDashboard, dash), Version: new(1), PanelID: panelID, Body: body})
+	params := revisions.EnqueueParams{DashboardID: dash, CommentID: mustParse(t, opened.ID), Prompt: body, BaseVersion: 1, By: testUser}
+	if panelID != nil {
+		params.PanelID = *panelID
 	}
-	row, err := r.db.Queries().GetAgentRequest(reading(t.Context()), dbsqlc.GetAgentRequestParams{ID: mustParse(t, comment.Revision.ID), DashboardID: dash})
+	row, err := r.revisions.Submit(reading(t.Context()), params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return opened.ID, row.ID
+}
+
+func (r *rig) runFor(t *testing.T, dash, run pgtype.UUID, resultVersion int32) dbsqlc.AgentRequest {
+	t.Helper()
+	row, err := r.db.Queries().GetAgentRequest(reading(t.Context()), dbsqlc.GetAgentRequestParams{ID: run, DashboardID: dash})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,29 +55,32 @@ func TestRunResolvesItsThreadAsTheRequester(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t, "rps", "errors")
 	r.addVersion(t, dash, 1)
-	comment := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("errors"), Body: "show this per route", RequestRevision: true})
-	run := r.runFor(t, dash, comment, 2)
+	comment, queued := r.commentRevision(t, dash, new("errors"), "show this per route")
+	run := r.runFor(t, dash, queued, 2)
 
 	if err := r.resolveForRun(t, run); err != nil {
 		t.Fatal(err)
 	}
 
-	row := r.threadRow(t, comment.ID)
+	row := r.threadRow(t, comment)
 	if row.Status != StatusResolved || row.ResolvedByName.String != "Ada" || row.ResolvedRunID != run.ID || row.ResolvedByVersion.Int32 != 2 {
 		t.Fatalf("thread = %+v", row)
 	}
-	listed, _, err := r.comments.List(reading(t.Context()), testUser, dash, StatusResolved, "", 10, "")
-	if err != nil || len(listed) != 2 || listed[0].ResolvedBy == nil || listed[0].ResolvedBy.Name != "Ada" {
-		t.Fatalf("listed = %+v, err %v", listed, err)
+	page, err := r.service.List(reading(t.Context()), testUser, ListQuery{Target: target(KindDashboard, dash), Status: StatusResolved, Limit: 10})
+	if err != nil || len(page.Threads) != 1 || len(page.Messages) != 2 {
+		t.Fatalf("page = %+v, err %v", page, err)
 	}
-	if reply := listed[1]; reply.ParentID != comment.ID || reply.Body != "Saved version 2 of this dashboard." || reply.Actor.RunID != run.ID.String() {
+	if resolver := page.Threads[0].ResolvedBy; resolver == nil || resolver.Name != "Ada" || resolver.JSON().Label != "Observe Agent for Ada" || resolver.RunID != run.ID.String() {
+		t.Fatalf("resolver = %+v", resolver)
+	}
+	if reply := page.Messages[1]; reply.ThreadID != comment || reply.Body != "Saved version 2 of this dashboard." || reply.Author.RunID != run.ID.String() {
 		t.Fatalf("the run's answer in the thread = %+v", reply)
 	}
 
 	var runID, actorName string
 	var data []byte
 	err = r.db.SQLDB(t).QueryRowContext(reading(t.Context()),
-		`SELECT coalesce(run_id::text, ''), actor_name, data::text FROM activity WHERE type = 'thread.resolved' AND target_id = $1`, comment.ID,
+		`SELECT coalesce(run_id::text, ''), actor_name, data::text FROM activity WHERE type = 'thread.resolved' AND target_id = $1`, comment,
 	).Scan(&runID, &actorName, &data)
 	if err != nil {
 		t.Fatal(err)
@@ -83,17 +97,17 @@ func TestRunLeavesAResolvedThreadAlone(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
 	r.addVersion(t, dash, 1)
-	comment := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "fix it", RequestRevision: true})
-	if _, _, err := r.comments.SetStatus(reading(t.Context()), testUser, dash, mustParse(t, comment.ID), StatusResolved, new(1)); err != nil {
+	comment, queued := r.commentRevision(t, dash, new("rps"), "fix it")
+	if _, _, err := r.service.SetStatus(reading(t.Context()), testUser, mustParse(t, comment), StatusResolved, new(1)); err != nil {
 		t.Fatal(err)
 	}
-	before := r.threadRow(t, comment.ID)
+	before := r.threadRow(t, comment)
 
-	if err := r.resolveForRun(t, r.runFor(t, dash, comment, 2)); err != nil {
+	if err := r.resolveForRun(t, r.runFor(t, dash, queued, 2)); err != nil {
 		t.Fatal(err)
 	}
 
-	after := r.threadRow(t, comment.ID)
+	after := r.threadRow(t, comment)
 	if after.ResolvedByVersion.Int32 != 1 || after.ResolvedRunID.Valid || !after.UpdatedAt.Time.Equal(before.UpdatedAt.Time) {
 		t.Fatalf("thread = %+v, was %+v", after, before)
 	}
@@ -106,8 +120,8 @@ func TestRunWithoutACommentOrResultResolvesNothing(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
 	r.addVersion(t, dash, 1)
-	comment := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "fix it", RequestRevision: true})
-	run := r.runFor(t, dash, comment, 2)
+	comment, queued := r.commentRevision(t, dash, new("rps"), "fix it")
+	run := r.runFor(t, dash, queued, 2)
 
 	noComment := run
 	noComment.CommentID = pgtype.UUID{}
@@ -118,7 +132,7 @@ func TestRunWithoutACommentOrResultResolvesNothing(t *testing.T) {
 			t.Fatalf("%s: %v", name, err)
 		}
 	}
-	if got := r.threadRow(t, comment.ID).Status; got != StatusOpen {
+	if got := r.threadRow(t, comment).Status; got != StatusOpen {
 		t.Fatalf("status = %s, want open", got)
 	}
 }
@@ -127,8 +141,8 @@ func TestRunSkipsAThreadOfADeletedDashboard(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
 	r.addVersion(t, dash, 1)
-	comment := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "fix it", RequestRevision: true})
-	run := r.runFor(t, dash, comment, 2)
+	_, queued := r.commentRevision(t, dash, new("rps"), "fix it")
+	run := r.runFor(t, dash, queued, 2)
 	if err := r.dashboards.Delete(reading(t.Context()), testUser, dash); err != nil {
 		t.Fatal(err)
 	}
@@ -142,8 +156,8 @@ func TestRunLooksUpTheThreadOfAReplyOnItsOwnDashboard(t *testing.T) {
 	r := newAgentRig(t, false)
 	dash := r.createDashboard(t, "rps", "errors")
 	other := r.createDashboard(t)
-	root := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("errors"), Body: "root"})
-	reply := r.createComment(t, dash, NewComment{ParentID: mustParse(t, root.ID), Body: "reply"})
+	root, _ := r.open(t, testUser, OpenInput{Target: target(KindDashboard, dash), Version: new(1), PanelID: new("errors"), Body: "root"})
+	_, reply := r.reply(t, testUser, root.ID, "reply")
 	runs := NewRuns(r.db.DB)
 
 	thread, panel, err := runs.ForRun(reading(t.Context()), dash, mustParse(t, reply.ID))

@@ -157,7 +157,6 @@ it("closes the stream 15 seconds after the tab is hidden and catches up when it 
     expect(refetched).toEqual(
       expect.arrayContaining([
         dashboardKeys.history("d1"),
-        dashboardKeys.comments("d1"),
         threadKeys.list("dashboard:d1"),
         dashboardKeys.revisions("d1"),
       ])

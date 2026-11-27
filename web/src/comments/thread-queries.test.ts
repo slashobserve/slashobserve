@@ -10,6 +10,8 @@ import { testQueryClient } from "@/test/render"
 import {
   askedAgent,
   groupThreadPages,
+  openThreadCount,
+  openThreadsByPanel,
   useOpenThread,
   useReplyToThread,
   type Message,
@@ -66,6 +68,43 @@ function message(id: string, threadId: string, createdAt: string): Message {
     reply_to: null,
   }
 }
+
+function onPanel(
+  id: string,
+  panelId: string | null,
+  status: Thread["status"] = "open"
+) {
+  return {
+    thread: {
+      ...thread(id, "2026-11-06T10:00:00Z"),
+      panel_id: panelId,
+      status,
+    },
+    messages: [],
+  }
+}
+
+describe("open thread counts", () => {
+  it("counts every open thread, on a panel or the whole dashboard", () => {
+    expect(
+      openThreadCount([
+        onPanel("t1", null),
+        onPanel("t2", null, "resolved"),
+        onPanel("t3", "p1"),
+      ])
+    ).toBe(2)
+  })
+
+  it("counts open panel threads per panel", () => {
+    const counts = openThreadsByPanel([
+      onPanel("t1", "p1"),
+      onPanel("t2", "p1"),
+      onPanel("t3", "p2", "resolved"),
+      onPanel("t4", null),
+    ])
+    expect(counts).toEqual(new Map([["p1", 2]]))
+  })
+})
 
 describe("groupThreadPages", () => {
   it("returns nothing for no pages", () => {
@@ -231,7 +270,6 @@ describe("useOpenThread", () => {
     const keys = invalidated.mock.calls.map((call) => call[0]?.queryKey)
     expect(keys).toEqual([
       threadKeys.list("dashboard:d1"),
-      dashboardKeys.comments("d1"),
       dashboardKeys.revisions("d1"),
       observeKeys.mineAll(),
     ])

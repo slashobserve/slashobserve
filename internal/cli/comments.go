@@ -54,16 +54,6 @@ func deliveryOf(to string) (string, error) {
 	return "", usagef("--to must be agent or everyone, not %q", to)
 }
 
-func (o commentReplyOptions) checkDashboardForm() error {
-	if o.to != "" {
-		return usagef("--to needs a reply by comment id alone, without a dashboard id")
-	}
-	if o.block != "" || o.replyTo != "" {
-		return usagef("--block and --reply-to need a reply by comment id alone, without a dashboard id")
-	}
-	return nil
-}
-
 func (o commentReplyOptions) addTo(payload map[string]any) error {
 	to, err := deliveryOf(o.to)
 	if err != nil {
@@ -78,22 +68,6 @@ func (o commentReplyOptions) addTo(payload map[string]any) error {
 
 type commentResolveOptions struct {
 	version int
-}
-
-type comment struct {
-	ID                string  `json:"id"`
-	ParentID          *string `json:"parent_id"`
-	PanelID           *string `json:"panel_id"`
-	PanelPresent      bool    `json:"panel_present"`
-	Status            string  `json:"status"`
-	Author            author  `json:"author"`
-	CreatedAt         string  `json:"created_at"`
-	Body              string  `json:"body"`
-	ResolvedByVersion *int    `json:"resolved_by_version"`
-}
-
-type commentEnvelope struct {
-	Comment comment `json:"comment"`
 }
 
 type commentThread struct {
@@ -423,9 +397,9 @@ func reportRun(out *output, message threadMessage) {
 
 func (a *app) commentsReplyCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "reply [flags] [<dashboard-id>] <comment-id> <text...>",
+		Use:   "reply [flags] <comment-id> <text...>",
 		Short: "Reply to a comment thread",
-		Long:  "Everything after the ids is the reply text, flag-like words included, so flags such as --json, -q, --block, --reply-to or --to must come before the ids.\nThe comment id can be any comment of the thread, on a dashboard, an observation, an annotation or a proposal.\nWhen the first two arguments are both ids, the first is read as a dashboard id.\nThe reply is for everyone and asks no agent; --to agent asks the agent the text mentions, else the thread's agent, else @observe, with the earlier messages of the thread as its context; it needs the thread form, with no dashboard id.\n--block anchors the reply to one block of an observation and --reply-to names the comment of the thread the reply answers, which the web app shows quoted; both need the thread form too.",
+		Long:  "Everything after the id is the reply text, flag-like words included, so flags such as --json, -q, --block, --reply-to or --to must come before the id.\nThe comment id can be any comment of the thread, on a dashboard, an observation, an annotation or a proposal.\nThe reply is for everyone and asks no agent; --to agent asks the agent the text mentions, else the thread's agent, else @observe, with the earlier messages of the thread as its context.\n--block anchors the reply to one block of an observation and --reply-to names the comment of the thread the reply answers, which the web app shows quoted.",
 		Args:  cobra.ArbitraryArgs,
 		RunE:  a.runCommentsReply,
 	}
@@ -436,38 +410,20 @@ func (a *app) commentsReplyCommand() *cobra.Command {
 	return cmd
 }
 
-func hasDashboardID(args []string) bool {
-	return len(args) > 1 && idPattern.MatchString(args[0]) && idPattern.MatchString(args[1])
-}
-
 func (a *app) runCommentsReply(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 {
 		return usagef("%s takes a comment id and the reply text", cmd.CommandPath())
 	}
-	withDashboard := hasDashboardID(args)
-	ids := 1
-	if withDashboard {
-		ids = 2
-	}
-	body := strings.TrimSpace(strings.Join(args[ids:], " "))
+	body := strings.TrimSpace(strings.Join(args[1:], " "))
 	if body == "-h" || body == "--help" {
 		return cmd.Help()
 	}
-	commentID, err := parseID(args[ids-1])
+	commentID, err := parseID(args[0])
 	if err != nil {
 		return err
 	}
-	path, payload := "threads/"+commentID+"/messages", map[string]any{"body": body}
-	if withDashboard {
-		if err := a.commentReply.checkDashboardForm(); err != nil {
-			return err
-		}
-		dashboardID, err := parseID(args[0])
-		if err != nil {
-			return err
-		}
-		path, payload = "dashboards/"+dashboardID+"/comments", map[string]any{"parent_id": commentID, "body": body}
-	} else if err := a.commentReply.addTo(payload); err != nil {
+	payload := map[string]any{"body": body}
+	if err := a.commentReply.addTo(payload); err != nil {
 		return err
 	}
 	if body == "" {
@@ -477,7 +433,7 @@ func (a *app) runCommentsReply(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	data, err := c.post(cmd.Context(), path, payload)
+	data, err := c.post(cmd.Context(), "threads/"+commentID+"/messages", payload)
 	if err != nil {
 		return err
 	}
@@ -486,29 +442,13 @@ func (a *app) runCommentsReply(cmd *cobra.Command, args []string) error {
 		out.body(data)
 		return nil
 	}
-	thread, message, err := repliedIDs(data, withDashboard, commentID)
+	created, err := decode[threadMessageEnvelope](data)
 	if err != nil {
 		return err
 	}
-	out.line("Replied to thread %s as %s", text(thread), text(message.ID))
-	reportRun(out, message)
+	out.line("Replied to thread %s as %s", text(created.Thread.ID), text(created.Message.ID))
+	reportRun(out, created.Message)
 	return nil
-}
-
-func repliedIDs(data []byte, legacy bool, commentID string) (thread string, message threadMessage, err error) {
-	if !legacy {
-		created, err := decode[threadMessageEnvelope](data)
-		return created.Thread.ID, created.Message, err
-	}
-	created, err := decode[commentEnvelope](data)
-	if err != nil {
-		return "", threadMessage{}, err
-	}
-	thread = commentID
-	if created.Comment.ParentID != nil {
-		thread = *created.Comment.ParentID
-	}
-	return thread, threadMessage{ID: created.Comment.ID}, nil
 }
 
 func (a *app) commentsEditCommand() *cobra.Command {
@@ -682,10 +622,10 @@ type resolution struct {
 
 func (a *app) commentsResolveCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "resolve [<dashboard-id>] <comment-id>",
+		Use:   "resolve <comment-id>",
 		Short: "Resolve a comment thread",
-		Long:  "The comment id can be any comment of the thread, on a dashboard, an observation, an annotation or a proposal.\nWhen two ids are given, the first is read as a dashboard id.",
-		Args:  rangeArgs(1, 2, "a comment id, after an optional dashboard id"),
+		Long:  "The comment id can be any comment of the thread, on a dashboard, an observation, an annotation or a proposal.",
+		Args:  exactArgs(1, "a comment id"),
 		RunE:  a.runCommentsResolve,
 	}
 	cmd.Flags().IntVar(&a.commentResolve.version, "version", 0, "record the version that fixed the thread; dashboards only")
@@ -693,13 +633,9 @@ func (a *app) commentsResolveCommand() *cobra.Command {
 }
 
 func (a *app) runCommentsResolve(cmd *cobra.Command, args []string) error {
-	ids := make([]string, 0, len(args))
-	for _, arg := range args {
-		id, err := parseID(arg)
-		if err != nil {
-			return err
-		}
-		ids = append(ids, id)
+	id, err := parseID(args[0])
+	if err != nil {
+		return err
 	}
 	versionGiven := cmd.Flags().Changed("version")
 	if versionGiven && a.commentResolve.version < 1 {
@@ -709,8 +645,11 @@ func (a *app) runCommentsResolve(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	legacy := len(ids) == 2
-	data, err := a.sendResolve(cmd, c, ids, versionGiven)
+	payload := map[string]any{}
+	if versionGiven {
+		payload["version"] = a.commentResolve.version
+	}
+	data, err := c.post(cmd.Context(), "threads/"+id+"/resolve", payload)
 	if err != nil {
 		return err
 	}
@@ -718,10 +657,11 @@ func (a *app) runCommentsResolve(cmd *cobra.Command, args []string) error {
 	if a.json {
 		out.body(data)
 	}
-	resolved, err := resolutionOf(data, legacy)
+	envelope, err := decode[threadEnvelope](data)
 	if err != nil {
 		return err
 	}
+	resolved := resolution{envelope.Thread.ID, envelope.Thread.ResolvedByVersion}
 	if versionGiven && (resolved.resolvedByVersion == nil || *resolved.resolvedByVersion != a.commentResolve.version) {
 		return notAppliedError(resolved)
 	}
@@ -734,30 +674,6 @@ func (a *app) runCommentsResolve(cmd *cobra.Command, args []string) error {
 	}
 	out.confirm("Resolved thread %s", text(resolved.id))
 	return nil
-}
-
-func (a *app) sendResolve(cmd *cobra.Command, c *client, ids []string, versionGiven bool) ([]byte, error) {
-	if len(ids) == 2 {
-		payload := map[string]any{"status": "resolved"}
-		if versionGiven {
-			payload["resolved_by_version"] = a.commentResolve.version
-		}
-		return c.patch(cmd.Context(), "dashboards/"+ids[0]+"/comments/"+ids[1], payload)
-	}
-	payload := map[string]any{}
-	if versionGiven {
-		payload["version"] = a.commentResolve.version
-	}
-	return c.post(cmd.Context(), "threads/"+ids[0]+"/resolve", payload)
-}
-
-func resolutionOf(data []byte, legacy bool) (resolution, error) {
-	if !legacy {
-		resolved, err := decode[threadEnvelope](data)
-		return resolution{resolved.Thread.ID, resolved.Thread.ResolvedByVersion}, err
-	}
-	resolved, err := decode[commentEnvelope](data)
-	return resolution{resolved.Comment.ID, resolved.Comment.ResolvedByVersion}, err
 }
 
 func notAppliedError(r resolution) error {

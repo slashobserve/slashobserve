@@ -175,13 +175,13 @@ func TestListingThreadsPagesByMessages(t *testing.T) {
 func TestListingAThreadShowsItsQueuedRevision(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
-	comment := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "change it", RequestRevision: true})
+	_, queued := r.commentRevision(t, dash, new("rps"), "change it")
 
 	page := r.call(t, testUser, http.MethodGet, "/threads?target=dashboard:"+dash.String(), nil)
 	page.expect(t, http.StatusOK, "")
 	threads := page.at(t, "threads").([]any)
 	revision, _ := threads[0].(map[string]any)["revision"].(map[string]any)
-	if len(threads) != 1 || revision["id"] != comment.Revision.ID || revision["status"] != "queued" {
+	if len(threads) != 1 || revision["id"] != queued.String() || revision["status"] != "queued" {
 		t.Fatalf("threads = %v", threads)
 	}
 }

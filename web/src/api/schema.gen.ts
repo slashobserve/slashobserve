@@ -1315,55 +1315,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/dashboards/{id}/comments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        /**
-         * List the comments of a dashboard across all versions, oldest first.
-         * @description Each thread's first comment carries `allowed_actions`, what the caller may do with the thread now, and a reply carries none.
-         */
-        get: operations["listDashboardComments"];
-        put?: never;
-        /**
-         * Comment on a panel or the whole dashboard, or reply to a thread.
-         * @description A comment starts a thread or replies to one. A thread's first comment is anchored to a version and to a panel id, or to the whole dashboard when `panel_id` is absent or null, and never moves; `panel_present` on responses says whether the latest version still has that panel and is always true for a whole-dashboard comment. A reply names its thread's comment in `parent_id` and omits `version` and `panel_id`; it takes both from its thread. Replies are one level deep: replying to a reply attaches the new reply to that reply's thread. A thread's status lives on its first comment and a reply's `status` mirrors it. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Each comment's `actor` is who wrote it, with the `label` to show, such as `Ada (via Claude Code)`; `resolved_actor` is who resolved the thread, `Observe Agent for Ada` when an agent run did. `mentions` lists the people and `@observe` the body mentions, `edited_at` is set once the body was edited, and `can_edit` says whether the caller may edit it. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, goes to the dashboard's event stream. A comment queues a revision only when `request_revision` is true and an LLM provider is configured; a reply never requests a revision. The comment and the revision are created in one transaction, and the comment's `revision` holds the queued revision. When the revision succeeds, the server resolves the thread with `resolved_by_version` set to the saved version, unless it is already resolved. With no LLM provider configured, no revision is queued and `revision` stays null. At most 5 revisions may be queued or running per dashboard; beyond that the comment is not created. A starter takes comments but no revision, so `request_revision` on one answers 409 `provisioned` and creates nothing.
-         */
-        post: operations["createDashboardComment"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/dashboards/{id}/comments/{comment_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-                comment_id: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Resolve or reopen a comment.
-         * @description Setting the status a comment already has answers 200 with the comment unchanged and sends no event. A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `status` and `author` (plus `panel_id` for a comment on a panel), where `author` is the caller who changed the status or, when an agent request resolves the thread, its requester. Changing a reply changes its thread and returns the thread's first comment. A caller with only Comment resolves only a thread they started, and anyone else answers 403 `not_starter`; a caller who can edit resolves any thread, and reopening is open to every commenter. `resolved_by_version` names the version that fixed the thread; it must be at least the version the thread is on (400) and at most the dashboard's latest version (422), it is stored only when the call changes the status to resolved, and reopening clears it.
-         */
-        patch: operations["setDashboardCommentStatus"];
-        trace?: never;
-    };
     "/threads": {
         parameters: {
             query?: never;
@@ -1379,7 +1330,7 @@ export interface paths {
         put?: never;
         /**
          * Start a thread on a dashboard, an annotation, an observation or a proposal.
-         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on an annotation or an observation. `block_id` anchors the first message to one block of an observation; absent or null means the whole observation. It is refused on a dashboard, an annotation or a proposal, and must name a block of this observation, with 422 `invalid_block` otherwise. Deleting the block keeps the message, now about the whole observation. `anchor` points the thread at one spot of a dashboard panel or, with `block_id`, of an observation block, and is refused on an annotation or a proposal (422 `invalid_target`) or when its kind lacks a field it needs (422 `invalid_anchor`). `block_id` with an anchor sets the thread's block; without an anchor it keeps its message meaning, the block the first message is about. `block_id` with an anchor of a kind that cannot sit on a block, `variable`, answers 422 `invalid_anchor` naming both fields. An observation has one page thread, its discussion, and any number of anchored threads; starting a second page thread adds the message to the first. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). Mention a person with `@[Name](user:<id>)`, the built-in agent with `@observe`, one of your own connected agents with `@[Name](grant:<grant id>)` and a service account that takes runs with `@[Name](service_account:<id>)`, at most 20 mentions in a message, a repeated mention counting each time (422 `too_many_mentions`). A grant that is not yours, revoked or expired, a service account that takes no runs, and a person who does not exist or cannot see the target all answer 422 `invalid_mention`; a service-account key may mention `@observe` and service accounts, never a grant. A mention is recorded, shows in the activity log, and a mentioned person gets it in their Inbox. `to` decides who the message is for. Absent, a message that mentions one agent asks it, a message that mentions a person asks no agent, and any other message asks the thread's agent unless it is off. `agent` asks the agent it mentions, else the thread's agent, else `@observe`; `everyone` asks no agent and turns the thread's agent off. The agent a message asks becomes the thread's agent, so later plain replies ask it too. More than one agent in a message answers 422 `too_many_agents` and writes nothing, whatever `to` says. The agent asked gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context. A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts a read-only `investigate` run about the observation, which needs Comment on it, has no per-person cap and answers in the thread without writing on the page. An annotation or a proposal thread starts no run. A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider, or a thread agent that was disconnected, which is then cleared), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` or `too_many_runs`. A started run is in `message.run`, and `to` in the answer says how the message was delivered. `client_id` is a UUID the caller makes for the message; sending it again answers 200 with the message already posted, `replayed: true`, the same `message.run` or `message.run_refusal` as the first time and no new run, and reusing it on another target answers 422 `client_id_reused`. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream; a change of the thread's agent is audited as `thread.agent_set`. A comment sent to a dashboard with `request_revision` has its own path. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
+         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on an annotation or an observation. `block_id` anchors the first message to one block of an observation; absent or null means the whole observation. It is refused on a dashboard, an annotation or a proposal, and must name a block of this observation, with 422 `invalid_block` otherwise. Deleting the block keeps the message, now about the whole observation. `anchor` points the thread at one spot of a dashboard panel or, with `block_id`, of an observation block, and is refused on an annotation or a proposal (422 `invalid_target`) or when its kind lacks a field it needs (422 `invalid_anchor`). `block_id` with an anchor sets the thread's block; without an anchor it keeps its message meaning, the block the first message is about. `block_id` with an anchor of a kind that cannot sit on a block, `variable`, answers 422 `invalid_anchor` naming both fields. An observation has one page thread, its discussion, and any number of anchored threads; starting a second page thread adds the message to the first. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). Mention a person with `@[Name](user:<id>)`, the built-in agent with `@observe`, one of your own connected agents with `@[Name](grant:<grant id>)` and a service account that takes runs with `@[Name](service_account:<id>)`, at most 20 mentions in a message, a repeated mention counting each time (422 `too_many_mentions`). A grant that is not yours, revoked or expired, a service account that takes no runs, and a person who does not exist or cannot see the target all answer 422 `invalid_mention`; a service-account key may mention `@observe` and service accounts, never a grant. A mention is recorded, shows in the activity log, and a mentioned person gets it in their Inbox. `to` decides who the message is for. Absent, a message that mentions one agent asks it, a message that mentions a person asks no agent, and any other message asks the thread's agent unless it is off. `agent` asks the agent it mentions, else the thread's agent, else `@observe`; `everyone` asks no agent and turns the thread's agent off. The agent a message asks becomes the thread's agent, so later plain replies ask it too. More than one agent in a message answers 422 `too_many_agents` and writes nothing, whatever `to` says. The agent asked gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context. A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts a read-only `investigate` run about the observation, which needs Comment on it, has no per-person cap and answers in the thread without writing on the page. An annotation or a proposal thread starts no run. A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider, or a thread agent that was disconnected, which is then cleared), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` or `too_many_runs`. A started run is in `message.run`, and `to` in the answer says how the message was delivered. `client_id` is a UUID the caller makes for the message; sending it again answers 200 with the message already posted, `replayed: true`, the same `message.run` or `message.run_refusal` as the first time and no new run, and reusing it on another target answers 422 `client_id_reused`. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream; a change of the thread's agent is audited as `thread.agent_set`. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
          */
         post: operations["openThread"];
         delete?: never;
@@ -6163,63 +6114,6 @@ export interface components {
             /** @description The proposal's head revision now. */
             revision: number;
         };
-        Comment: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            dashboard_id: string;
-            /**
-             * Format: uuid
-             * @description The thread's first comment, for a reply; null for a thread's first comment.
-             */
-            parent_id: string | null;
-            version: number;
-            /** @description The panel the thread is on; null for the whole dashboard. A reply has its thread's panel. */
-            panel_id: string | null;
-            body: string;
-            /**
-             * @description For a reply, the status of its thread.
-             * @enum {string}
-             */
-            status: "open" | "resolved";
-            /** @description What the caller may do with this thread now, on its first comment; empty on a reply. `resolve` is absent while the thread's agent run is queued or running. See docs/reference/states.md. */
-            allowed_actions: ("open" | "reply" | "resolve" | "reopen")[];
-            /** @description Whether the thread, on its first comment, holds a message from someone else, or an agent run's reply, that the caller has not read; always false on a reply and for a service-account key. `POST /api/v1/threads/{thread_id}/read` clears it. */
-            unread: boolean;
-            author: components["schemas"]["Author"];
-            actor: components["schemas"]["Actor"];
-            /** Format: date-time */
-            created_at: string;
-            /** Format: date-time */
-            updated_at: string;
-            /**
-             * Format: date-time
-             * @description When the body was last edited; null when it never was.
-             */
-            edited_at: string | null;
-            /** Format: date-time */
-            resolved_at: string | null;
-            resolved_by: components["schemas"]["Author"] | null;
-            /** @description Who resolved the thread, with the one `label` to show; `Observe Agent for <name>` when an agent run did. Null on a reply and on an open thread. */
-            resolved_actor: components["schemas"]["Actor"] | null;
-            /** @description The version that fixed the thread, when the resolver named one. Also set by the server when an agent request sent from the thread succeeds. Always null on a reply. */
-            resolved_by_version: number | null;
-            /** @description Whether the latest version of the dashboard still has the panel the comment is anchored to. Always true for a whole-dashboard comment. */
-            panel_present: boolean;
-            /** @description The people and agents the body mentions, in the order shown. */
-            mentions: components["schemas"]["Mention"][];
-            /** @description Whether the caller may edit this comment's body, which only its author may do and only while the caller can still comment. */
-            can_edit: boolean;
-            /** @description Whether the caller may delete this comment; see `can_delete` on a thread message. */
-            can_delete: boolean;
-            /** @description The latest revision requested for this comment, or null when none was requested. */
-            revision: {
-                /** Format: uuid */
-                id: string;
-                /** @enum {string} */
-                status: "queued" | "running" | "succeeded" | "failed";
-            } | null;
-        };
         Mention: {
             /** @enum {string} */
             kind: "user" | "agent" | "grant" | "service_account";
@@ -6227,9 +6121,6 @@ export interface components {
             id: string;
             /** @description The name the mention showed when it was written. */
             name: string;
-        };
-        CommentEnvelope: {
-            comment: components["schemas"]["Comment"];
         };
         Thread: {
             /**
@@ -12778,172 +12669,6 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-        };
-    };
-    listDashboardComments: {
-        parameters: {
-            query?: {
-                status?: "open" | "resolved" | "all";
-                panel_id?: string;
-                limit?: number;
-                cursor?: string;
-            };
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description One page of comments. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        comments: components["schemas"]["Comment"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["Internal"];
-        };
-    };
-    createDashboardComment: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /**
-                     * @description Whether to queue an agent revision for the comment, when an agent is configured. A reply cannot request one.
-                     * @default false
-                     */
-                    request_revision?: boolean;
-                    /** @description Required unless `parent_id` is set. */
-                    version?: number | null;
-                    /** @description The panel to comment on; absent or null means the whole dashboard. Not allowed with `parent_id`. */
-                    panel_id?: string | null;
-                    /**
-                     * Format: uuid
-                     * @description The comment to reply to. Not allowed with `version` or `panel_id`.
-                     */
-                    parent_id?: string | null;
-                    body: string;
-                };
-            };
-        };
-        responses: {
-            /** @description The new comment, open, with the queued revision in `revision` when one was requested. */
-            201: {
-                headers: {
-                    /** @description Identifies the comment resource for `PATCH`; there is no `GET` for a single comment. */
-                    Location: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CommentEnvelope"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            /** @description The dashboard or the comment named by `parent_id` does not exist, or the dashboard has no such `version` (`version_not_found`, with `latest_version`). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description `request_revision` is true and the dashboard is a starter the server keeps current with each release (`provisioned`); the comment is not created. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            413: components["responses"]["TooLarge"];
-            /** @description The panel id does not exist in that version's Spec (`unknown_panel`), or a mention is refused: `invalid_mention` (a person who does not exist or cannot see the dashboard, an agent that is not the caller's own, or a service account that takes no runs), `too_many_mentions` or `too_many_agents`. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description The dashboard already has 5 revisions queued or running (`too_many_revisions`); the comment is not created. */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            500: components["responses"]["Internal"];
-        };
-    };
-    setDashboardCommentStatus: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-                comment_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @enum {string} */
-                    status: "open" | "resolved";
-                    resolved_by_version?: number;
-                };
-            };
-        };
-        responses: {
-            /** @description The comment with its current status. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CommentEnvelope"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            413: components["responses"]["TooLarge"];
-            /** @description `resolved_by_version` is not a version of this dashboard (`unknown_version`). */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            500: components["responses"]["Internal"];
         };
     };
     listThreads: {

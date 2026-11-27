@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { sentence } from "@/observe/queries"
 
-import { useDeleteMessage } from "./queries"
+import { useDeleteMessage } from "./thread-queries"
 
 function describeDeleteError(error: unknown): string {
   if (error instanceof ApiError && error.status < 500) {

@@ -19,8 +19,6 @@ import { useActivityLayout, useActivityStore } from "@/activity/activity-store"
 import { AnnotationActionsProvider } from "@/annotations/actions"
 import { AnnotationControls } from "@/annotations/annotation-controls"
 import { dashboardKeys } from "@/api/keys"
-import { useComments } from "@/comments/queries"
-import { openThreadCount, openThreadsByPanel } from "@/comments/threads"
 import { Button } from "@/components/ui/button"
 import { foldersQuery } from "@/folders/queries"
 import { panelTitles } from "@/history/diff-groups"
@@ -91,6 +89,11 @@ import { CanvasTools, useCanvasTool } from "./canvas-tools"
 import { useOpenChat } from "@/comments/ask-popover"
 import { useCanvasGate } from "@/comments/canvas-composer"
 import { CanvasHostProvider, type CanvasHost } from "@/comments/canvas-host"
+import {
+  openThreadCount,
+  openThreadsByPanel,
+  useThreads,
+} from "@/comments/thread-queries"
 import { askKeyAction } from "./ask-key"
 import { commentKeyAction, takesCanvasComments } from "./comment-key"
 import { DashboardGrid, type PanelItem } from "./dashboard-grid"
@@ -280,9 +283,9 @@ function DashboardView({
   const { principal } = useRouteContext({ from: "/_authed" })
   const content = contentChange(permissions, provisioned)
   const besidesContent = mayEditBesidesContent(permissions, provisioned)
-  const { comments } = useComments(dashboardId)
-  const openByPanel = useMemo(() => openThreadsByPanel(comments), [comments])
-  const openTotal = useMemo(() => openThreadCount(comments), [comments])
+  const { threads } = useThreads(`dashboard:${dashboardId}`)
+  const openByPanel = useMemo(() => openThreadsByPanel(threads), [threads])
+  const openTotal = useMemo(() => openThreadCount(threads), [threads])
   const envelopeVersion = envelope.version.version
   const envelopeSpec = useMemo(
     () => asDashboardSpec(envelope.version.spec),

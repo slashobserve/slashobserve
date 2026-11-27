@@ -53,7 +53,6 @@ describe("dashboardKeys", () => {
       dashboardKeys.latest("d1"),
       dashboardKeys.history("d1"),
       dashboardKeys.diff("d1", 1, 2),
-      dashboardKeys.comments("d1"),
       dashboardKeys.revisions("d1"),
       dashboardKeys.revision("d1", "r1"),
     ]

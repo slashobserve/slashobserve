@@ -109,14 +109,6 @@ async function waitForLive(page: Page) {
   await expect(versionButton(page)).toHaveText(/^Live · v\d+$/)
 }
 
-function dropExpectedErrors(consoleErrors: string[], status: string) {
-  for (let index = consoleErrors.length - 1; index >= 0; index--) {
-    if (consoleErrors[index].includes(`status of ${status}`)) {
-      consoleErrors.splice(index, 1)
-    }
-  }
-}
-
 function clearRejectedRequestLogs(consoleErrors: string[], status: number) {
   const logged = consoleErrors.filter((message) =>
     message.includes(`status of ${status}`)
@@ -788,79 +780,6 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(reopen).toBeVisible()
       await expect(reopen).not.toHaveAttribute("aria-disabled", "true")
       expect(statusPosts).toBe(1)
-    })
-
-    test("stops paging when a later page keeps failing", async ({
-      page,
-      request,
-      consoleErrors,
-    }) => {
-      const { id } = await createOverview(request)
-      await createComment(request, id, 1, "rps", "On the first page")
-      let failed = 0
-      await page.route(
-        `**/api/v1/dashboards/${id}/comments?*`,
-        async (route) => {
-          const url = new URL(route.request().url())
-          if (url.searchParams.has("cursor")) {
-            failed++
-            await route.fulfill({
-              status: 500,
-              contentType: "application/json",
-              body: internalError,
-            })
-            return
-          }
-          const response = await route.fetch()
-          const body = (await response.json()) as Record<string, unknown>
-          await route.fulfill({
-            response,
-            json: { ...body, next_cursor: "page-2" },
-          })
-        }
-      )
-      await openCard(page, id)
-      await expectPanelsReady(page)
-
-      let previous = -1
-      await expect
-        .poll(
-          () => {
-            const steady = failed > 0 && failed === previous
-            previous = failed
-            return steady
-          },
-          { intervals: [1000], timeout: 15_000 }
-        )
-        .toBe(true)
-      expect(failed).toBeLessThanOrEqual(2)
-      dropExpectedErrors(consoleErrors, "500")
-    })
-
-    test("shows a comment once when the next page repeats it", async ({
-      page,
-      request,
-    }) => {
-      const { id } = await createOverview(request)
-      await createComment(request, id, 1, "rps", "Appears on two pages")
-      await page.route(
-        `**/api/v1/dashboards/${id}/comments?*`,
-        async (route) => {
-          const url = new URL(route.request().url())
-          const paged = url.searchParams.has("cursor")
-          url.searchParams.delete("cursor")
-          const response = await route.fetch({ url: url.toString() })
-          const body = (await response.json()) as Record<string, unknown>
-          await route.fulfill({
-            response,
-            json: { ...body, next_cursor: paged ? null : "page-2" },
-          })
-        }
-      )
-      await openCard(page, id)
-      await expectPanelsReady(page)
-
-      await expect(entryWith(page, "Appears on two pages")).toHaveCount(1)
     })
   })
 }

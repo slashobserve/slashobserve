@@ -293,7 +293,7 @@ func TestARunReplyNeverReopensAResolvedThread(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t, "rps", "errors")
 	thread, run := r.mentionRun(t, target(KindDashboard, dash))
-	if _, _, err := r.comments.SetStatus(reading(t.Context()), testUser, dash, mustParse(t, thread), StatusResolved, new(1)); err != nil {
+	if _, _, err := r.service.SetStatus(reading(t.Context()), testUser, mustParse(t, thread), StatusResolved, new(1)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -341,15 +341,15 @@ func TestARevisionRunFromACommentResolvesItAndAnswersInIt(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t, "rps", "errors")
 	r.addVersion(t, dash, 1)
-	comment := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("errors"), Body: "show this per route", RequestRevision: true})
+	comment, queued := r.commentRevision(t, dash, new("errors"), "show this per route")
 
-	if err := r.runEnded(t, r.runFor(t, dash, comment, 2)); err != nil {
+	if err := r.runEnded(t, r.runFor(t, dash, queued, 2)); err != nil {
 		t.Fatal(err)
 	}
-	if got := r.threadRow(t, comment.ID).Status; got != StatusResolved {
+	if got := r.threadRow(t, comment).Status; got != StatusResolved {
 		t.Fatalf("thread status = %s, want resolved", got)
 	}
-	replies := r.runReplies(t, comment.ID)
+	replies := r.runReplies(t, comment)
 	if len(replies) != 1 || replies[0].Body != "Saved version 2 of this dashboard." {
 		t.Fatalf("run replies = %+v, want the saved-version answer", replies)
 	}
