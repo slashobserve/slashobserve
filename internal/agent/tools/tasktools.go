@@ -22,16 +22,16 @@ const (
 )
 
 var taskBasics = []string{
-	nameListServices, nameListLabels, nameListLabelValues, nameSaveFinding, nameNoteHypotheses,
+	nameListServices, nameListMetrics, nameListLabels, nameListLabelValues, nameSaveFinding, nameNoteHypotheses,
 	nameListMCPSources, nameFindMCPTools, nameCallMCPTool, nameListMoreTools,
 }
 
 var taskTools = map[route.Task][]string{
-	route.Measure:   {nameListMetrics, nameMeasure, nameAggregate, nameQueryRange, nameQueryInstant},
+	route.Measure:   {nameMeasure, nameAggregate, nameQueryRange, nameQueryInstant},
 	route.Logs:      {nameQueryRange, nameAggregate, nameLogPatterns, nameLogFacets, nameLogContext, nameSampleRows},
 	route.Traces:    {nameTraceStats, nameTraceErrorOrigins, nameTraceSlowPath, nameGetTrace, nameCompareTraces, nameLogsForTrace},
-	route.Incident:  {nameListMetrics, nameListAnnotations, nameMeasure, nameQueryRange, nameTraceErrorOrigins, nameTraceSlowPath, nameLogPatterns, nameGetTrace},
-	route.Inventory: {nameListDatasources, nameListMetrics, nameListDashboards, nameListObservations, nameSearchWorkspace},
+	route.Incident:  {nameListAnnotations, nameMeasure, nameQueryRange, nameTraceStats, nameTraceErrorOrigins, nameTraceSlowPath, nameLogPatterns, nameGetTrace},
+	route.Inventory: {nameListDatasources, nameListDashboards, nameListObservations, nameSearchWorkspace},
 	route.Explain:   {nameGetDashboard, nameGetPanels, nameGetObservation, nameListDashboards, nameSearchWorkspace, nameGetSpecGuide, nameQueryRange},
 }
 

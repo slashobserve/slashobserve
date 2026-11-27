@@ -104,15 +104,15 @@ The type is decided once, when the run's session starts, and kept with it.
 A new-dashboard request, a revision and a suggestion are not sorted.
 
 A sorted run offers only its type's tools, the built-in agent and a connected agent with a run token alike.
-Every type gets `list_services`, `list_labels`, `list_label_values`, `save_finding`, `note_hypotheses` when the setting turns it on, the three MCP source tools and `list_more_tools`, plus `get_panels` when a dashboard is the subject and `get_observation` when an observation is:
+Every type gets `list_services`, `list_metrics`, `list_labels`, `list_label_values`, `save_finding`, `note_hypotheses` when the setting turns it on, the three MCP source tools and `list_more_tools`, plus `get_panels` when a dashboard is the subject and `get_observation` when an observation is:
 
 | Task type | Its own tools |
 | --- | --- |
-| `measure` | `list_metrics`, `measure_window`, `measure_aggregate`, `query_range`, `query_instant` |
+| `measure` | `measure_window`, `measure_aggregate`, `query_range`, `query_instant` |
 | `logs` | `query_range`, `measure_aggregate`, `log_patterns`, `log_facets`, `log_context`, `sample_rows` |
 | `traces` | `trace_stats`, `trace_error_origins`, `trace_slow_path`, `get_trace`, `compare_traces`, `logs_for_trace` |
-| `incident` | `list_metrics`, `list_annotations`, `measure_window`, `query_range`, `trace_error_origins`, `trace_slow_path`, `log_patterns`, `get_trace` |
-| `inventory` | `list_datasources`, `list_metrics`, `list_dashboards`, `list_observations`, `search_workspace` |
+| `incident` | `list_annotations`, `measure_window`, `query_range`, `trace_stats`, `trace_error_origins`, `trace_slow_path`, `log_patterns`, `get_trace` |
+| `inventory` | `list_datasources`, `list_dashboards`, `list_observations`, `search_workspace` |
 | `explain` | `get_dashboard`, `get_panels`, `get_observation`, `list_dashboards`, `search_workspace`, `get_spec_guide`, `query_range` |
 
 A call to any other tool is answered `unknown_tool` with a line that names the run's tools.
