@@ -400,6 +400,8 @@ A figure in the Markdown or the impact passes when it is within 2% of a number t
 Times, dates, whole numbers of 10 or less with no unit, code spans and links are not checked, a small number with a unit such as `3 s` is, and `ms` and `s` and `K` and `M` are read as units.
 `root_cause.component` passes when it matches a name the run discovered or saw as a label value or a trace's service, as a whole or by whole words, and `onset` passes when it falls inside a time range the run queried or next to a time a result showed, give or take a minute.
 
+The measurement and trace reads also number their values as facts (`"facts":{"value":"f3"}` beside the value), and the run keeps the newest 400 facts with their full-precision values, labels, windows and queries; see [Investigate](../concepts/investigate.md#facts).
+
 - `off` records nothing and checks nothing, so a run is the same as it was before the setting existed.
 - `report` stores the items that did not pass with the finding and changes nothing else.
 - `enforce` sends the finding back once, listing each item with "read it, correct it, or remove it"; the second save is accepted, and the items that still did not pass are stored with it.

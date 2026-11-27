@@ -196,6 +196,7 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 	if d.err != nil {
 		return Answer{}, sess.settleFailed(ctx, c, a, step)
 	}
+	d.content = state.issueFacts(c, d)
 	state.noteGrounding(c, d)
 	if d.res.IsError {
 		step.Status = "error"

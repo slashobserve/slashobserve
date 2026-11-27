@@ -143,6 +143,15 @@ It looks at the figures in the Markdown and the impact, the root cause component
 - The root cause component passes when it is a name the run discovered or saw as a label value or a trace's service, as a whole or as whole words of it, so `checkout service` passes on `checkout` and `payment-error-handler` does not.
 - The onset passes when it falls inside a time range the run queried, or next to a time a result showed, such as a log line's, give or take a minute.
 
+### Facts
+
+With `report` or `enforce`, the values the measurement and trace reads return are numbered facts.
+Each object in such a result that holds one carries a `facts` map from the value's key to its id, such as `"facts":{"value":"f3"}`; an id is unique within the run, and the same value read again keeps its id.
+The reads that give facts are `measure_window` and `measure_aggregate` (each value, numerator and denominator), `trace_stats` (the counts and the whole-window and per-group quantiles), `trace_error_origins` (the counts, shares and example trace ids), `trace_slow_path` (each route's threshold, median, slow count and examined count, the self times, shares and counts, and the example trace id and duration), `get_trace` (the trace id, span count, duration and the slowest spans), and the `min`, `max` and `last` of each `query_range` and `query_instant` series.
+The run keeps each fact with its value at full precision, its kind (number, duration, count, ratio or trace id), its unit when the tool knows it, its labels, its window and the query that produced it.
+The ledger holds the newest 400 facts, so the oldest are dropped first, and it is stored with the run's session, never logged and never returned by the API.
+Every read also records the trace and span ids its result showed.
+
 With `report`, the items that did not pass are stored with the finding and nothing else changes.
 With `enforce`, the first save with such items is sent back once with a line per item that says "read it, correct it, or remove it".
 The agent may read past its call limit to do that, and the send-back is not counted as a rejected save.

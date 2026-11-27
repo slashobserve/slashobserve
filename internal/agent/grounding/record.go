@@ -24,7 +24,10 @@ const (
 	sigFigs         = 3
 )
 
-var quotedValue = regexp.MustCompile(`=\s*"([^"]{1,64})"`)
+var (
+	quotedValue = regexp.MustCompile(`=\s*"([^"]{1,64})"`)
+	traceID     = regexp.MustCompile(`^(?:[0-9a-fA-F]{32}|[0-9a-fA-F]{16})$`)
+)
 
 type Range struct {
 	From time.Time `json:"from"`
@@ -38,6 +41,9 @@ type Record struct {
 	Discovered []string    `json:"discovered,omitempty"`
 	Ranges     []Range     `json:"ranges,omitempty"`
 	Instants   []time.Time `json:"instants,omitempty"`
+	IDs        []string    `json:"ids,omitempty"`
+	Facts      []Fact      `json:"facts,omitempty"`
+	NextFact   int         `json:"next_fact,omitempty"`
 }
 
 func NewRecord(mode Mode) *Record {
@@ -193,6 +199,10 @@ func (rd *reading) text(s string, at slot) {
 		if !at.time {
 			rd.value(f)
 		}
+		return
+	}
+	if traceID.MatchString(s) {
+		rd.record.addID(s)
 		return
 	}
 	if t, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(s)); err == nil {
