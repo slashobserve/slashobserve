@@ -56,8 +56,9 @@ func TestShutdownKeepsAnsweringRequestsDuringTheDrainAndThenStops(t *testing.T) 
 	requests, cutRequests := context.WithCancel(context.Background())
 	defer cutRequests()
 	srv := &http.Server{
-		Handler:     http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }),
-		BaseContext: func(net.Listener) context.Context { return requests },
+		Handler:           http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }),
+		BaseContext:       func(net.Listener) context.Context { return requests },
+		ReadHeaderTimeout: time.Second,
 	}
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

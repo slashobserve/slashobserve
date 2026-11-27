@@ -135,6 +135,10 @@ func (tb *targetBuild) elasticRangeCount(metrics, buckets []map[string]any) bool
 		return false
 	}
 	settings, _ := asObject(buckets[0]["settings"])
+	return plainHistogramSettings(settings)
+}
+
+func plainHistogramSettings(settings map[string]any) bool {
 	for key, value := range settings {
 		switch key {
 		case "interval":
