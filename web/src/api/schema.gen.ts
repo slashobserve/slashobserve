@@ -1774,7 +1774,7 @@ export interface paths {
         put?: never;
         /**
          * Check a datasource definition against the real datasource without saving it.
-         * @description Only Admins can call this endpoint. The body is a draft like the one for adding a datasource. With `base=<uid>`, the draft starts from that saved app datasource, credentials included, and the body changes only what it names, so a form can test an edit without asking for the credentials again. The address passes the same outbound allowlist check as saving, but a test never changes the allowlist: a domain that is not listed is tested only while the list is unlocked, and saving adds it. A failed check answers 200 with `healthy: false`, a fixed `message` and, when known, a `detail`; the answer never carries the address or a credential. Every test is recorded as `datasource.test` with the host and the outcome, since it sends stored credentials to that host.
+         * @description Only Admins can call this endpoint. The body is a draft like the one for adding a datasource. With `base=<uid>`, the draft starts from that saved app datasource, credentials included, and the body changes only what it names, so a form can test an edit without asking for the credentials again. When the body changes the address or the username, a stored credential is not sent to the new target: send every stored credential again in `secrets`, or remove it in `clear_secrets`, or the test answers 422 `secret_required`. The address passes the same outbound allowlist check as saving, but a test never changes the allowlist: a domain that is not listed is tested only while the list is unlocked, and saving adds it. A failed check answers 200 with `healthy: false`, a fixed `message` and, when known, a `detail`; the answer never carries the address or a credential. Every test is recorded as `datasource.test` with the host and the outcome, since it sends stored credentials to that host.
          */
         post: operations["testDatasource"];
         delete?: never;
@@ -1804,7 +1804,7 @@ export interface paths {
         head?: never;
         /**
          * Change a datasource added in the app.
-         * @description Only Admins can call this endpoint. The body names only the fields to change; a field left out keeps its value, and a credential left out keeps what is stored. `uid` and `type` cannot change. `secrets` replaces the credentials it names and `clear_secrets` removes them. A new address passes the outbound allowlist check like adding one. The change applies at once on this server and within 15 seconds on the others. A datasource from the datasources file, and the built-in audit datasource, answer 409 `datasource_read_only`.
+         * @description Only Admins can call this endpoint. The body names only the fields to change; a field left out keeps its value, and a credential left out keeps what is stored. `uid` and `type` cannot change. `secrets` replaces the credentials it names and `clear_secrets` removes them. A new address passes the outbound allowlist check like adding one. Changing the address or the username never sends a stored credential to the new target: the request must send every stored credential again in `secrets`, or remove it in `clear_secrets`, or it answers 422 `secret_required`. The change applies at once on this server and within 15 seconds on the others. A datasource from the datasources file, and the built-in audit datasource, answer 409 `datasource_read_only`.
          */
         patch: operations["updateDatasource"];
         trace?: never;
@@ -13679,7 +13679,7 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The definition is not valid (`invalid_datasource`, with the fields to fix). */
+            /** @description The definition is not valid (`invalid_datasource`, with the fields to fix), or `base` is set, the address or username differs from the saved one and a stored credential would still be sent to it (`secret_required`). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -13760,7 +13760,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description The datasource is from the file or built in (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`). Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, `unlisted` counts the rest, and `hidden` counts those in people's My Dashboards, which an Admin cannot open and only their owners can move or remove. */
+            /** @description The datasource is from the file or built in (`datasource_read_only`), `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`), or the datasource changed while the request ran (`datasource_changed`). Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, `unlisted` counts the rest, and `hidden` counts those in people's My Dashboards, which an Admin cannot open and only their owners can move or remove. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -13770,7 +13770,7 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The definition is not valid (`invalid_datasource`, with the fields to fix). */
+            /** @description The definition is not valid (`invalid_datasource`, with the fields to fix), or the address or username changed while a stored credential would still be sent to it (`secret_required`): send every stored credential again in `secrets`, or remove it in `clear_secrets`. */
             422: {
                 headers: {
                     [name: string]: unknown;

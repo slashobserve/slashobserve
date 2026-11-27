@@ -4,6 +4,12 @@ SELECT * FROM datasources ORDER BY uid;
 -- name: GetDatasource :one
 SELECT * FROM datasources WHERE uid = @uid;
 
+-- name: LockDatasource :one
+SELECT * FROM datasources WHERE uid = @uid FOR UPDATE;
+
+-- name: LockDatasourceCount :exec
+SELECT pg_advisory_xact_lock(hashtextextended('datasources:count', 0));
+
 -- name: CountDatasources :one
 SELECT count(*) FROM datasources;
 

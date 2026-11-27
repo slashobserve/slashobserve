@@ -164,6 +164,10 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, gin.H{"error": invalidErr.Error(), "code": "invalid_datasource", "fields": invalidErr.Fields})
 	case errors.Is(err, ErrIdentityChanged):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "invalid_datasource", err.Error())
+	case errors.Is(err, ErrSecretRequired):
+		httpapi.AbortError(c, http.StatusUnprocessableEntity, "secret_required", err.Error())
+	case errors.Is(err, ErrChanged):
+		httpapi.AbortError(c, http.StatusConflict, "datasource_changed", err.Error())
 	case errors.Is(err, ErrNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, ErrReadOnly), errors.Is(err, ErrBuiltIn):

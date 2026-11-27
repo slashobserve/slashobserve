@@ -50,6 +50,8 @@ var (
 	ErrAddressRefused  = errors.New("the outbound allowlist is set by configuration and cannot list an address like this; use a domain name that is on the list, or define the datasource in the datasources file")
 	ErrAllowlistFull   = errors.New("the outbound allowlist is full")
 	ErrIdentityChanged = errors.New("uid and type cannot be changed; add a new datasource instead")
+	ErrSecretRequired  = errors.New("changing the address or username needs every stored credential sent again, or cleared; stored credentials are not sent to a new address")
+	ErrChanged         = errors.New("the datasource changed while this change was being prepared; read it again and retry")
 )
 
 type InvalidError struct {
@@ -366,13 +368,6 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, def Definition,
 	if _, err := s.registry.For(ctx, cand.def.UID); err == nil {
 		return Record{}, ErrUIDTaken
 	}
-	count, err := s.db.Queries().CountDatasources(ctx)
-	if err != nil {
-		return Record{}, err
-	}
-	if count >= MaxAppDatasources {
-		return Record{}, ErrTooMany
-	}
 	id := newID()
 	ciphertext, names, err := s.seal(id, secrets)
 	if err != nil {
@@ -391,7 +386,16 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, def Definition,
 		if err := q.LockDatasourceUID(ctx, cand.def.UID); err != nil {
 			return err
 		}
-		var err error
+		if err := q.LockDatasourceCount(ctx); err != nil {
+			return err
+		}
+		count, err := q.CountDatasources(ctx)
+		if err != nil {
+			return err
+		}
+		if count >= MaxAppDatasources {
+			return ErrTooMany
+		}
 		if row, err = q.InsertDatasource(ctx, params); err != nil {
 			return err
 		}
@@ -432,10 +436,36 @@ func (s *Service) compose(row dbsqlc.Datasource, def Definition, change SecretsC
 	if err != nil {
 		return Secrets{}, err
 	}
-	if change.empty() {
-		return current, nil
+	secrets := current
+	if !change.empty() {
+		if secrets, err = change.apply(current); err != nil {
+			return Secrets{}, err
+		}
 	}
-	return change.apply(current)
+	if movesCredentials(row, def) && carriesStored(secrets, change.Set) {
+		return Secrets{}, ErrSecretRequired
+	}
+	return secrets, nil
+}
+
+func movesCredentials(row dbsqlc.Datasource, def Definition) bool {
+	var stored Definition
+	if err := json.Unmarshal(row.Config, &stored); err != nil {
+		return true
+	}
+	return normalizeDefinition(def).Address != stored.Address || def.Username != stored.Username
+}
+
+func carriesStored(secrets, sent Secrets) bool {
+	if secrets.Password != "" && sent.Password == "" || secrets.BearerToken != "" && sent.BearerToken == "" || secrets.APIKey != "" && sent.APIKey == "" {
+		return true
+	}
+	for name := range secrets.Headers {
+		if _, ok := sent.Headers[name]; !ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Service) Update(ctx context.Context, by auth.Principal, uid string, def Definition, change SecretsChange) (Record, error) {
@@ -466,7 +496,13 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, uid string, def
 	}
 	var updated dbsqlc.Datasource
 	save := func(q *dbsqlc.Queries) error {
-		var err error
+		locked, err := q.LockDatasource(ctx, uid)
+		if err != nil {
+			return err
+		}
+		if !locked.UpdatedAt.Time.Equal(row.UpdatedAt.Time) {
+			return ErrChanged
+		}
 		if updated, err = q.UpdateDatasource(ctx, params); err != nil {
 			return err
 		}

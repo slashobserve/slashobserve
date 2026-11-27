@@ -27,6 +27,12 @@ describe("saveProblemText", () => {
       /SLASHOBSERVE_SECRET_KEY/
     )
     expect(saveProblemText(datasourceError(409, "uid_taken"))).toMatch(/id/)
+    expect(saveProblemText(datasourceError(422, "secret_required"))).toMatch(
+      /credential again/
+    )
+    expect(saveProblemText(datasourceError(409, "datasource_changed"))).toMatch(
+      /Reload/
+    )
     expect(
       saveProblemText(datasourceError(403, "outbound_domain_not_allowed"))
     ).toMatch(/Outbound access/)
