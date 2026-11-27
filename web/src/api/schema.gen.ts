@@ -4532,7 +4532,7 @@ export interface components {
             allowed_actions?: string[];
             /** @description Present with `admins_only_folder` when the content reads an Admins-only datasource, so it cannot leave its folder and public links are not available for it; the uid of that datasource. */
             datasource?: string;
-            /** @description Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`. The `error` message names the field and says what to change. On a `too_many_streams` refusal of an event stream, whose limit was reached: `per_caller` for the caller's own open streams or `server_capacity` for the server process's. */
+            /** @description Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`. The `error` message names the field and says what to change. On a `too_many_streams` refusal of an event stream, whose limit was reached: `per_caller` for the caller's own open streams or `server_capacity` for the server process's. On a `restricted_answer` refusal of a move, a copy, a save or a folder change it says whether waiting helps: `permanent` when the content holds an answer that read Admin-only data, or the run that writes read such data, and `run_in_flight` when an agent run about the content has not ended, so the same request can succeed once the run ends. */
             reason?: string;
             /**
              * @description On a `forbidden_role` refusal of a route with a role floor, the lowest role that may call it.
@@ -8812,6 +8812,15 @@ export interface components {
             observation: components["schemas"]["Observation"];
             folder: components["schemas"]["DashboardFolder"];
             permissions: components["schemas"]["Permissions"];
+            confined?: components["schemas"]["Confined"];
+        };
+        /** @description Present when the observation can only be in a folder only Admins can read, because of an answer it holds or a run about it; a move anywhere else is refused with `restricted_answer` and the same `reason`. An observation that reads a datasource only Admins can query is also kept in such a folder; that is not reported here, and its move is refused with `restricted_content`, which names the datasource. */
+        Confined: {
+            /**
+             * @description `permanent` when it holds an answer that read data only Admins can query, such as the audit trail, which does not change. `run_in_flight` when an agent run about it has not ended; it can move once the run ends.
+             * @enum {string}
+             */
+            reason: "permanent" | "run_in_flight";
         };
         ObservationList: {
             observations: components["schemas"]["Observation"][];
@@ -11692,7 +11701,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The folder is General (`general_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`, with `items` listing up to 20 of it and `unlisted` counting the rest), or the folder holds a dashboard or an observation with an answer that read Admin-only data and the change would let others read it (`restricted_answer`, naming that content), or `admins_only` would close a folder holding a dashboard or an observation with an unexpired public link (`admins_only_folder`). */
+            /** @description The folder is General (`general_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`, with `items` listing up to 20 of it and `unlisted` counting the rest), or the folder holds a dashboard or an observation with an answer that read Admin-only data and the change would let others read it (`restricted_answer`, naming that content, with `reason` `permanent`, or `run_in_flight` while an agent run about that content has not ended), or `admins_only` would close a folder holding a dashboard or an observation with an unexpired public link (`admins_only_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11944,7 +11953,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request conflicts with existing state. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the content holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`). Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy. Or the dashboard has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`). */
+            /** @description The request conflicts with existing state. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the content holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`). Its `reason` is `permanent`, or `run_in_flight` while an agent run about the content has not ended and the same request can succeed once it ends. Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy. Or the dashboard has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12290,7 +12299,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`). */
+            /** @description The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`, with `reason` `permanent`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -17201,7 +17210,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description The action is not allowed in the observation's state (`invalid_transition`), the target folder is My Dashboards (`personal_folder`), or an investigation is still running on the observation (`run_in_progress`, on delete). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the content holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`). Or an RCA of the observation has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`). */
+            /** @description The action is not allowed in the observation's state (`invalid_transition`), the target folder is My Dashboards (`personal_folder`), or an investigation is still running on the observation (`run_in_progress`, on delete). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the content holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`). Its `reason` is `permanent`, or `run_in_flight` while an agent run about the content has not ended and the same request can succeed once it ends. Or an RCA of the observation has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;

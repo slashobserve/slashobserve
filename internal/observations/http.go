@@ -112,10 +112,22 @@ type folderJSON struct {
 	Personal bool   `json:"personal"`
 }
 
+type confinedJSON struct {
+	Reason folders.Confinement `json:"reason"`
+}
+
 type envelopeJSON struct {
 	Observation ObservationJSON     `json:"observation"`
 	Folder      folderJSON          `json:"folder"`
 	Permissions folders.Permissions `json:"permissions"`
+	Confined    *confinedJSON       `json:"confined,omitempty"`
+}
+
+func confinedOf(c folders.Confinement) *confinedJSON {
+	if c == folders.NotConfined {
+		return nil
+	}
+	return &confinedJSON{Reason: c}
 }
 
 type listJSON struct {
@@ -297,6 +309,7 @@ func (h *Handler) envelope(o Observation) envelopeJSON {
 		Observation: h.render(o),
 		Folder:      folderJSON{ID: o.Folder.ID.String(), Title: o.Folder.Title, General: o.Folder.General, Personal: o.Folder.Personal},
 		Permissions: folders.PermissionsJSON(o.Abilities),
+		Confined:    confinedOf(o.Confinement),
 	}
 }
 

@@ -452,6 +452,7 @@ components:
             Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`.
             The `error` message names the field and says what to change.
             On a `too_many_streams` refusal of an event stream, whose limit was reached: `per_caller` for the caller's own open streams or `server_capacity` for the server process's.
+            On a `restricted_answer` refusal of a move, a copy, a save or a folder change it says whether waiting helps: `permanent` when the content holds an answer that read Admin-only data, or the run that writes read such data, and `run_in_flight` when an agent run about the content has not ended, so the same request can succeed once the run ends.
         needed_role:
           type: string
           enum: [viewer, commenter, editor, admin]
@@ -8372,6 +8373,22 @@ components:
           $ref: "#/components/schemas/DashboardFolder"
         permissions:
           $ref: "#/components/schemas/Permissions"
+        confined:
+          $ref: "#/components/schemas/Confined"
+    Confined:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      description: >-
+        Present when the observation can only be in a folder only Admins can read, because of an answer it holds or a run about it; a move anywhere else is refused with `restricted_answer` and the same `reason`.
+        An observation that reads a datasource only Admins can query is also kept in such a folder; that is not reported here, and its move is refused with `restricted_content`, which names the datasource.
+      properties:
+        reason:
+          type: string
+          enum: [permanent, run_in_flight]
+          description: >-
+            `permanent` when it holds an answer that read data only Admins can query, such as the audit trail, which does not change.
+            `run_in_flight` when an agent run about it has not ended; it can move once the run ends.
     ObservationList:
       type: object
       additionalProperties: false

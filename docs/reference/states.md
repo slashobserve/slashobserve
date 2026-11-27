@@ -279,6 +279,16 @@ This state is computed from stored fields on every read; nothing stores it.
 | `expired` | Its expiry time has passed; the link no longer opens. |
 | `active` | None of the above; usable says whether the link opens, and unusable_reason says why it does not. |
 
+## Content confined to Admins-only folders
+
+`GET /observations/{id}` returns `confined` with a `reason` while an answer or a run keeps the observation in folders only Admins can read, and leaves it out otherwise; a `restricted_answer` refusal carries the same `reason`.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `permanent` | It holds an answer that read data only Admins can query, such as the audit trail. That does not change, so waiting does not help. |
+| `run_in_flight` | It is in a folder only Admins can read and an agent run about it has not ended. Try again once the run ends. |
+
 ## Folder
 
 `GET /folders` and `GET /folders/{id}` return the `kind` of each folder, and its `allowed_actions` say what the caller may do with it.
