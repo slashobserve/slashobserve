@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   composerMode,
   contentChange,
+  appliedNote,
   editNote,
   fileOwnedNote,
   mayEditBesidesContent,
@@ -94,7 +95,8 @@ describe("editNote", () => {
     ["file", { edit: true }, fileOwnedNote],
     ["file", { comment: true }, null],
     ["file", {}, null],
-    ["apply", { edit: true }, null],
+    ["apply", { edit: true }, appliedNote],
+    ["apply", { comment: true }, null],
     ["starter", { edit: true }, null],
     ["workspace", { edit: true }, null],
   ] as const)(
@@ -103,6 +105,16 @@ describe("editNote", () => {
       expect(
         editNote({ managed_by: managedBy, permissions: permissions(flags) })
       ).toBe(expected)
+    }
+  )
+})
+
+describe("the notes on a dashboard that a file writes", () => {
+  it.each([fileOwnedNote, appliedNote])(
+    "say what replaces an edit without promising that it will: %s",
+    (note) => {
+      expect(note).not.toMatch(/the next/i)
+      expect(note).toMatch(/replaces edits made here/)
     }
   )
 })

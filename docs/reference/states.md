@@ -115,8 +115,8 @@ This state is computed from stored fields on every read; nothing stores it.
 | State | When |
 | --- | --- |
 | `starter` | The server ships the dashboard and keeps it current with each release. Every change to its content answers 409 `provisioned`; duplicate it to change a copy. |
-| `file` | A file in the server's provisioning directory is bound to the dashboard. It can be edited, and the next change to that file replaces the edit, which stays in the version history. |
-| `apply` | `observe dashboards apply` last bound a file to the dashboard. It can be edited, and applying that file again after it changed saves the file's content on top. |
+| `file` | A file in the server's provisioning directory is bound to the dashboard. It can be edited, and a change to that file replaces the edit, which stays in the version history. The dashboard keeps this value after the file is removed or provisioning is turned off. |
+| `apply` | `observe dashboards apply` last bound a file to the dashboard. It can be edited, and applying that file again after it changes replaces the edit, which stays in the version history. |
 | `workspace` | None of the above: people edit the dashboard in the app, and no file and no release writes it. |
 
 ## Dashboard health

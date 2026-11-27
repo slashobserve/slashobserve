@@ -100,16 +100,8 @@ func TestTheDashboardReadNamesWhatManagesTheDashboard(t *testing.T) {
 	}
 }
 
-func TestOnlyASaveToAFileDashboardCarriesTheWarning(t *testing.T) {
-	for _, access := range []folders.DashboardAccess{{}, {Provisioned: true}, {Applied: true}} {
-		if got := saveWarning(access); got != "" {
-			t.Errorf("a save to a dashboard managed by %s warns %q, want no warning", access.ManagedBy(), got)
-		}
-	}
-	warning := saveWarning(folders.DashboardAccess{FromFile: true})
-	if warning != folders.FileManagedWarning {
-		t.Fatalf("warning = %q, want the file warning", warning)
-	}
+func TestTheSaveAnswerCarriesAWarningOnlyWhenThereIsOne(t *testing.T) {
+	warning := folders.ManagedByApply.EditWarning()
 
 	fields := func(body versionSavedJSON) map[string]json.RawMessage {
 		raw, err := json.Marshal(body)
@@ -123,7 +115,7 @@ func TestOnlyASaveToAFileDashboardCarriesTheWarning(t *testing.T) {
 		return got
 	}
 	if got := fields(versionSavedJSON{Warning: warning}); string(got["warning"]) != `"`+warning+`"` {
-		t.Errorf("the save answer carries warning %s, want the file warning", got["warning"])
+		t.Errorf("the save answer carries warning %s, want the apply warning", got["warning"])
 	}
 	if _, ok := fields(versionSavedJSON{})["warning"]; ok {
 		t.Error("a save with nothing to warn about has a warning key")

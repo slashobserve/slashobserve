@@ -6,6 +6,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/provision"
 )
 
 func (r *rig) replacedVersions(t *testing.T, dashboardID string) map[int]int {
@@ -44,7 +45,7 @@ func TestAFileChangeOverAPersonsEditRecordsTheVersionItReplaced(t *testing.T) {
 	if err != nil {
 		t.Fatalf("a person's save to a file dashboard: %v", err)
 	}
-	if edited.Version.Number != 2 || edited.Warning != folders.FileManagedWarning || edited.Dashboard.ManagedBy != folders.ManagedByFile {
+	if edited.Version.Number != 2 || edited.Warning != folders.ManagedByFile.EditWarning() || edited.Dashboard.ManagedBy != folders.ManagedByFile {
 		t.Fatalf("saved version %d with warning %q, managed by %s, want version 2, the file warning and managed by file", edited.Version.Number, edited.Warning, edited.Dashboard.ManagedBy)
 	}
 
@@ -58,6 +59,37 @@ func TestAFileChangeOverAPersonsEditRecordsTheVersionItReplaced(t *testing.T) {
 		t.Fatalf("version %d, title %q, want the file's content at version 4", ver.Number, dash.Title)
 	}
 	got := r.replacedVersions(t, dashboardID)
+	if len(got) != 3 || got[2] != 0 || got[3] != 2 || got[4] != 0 {
+		t.Fatalf("replaced versions by saved version = %v, want only version 3 to name version 2", got)
+	}
+}
+
+func TestAnApplyOverAPersonsEditRecordsTheVersionItReplaced(t *testing.T) {
+	r := newApplyRig(t)
+	created := r.apply(t, r.editor, "Shop/checkout.json", specJSON("Checkout", "up"))
+	id, err := db.ParseUUID(created.DashboardID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	edited, err := r.dashboards.Save(reading(t.Context()), r.editor, dashboards.SaveInput{DashboardID: id, Parent: 1, Spec: []byte(specJSON("Checkout edited in the app", "up")), Summary: "by hand"})
+	if err != nil {
+		t.Fatalf("a person's save to an applied dashboard: %v", err)
+	}
+	if edited.Version.Number != 2 || edited.Warning != folders.ManagedByApply.EditWarning() || edited.Dashboard.ManagedBy != folders.ManagedByApply {
+		t.Fatalf("saved version %d with warning %q, managed by %s, want version 2, the apply warning and managed by apply", edited.Version.Number, edited.Warning, edited.Dashboard.ManagedBy)
+	}
+
+	if same := r.apply(t, r.editor, "Shop/checkout.json", specJSON("Checkout", "up")); same.Outcome != provision.OutcomeUnchanged || same.Version != 2 {
+		t.Fatalf("applying the unchanged file = %+v, want it to leave the edit at version 2", same)
+	}
+	for i, title := range []string{"Checkout from the file", "Checkout from the file again"} {
+		if updated := r.apply(t, r.editor, "Shop/checkout.json", specJSON(title, "up")); updated.Outcome != provision.OutcomeUpdated || updated.Version != 3+i {
+			t.Fatalf("applying the changed file = %+v, want version %d", updated, 3+i)
+		}
+	}
+
+	got := r.replacedVersions(t, created.DashboardID)
 	if len(got) != 3 || got[2] != 0 || got[3] != 2 || got[4] != 0 {
 		t.Fatalf("replaced versions by saved version = %v, want only version 3 to name version 2", got)
 	}

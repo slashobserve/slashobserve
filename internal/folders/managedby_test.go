@@ -2,6 +2,7 @@ package folders
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -48,5 +49,29 @@ func TestOnlyAStarterRefusesAChangeToItsContent(t *testing.T) {
 	starter := DashboardAccess{Provisioned: true, Abilities: Abilities{View: true, Comment: true, Edit: true}}
 	if !starter.Refuses(NeedContent) {
 		t.Error("a starter accepts a change to its content")
+	}
+}
+
+func TestAnEditToAFileOrAppliedDashboardWarnsWithoutPromisingAReplacement(t *testing.T) {
+	for _, m := range []ManagedBy{ManagedByWorkspace, ManagedByStarter} {
+		if got := m.EditWarning(); got != "" {
+			t.Errorf("an edit to a dashboard managed by %s warns %q, want no warning", m, got)
+		}
+	}
+	file := ManagedByFile.EditWarning()
+	if !strings.Contains(file, "provisioning directory") || !strings.Contains(file, "A change to that file replaces this edit") {
+		t.Errorf("the file warning = %q, want it to say that a change to the provisioning file replaces the edit", file)
+	}
+	apply := ManagedByApply.EditWarning()
+	if !strings.Contains(apply, "observe dashboards apply") || !strings.Contains(apply, "replaces this edit") {
+		t.Errorf("the apply warning = %q, want it to say that applying the changed file again replaces the edit", apply)
+	}
+	for _, warning := range []string{file, apply} {
+		if strings.Contains(warning, "The next") {
+			t.Errorf("warning %q promises a replacement that may never come", warning)
+		}
+		if !strings.Contains(warning, "stays in the version history") {
+			t.Errorf("warning %q does not say where the replaced edit stays", warning)
+		}
 	}
 }

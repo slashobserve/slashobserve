@@ -31,7 +31,7 @@ func TestGetDashboardNamesWhatManagesItAndAFileDashboardWarnsOnSaveOverMCP(t *te
 		managedBy, warning string
 	}{
 		{plain, "workspace", ""},
-		{bound, "file", folders.FileManagedWarning},
+		{bound, "file", folders.ManagedByFile.EditWarning()},
 		{r.starter(t), "starter", ""},
 	}
 	for _, tc := range cases {

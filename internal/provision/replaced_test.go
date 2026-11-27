@@ -16,3 +16,16 @@ func TestOnlyAVersionTheProvisionerDidNotSaveCountsAsReplaced(t *testing.T) {
 		t.Errorf("a file change over Ada's version 3 replaces version %d, want 3", got)
 	}
 }
+
+func TestOnlyAVersionApplyDidNotSaveCountsAsReplacedByAnApply(t *testing.T) {
+	applied := dashboards.VersionMeta{Number: 4, Summary: applySummaryPrefix + "team/checkout.json"}
+	if got := versionApplyReplaced(applied); got != 0 {
+		t.Errorf("an apply over the version the last apply saved replaces version %d, want none", got)
+	}
+	for _, summary := range []string{"Add a latency panel", "Restore version 2"} {
+		edited := dashboards.VersionMeta{Number: 4, Summary: summary}
+		if got := versionApplyReplaced(edited); got != 4 {
+			t.Errorf("an apply over version 4 (%q) replaces version %d, want 4", summary, got)
+		}
+	}
+}

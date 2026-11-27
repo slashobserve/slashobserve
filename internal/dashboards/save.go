@@ -133,15 +133,8 @@ func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Sa
 		return SaveResult{}, err
 	}
 	res.Dashboard = withAccess(res.Dashboard, access)
-	res.Warning = saveWarning(access)
+	res.Warning = access.ManagedBy().EditWarning()
 	return res, nil
-}
-
-func saveWarning(access folders.DashboardAccess) string {
-	if access.ManagedBy() == folders.ManagedByFile {
-		return folders.FileManagedWarning
-	}
-	return ""
 }
 
 func (s *Service) propose(ctx context.Context, by auth.Principal, in SaveInput, access folders.DashboardAccess) (SaveResult, error) {

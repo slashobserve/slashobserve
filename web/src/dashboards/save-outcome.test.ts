@@ -29,9 +29,9 @@ describe("saveToast", () => {
         envelope,
         version: 7,
         mergedFrom: null,
-        warning: "The next change to its file replaces this edit.",
+        warning: "A change to its file replaces this edit.",
       },
-      "Saved version 7. The next change to its file replaces this edit.",
+      "Saved version 7. A change to its file replaces this edit.",
     ],
     [
       "a proposal the save opened",

@@ -38,15 +38,22 @@ export const starterNote =
   "This starter dashboard is kept current by SlashObserve releases, so it cannot be edited."
 
 export const fileOwnedNote =
-  "This dashboard comes from a file on the server. The next change to that file replaces edits made here, which stay in the version history."
+  "This dashboard comes from a file on the server. A change to that file replaces edits made here, which stay in the version history."
+
+export const appliedNote =
+  "This dashboard was last written by observe dashboards apply from a file. Applying that file again after it changes replaces edits made here, which stay in the version history."
+
+const editNotes: Partial<
+  Record<components["schemas"]["DashboardSummary"]["managed_by"], string>
+> = { file: fileOwnedNote, apply: appliedNote }
 
 export function editNote(
   dashboard: Pick<components["schemas"]["DashboardSummary"], "managed_by"> & {
     permissions: Pick<DashboardPermissions, "edit">
   }
 ): string | null {
-  return dashboard.managed_by === "file" && dashboard.permissions.edit
-    ? fileOwnedNote
+  return dashboard.permissions.edit
+    ? (editNotes[dashboard.managed_by] ?? null)
     : null
 }
 

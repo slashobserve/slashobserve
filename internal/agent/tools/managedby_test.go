@@ -55,9 +55,9 @@ func TestASaveResultCarriesTheWarningOfTheSave(t *testing.T) {
 	if _, ok := fields(saved)["warning"]; ok {
 		t.Error("a save with nothing to warn about has a warning key")
 	}
-	saved.Warning = folders.FileManagedWarning
+	saved.Warning = folders.ManagedByFile.EditWarning()
 	var warning string
-	if err := json.Unmarshal(fields(saved)["warning"], &warning); err != nil || warning != folders.FileManagedWarning {
+	if err := json.Unmarshal(fields(saved)["warning"], &warning); err != nil || warning != folders.ManagedByFile.EditWarning() {
 		t.Errorf("warning = %q (%v), want the file warning", warning, err)
 	}
 }

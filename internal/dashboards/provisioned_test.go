@@ -53,7 +53,7 @@ type savedWithManager struct {
 	Warning string `json:"warning"`
 }
 
-func TestADashboardReadsWhatManagesItAndOnlyAFileDashboardWarnsOnSave(t *testing.T) {
+func TestADashboardReadsWhatManagesItAndAFileOrAppliedDashboardWarnsOnSave(t *testing.T) {
 	r := newRig(t, false)
 	b := boards{rig: r}
 	cases := []struct {
@@ -62,8 +62,8 @@ func TestADashboardReadsWhatManagesItAndOnlyAFileDashboardWarnsOnSave(t *testing
 		warning   string
 	}{
 		{"workspace", func(*testing.T, pgtype.UUID) {}, ""},
-		{"file", r.bindToProvisioningFile, folders.FileManagedWarning},
-		{"apply", r.bindToAppliedFile, ""},
+		{"file", r.bindToProvisioningFile, folders.ManagedByFile.EditWarning()},
+		{"apply", r.bindToAppliedFile, folders.ManagedByApply.EditWarning()},
 	}
 	for _, tc := range cases {
 		t.Run(tc.managedBy, func(t *testing.T) {
