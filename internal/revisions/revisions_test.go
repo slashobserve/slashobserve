@@ -48,7 +48,7 @@ func editorPrincipals(_ context.Context, kind auth.PrincipalKind, id string) (au
 var revisers sync.Map
 
 func newTestService(database *db.DB, reviser revisions.Reviser, logger *slog.Logger, opts ...revisions.Option) *revisions.Service {
-	base := []revisions.Option{revisions.WithPrincipals(principalsFunc(editorPrincipals)), revisions.WithAccess(folders.NewAccess(database)), revisions.WithThreads(threads.NewRuns(database))}
+	base := []revisions.Option{revisions.WithPrincipals(principalsFunc(editorPrincipals)), revisions.WithAccess(folders.NewAccess(database)), revisions.WithThreads(threads.NewRuns())}
 	if reviser != nil {
 		base = append(base, revisions.WithBuiltInAgent())
 	}
@@ -686,39 +686,16 @@ func TestExhaustedRequestWithASavedVersionSucceeds(t *testing.T) {
 	assertNoFailureCode(t, svc, rev.ID)
 }
 
-func TestExhaustedThreadRequestWithASavedVersionResolvesTheThread(t *testing.T) {
-	svc, d := newService(t, succeedWith(9))
-	ctx := reading(context.Background())
-	dash := seedDashboard(t, d, 2)
-	root := openThread(t, d, dash)
-	row, err := svc.SubmitForThread(ctx, dash, root.ID, nil, "go", user)
-	if err != nil {
-		t.Fatal(err)
-	}
-	saveVersionFor(t, d, dash, row.ID.String())
-	d.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 2, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", row.ID)
-
-	startWorker(t, svc, d, revisions.WorkerOptions{})
-	waitForStatus(t, svc, dash, row.ID.String(), revisions.StatusSucceeded)
-	got, err := d.Queries().GetThread(ctx, root.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Status != "resolved" || got.ResolvedByVersion.Int32 != 2 {
-		t.Fatalf("thread = %+v", got)
-	}
-}
-
-func blockThreadResolution(t *testing.T, d *dbtest.Database) {
+func blockRunReplies(t *testing.T, d *dbtest.Database) {
 	t.Helper()
-	d.Exec(t, `CREATE FUNCTION block_thread_resolution() RETURNS trigger LANGUAGE plpgsql AS $$
+	d.Exec(t, `CREATE FUNCTION block_run_replies() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  IF NEW.status = 'resolved' THEN
-    RAISE EXCEPTION 'resolution blocked';
+  IF NEW.run_id IS NOT NULL THEN
+    RAISE EXCEPTION 'reply blocked';
   END IF;
   RETURN NEW;
 END $$`)
-	d.Exec(t, "CREATE TRIGGER block_thread_resolution BEFORE UPDATE ON threads FOR EACH ROW EXECUTE FUNCTION block_thread_resolution()")
+	d.Exec(t, "CREATE TRIGGER block_run_replies BEFORE INSERT ON thread_messages FOR EACH ROW EXECUTE FUNCTION block_run_replies()")
 }
 
 func openThread(t *testing.T, d *dbtest.Database, dash pgtype.UUID) dbsqlc.Thread {
@@ -752,27 +729,24 @@ func newMessage(t *testing.T, d *dbtest.Database, id, threadID pgtype.UUID) dbsq
 	return message
 }
 
-func assertThreadOpen(t *testing.T, d *dbtest.Database, dash, id pgtype.UUID) {
+func assertNoRunReply(t *testing.T, d *dbtest.Database, thread pgtype.UUID) {
 	t.Helper()
-	got, err := d.Queries().GetThread(reading(context.Background()), id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Status != "open" || got.ResolvedByVersion.Valid {
-		t.Fatalf("thread = %+v, want it left open", got)
+	if got := repliesOfRuns(t, d, thread); len(got) != 0 {
+		t.Fatalf("replies = %+v, want none", got)
 	}
 }
 
-func assertResolveFailureLogged(t *testing.T, logs *logtest.Capture, requestID string) {
+func assertReplyFailureLogged(t *testing.T, logs *logtest.Capture, requestID string) {
 	t.Helper()
-	record := findEventually(t, logs, "answer in the thread of an ended agent request")
-	logs.AssertSafeFailure(t, record, "agent_request_thread_end_failed", "resolution blocked")
-	if record["agent_request_id"] != requestID || record["sqlstate"] != "P0001" {
-		t.Fatalf("resolve failure record = %v", record)
+	for _, record := range waitForLog(t, logs, "answer in the thread of an ended agent request") {
+		logs.AssertSafeFailure(t, record, "agent_request_thread_end_failed", "reply blocked")
+		if record["agent_request_id"] != requestID || record["sqlstate"] != "P0001" {
+			t.Fatalf("reply failure record = %v", record)
+		}
 	}
 }
 
-func TestFailedThreadResolutionInTheSweepDoesNotStopOtherRequestsFromBeingClaimed(t *testing.T) {
+func TestAFailedThreadReplyInTheSweepDoesNotStopOtherRequestsFromBeingClaimed(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
 	var calls atomic.Int32
@@ -780,52 +754,43 @@ func TestFailedThreadResolutionInTheSweepDoesNotStopOtherRequestsFromBeingClaime
 		calls.Add(1)
 		return revisions.Result{Version: 2}, nil
 	}), logger)
-	ctx := reading(context.Background())
 	swept := seedDashboard(t, d, 2)
 	other := seedDashboard(t, d, 2)
-	root := openThread(t, d, swept)
-	row, err := svc.SubmitForThread(ctx, swept, root.ID, nil, "go", user)
-	if err != nil {
-		t.Fatal(err)
-	}
-	saveVersionFor(t, d, swept, row.ID.String())
-	d.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 2, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", row.ID)
+	rev, thread := mentionRun(t, svc, d, swept, "")
+	row := mustUUID(t, rev.ID)
+	saveVersionFor(t, d, swept, rev.ID)
+	d.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 2, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", row)
 	queued := submit(t, svc, other, "later")
-	blockThreadResolution(t, d)
+	blockRunReplies(t, d)
 
 	startWorkerLogged(t, svc, d, revisions.WorkerOptions{}, logger)
 	waitForStatus(t, svc, other, queued.ID, revisions.StatusSucceeded)
-	done := waitForStatus(t, svc, swept, row.ID.String(), revisions.StatusSucceeded)
+	done := waitForStatus(t, svc, swept, rev.ID, revisions.StatusSucceeded)
 	if done.ResultVersion == nil || *done.ResultVersion != 2 || calls.Load() != 1 {
 		t.Fatalf("swept revision = %+v after %d calls", done, calls.Load())
 	}
-	assertThreadOpen(t, d, swept, root.ID)
-	assertResolveFailureLogged(t, logs, row.ID.String())
+	assertNoRunReply(t, d, thread)
+	assertReplyFailureLogged(t, logs, rev.ID)
 }
 
-func TestFailedThreadResolutionStillRecordsTheSuccessfulRun(t *testing.T) {
+func TestAFailedThreadReplyStillRecordsTheSuccessfulRun(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
 	svc := newTestService(d.DB, reviserFunc(func(ctx context.Context, req revisions.Request) (revisions.Result, error) {
 		version, err := saveNextVersion(ctx, d, req)
 		return revisions.Result{Version: version}, err
 	}), logger)
-	ctx := reading(context.Background())
 	dash := seedDashboard(t, d, 2)
-	root := openThread(t, d, dash)
-	row, err := svc.SubmitForThread(ctx, dash, root.ID, nil, "go", user)
-	if err != nil {
-		t.Fatal(err)
-	}
-	blockThreadResolution(t, d)
+	rev, thread := mentionRun(t, svc, d, dash, "")
+	blockRunReplies(t, d)
 
 	startWorkerLogged(t, svc, d, revisions.WorkerOptions{}, logger)
-	done := waitForStatus(t, svc, dash, row.ID.String(), revisions.StatusSucceeded)
+	done := waitForStatus(t, svc, dash, rev.ID, revisions.StatusSucceeded)
 	if done.ResultVersion == nil || *done.ResultVersion != 3 || done.Attempts != 1 {
 		t.Fatalf("revision = %+v", done)
 	}
-	assertThreadOpen(t, d, dash, root.ID)
-	assertResolveFailureLogged(t, logs, row.ID.String())
+	assertNoRunReply(t, d, thread)
+	assertReplyFailureLogged(t, logs, rev.ID)
 }
 
 func TestExpiredRunningRequestIsRetriedBeforeANewerOneOfItsDashboard(t *testing.T) {
@@ -1147,73 +1112,6 @@ func saveNextVersion(ctx context.Context, d *dbtest.Database, req revisions.Requ
 		return 0, err
 	}
 	return int(next), nil
-}
-
-func TestRequestSentFromACommentThreadResolvesTheThreadWithTheSavedVersion(t *testing.T) {
-	var d *dbtest.Database
-	var svc *revisions.Service
-	svc, d = newService(t, reviserFunc(func(ctx context.Context, req revisions.Request) (revisions.Result, error) {
-		if req.Prompt == "fail" {
-			return revisions.Result{}, errors.New("model call failed")
-		}
-		version, err := saveNextVersion(ctx, d, req)
-		return revisions.Result{Version: version}, err
-	}))
-	ctx := reading(context.Background())
-	dash := seedDashboard(t, d, 3)
-	author := mustUUID(t, userID)
-	thread := func(id pgtype.UUID) dbsqlc.Thread {
-		t.Helper()
-		row, err := d.Queries().GetThread(ctx, id)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return row
-	}
-	firstVersion := 1
-	baseVersion := &firstVersion
-	sendFromThread := func(comment pgtype.UUID, prompt string) revisions.Revision {
-		t.Helper()
-		row, err := svc.SubmitForThread(ctx, dash, comment, baseVersion, prompt, user)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return get(t, svc, dash, row.ID.String())
-	}
-
-	root := newThread(t, d, dash, "p1")
-	reply := newMessage(t, d, pgtype.UUID{}, root.ID)
-	rev := sendFromThread(reply.ID, "go")
-	if rev.Source != revisions.SourceComment || rev.CommentID != root.ID.String() || rev.PanelID != "p1" || rev.BaseVersion == nil || *rev.BaseVersion != 1 {
-		t.Fatalf("enqueued revision = %+v", rev)
-	}
-	if _, err := svc.SubmitForThread(ctx, dash, mustUUID(t, "00000000-0000-0000-0000-000000000000"), nil, "go", user); !errors.Is(err, revisions.ErrCommentNotFound) {
-		t.Fatalf("unknown comment: %v", err)
-	}
-
-	startWorker(t, svc, d, revisions.WorkerOptions{})
-	waitForStatus(t, svc, dash, rev.ID, revisions.StatusSucceeded)
-	resolved := thread(root.ID)
-	if resolved.Status != "resolved" || !resolved.ResolvedByVersion.Valid || resolved.ResolvedByVersion.Int32 != 4 || resolved.ResolvedByName.String != "Ada" || resolved.ResolvedByKind.String != "user" || !resolved.ResolvedAt.Valid {
-		t.Fatalf("thread after the request succeeded = %+v", resolved)
-	}
-
-	other := newThread(t, d, dash, "p1")
-	failedOther := sendFromThread(other.ID, "fail")
-	waitForStatus(t, svc, dash, failedOther.ID, revisions.StatusFailed)
-	if row := thread(other.ID); row.Status != "open" || row.ResolvedByVersion.Valid {
-		t.Fatalf("a failed request touched the thread: %+v", row)
-	}
-
-	earlier := newThread(t, d, dash, "p1")
-	d.Exec(t, "UPDATE threads SET status = 'resolved', resolved_at = now(), resolved_by_kind = 'user', resolved_by_id = $2, resolved_by_name = 'Grace', resolved_by_version = 1 WHERE id = $1", earlier.ID, author)
-	before := thread(earlier.ID)
-	again := sendFromThread(earlier.ID, "go")
-	waitForStatus(t, svc, dash, again.ID, revisions.StatusSucceeded)
-	after := thread(earlier.ID)
-	if after.ResolvedByName.String != "Grace" || after.ResolvedByVersion.Int32 != 1 || !after.UpdatedAt.Time.Equal(before.UpdatedAt.Time) {
-		t.Fatalf("an already resolved thread changed: before %+v, after %+v", before, after)
-	}
 }
 
 func asRole(role auth.Role) auth.Principal {

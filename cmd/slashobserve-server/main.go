@@ -496,7 +496,7 @@ func run() error {
 		revisions.WithObservations(runObservations{observationsService}),
 		revisions.WithPrincipals(authService),
 		revisions.WithAccess(folderAccess),
-		revisions.WithThreads(threads.NewRuns(database)),
+		revisions.WithThreads(threads.NewRuns()),
 		revisions.WithMetrics(serverMetrics.AgentRequests()),
 	}
 	observeOpts, revisionOpts := withBuiltInAgent(llmProvider, cfg.LLM, baseObserveOpts, revisionOpts)

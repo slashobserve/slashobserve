@@ -3611,7 +3611,7 @@ components:
           type: integer
           minimum: 1
           nullable: true
-          description: The version that fixed the thread, when the resolver named one or the agent request sent from the thread succeeded.
+          description: The version that fixed the thread, when the resolver named one.
         revision:
           type: object
           nullable: true
@@ -4554,7 +4554,7 @@ components:
           type: string
           format: uuid
           nullable: true
-          description: The comment that requested the revision; null for a prompt, or after the comment was deleted.
+          description: The comment thread an `apply` run answers, such as the thread an answer's suggested change was applied from; null for a prompt, or after the comment was deleted.
         panel_id:
           type: string
           nullable: true

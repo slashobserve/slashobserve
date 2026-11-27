@@ -221,10 +221,6 @@ func (s *Service) baseVersionFor(ctx context.Context, dashboardID pgtype.UUID, b
 	return latest, base, nil
 }
 
-func (s *Service) SubmitFollowUp(ctx context.Context, dashboardID pgtype.UUID, baseVersion *int, panelID string, prompt string, by auth.Principal) (dbsqlc.AgentRequest, error) {
-	return s.submitFollowUp(ctx, EnqueueParams{DashboardID: dashboardID, PanelID: panelID, Prompt: prompt, By: by, chat: chatChoice{mode: dashboardChat}}, baseVersion)
-}
-
 func (s *Service) submitFollowUp(ctx context.Context, p EnqueueParams, baseVersion *int) (dbsqlc.AgentRequest, error) {
 	if err := s.checkRun(ctx, RunTarget{Intent: IntentApply, DashboardID: p.DashboardID}, p.By); err != nil {
 		return dbsqlc.AgentRequest{}, err
@@ -240,28 +236,6 @@ func (s *Service) submitFollowUp(ctx context.Context, p EnqueueParams, baseVersi
 	}
 	p.BaseVersion = base
 	return s.submit(ctx, p)
-}
-
-func (s *Service) SubmitForThread(ctx context.Context, dashboardID, commentID pgtype.UUID, baseVersion *int, prompt string, by auth.Principal) (dbsqlc.AgentRequest, error) {
-	_, base, err := s.baseVersionFor(ctx, dashboardID, baseVersion)
-	if err != nil {
-		return dbsqlc.AgentRequest{}, err
-	}
-	if s.threads == nil {
-		return dbsqlc.AgentRequest{}, errNoThreads
-	}
-	threadID, panelID, err := s.threads.ForRun(ctx, dashboardID, commentID)
-	if err != nil {
-		return dbsqlc.AgentRequest{}, err
-	}
-	return s.Submit(ctx, EnqueueParams{
-		DashboardID: dashboardID,
-		CommentID:   threadID,
-		Prompt:      prompt,
-		PanelID:     panelID,
-		BaseVersion: base,
-		By:          by,
-	})
 }
 
 func (s *Service) SubmitObserve(ctx context.Context, by auth.Principal, prompt string) (dbsqlc.AgentRequest, error) {

@@ -72,7 +72,7 @@ func newFixture(t *testing.T) *fixture {
 	logger := slog.New(slog.DiscardHandler)
 	people := &principals{}
 	runs := revisions.NewService(d.DB, logger, revisions.WithBuiltInAgent(),
-		revisions.WithPrincipals(people), revisions.WithAccess(folders.NewAccess(d.DB)), revisions.WithThreads(threads.NewRuns(d.DB)))
+		revisions.WithPrincipals(people), revisions.WithAccess(folders.NewAccess(d.DB)), revisions.WithThreads(threads.NewRuns()))
 	svc := New(Config{
 		DB: d.DB, Runs: runs, Listen: d.Listen,
 		PublicURL: &url.URL{Scheme: "https", Host: "so.example.com"}, InternalURL: &url.URL{Scheme: "http", Host: "127.0.0.1:8080"},

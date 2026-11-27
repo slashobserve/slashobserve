@@ -111,38 +111,12 @@ func lockDashboardAndDelete(t *testing.T, id pgtype.UUID) func(q *dbsqlc.Queries
 	}
 }
 
-func TestRunSkipsItsResolutionInsteadOfWaitingForADelete(t *testing.T) {
+func TestDeleteWaitsForARunAnsweringInItsThread(t *testing.T) {
 	r := newAgentRig(t, true)
-	dash := r.createDashboard(t)
-	r.addVersion(t, dash, 1)
-	comment, queued := r.commentRevision(t, dash, new("rps"), "fix it")
-	run := r.runFor(t, dash, queued, 2)
-	deleting := r.hold(t, func(q *dbsqlc.Queries) error {
-		_, err := q.LockDashboardForDelete(reading(t.Context()), dash)
-		return err
-	})
-
-	resolved := make(chan error, 1)
-	go func() { resolved <- r.resolveForRun(t, run) }()
-	err := resultOf(t, resolved, "the run's resolution")
-	notADeadlock(t, err)
-	if err != nil {
-		t.Fatal(err)
-	}
-	deleting.finish(t)
-	if got := r.threadRow(t, comment).Status; got != StatusOpen {
-		t.Fatalf("status = %s, want open because the resolution was skipped", got)
-	}
-}
-
-func TestDeleteWaitsForARunResolvingItsThread(t *testing.T) {
-	r := newAgentRig(t, true)
-	dash := r.createDashboard(t)
-	r.addVersion(t, dash, 1)
-	comment, queued := r.commentRevision(t, dash, new("rps"), "fix it")
-	run := r.runFor(t, dash, queued, 2)
-	resolving := r.hold(t, func(q *dbsqlc.Queries) error {
-		return NewRuns(r.db.DB).RunEnded(reading(t.Context()), q, run)
+	dash := r.createDashboard(t, "rps", "errors")
+	thread, run := r.mentionRun(t, target(KindDashboard, dash))
+	answering := r.hold(t, func(q *dbsqlc.Queries) error {
+		return NewRuns().RunEnded(reading(t.Context()), q, succeededWithVersion(run, 2))
 	})
 
 	deleted := make(chan error, 1)
@@ -153,14 +127,14 @@ func TestDeleteWaitsForARunResolvingItsThread(t *testing.T) {
 		t.Fatalf("the delete finished while the run held the dashboard: %v", err)
 	default:
 	}
-	resolving.finish(t)
+	answering.finish(t)
 
 	err := resultOf(t, deleted, "the delete")
 	notADeadlock(t, err)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.db.Queries().GetThread(reading(t.Context()), mustParse(t, comment)); !errors.Is(err, pgx.ErrNoRows) {
+	if _, err := r.db.Queries().GetThread(reading(t.Context()), mustParse(t, thread)); !errors.Is(err, pgx.ErrNoRows) {
 		t.Fatalf("thread after the delete: err = %v, want no rows", err)
 	}
 }
@@ -208,12 +182,10 @@ func TestCommentingWhileTheDashboardIsDeletedAnswersCommentNotFound(t *testing.T
 	}
 }
 
-func TestASaveDoesNotMakeARunSkipItsResolution(t *testing.T) {
+func TestASaveDoesNotMakeARunSkipItsReply(t *testing.T) {
 	r := newAgentRig(t, true)
-	dash := r.createDashboard(t)
-	r.addVersion(t, dash, 1)
-	comment, queued := r.commentRevision(t, dash, new("rps"), "fix it")
-	run := r.runFor(t, dash, queued, 2)
+	dash := r.createDashboard(t, "rps", "errors")
+	thread, run := r.mentionRun(t, target(KindDashboard, dash))
 
 	saving, err := r.db.SQLDB(t).BeginTx(reading(t.Context()), nil)
 	if err != nil {
@@ -224,15 +196,15 @@ func TestASaveDoesNotMakeARunSkipItsResolution(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resolved := make(chan error, 1)
-	go func() { resolved <- r.resolveForRun(t, run) }()
-	if err := resultOf(t, resolved, "the run's resolution"); err != nil {
+	answered := make(chan error, 1)
+	go func() { answered <- r.runEnded(t, succeededWithVersion(run, 2)) }()
+	if err := resultOf(t, answered, "the run's reply"); err != nil {
 		t.Fatal(err)
 	}
 	if err := saving.Commit(); err != nil {
 		t.Fatal(err)
 	}
-	if got := r.threadRow(t, comment).Status; got != StatusResolved {
-		t.Fatalf("status = %s, want resolved even though a save was in flight", got)
+	if replies := r.runReplies(t, thread); len(replies) != 1 {
+		t.Fatalf("replies = %+v, want one even though a save was in flight", replies)
 	}
 }

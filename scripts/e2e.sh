@@ -1409,26 +1409,6 @@ thread_id_of() {
   python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["thread"]["id"])' "$1" 2>/dev/null || true
 }
 
-message_id_of() {
-  python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["message"]["id"])' "$1" 2>/dev/null || true
-}
-
-comment_ids() {
-  { grep -o '{"id":"[^"]*","dashboard_id"' "$1" || true; } | cut -d'"' -f4
-}
-
-revision_id_of() {
-  grep -o '"revision":{"id":"[^"]*"' "$1" | head -1 | cut -d'"' -f6
-}
-
-wait_revision() {
-  local dashboard="$1" revision="$2" status="$3" tries=$(($4 * 5))
-  until [[ "$(api GET "/dashboards/$dashboard/revisions/$revision")" == 200 ]] && grep -q "\"status\":\"$status\"" "$TMP/api.body"; do
-    ((--tries > 0)) || fail "revision $revision never became $status ($(cat "$TMP/api.body"))"
-    sleep 0.2
-  done
-}
-
 expect_version_data() {
   local dashboard="$1" version="$2" base out panels variables panel name value selections="" window now_ms tries
   base="/dashboards/$dashboard/versions/$version"
@@ -1459,113 +1439,12 @@ expect_version_data() {
 
 revisions_suite() {
   api_token
-  local out id panel rid rid2 rid3 cid page_ids stream="$TMP/sse-revisions.txt" nil_id=00000000-0000-0000-0000-000000000000
-  local pid prid tdid troot treply trid tstream="$TMP/sse-thread-revision.txt"
+  local out id bad nil_id=00000000-0000-0000-0000-000000000000
 
-  panel="$(sed -n 's/^ *"id": *"\([^"]*\)".*/\1/p' "$FIXTURES/dashboard-valid.json" | sed -n 1p)"
-  [[ -n "$panel" ]] || fail "dashboard-valid.json has no panel id"
   out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
   [[ "$out" == 201 ]] || fail "create the revisions dashboard ($out: $(cat "$TMP/api.body"))"
   id="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
 
-  sse_open "$id" "$stream"
-  out="$(api POST /threads -d "$(thread_body "$id" 1 "$panel" 'Show this per route')")"
-  cid="$(thread_id_of "$TMP/api.body")"
-  [[ "$out" == 201 && -n "$cid" ]] || fail "open the thread a revision is requested from ($out: $(cat "$TMP/api.body"))"
-  out="$(api POST "/dashboards/$id/revisions" -d '{"prompt":"Show this per route","base_version":1,"comment_id":"'"$cid"'"}')"
-  if [[ "$out" != 202 ]] || ! grep -q '"status":"queued"' "$TMP/api.body"; then
-    fail "a comment queues a revision ($out: $(cat "$TMP/api.body"))"
-  fi
-  rid="$(revision_id_of "$TMP/api.body")"
-  [[ -n "$rid" ]] || fail "the queued revision has no id ($(cat "$TMP/api.body"))"
-  sse_wait "$stream" "^data: {\"type\":\"revision.updated\",\"dashboard_id\":\"$id\",\"comment_id\":\"$cid\",\"revision_id\":\"$rid\",\"status\":\"queued\"}$" 10
-  sse_wait "$stream" "^data: {\"type\":\"revision.updated\",\"dashboard_id\":\"$id\",.*\"revision_id\":\"$rid\",\"status\":\"succeeded\"}$" 90
-  sse_wait "$stream" "^data: {\"type\":\"version.created\",\"dashboard_id\":\"$id\",\"version\":2,\"parent_version\":1," 10
-  sse_wait "$stream" "^data: {\"type\":\"revision.updated\",\"dashboard_id\":\"$id\",\"version\":2,\"comment_id\":\"$cid\",\"revision_id\":\"$rid\",\"status\":\"succeeded\"}$" 10
-  pass "a comment queues a revision that saves version 2 and announces it on the event stream"
-
-  out="$(api GET "/dashboards/$id/revisions/$rid")"
-  if [[ "$out" != 200 ]] || ! grep -q '"status":"succeeded"' "$TMP/api.body" || ! grep -q '"result_version":2' "$TMP/api.body" \
-    || ! grep -q '"intent":"apply"' "$TMP/api.body" || ! grep -q "\"comment_id\":\"$cid\"" "$TMP/api.body" \
-    || ! grep -q "\"panel_id\":\"$panel\"" "$TMP/api.body" || ! grep -q '"attempts":1' "$TMP/api.body" \
-    || ! grep -q '"error":null' "$TMP/api.body" || ! grep -q '"base_version":1' "$TMP/api.body" \
-    || ! grep -q '"prompt":"Show this per route"' "$TMP/api.body" || ! grep -q '"requested_by":{"kind":"service_account"' "$TMP/api.body"; then
-    fail "the finished comment revision ($out: $(cat "$TMP/api.body"))"
-  fi
-  out="$(api GET "/dashboards/$id/versions/2")"
-  if [[ "$out" != 200 ]] || ! grep -qF '"summary":"Renamed \"Requests per second\" to \"Requests per second by route\"; changed \"Requests per second by route\"."' "$TMP/api.body" \
-    || ! grep -q '"author":{"kind":"service_account"' "$TMP/api.body" || ! grep -q 'sum by (span_name)' "$TMP/api.body"; then
-    fail "the revised version 2 ($out: $(cat "$TMP/api.body"))"
-  fi
-  out="$(api GET "/threads?target=dashboard:$id&status=all")"
-  if [[ "$out" != 200 ]] || ! python3 -c 'import json,sys
-b=json.load(open(sys.argv[1]))
-t=[x for x in b["threads"] if x["id"]==sys.argv[2]]
-sys.exit(0 if len(b["threads"])==1 and len(t)==1 and t[0]["status"]=="resolved" and t[0]["resolved_by_version"]==2 and t[0]["revision"]=={"id":sys.argv[3],"status":"succeeded"} else 1)' "$TMP/api.body" "$cid" "$rid"; then
-    fail "the comment keeps its revision and is resolved by version 2 ($out: $(cat "$TMP/api.body"))"
-  fi
-  pass "the revision records its result, author and comment, and the comment is resolved by version 2"
-
-  out="$(api POST "/dashboards/$id/revisions" -d '{"prompt":"  Add a p99 latency panel ","base_version":2}')"
-  if [[ "$out" != 202 ]] || ! grep -q '"status":"queued"' "$TMP/api.body" || ! grep -q '"intent":"apply"' "$TMP/api.body" \
-    || ! grep -q '"comment_id":null' "$TMP/api.body" || ! grep -q '"panel_id":null' "$TMP/api.body"; then
-    fail "a follow-up prompt is queued ($out: $(cat "$TMP/api.body"))"
-  fi
-  rid2="$(grep -o '"revision":{"id":"[^"]*"' "$TMP/api.body" | cut -d'"' -f6)"
-  grep -qi "^location: /api/v1/dashboards/$id/revisions/$rid2" "$TMP/api.headers" || fail "the revision response has no Location header ($(cat "$TMP/api.headers"))"
-  sse_wait "$stream" "^data: {\"type\":\"version.created\",\"dashboard_id\":\"$id\",\"version\":3,\"parent_version\":2," 90
-  wait_revision "$id" "$rid2" succeeded 10
-  grep -q '"result_version":3' "$TMP/api.body" || fail "the follow-up revision should save version 3 ($(cat "$TMP/api.body"))"
-  out="$(api GET "/dashboards/$id")"
-  if [[ "$out" != 200 ]] || ! grep -q '"latest_version":3' "$TMP/api.body" || ! grep -q '"id":"p99_latency"' "$TMP/api.body"; then
-    fail "the dashboard after the follow-up ($out: $(cat "$TMP/api.body"))"
-  fi
-  sse_close
-  pass "a follow-up prompt queues a revision that saves version 3 with the new panel"
-
-  expect_version_data "$id" 2
-  expect_version_data "$id" 3
-  pass "every panel of the revised versions returns data through the query proxy"
-
-  out="$(api GET "/dashboards/$id/revisions")"
-  page_ids="$(comment_ids "$TMP/api.body" | tr '\n' ' ')"
-  if [[ "$out" != 200 || "$page_ids" != "$rid2 $rid " ]] || ! grep -q '"next_cursor":null' "$TMP/api.body"; then
-    fail "list the revisions, newest first (ids '$page_ids': $(cat "$TMP/api.body"))"
-  fi
-  out="$(api GET "/dashboards/$id/revisions?limit=1")"
-  if [[ "$out" != 200 ]] || ! grep -q '"next_cursor":"[^"]' "$TMP/api.body"; then
-    fail "page the revisions ($out: $(cat "$TMP/api.body"))"
-  fi
-  pass "revisions list newest first with cursors"
-
-  out="$(api POST "/dashboards/$id/revisions" -d '{"prompt":"No fixture covers this prompt","base_version":3}')"
-  [[ "$out" == 202 ]] || fail "queue a prompt the replay provider cannot answer ($out: $(cat "$TMP/api.body"))"
-  rid3="$(grep -o '"revision":{"id":"[^"]*"' "$TMP/api.body" | cut -d'"' -f6)"
-  wait_revision "$id" "$rid3" failed 30
-  if ! grep -q '"error":"model call failed: no replay fixture"' "$TMP/api.body" || ! grep -q '"result_version":null' "$TMP/api.body" \
-    || ! grep -q '"attempts":1' "$TMP/api.body"; then
-    fail "a failed revision records a safe error ($(cat "$TMP/api.body"))"
-  fi
-  out="$(api GET "/dashboards/$id")"
-  if [[ "$out" != 200 ]] || ! grep -q '"latest_version":3' "$TMP/api.body"; then
-    fail "a failed revision must not save a version ($out: $(cat "$TMP/api.body"))"
-  fi
-  pass "a revision the agent cannot complete fails with a safe error and saves nothing"
-
-  for bad in '{"base_version":1}' '{"prompt":"x"}' '{"prompt":"   ","base_version":1}' '{"prompt":"a\u0000b","base_version":1}' \
-    '{"prompt":"a\u202eb","base_version":1}' '{"prompt":"x","base_version":0}' '{"prompt":"x","base_version":"1"}' \
-    '{"prompt":"x","base_version":1,"extra":1}' "{\"prompt\":\"$(printf 'a%.0s' $(seq 1 4001))\",\"base_version\":1}"; do
-    out="$(api POST "/dashboards/$id/revisions" -d "$bad")"
-    if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/api.body"; then
-      fail "invalid revision ${bad:0:60} should be rejected with 400 ($out: $(cat "$TMP/api.body"))"
-    fi
-  done
-  out="$(api POST "/dashboards/$id/revisions" -d '{"prompt":"x","base_version":99}')"
-  [[ "$out" == 404 ]] || fail "revision against an unknown version ($out: $(cat "$TMP/api.body"))"
-  out="$(api POST "/dashboards/$nil_id/revisions" -d '{"prompt":"x","base_version":1}')"
-  [[ "$out" == 404 ]] || fail "revision of an unknown dashboard ($out: $(cat "$TMP/api.body"))"
-  out="$(api POST /dashboards/not-a-uuid/revisions -d '{"prompt":"x","base_version":1}')"
-  [[ "$out" == 400 ]] || fail "revision of a malformed dashboard id ($out: $(cat "$TMP/api.body"))"
   out="$(api GET "/dashboards/$nil_id/revisions")"
   [[ "$out" == 404 ]] || fail "list revisions of an unknown dashboard ($out: $(cat "$TMP/api.body"))"
   out="$(api GET "/dashboards/$id/revisions/$nil_id")"
@@ -1576,67 +1455,7 @@ sys.exit(0 if len(b["threads"])==1 and len(t)==1 and t[0]["status"]=="resolved" 
     out="$(api GET "/dashboards/$id/revisions?$bad")"
     [[ "$out" == 400 ]] || fail "list revisions with $bad should answer 400 ($out: $(cat "$TMP/api.body"))"
   done
-  out="$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"prompt":"x","base_version":1}' "$BASE_URL/api/v1/dashboards/$id/revisions")"
-  [[ "$out" == 401 ]] || fail "revision without a token ($out)"
-  pass "revision requests refuse invalid bodies, unknown versions and dashboards, bad paging and anonymous callers"
-
-  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
-  [[ "$out" == 201 ]] || fail "create the thread revision dashboard ($out: $(cat "$TMP/api.body"))"
-  tdid="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
-  out="$(api POST /threads -d "$(thread_body "$tdid" 1 "$panel" 'Split this by route')")"
-  troot="$(thread_id_of "$TMP/api.body")"
-  [[ "$out" == 201 && -n "$troot" ]] || fail "create the thread root ($out: $(cat "$TMP/api.body"))"
-  out="$(api POST "/threads/$troot/messages" -d '{"body":"Agreed"}')"
-  treply="$(message_id_of "$TMP/api.body")"
-  [[ "$out" == 201 && -n "$treply" ]] || fail "create the thread reply ($out: $(cat "$TMP/api.body"))"
-  sse_open "$tdid" "$tstream"
-  out="$(api POST "/dashboards/$tdid/revisions" -d '{"prompt":"Show this per route","base_version":1,"comment_id":"'"$treply"'"}')"
-  if [[ "$out" != 202 ]] || ! grep -q '"intent":"apply"' "$TMP/api.body" || ! grep -q "\"comment_id\":\"$troot\"" "$TMP/api.body" \
-    || ! grep -q "\"panel_id\":\"$panel\"" "$TMP/api.body"; then
-    fail "a request sent from a reply is queued against the thread's root ($out: $(cat "$TMP/api.body"))"
-  fi
-  trid="$(grep -o '"revision":{"id":"[^"]*"' "$TMP/api.body" | cut -d'"' -f6)"
-  [[ -n "$trid" ]] || fail "the thread request has no id ($(cat "$TMP/api.body"))"
-  out="$(api POST "/dashboards/$tdid/revisions" -d '{"prompt":"x","base_version":1,"comment_id":"'"$treply"'","panel_id":"'"$panel"'"}')"
-  if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/api.body"; then
-    fail "comment_id with panel_id should be rejected with 400 ($out: $(cat "$TMP/api.body"))"
-  fi
-  out="$(api POST "/dashboards/$tdid/revisions" -d '{"prompt":"x","base_version":1,"comment_id":"nope"}')"
-  if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/api.body"; then
-    fail "a malformed comment_id should be rejected with 400 ($out: $(cat "$TMP/api.body"))"
-  fi
-  out="$(api POST "/dashboards/$tdid/revisions" -d '{"prompt":"x","base_version":1,"comment_id":"'"$nil_id"'"}')"
-  if [[ "$out" != 404 ]] || ! grep -q '"code":"not_found"' "$TMP/api.body"; then
-    fail "an unknown comment_id should answer 404 ($out: $(cat "$TMP/api.body"))"
-  fi
-  wait_revision "$tdid" "$trid" succeeded 90
-  sse_wait "$tstream" "^data: {\"type\":\"comment.updated\",\"dashboard_id\":\"$tdid\",.*\"comment_id\":\"$troot\",\"panel_id\":\"$panel\",\"status\":\"resolved\"}$" 10
-  sse_close
-  out="$(api GET "/threads?target=dashboard:$tdid&status=resolved")"
-  if [[ "$out" != 200 ]] || ! python3 -c 'import json,sys
-b=json.load(open(sys.argv[1]))
-c=[x for x in b["threads"] if x["id"]==sys.argv[2]]
-sys.exit(0 if len(c)==1 and c[0]["status"]=="resolved" and c[0]["resolved_by_version"]==2 else 1)' "$TMP/api.body" "$troot"; then
-    fail "the thread should be resolved by version 2 ($out: $(cat "$TMP/api.body"))"
-  fi
-  pass "a request sent from a comment thread resolves the thread with the version it saved"
-
-  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
-  [[ "$out" == 201 ]] || fail "create the panel revision dashboard ($out: $(cat "$TMP/api.body"))"
-  pid="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
-  out="$(api POST "/dashboards/$pid/revisions" -d '{"prompt":"Focus on this panel","base_version":1,"panel_id":"'"$panel"'"}')"
-  if [[ "$out" != 202 ]] || ! grep -q "\"panel_id\":\"$panel\"" "$TMP/api.body" || ! grep -q '"intent":"apply"' "$TMP/api.body"; then
-    fail "a revision aimed at one panel is queued ($out: $(cat "$TMP/api.body"))"
-  fi
-  prid="$(revision_id_of "$TMP/api.body")"
-  out="$(api POST "/dashboards/$pid/revisions" -d '{"prompt":"Focus on this panel","base_version":1,"panel_id":"no_such_panel"}')"
-  if [[ "$out" != 422 ]] || ! grep -q '"code":"unknown_panel"' "$TMP/api.body"; then
-    fail "a revision aimed at an unknown panel is refused ($out: $(cat "$TMP/api.body"))"
-  fi
-  out="$(api POST "/dashboards/$pid/revisions" -d '{"prompt":"Focus on this panel","base_version":1,"panel_id":""}')"
-  [[ "$out" == 400 ]] || fail "a revision with an empty panel_id should answer 400 ($out: $(cat "$TMP/api.body"))"
-  wait_revision "$pid" "$prid" failed 90
-  pass "a revision can target one panel, and an unknown panel is refused"
+  pass "revision reads refuse unknown dashboards and revisions and bad paging"
 }
 
 suggestion_id_of() {

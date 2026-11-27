@@ -178,7 +178,7 @@ func TestListObserveTellsANewRequestAFollowUpAndACommentApartAndRefusesBadQuerie
 	if err != nil {
 		t.Fatal(err)
 	}
-	comment, err := svc.SubmitForThread(reading(context.Background()), dash, openThread(t, d, dash).ID, nil, "comment", user)
+	comment, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, CommentID: openThread(t, d, dash).ID, Prompt: "comment", BaseVersion: 1, By: user})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -302,94 +302,6 @@ func newPanelService(t *testing.T, panels *fakePanels) (*revisions.Service, *dbt
 	t.Helper()
 	d := dbtest.New(t)
 	return newTestService(d.DB, succeedWith(2), quietLogger(), revisions.WithPanels(panels)), d
-}
-
-func TestPostStoresAKnownPanelAndRefusesAnUnknownOne(t *testing.T) {
-	longPanel := strings.Repeat("a", 64)
-	panels := &fakePanels{known: map[string]bool{"errors": true, longPanel: true}}
-	svc, d := newPanelService(t, panels)
-	dash := seedDashboard(t, d, 2)
-	r := newRouter(svc)
-
-	for _, panel := range []string{"errors", longPanel} {
-		rec := call(r, http.MethodPost, revisionsPath(dash), `{"prompt":"focus","base_version":1,"panel_id":"`+panel+`"}`)
-		var body struct {
-			Revision struct {
-				ID      string  `json:"id"`
-				PanelID *string `json:"panel_id"`
-			} `json:"revision"`
-		}
-		if rec.Code != http.StatusAccepted || json.Unmarshal(rec.Body.Bytes(), &body) != nil || body.Revision.PanelID == nil || *body.Revision.PanelID != panel {
-			t.Fatalf("known panel %q: %d %s", panel, rec.Code, rec.Body)
-		}
-		if stored := get(t, svc, dash, body.Revision.ID); stored.PanelID != panel || stored.Source != revisions.SourcePrompt {
-			t.Fatalf("stored = %+v", stored)
-		}
-	}
-	if panels.version != 2 {
-		t.Fatalf("the panel was checked against version %d, want the latest (2)", panels.version)
-	}
-
-	before := panels.asked
-	rec := call(r, http.MethodPost, revisionsPath(dash), `{"prompt":"focus","base_version":1,"panel_id":"gone"}`)
-	if rec.Code != http.StatusUnprocessableEntity || errorCode(t, rec) != "unknown_panel" {
-		t.Fatalf("unknown panel: %d %s", rec.Code, rec.Body)
-	}
-	if panels.asked != before+1 {
-		t.Fatalf("the panel check ran %d times", panels.asked-before)
-	}
-	if items, _, err := svc.List(reading(context.Background()), user, dash, 10, ""); err != nil || len(items) != 2 {
-		t.Fatalf("a refused request was stored: %d items, %v", len(items), err)
-	}
-}
-
-func TestPostRefusesAnInvalidPanelIdBeforeAnyCheck(t *testing.T) {
-	panels := &fakePanels{known: map[string]bool{}}
-	svc, d := newPanelService(t, panels)
-	dash := seedDashboard(t, d, 1)
-	r := newRouter(svc)
-
-	for name, panel := range map[string]string{
-		"empty":         `""`,
-		"65 characters": `"` + strings.Repeat("a", 65) + `"`,
-		"NUL":           `"a\u0000b"`,
-	} {
-		rec := call(r, http.MethodPost, revisionsPath(dash), `{"prompt":"focus","base_version":1,"panel_id":`+panel+`}`)
-		if rec.Code != http.StatusBadRequest || errorCode(t, rec) != "invalid_request" {
-			t.Errorf("%s: %d %s", name, rec.Code, rec.Body)
-		}
-	}
-	if panels.asked != 0 {
-		t.Fatalf("an invalid panel id reached the panel check %d times", panels.asked)
-	}
-}
-
-func TestPostTreatsANullPanelIdAsAbsent(t *testing.T) {
-	panels := &fakePanels{known: map[string]bool{}}
-	svc, d := newPanelService(t, panels)
-	dash := seedDashboard(t, d, 1)
-	r := newRouter(svc)
-
-	for _, body := range []string{`{"prompt":"whole","base_version":1,"panel_id":null}`, `{"prompt":"whole","base_version":1}`} {
-		rec := call(r, http.MethodPost, revisionsPath(dash), body)
-		if rec.Code != http.StatusAccepted || !strings.Contains(rec.Body.String(), `"panel_id":null`) {
-			t.Fatalf("%s: %d %s", body, rec.Code, rec.Body)
-		}
-	}
-	if panels.asked != 0 {
-		t.Fatalf("an absent panel id reached the panel check %d times", panels.asked)
-	}
-}
-
-func TestPostAnswers404WhenTheDashboardVanishesDuringThePanelCheck(t *testing.T) {
-	panels := &fakePanels{err: revisions.ErrDashboardNotFound}
-	svc, d := newPanelService(t, panels)
-	dash := seedDashboard(t, d, 1)
-
-	rec := call(newRouter(svc), http.MethodPost, revisionsPath(dash), `{"prompt":"focus","base_version":1,"panel_id":"errors"}`)
-	if rec.Code != http.StatusNotFound || errorCode(t, rec) != "not_found" {
-		t.Fatalf("post: %d %s", rec.Code, rec.Body)
-	}
 }
 
 func TestGetObserveHidesARequestWithoutADashboardFromOtherPrincipals(t *testing.T) {

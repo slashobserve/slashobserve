@@ -169,7 +169,7 @@ func newStack(t *testing.T) *stack {
 	revisionsService := revisions.NewService(database.DB, logger,
 		revisions.WithAccess(folderAccess),
 		revisions.WithPrincipals(authService),
-		revisions.WithThreads(threads.NewRuns(database.DB)),
+		revisions.WithThreads(threads.NewRuns()),
 		revisions.WithBuiltInAgent(),
 	)
 	observeOptions := revisions.ObserveOptions{

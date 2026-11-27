@@ -63,7 +63,7 @@ func (r *rig) mentionRun(t *testing.T, target Target) (thread string, run dbsqlc
 func (r *rig) runEnded(t *testing.T, run dbsqlc.AgentRequest) error {
 	t.Helper()
 	return r.db.InTx(reading(t.Context()), func(q *dbsqlc.Queries) error {
-		return NewRuns(r.db.DB).RunEnded(reading(t.Context()), q, run)
+		return NewRuns().RunEnded(reading(t.Context()), q, run)
 	})
 }
 
@@ -337,24 +337,6 @@ func TestARunSkipsItsReplyInsteadOfWaitingForADelete(t *testing.T) {
 	}
 }
 
-func TestARevisionRunFromACommentResolvesItAndAnswersInIt(t *testing.T) {
-	r := newAgentRig(t, true)
-	dash := r.createDashboard(t, "rps", "errors")
-	r.addVersion(t, dash, 1)
-	comment, queued := r.commentRevision(t, dash, new("errors"), "show this per route")
-
-	if err := r.runEnded(t, r.runFor(t, dash, queued, 2)); err != nil {
-		t.Fatal(err)
-	}
-	if got := r.threadRow(t, comment).Status; got != StatusResolved {
-		t.Fatalf("thread status = %s, want resolved", got)
-	}
-	replies := r.runReplies(t, comment)
-	if len(replies) != 1 || replies[0].Body != "Saved version 2 of this dashboard." {
-		t.Fatalf("run replies = %+v, want the saved-version answer", replies)
-	}
-}
-
 func TestAnOutsideAgentsRunAnswersAsTheActorItsOwnWritesCarry(t *testing.T) {
 	r := newAgentRig(t, true)
 	grant := r.connectedAgent(t, testUser)
@@ -415,7 +397,7 @@ func TestACutProposalTitleEndsInAnEllipsis(t *testing.T) {
 }
 
 func (r *rig) sweeper() *revisions.Service {
-	return revisions.NewService(r.db.DB, slog.New(slog.DiscardHandler), revisions.WithThreads(NewRuns(r.db.DB)))
+	return revisions.NewService(r.db.DB, slog.New(slog.DiscardHandler), revisions.WithThreads(NewRuns()))
 }
 
 func (r *rig) endWithoutAReply(t *testing.T, run dbsqlc.AgentRequest) {

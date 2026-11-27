@@ -136,21 +136,6 @@ SET status = @status::text,
 WHERE id = @id AND status <> @status::text
 RETURNING *;
 
--- name: ResolveThreadForRun :one
-UPDATE threads
-SET status = 'resolved',
-  resolved_at = now(),
-  resolved_by_kind = @resolved_by_kind::text,
-  resolved_by_id = @resolved_by_id::uuid,
-  resolved_by_name = @resolved_by_name::text,
-  resolved_origin = sqlc.narg('resolved_origin')::text,
-  resolved_origin_client = sqlc.narg('resolved_origin_client')::text,
-  resolved_run_id = @resolved_run_id::uuid,
-  resolved_by_version = @resolved_by_version::integer,
-  updated_at = clock_timestamp()
-WHERE id = @id AND dashboard_id = @dashboard_id AND status = 'open'
-RETURNING *;
-
 -- name: ListThreadMessages :many
 SELECT sqlc.embed(m), sqlc.embed(t)
 FROM thread_messages m

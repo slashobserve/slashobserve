@@ -84,7 +84,7 @@ An agent of your own connects over [MCP](../use/mcp.md) and takes runs with its 
 These behave differently without a provider:
 
 - The endpoints that start the built-in agent answer `503 agent_unavailable`.
-  They are `POST /api/v1/observe` for a request the built-in agent would take, revision prompts, suggestions, health repairs and query drafts.
+  They are `POST /api/v1/observe` for a request the built-in agent would take, suggestions, health repairs and query drafts.
 - A message that mentions `@observe` is saved, and its `run_refusal` is `agent_unavailable`.
   Turning the agent on later does not replay it.
 - Home's **Ask Observe Agent** tab says no model is connected.

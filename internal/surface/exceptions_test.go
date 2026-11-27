@@ -160,9 +160,8 @@ var exceptions = map[string]exception{
 	"listRepairs":    {MCP: notBuilt, CLI: notBuilt},
 	"requestRepairs": {MCP: notBuilt, CLI: notBuilt},
 
-	"createDashboardRevision": {MCP: notBuilt},
-	"listDashboardRevisions":  {MCP: builtInRuns},
-	"getDashboardRevision":    {MCP: builtInRuns},
+	"listDashboardRevisions": {MCP: builtInRuns},
+	"getDashboardRevision":   {MCP: builtInRuns},
 
 	"deleteSavedSearch": {MCP: savedSearchCuration},
 

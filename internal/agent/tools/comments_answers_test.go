@@ -126,7 +126,7 @@ func (r *answerRig) answeredAsk(t *testing.T, restricted bool) pgtype.UUID {
 		if err != nil {
 			return err
 		}
-		return threads.NewRuns(r.db.DB).RunEnded(ctx, q, row)
+		return threads.NewRuns().RunEnded(ctx, q, row)
 	})
 	if err != nil {
 		t.Fatal(err)

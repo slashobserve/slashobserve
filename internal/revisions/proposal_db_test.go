@@ -39,7 +39,7 @@ func TestARunThatProposedSucceedsWithAProposalAndLeavesItsCommentThreadOpen(t *t
 	}))
 	dash := seedDashboard(t, d, 1)
 	root := newThread(t, d, dash, "p1")
-	row, err := svc.SubmitForThread(reading(context.Background()), dash, root.ID, nil, "go", user)
+	row, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, CommentID: root.ID, PanelID: "p1", Prompt: "go", BaseVersion: 1, By: user})
 	if err != nil {
 		t.Fatal(err)
 	}

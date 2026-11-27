@@ -182,50 +182,6 @@ test("retries a failed follow-up on the same dashboard", async ({ page }) => {
   }
 })
 
-test("links a failed comment revision back to its dashboard", async ({
-  page,
-}) => {
-  const { id: dashboardId } = await createDashboard(page.request, {
-    ...loadSpec("overview"),
-    title: uniqueTitle("Comment revision"),
-  })
-  const commented = await page.request.post("/api/v1/threads", {
-    data: {
-      target: `dashboard:${dashboardId}`,
-      version: 1,
-      panel_id: "rps",
-      body: unanswerablePrompt,
-    },
-    headers: mutationHeaders,
-  })
-  expect(commented.status()).toBe(201)
-  const { thread } = (await commented.json()) as { thread: { id: string } }
-  const queued = await page.request.post(
-    `/api/v1/dashboards/${dashboardId}/revisions`,
-    {
-      data: {
-        prompt: unanswerablePrompt,
-        base_version: 1,
-        comment_id: thread.id,
-      },
-      headers: mutationHeaders,
-    }
-  )
-  expect(queued.status()).toBe(202)
-  const { revision } = (await queued.json()) as { revision: { id: string } }
-
-  await page.goto(`/c/${revision.id}`)
-  const alert = page.getByRole("alert")
-  await expect(alert).toContainText("no replay fixture", { timeout: 30_000 })
-  await expect(alert.getByRole("button", { name: "Try again" })).toHaveCount(0)
-  const open = alert.getByRole("link", openLink)
-  await expect(open).toHaveAttribute(
-    "href",
-    new RegExp(`^/d/${dashboardId}(/[a-z0-9-]+)?$`)
-  )
-  await expect(open).not.toHaveAttribute("target")
-})
-
 test("follows up in the same chat", async ({ page }) => {
   test.setTimeout(180_000)
   const release = await holdRequestPollsUntilFinished(page)
