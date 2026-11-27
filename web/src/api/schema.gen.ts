@@ -1731,7 +1731,7 @@ export interface paths {
         put?: never;
         /**
          * Approve one tool as it is described now.
-         * @description Only Admins can call this endpoint. The body is optional. With `hash`, the approval applies only when the tool's current definition has that hash, so an Admin approves what they read; otherwise it answers 409 `tool_changed`. An `offered` tool is approved as pinned; a `changed` tool is approved as the server describes it now, which replaces the pinned definition. A `refused` tool answers 409 `tool_refused` with the reason.
+         * @description Only Admins can call this endpoint. The body must carry the `hash` of the definition that was read. The approval applies only when the tool's current definition has that hash, so an Admin approves what they read; otherwise it answers 409 `tool_changed`, and a missing `hash` answers 400 `tool_hash_required`. An `offered` tool is approved as pinned; a `changed` tool is approved as the server describes it now, which replaces the pinned definition. A `refused` tool answers 409 `tool_refused` with the reason.
          */
         post: operations["approveMCPSourceTool"];
         delete?: never;
@@ -5441,7 +5441,7 @@ export interface components {
         };
         ApproveMCPSourceToolRequest: {
             /** @description The hash of the definition that was read; the approval is refused when the tool no longer has it. */
-            hash?: string;
+            hash: string;
         };
         RestrictedContentError: {
             /** @description Names the datasource and says to use a folder only Admins can read. */
@@ -13564,7 +13564,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
                 "application/json": components["schemas"]["ApproveMCPSourceToolRequest"];
             };

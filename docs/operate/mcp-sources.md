@@ -113,7 +113,7 @@ A tool that is not marked read-only is never approved in bulk: approve it by nam
 Approving such a tool means the agent can call it, and a tool that changes the system it reaches will change it when the agent calls it.
 Approve one only on a system where that is acceptable.
 Approving pins the tool's name, description, input schema and read-only mark as a SHA-256 hash.
-The web app and the CLI send the hash they showed, and the server answers `409 tool_changed` when the tool changed in between, so an Admin never approves a definition they did not read.
+Every approval by name must carry the hash of the definition that was read: the web app and the CLI send the hash they showed, and the server answers `400 tool_hash_required` without one and `409 tool_changed` when the tool changed in between, so an Admin never approves a definition they did not read.
 
 If a later discovery finds an approved tool described differently, the tool becomes `changed` and stops being served until it is approved again, with its new definition shown beside the approved one.
 A tool the server stops marking read-only becomes `changed` the same way, so the agent stops calling it until an Admin approves it as it is now.
@@ -188,7 +188,7 @@ At most 50 sources can exist; a 51st answers `422 too_many_mcp_sources`.
 | `POST /api/v1/mcp-sources/{uid}/discover` | Discovers its tools. |
 | `GET /api/v1/mcp-sources/{uid}/tools` | Lists its tools. |
 | `POST /api/v1/mcp-sources/{uid}/tools/approve-read-only` | Approves every `offered` tool the server marks read-only. |
-| `POST /api/v1/mcp-sources/{uid}/tools/{name}/approve` | Approves one tool; the body may carry the `hash` that was read. |
+| `POST /api/v1/mcp-sources/{uid}/tools/{name}/approve` | Approves one tool; the body carries the `hash` that was read. |
 | `POST /api/v1/mcp-sources/{uid}/tools/{name}/revoke` | Withdraws an approval. |
 
 Only an Admin can call these routes.

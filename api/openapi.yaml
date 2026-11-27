@@ -2191,6 +2191,7 @@ components:
     ApproveMCPSourceToolRequest:
       type: object
       additionalProperties: false
+      required: [hash]
       properties:
         hash:
           type: string
