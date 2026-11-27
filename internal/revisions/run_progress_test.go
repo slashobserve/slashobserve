@@ -2,8 +2,10 @@ package revisions
 
 import (
 	"encoding/json"
+	"log/slog"
 	"testing"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 )
 
@@ -20,18 +22,12 @@ func runFields(t *testing.T, out agentRequestJSON) map[string]json.RawMessage {
 	return fields
 }
 
-func TestOnlyTheHTTPRunReadCarriesTheSettledResult(t *testing.T) {
-	if _, present := runFields(t, agentRequestJSON{})["settled"]; present {
-		t.Error("a run rendered for a tool result carries settled, and tool results must not change")
-	}
+func TestTheRunReadCarriesTheSettledResultOrNull(t *testing.T) {
 	saved := "saved"
-	for want, progress := range map[string]*runProgressJSON{"null": {}, `"saved"`: {Settled: &saved}} {
-		if got := runFields(t, agentRequestJSON{runProgressJSON: progress})["settled"]; string(got) != want {
+	for want, settled := range map[string]*string{"null": nil, `"saved"`: &saved} {
+		if got := runFields(t, agentRequestJSON{Settled: settled})["settled"]; string(got) != want {
 			t.Errorf("settled = %s, want %s", got, want)
 		}
-	}
-	if !NewObserveHandler(nil, ObserveOptions{}).runs.httpOnlyFields || NewRunDesk(nil, ObserveOptions{}).httpOnlyFields {
-		t.Error("the HTTP handler's desk adds the HTTP-only fields and the tools' desk does not")
 	}
 }
 
@@ -43,16 +39,14 @@ func TestOnlyARunAWorkerHoldsHasASessionToRead(t *testing.T) {
 	}
 }
 
-func TestTheHTTPRunReadCountsAdmissionCheckFailuresAgainstTheirCeiling(t *testing.T) {
-	if _, present := runFields(t, agentRequestJSON{})["check_failures"]; present {
-		t.Error("a run rendered for a tool result carries check_failures, and tool results must not change")
+func TestTheRunReadCountsAdmissionCheckFailuresAgainstTheirCeiling(t *testing.T) {
+	desk := NewRunDesk(&Service{logger: slog.New(slog.DiscardHandler)}, ObserveOptions{})
+	out := desk.view(t.Context(), dbsqlc.AgentRequest{State: string(StateQueued), CheckFailures: 2}, auth.Principal{}, buildState{}, nil, nil)
+	fields := runFields(t, out)
+	if string(fields["check_failures"]) != "2" || string(fields["check_failures_max"]) != "3" {
+		t.Errorf("check_failures %s of %s, want 2 of 3", fields["check_failures"], fields["check_failures_max"])
 	}
-	progress := progressOf(dbsqlc.AgentRequest{State: string(StateQueued), CheckFailures: 2}, "")
-	fields := runFields(t, agentRequestJSON{runProgressJSON: &progress})
-	if string(fields["check_failures"]) != "2" || string(fields["check_failures_max"]) != "3" || string(fields["settled"]) != "null" {
-		t.Errorf("check_failures %s of %s, settled %s; want 2 of 3 and null", fields["check_failures"], fields["check_failures_max"], fields["settled"])
-	}
-	if progress.CheckFailuresMax != maxCheckFailures || !checksExhausted(dbsqlc.AgentRequest{CheckFailures: maxCheckFailures - 1}) || checksExhausted(dbsqlc.AgentRequest{CheckFailures: maxCheckFailures - 2}) {
+	if out.CheckFailuresMax != maxCheckFailures || !checksExhausted(dbsqlc.AgentRequest{CheckFailures: maxCheckFailures - 1}) || checksExhausted(dbsqlc.AgentRequest{CheckFailures: maxCheckFailures - 2}) {
 		t.Error("check_failures_max is not the count at which a run fails with check_failed")
 	}
 }

@@ -19,9 +19,8 @@ import (
 )
 
 type RunDesk struct {
-	service        *Service
-	opts           ObserveOptions
-	httpOnlyFields bool
+	service *Service
+	opts    ObserveOptions
 }
 
 func NewRunDesk(service *Service, opts ObserveOptions) *RunDesk {
@@ -202,15 +201,15 @@ func (r *RunDesk) answer(ctx context.Context, row dbsqlc.AgentRequest, caller au
 }
 
 func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, readOnly bool) (agentRequestJSON, error) {
-	out, err := r.renderShared(ctx, row, caller, readOnly)
-	if err != nil || !r.httpOnlyFields {
-		return out, err
+	out, err := r.renderStored(ctx, row, caller, readOnly)
+	if err != nil {
+		return agentRequestJSON{}, err
 	}
-	out.runProgressJSON, err = r.service.progress(ctx, row)
+	out.Settled, err = r.service.settled(ctx, row)
 	return out, err
 }
 
-func (r *RunDesk) renderShared(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, readOnly bool) (agentRequestJSON, error) {
+func (r *RunDesk) renderStored(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, readOnly bool) (agentRequestJSON, error) {
 	view := r.service.viewOf(ctx, row, caller)
 	if view == viewNone {
 		return agentRequestJSON{}, ErrRequestNotFound
@@ -261,25 +260,15 @@ func holdsSession(state State) bool {
 	return state == StateRunning || state == StateCanceling
 }
 
-func progressOf(row dbsqlc.AgentRequest, settled string) runProgressJSON {
-	return runProgressJSON{
-		Settled:          httpapi.OptionalString(settled),
-		CheckFailures:    int(row.CheckFailures),
-		CheckFailuresMax: maxCheckFailures,
+func (s *Service) settled(ctx context.Context, row dbsqlc.AgentRequest) (*string, error) {
+	if !holdsSession(State(row.State)) {
+		return nil, nil
 	}
-}
-
-func (s *Service) progress(ctx context.Context, row dbsqlc.AgentRequest) (*runProgressJSON, error) {
-	var settled string
-	if holdsSession(State(row.State)) {
-		var err error
-		settled, err = s.db.Queries().GetRunSessionSettled(ctx, dbsqlc.GetRunSessionSettledParams{AgentRequestID: row.ID, Attempt: row.Attempts})
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("read what a running agent request already settled: %w", err)
-		}
+	kind, err := s.db.Queries().GetRunSessionSettled(ctx, dbsqlc.GetRunSessionSettledParams{AgentRequestID: row.ID, Attempt: row.Attempts})
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("read what a running agent request already settled: %w", err)
 	}
-	out := progressOf(row, settled)
-	return &out, nil
+	return httpapi.OptionalString(kind), nil
 }
 
 func (s *Service) assignee(ctx context.Context, row dbsqlc.AgentRequest) (*assigneeJSON, error) {
@@ -373,6 +362,8 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 		BuildSavedAt: httpapi.FormatOptionalTime(optionalTime(row.BuildSavedAt)),
 
 		QueuePosition:     position,
+		CheckFailures:     int(row.CheckFailures),
+		CheckFailuresMax:  maxCheckFailures,
 		CancelRequestedAt: httpapi.FormatOptionalTime(optionalTime(row.CancelRequestedAt)),
 		CanCancel:         slices.Contains(allowed, ActionCancel),
 		AllowedActions:    actionStrings(allowed),

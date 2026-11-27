@@ -59,7 +59,7 @@ type ObserveHandler struct {
 }
 
 func NewObserveHandler(service *Service, opts ObserveOptions) *ObserveHandler {
-	return &ObserveHandler{service: service, opts: opts, runs: &RunDesk{service: service, opts: opts, httpOnlyFields: true}}
+	return &ObserveHandler{service: service, opts: opts, runs: NewRunDesk(service, opts)}
 }
 
 type patchObserveRequest struct {
@@ -134,16 +134,12 @@ type agentRequestJSON struct {
 	BlockID       *string         `json:"block_id"`
 	Finding       json.RawMessage `json:"finding"`
 
-	ObservationRename SharedTitle `json:"observation_rename,omitempty"`
-	Replayed          bool        `json:"replayed,omitempty"`
-
-	*runProgressJSON
-}
-
-type runProgressJSON struct {
 	Settled          *string `json:"settled"`
 	CheckFailures    int     `json:"check_failures"`
 	CheckFailuresMax int     `json:"check_failures_max"`
+
+	ObservationRename SharedTitle `json:"observation_rename,omitempty"`
+	Replayed          bool        `json:"replayed,omitempty"`
 }
 
 type assigneeJSON struct {
