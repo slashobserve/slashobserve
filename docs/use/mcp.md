@@ -1158,6 +1158,7 @@ The datasource computes it from every sample or step, so a peak between the poin
 - The result holds `query`, the PromQL that ran, `sampled`, and one entry per series in `values` (at most 20): `value` at full precision, or `at` and `seconds_after_from` for a time.
 - `max` and `min` of a single series also carry `at`, when the value was first reached, when a 15 second step finds it.
 - An empty result says so in `note`: no series matched, which does not show the value was zero.
+- A total, a ratio or a quantile over the window comes from `measure_aggregate`.
 - Another datasource type answers `invalid_request`.
 
 #### `query_instant`
