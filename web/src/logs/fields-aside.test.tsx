@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react"
+import { fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ApiError } from "@/api/errors"
@@ -400,10 +400,21 @@ describe("FieldsAside", () => {
     const grip = screen.getByRole("separator", { name: "Resize fields" })
     grip.focus()
     await user.keyboard("{Shift>}{ArrowRight}{/Shift}")
-    expect(aside).toHaveStyle({ width: "288px" })
-    expect(localStorage.getItem("slashobserve-logs-fields-width")).toBe("288")
+    expect(aside).toHaveStyle({ width: "312px" })
+    expect(localStorage.getItem("slashobserve-logs-fields-width")).toBe("312")
     await user.dblClick(grip)
     expect(aside).toHaveStyle({ width: "248px" })
+    expect(localStorage.getItem("slashobserve-logs-fields-width")).toBe("248")
+  })
+
+  it("leaves the page selectable when it unmounts in the middle of a drag", async () => {
+    const { unmount } = setup()
+    const grip = screen.getByRole("separator", { name: "Resize fields" })
+    fireEvent.pointerDown(grip, { button: 0, pointerId: 1, clientX: 100 })
+    await waitFor(() => expect(document.body.style.userSelect).toBe("none"))
+    unmount()
+    expect(document.body.style.userSelect).toBe("")
+    expect(document.body.style.cursor).toBe("")
   })
 
   it("opens at the width the person left it", () => {

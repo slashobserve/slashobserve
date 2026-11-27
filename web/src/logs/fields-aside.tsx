@@ -1,11 +1,4 @@
-import {
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type PointerEvent,
-} from "react"
+import { useId, useMemo, useState, useSyncExternalStore } from "react"
 import { useQuery } from "@tanstack/react-query"
 import {
   ChevronRightIcon,
@@ -15,6 +8,8 @@ import {
 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { fieldsWidth, storedWidth } from "@/components/dock/card-width"
+import { ResizeHandle } from "@/components/dock/resize-handle"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -29,15 +24,6 @@ import { cn } from "@/lib/utils"
 import { labelNamesQuery } from "@/panel-editor/queries"
 
 import { failedNote } from "./explore"
-import {
-  clampFieldsWidth,
-  fieldsDefaultWidth,
-  fieldsMaxWidth,
-  fieldsMinWidth,
-  keyboardFieldsWidth,
-  storedFieldsWidth,
-  storeFieldsWidth,
-} from "./fields-width"
 import {
   barPercent,
   basisNote,
@@ -465,93 +451,14 @@ function FieldsPanel({
   )
 }
 
-function FieldsResizeGrip({
-  width,
-  onWidth,
-}: {
-  width: number
-  onWidth: (width: number) => void
-}) {
-  const drag = useRef<{
-    pointerId: number
-    startX: number
-    startWidth: number
-    latest: number
-  } | null>(null)
-
-  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
-    if (event.button !== 0) return
-    event.preventDefault()
-    event.currentTarget.setPointerCapture(event.pointerId)
-    drag.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startWidth: width,
-      latest: width,
-    }
-    document.body.style.cursor = "col-resize"
-    document.body.style.userSelect = "none"
-  }
-
-  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
-    const current = drag.current
-    if (!current) return
-    current.latest = clampFieldsWidth(
-      current.startWidth + event.clientX - current.startX
-    )
-    onWidth(current.latest)
-  }
-
-  function endDrag(event: PointerEvent<HTMLDivElement>) {
-    const current = drag.current
-    if (!current) return
-    drag.current = null
-    storeFieldsWidth(current.latest)
-    if (event.currentTarget.hasPointerCapture(current.pointerId)) {
-      event.currentTarget.releasePointerCapture(current.pointerId)
-    }
-    document.body.style.cursor = ""
-    document.body.style.userSelect = ""
-  }
-
-  function change(next: number) {
-    onWidth(next)
-    storeFieldsWidth(next)
-  }
-
-  return (
-    <div
-      role="separator"
-      aria-orientation="vertical"
-      aria-label="Resize fields"
-      aria-valuenow={width}
-      aria-valuemin={fieldsMinWidth}
-      aria-valuemax={fieldsMaxWidth}
-      aria-valuetext={`${width} pixels`}
-      tabIndex={0}
-      title="Drag to resize, double-click to reset"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
-      onDoubleClick={() => change(fieldsDefaultWidth)}
-      onKeyDown={(event) => {
-        const next = keyboardFieldsWidth(width, event.key, event.shiftKey)
-        if (next === null) return
-        event.preventDefault()
-        change(next)
-      }}
-      className="group absolute top-0 right-0 bottom-0 z-10 grid w-2 cursor-col-resize touch-none place-items-center outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <span className="h-9 w-0.5 rounded-[2px] bg-border group-hover:bg-muted-foreground/50" />
-    </div>
-  )
-}
+const fieldsWidthKey = "slashobserve-logs-fields-width"
 
 export function FieldsAside() {
   const { detail } = useLogsWorkspace()
   const noRoom = useNoRoomForAside()
-  const [width, setWidth] = useState(storedFieldsWidth)
+  const [width, setWidth] = useState(() =>
+    storedWidth(fieldsWidthKey, fieldsWidth)
+  )
   const [shown, setShown] = useState(storedFacetsOpen)
   const lineOpen = detail.selection !== null
   const [lineWasOpen, setLineWasOpen] = useState(lineOpen)
@@ -595,7 +502,15 @@ export function FieldsAside() {
       style={{ width }}
     >
       <FieldsPanel onHide={() => toggle(false)} />
-      <FieldsResizeGrip width={width} onWidth={setWidth} />
+      <ResizeHandle
+        width={width}
+        bounds={fieldsWidth}
+        onChange={setWidth}
+        side="right"
+        label="Resize fields"
+        fitViewport={false}
+        storageKey={fieldsWidthKey}
+      />
     </aside>
   )
 }

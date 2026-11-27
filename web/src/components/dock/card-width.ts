@@ -20,9 +20,35 @@ export function clampWidth(
   return Math.min(maxWidthFor(bounds, viewport), Math.max(bounds.min, wanted))
 }
 
+export function parseStoredWidth(
+  raw: string | null,
+  bounds: WidthBounds
+): number {
+  if (raw === null || !/^\d+$/.test(raw)) return bounds.initial
+  return Math.min(bounds.max, Math.max(bounds.min, Number(raw)))
+}
+
+export function storedWidth(key: string, bounds: WidthBounds): number {
+  try {
+    return parseStoredWidth(localStorage.getItem(key), bounds)
+  } catch {
+    return bounds.initial
+  }
+}
+
+export function storeWidth(key: string, width: number): void {
+  try {
+    localStorage.setItem(key, String(Math.round(width)))
+  } catch {
+    return
+  }
+}
+
 export function isStacked(bounds: WidthBounds, viewport: number): boolean {
   return viewport < pageReserve + bounds.min
 }
+
+export const fieldsWidth: WidthBounds = { min: 200, max: 560, initial: 248 }
 
 export const chatPaneWidth: WidthBounds = { min: 320, max: 640, initial: 400 }
 const chatPaneBreakpoint = 1200

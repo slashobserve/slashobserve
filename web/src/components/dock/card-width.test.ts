@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
 
 import {
   activityWidth,
@@ -8,11 +8,15 @@ import {
   dashboardActivityOpens,
   draggedWidth,
   editWidth,
+  fieldsWidth,
   isNarrow,
   isStacked,
   maxWidthFor,
   opensByDefault,
   panelWidth,
+  parseStoredWidth,
+  storedWidth,
+  storeWidth,
 } from "./card-width"
 
 describe("clampWidth", () => {
@@ -109,5 +113,27 @@ describe("draggedWidth", () => {
   it("widens toward the side the handle sits on", () => {
     expect(draggedWidth("left", 400, 500, 450)).toBe(450)
     expect(draggedWidth("right", 400, 500, 450)).toBe(350)
+  })
+})
+
+describe("stored widths", () => {
+  afterEach(() => localStorage.clear())
+
+  it("falls back to the initial width for anything but whole pixels", () => {
+    expect(parseStoredWidth(null, fieldsWidth)).toBe(fieldsWidth.initial)
+    expect(parseStoredWidth("wide", fieldsWidth)).toBe(fieldsWidth.initial)
+    expect(parseStoredWidth("-5", fieldsWidth)).toBe(fieldsWidth.initial)
+    expect(parseStoredWidth("320", fieldsWidth)).toBe(320)
+  })
+
+  it("keeps a stored width inside the bounds", () => {
+    expect(parseStoredWidth("99999", fieldsWidth)).toBe(fieldsWidth.max)
+    expect(parseStoredWidth("10", fieldsWidth)).toBe(fieldsWidth.min)
+  })
+
+  it("round-trips a width through localStorage", () => {
+    storeWidth("w", 400.4)
+    expect(localStorage.getItem("w")).toBe("400")
+    expect(storedWidth("w", fieldsWidth)).toBe(400)
   })
 })
