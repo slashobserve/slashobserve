@@ -14,8 +14,6 @@ GO_TEST_PKGS ?= ./...
 WEB_TEST_FLAGS := $(if $(COVER),--coverage)
 # zod 3 under the shadcn CLI, a dev-only tool that pins zod ^3 and ships in no build
 WEB_AUDIT_IGNORE := GHSA-mrhx-c7xc-m3w5
-# hono and @hono/node-server under the MCP SDK's server transports, which observe-agent never loads; drop once hono 4.13.16 and @hono/node-server 2.1.6 are 14 days old (2026-11-16)
-AGENT_AUDIT_IGNORE := GHSA-qv5m-9pm6-hqp3 GHSA-jpvv-r467-5p4w GHSA-4m76-xfj5-7975 GHSA-h7mg-cq63-vhpq GHSA-3gg2-335m-rxc6 GHSA-46wx-v44x-9hh2 GHSA-4h7h-rv7c-7m2v
 
 .PHONY: build server cli agent agent-deps web web-deps generate test test-go test-web test-agent test-scripts test-benchmarks lint lint-go lint-web lint-web-types lint-web-eslint lint-web-knip lint-web-format lint-agent lint-deploy ci audit demo demo-build demo-search demo-code demo-down demo-reset demo-check demo-fault demo-fault-reset helm-kind helm-kind-down replicas-up replicas-down replicas-check loadtest e2e e2e-warm e2e-up e2e-browser e2e-all golden tidy-check clean
 
@@ -116,7 +114,7 @@ audit:
 	go tool -modfile=tools/govulncheck/go.mod govulncheck ./...
 	cd web && bun audit --prod
 	cd web && bun audit --audit-level=high $(addprefix --ignore=,$(WEB_AUDIT_IGNORE))
-	cd observe-agent && bun audit --prod $(addprefix --ignore=,$(AGENT_AUDIT_IGNORE))
+	cd observe-agent && bun audit --prod
 	cd observe-agent && bun audit --audit-level=high
 
 demo:
