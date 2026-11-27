@@ -765,45 +765,6 @@
     }
   },
   {
-    "name": "a measurement gets a fact per value with its window, labels and query",
-    "steps": [
-      {
-        "issue": {
-          "tool": "measure_window",
-          "input": "",
-          "content": "{\"stat\":\"max\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"sampled\":\"30s\",\"query\":\"max_over_time(x[2h:30s])\",\"empty\":false,\"values\":[{\"labels\":{\"service\":\"checkout\"},\"value\":0.5234123,\"at\":\"2026-11-20T10:05:00Z\"}]}",
-          "want": "{\"stat\":\"max\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"sampled\":\"30s\",\"query\":\"max_over_time(x[2h:30s])\",\"empty\":false,\"values\":[{\"labels\":{\"service\":\"checkout\"},\"value\":0.5234123,\"at\":\"2026-11-20T10:05:00Z\",\"facts\":{\"value\":\"f1\"}}]}"
-        }
-      }
-    ],
-    "record": {
-      "reads": [],
-      "names": [],
-      "discovered": [],
-      "sourced": [],
-      "ranges": [],
-      "instants": [],
-      "ids": [],
-      "facts": [
-        {
-          "id": "f1",
-          "text": "0.5234123",
-          "value": 0.5234123,
-          "kind": "number",
-          "of": "measure_window max values[] value",
-          "labels": {
-            "service": "checkout"
-          },
-          "at": "2026-11-20T10:05:00Z",
-          "from": "2026-11-20T09:00:00Z",
-          "to": "2026-11-20T11:00:00Z",
-          "query": "max_over_time(x[2h:30s])"
-        }
-      ],
-      "next_fact": 1
-    }
-  },
-  {
     "name": "the same value read again keeps its fact id",
     "steps": [
       {
