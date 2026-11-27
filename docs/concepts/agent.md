@@ -589,7 +589,8 @@ See [LLM providers](../connect/llm-providers.md).
 ## The agent process
 
 The server starts `slashobserve-harness` as a child process, which claims the built-in agent's runs and works them through the same MCP tools as a connected agent does.
-The server enforces the guards and the limits and stores the saved result.
+The process keeps the run's guards itself: it routes an investigation, sweeps the datasources, writes the run's text, refuses and sends back calls and checks the finding against what the run read, with the texts and limits described on this page.
+The server keeps the run's lifecycle, enforces the query limits, the cost limit and the write scope, and stores the saved result.
 The claim answer to the built-in agent carries the model settings, which no other claimer receives, so the sidecar needs no provider configuration of its own.
 A claim that reaches the sidecar without them is a setup fault: the sidecar hands the run back to the queue with `release_run` and waits before it claims again, 1 second at first and doubling to 30.
 A run that comes back without them after 3 releases is ended as failed with `harness received the run without model settings`, so it does not stay queued with no reason shown.

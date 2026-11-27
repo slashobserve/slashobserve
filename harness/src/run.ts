@@ -9,9 +9,12 @@ import {
 } from "./mcp"
 import { isSave, offersWrite } from "./phase"
 import {
+  type AgentSettings,
+  type BriefAnswer,
   type BriefReason,
   type BuildProgress,
   type FailureCode,
+  type GuardFailureCode,
   type ModelSettings,
   type OfferedRun,
   type RunSessionOffer,
@@ -39,6 +42,7 @@ import {
   type ToolResult,
   type ToolSpec,
 } from "./session/types"
+import { RunState } from "./runstate"
 import { executeTurn } from "./turn"
 
 export const compactTailTurns = 4
@@ -54,6 +58,7 @@ export type ClaimedRun = {
   run: OfferedRun
   session: RunSessionOffer
   model: ModelSettings
+  agent: AgentSettings
 }
 
 export type RunOptions = Partial<ReporterOptions> & {
@@ -63,7 +68,11 @@ export type RunOptions = Partial<ReporterOptions> & {
 
 type FinishBody =
   | { outcome: "succeeded"; commit?: boolean }
-  | { outcome: "failed"; failure_code?: FailureCode; message?: string }
+  | {
+      outcome: "failed"
+      failure_code?: FailureCode | GuardFailureCode
+      message?: string
+    }
 
 type Mode = "create" | "revise" | "investigate" | "suggest"
 
@@ -196,6 +205,7 @@ class RunLoop {
   private readonly runRef: { run_id: string; attempt: number }
   private readonly renewBytes: number
   private specs: ToolSpec[] = []
+  private state: RunState | undefined
   private inWriteWindow = false
   private session: Session | undefined
   private build: BuildProgress | null = null
@@ -343,22 +353,40 @@ class RunLoop {
   }
 
   private async main(): Promise<void> {
-    this.specs = await this.unavailableAs(
-      toolsUnavailableMessage,
-      retryWithin(
-        (signal) => this.tools.listTools(startReadTimeoutMs, signal),
-        this.cancel.signal,
-        this.startRetry
+    const first = await this.loadBrief(undefined)
+    const state = await RunState.start({
+      mode: this.mode,
+      prompt: this.claimed.run.prompt,
+      agent: this.claimed.agent,
+      answer: first,
+      tools: this.tools,
+      signal: this.cancel.signal,
+    })
+    this.state = state
+    if (state.routes()) {
+      await this.reporter.report(this.usageBody(), state.notes())
+    }
+    this.specs = state.offer(
+      await this.unavailableAs(
+        toolsUnavailableMessage,
+        retryWithin(
+          (signal) => this.tools.listTools(startReadTimeoutMs, signal),
+          this.cancel.signal,
+          this.startRetry
+        )
       )
     )
     let reason: BriefReason | undefined
     let carry: { results: ToolResult[] | undefined } | undefined
+    let answer: BriefAnswer | undefined = first
     for (;;) {
-      const end = await this.pass(reason, carry)
+      const end = await this.pass(reason, carry, answer)
+      answer = undefined
       if (end.kind === "finished") {
         return
       }
       if (end.kind === "restart") {
+        state.restart()
         this.cutOffs = 0
         this.answerNudged = false
         this.pendingNudged = false
@@ -375,9 +403,10 @@ class RunLoop {
 
   private async pass(
     reason: BriefReason | undefined,
-    carry: { results: ToolResult[] | undefined } | undefined
+    carry: { results: ToolResult[] | undefined } | undefined,
+    loaded: BriefAnswer | undefined
   ): Promise<SessionEnd> {
-    const brief = await this.loadBrief(reason)
+    const brief = loaded ?? (await this.loadBrief(reason))
     this.build = brief.build ?? null
     this.buildSaves = brief.build?.saves ?? 0
     this.sessionBytes = 0
@@ -385,11 +414,14 @@ class RunLoop {
       run_id: this.runRef.run_id,
       reason: brief.reason,
     })
+    const state = this.state as RunState
+    state.beginSession(brief)
+    const text = state.render(brief, new Date())
     let results: ToolResult[] | undefined
     if (carry === undefined || this.session === undefined) {
-      this.session = await this.open(brief.system, brief.message)
+      this.session = await this.open(text.system, text.user)
     } else {
-      await this.compact(this.session, brief.message, reason)
+      await this.compact(this.session, text.user, reason)
       results = carry.results
     }
     for (;;) {
@@ -480,7 +512,7 @@ class RunLoop {
     session: Session,
     results: ToolResult[] | undefined
   ): Promise<TurnStep> {
-    await this.reporter.report(this.usageBody())
+    await this.reporter.report(this.usageBody(), this.notes())
     const started = Date.now()
     let answer
     try {
@@ -541,18 +573,29 @@ class RunLoop {
       turn.toolCalls,
       randomUUID(),
       this.usageBody(),
-      this.cancel.signal
+      this.cancel.signal,
+      this.state
     ).catch((error: unknown) => {
       this.throwIfQuiet(error)
       throw error
     })
     this.made.push(...madeBy(this.specs, turn.toolCalls, executed.results))
+    if (executed.stop !== undefined && settledOf(executed.metas) === null) {
+      const { failure, message } = executed.stop
+      await this.finish({
+        outcome: "failed",
+        failure_code: failure,
+        ...(message === "" ? {} : { message }),
+      })
+      return { kind: "end", end: { kind: "finished" } }
+    }
     if (widened(turn.toolCalls, executed.results)) {
-      this.specs = await retryWithin(
+      const listed = await retryWithin(
         (signal) => this.tools.listTools(startReadTimeoutMs, signal),
         this.cancel.signal,
         this.startRetry
       )
+      this.specs = this.state?.offer(listed) ?? listed
     }
     this.sessionBytes += sizeOfTurn(
       turn.text,
@@ -664,7 +707,8 @@ class RunLoop {
       ],
       randomUUID(),
       this.usageBody(),
-      this.cancel.signal
+      this.cancel.signal,
+      this.state
     ).catch((error: unknown) => {
       this.throwIfQuiet(error)
       throw error
@@ -677,6 +721,16 @@ class RunLoop {
   }
 
   private async finish(body: FinishBody) {
+    const notes = this.state?.closing() ?? {}
+    if (notes.steps !== undefined) {
+      await this.reporter.report(this.usageBody(), notes).catch(() => {
+        if (!this.outer.aborted) {
+          log("warn", "the agent's steps were not reported", {
+            run_id: this.runRef.run_id,
+          })
+        }
+      })
+    }
     await this.reporter.flush()
     return retryWithin(
       (signal) =>
@@ -689,7 +743,16 @@ class RunLoop {
     )
   }
 
+  private notes() {
+    return this.state?.notes() ?? {}
+  }
+
   private usageBody(): Usage {
+    const base = this.baseUsage()
+    return this.state?.usage(base) ?? base
+  }
+
+  private baseUsage(): Usage {
     const { provider, model } = this.claimed.model
     return {
       provider,

@@ -2,6 +2,8 @@ import { log } from "./log"
 import type { ClaimApi } from "./mcp"
 import {
   ToolError,
+  agentSettings,
+  type AgentSettings,
   type ClaimAnswer,
   type OfferedRun,
   type Usage,
@@ -29,6 +31,10 @@ export type ClaimOptions = {
     factory: SessionFactory,
     signal: AbortSignal
   ) => Promise<void>
+}
+
+function defaultAgent(): AgentSettings {
+  return agentSettings.parse({})
 }
 
 const noUsage: Usage = {
@@ -177,7 +183,7 @@ export async function claimLoop(
       await backOff()
       continue
     }
-    const { run: offered, session, model } = answer
+    const { run: offered, session, model, agent } = answer
     if (offered == null) {
       backoff = start
       pool.give()
@@ -209,7 +215,7 @@ export async function claimLoop(
     handback.held++
     const task: Promise<void> = run(
       client,
-      { run: offered, session, model },
+      { run: offered, session, model, agent: agent ?? defaultAgent() },
       factory,
       signal
     )

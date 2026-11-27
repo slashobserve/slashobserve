@@ -3,8 +3,10 @@ import type { ClaimApi } from "./mcp"
 import {
   type BuildProgress,
   type ReportAnswer,
+  type ReportInput,
   type Usage,
   ToolError,
+  maxReportedSteps,
 } from "./protocol"
 import { type RetryPolicy, retryWithin } from "./retry"
 
@@ -42,6 +44,10 @@ const systemClock: Clock = {
 type Instant = { wall: number; monotonic: number }
 
 type Reported = { answer: ReportAnswer; sent: Instant }
+
+export type AgentNotes = Pick<ReportInput, "agent_state" | "steps" | "task">
+
+type Body = Omit<ReportInput, "run_id" | "attempt">
 
 type Lease =
   | { state: "renewed"; monotonicEnd: number | undefined }
@@ -139,11 +145,25 @@ export class Reporter {
     }
   }
 
-  async report(usage: Usage): Promise<void> {
+  async report(usage: Usage, notes: AgentNotes = {}): Promise<void> {
     this.throwIfEnded()
     const chunks = this.takeText()
     const [first, ...rest] = chunks
-    await this.send({ usage, ...(first === undefined ? {} : { text: first }) })
+    const steps = notes.steps ?? []
+    await this.send({
+      usage,
+      ...(first === undefined ? {} : { text: first }),
+      ...(notes.agent_state === undefined
+        ? {}
+        : { agent_state: notes.agent_state }),
+      ...(notes.task === undefined ? {} : { task: notes.task }),
+      ...(steps.length === 0
+        ? {}
+        : { steps: steps.slice(0, maxReportedSteps) }),
+    })
+    for (let at = maxReportedSteps; at < steps.length; at += maxReportedSteps) {
+      await this.send({ usage, steps: steps.slice(at, at + maxReportedSteps) })
+    }
     for (const chunk of rest) {
       await this.send({ text: chunk })
     }
@@ -217,7 +237,7 @@ export class Reporter {
     }
   }
 
-  private async send(body: { text?: string; usage?: Usage }): Promise<void> {
+  private async send(body: Body): Promise<void> {
     let reported: Reported
     try {
       reported = await this.attempt(body)
@@ -242,7 +262,7 @@ export class Reporter {
     }
   }
 
-  private attempt(body: { text?: string; usage?: Usage }): Promise<Reported> {
+  private attempt(body: Body): Promise<Reported> {
     const input = { ...this.run, ...body }
     const policy: RetryPolicy =
       body.usage === undefined

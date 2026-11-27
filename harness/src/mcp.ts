@@ -8,6 +8,7 @@ import { type z, ZodError } from "zod"
 import {
   type BriefAnswer,
   type BriefInput,
+  type CallHints,
   type ClaimAnswer,
   type FinishAnswer,
   type FinishInput,
@@ -20,6 +21,7 @@ import {
   type TurnMeta,
   briefAnswer,
   briefInput,
+  callMetaKey,
   claimAnswer,
   claimInput,
   finishAnswer,
@@ -57,7 +59,8 @@ export interface RunTools {
     args: Record<string, unknown>,
     turn: TurnMeta | undefined,
     timeoutMs: number,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    hints?: CallHints
   ): Promise<ToolReply>
   close(): Promise<void>
 }
@@ -235,15 +238,23 @@ export class McpClient implements RunTools {
     args: Record<string, unknown>,
     turn: TurnMeta | undefined,
     timeoutMs: number,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    hints?: CallHints
   ): Promise<ToolReply> {
+    const sent: Record<string, unknown> = {}
+    if (turn !== undefined) {
+      sent[turnMetaKey] = turn
+    }
+    if (hints !== undefined) {
+      sent[callMetaKey] = hints
+    }
     const result = await this.use(
       (client) =>
         client.callTool(
           {
             name,
             arguments: args,
-            ...(turn === undefined ? {} : { _meta: { [turnMetaKey]: turn } }),
+            ...(Object.keys(sent).length === 0 ? {} : { _meta: sent }),
           },
           undefined,
           { timeout: timeoutMs, ...(signal === undefined ? {} : { signal }) }
@@ -304,7 +315,7 @@ export class ClaimClient implements ClaimApi {
   claimRun(waitSeconds: number, signal?: AbortSignal): Promise<ClaimAnswer> {
     return this.base.claimTool(
       "claim_run",
-      claimInput.parse({ wait_seconds: waitSeconds }),
+      claimInput.parse({ wait_seconds: waitSeconds, harness: true }),
       claimAnswer,
       claimTimeoutMs,
       signal

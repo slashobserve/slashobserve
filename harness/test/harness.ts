@@ -1,9 +1,12 @@
 import { join } from "node:path"
 import type { ClaimApi, RunTools, ToolReply } from "../src/mcp"
 import {
+  type AgentSettings,
+  agentSettings,
   type BriefAnswer,
   type BriefInput,
   type BuildProgress,
+  type CallHints,
   type ClaimAnswer,
   type FinishAnswer,
   type FinishInput,
@@ -30,6 +33,7 @@ export type ToolCallRecord = {
   name: string
   args: Record<string, unknown>
   turn: TurnMeta | undefined
+  hints: CallHints | undefined
   started: number
 }
 
@@ -86,9 +90,12 @@ export class FakeTools implements RunTools {
   async callTool(
     name: string,
     args: Record<string, unknown>,
-    turn: TurnMeta | undefined
+    turn: TurnMeta | undefined,
+    _timeoutMs?: number,
+    _signal?: AbortSignal,
+    hints?: CallHints
   ): Promise<ToolReply> {
-    const record = { name, args, turn, started: performance.now() }
+    const record = { name, args, turn, hints, started: performance.now() }
     this.calls.push(record)
     return this.handler(record, this.calls.length - 1)
   }
@@ -167,9 +174,11 @@ export function claimed(
     dashboard_id?: string | null
     renew?: number
     maxTokens?: number
+    agent?: Partial<AgentSettings>
   } = {}
 ): ClaimedRun {
   return {
+    agent: agentSettings.parse(extra.agent ?? {}),
     run: {
       id: "11111111-1111-4111-8111-111111111111",
       attempt: 1,

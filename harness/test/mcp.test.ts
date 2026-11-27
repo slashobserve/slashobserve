@@ -233,7 +233,7 @@ describe("ClaimClient", () => {
     const claim = new ClaimClient(connect(server))
     const answer = await claim.claimRun(30)
     expect(server.calls[0]?.name).toBe("claim_run")
-    expect(server.calls[0]?.args).toEqual({ wait_seconds: 30 })
+    expect(server.calls[0]?.args).toEqual({ wait_seconds: 30, harness: true })
     expect(answer.run?.id).toBe("run-1")
     expect(answer.session?.token).toBe("sot_run")
   })

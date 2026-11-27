@@ -2,6 +2,9 @@ import { z } from "zod"
 
 export const turnMetaKey = "slashobserve.com/turn"
 export const runMetaKey = "slashobserve.com/run"
+export const callMetaKey = "slashobserve.com/call"
+
+export type CallHints = { sweep?: boolean; step?: string }
 
 export const defaultSessionRenewBytes = 256 << 10
 
@@ -184,6 +187,7 @@ export const runBrief = z.object({
     continues: z.boolean().default(false),
     attempt: z.number().int().min(1),
     investigation: z.boolean().default(false),
+    observations: z.array(z.string()).default([]),
     pointer: z.object({
       anchor: z.unknown().nullish(),
       block_id: z.string().nullish(),
@@ -342,6 +346,9 @@ export const reportInput = z.strictObject({
   usage: usage.optional(),
   agent_state: agentState.optional(),
   steps: z.array(reportedStep).max(maxReportedSteps).optional(),
+  task: z
+    .enum(["measure", "logs", "traces", "incident", "inventory", "explain"])
+    .optional(),
 })
 export type ReportInput = z.infer<typeof reportInput>
 

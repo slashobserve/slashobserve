@@ -896,7 +896,7 @@ describe("opening a run through a database stall", () => {
     claim.tools.listFailures = [new ToolError("run_ended", "the run ended")]
     await drive(claim, claimed("create happy path"), quick)
     expect(claim.tools.listCalls).toBe(1)
-    expect(claim.briefs).toHaveLength(0)
+    expect(claim.briefs).toHaveLength(1)
     expect(claim.finishes).toHaveLength(1)
     expect(claim.finishes[0]).toMatchObject({
       outcome: "failed",

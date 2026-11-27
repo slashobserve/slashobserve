@@ -1,0 +1,22 @@
+{
+  "prompt": "harness keeps reading",
+  "turns": [
+    {
+      "tool_calls": [
+        { "name": "list_metrics", "input": { "datasource": "prom", "q": "a" } }
+      ]
+    },
+    {
+      "expect": [{ "is_error": true, "contains": "without a save" }],
+      "tool_calls": [
+        { "name": "list_metrics", "input": { "datasource": "prom", "q": "b" } }
+      ]
+    },
+    {
+      "expect": [{ "is_error": true }],
+      "tool_calls": [
+        { "name": "list_metrics", "input": { "datasource": "prom", "q": "c" } }
+      ]
+    }
+  ]
+}
