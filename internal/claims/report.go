@@ -30,6 +30,13 @@ type ReportAnswer struct {
 	State      string  `json:"state"`
 	Stop       bool    `json:"stop"`
 	LeaseUntil *string `json:"lease_until"`
+	ServerTime *string `json:"server_time"`
+}
+
+func renewedAnswer(now time.Time) ReportAnswer {
+	at := now.UTC().Format(time.RFC3339)
+	until := now.Add(revisions.LeaseTTL).UTC().Format(time.RFC3339)
+	return ReportAnswer{State: string(revisions.StateRunning), LeaseUntil: &until, ServerTime: &at}
 }
 
 func (s *Service) Report(ctx context.Context, c Claimer, in ReportInput) (ReportAnswer, error) {
@@ -66,8 +73,7 @@ func (s *Service) Report(ctx context.Context, c Claimer, in ReportInput) (Report
 	if canceled {
 		return ReportAnswer{State: string(revisions.StateCanceling), Stop: true}, nil
 	}
-	until := time.Now().Add(revisions.LeaseTTL).UTC().Format(time.RFC3339)
-	return ReportAnswer{State: string(revisions.StateRunning), LeaseUntil: &until}, nil
+	return renewedAnswer(time.Now()), nil
 }
 
 func (s *Service) ClaimedRun(ctx context.Context, c Claimer, runID string, attempt, claimEpoch int) (revisions.Request, error) {

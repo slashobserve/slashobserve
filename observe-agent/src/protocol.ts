@@ -125,6 +125,8 @@ export type BriefAnswer = z.infer<typeof briefAnswer>
 export const reportAnswer = z.object({
   state: z.string(),
   stop: z.boolean().default(false),
+  lease_until: z.string().nullish(),
+  server_time: z.string().nullish(),
   build: buildProgress.nullish(),
 })
 export type ReportAnswer = z.infer<typeof reportAnswer>

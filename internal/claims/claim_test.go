@@ -194,3 +194,21 @@ func TestCleanTextCutsAtRunesAndDropsInvalidBytes(t *testing.T) {
 		}
 	}
 }
+
+func TestRenewedAnswerGivesTheLeaseLengthOnTheServersOwnClock(t *testing.T) {
+	now := time.Date(2026, 11, 27, 10, 0, 0, 999_000_000, time.FixedZone("ahead", 5*60*60))
+
+	answer := renewedAnswer(now)
+
+	if answer.State != string(revisions.StateRunning) || answer.Stop || answer.LeaseUntil == nil || answer.ServerTime == nil {
+		t.Fatalf("answer = %+v, want running with lease_until and server_time", answer)
+	}
+	if *answer.ServerTime != "2026-11-27T05:00:00Z" {
+		t.Fatalf("server_time = %q, want the given instant in UTC", *answer.ServerTime)
+	}
+	at, atErr := time.Parse(time.RFC3339, *answer.ServerTime)
+	until, untilErr := time.Parse(time.RFC3339, *answer.LeaseUntil)
+	if atErr != nil || untilErr != nil || until.Sub(at) != revisions.LeaseTTL {
+		t.Fatalf("lease_until %q minus server_time %q = %v (%v, %v), want %v", *answer.LeaseUntil, *answer.ServerTime, until.Sub(at), atErr, untilErr, revisions.LeaseTTL)
+	}
+}
