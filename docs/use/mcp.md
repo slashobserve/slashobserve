@@ -465,6 +465,7 @@ A result of a call that ran also carries `call`, what the call did that its cont
 `claim_run` takes `harness: true` only from SlashObserve's own agent, and answers `invalid_request` to any other claimer.
 Such a run's session leaves the guards to the agent: it skips the admission guards and their nudges and stops, the grounding check and the fact ids, the candidate check, the preflight sweep, the task type and its narrowed tool list, and the text of the brief, so `get_run_brief` answers empty `system` and `message` with `brief` filled.
 It keeps the run's lifecycle: the build, the steps, how a save settles the run, the parent version pin, the rebase or restart on a conflict, usage, the cost limit, the lease and the write scope.
+In such a session a call may carry `_meta["slashobserve.com/call"]` with `{"sweep", "step"}`: `sweep: true` marks a read of the agent's preflight sweep, which records no step and counts toward neither the run's tool calls nor its data reads, and `step` replaces the text of the step the call records; in any other session the key is ignored.
 
 `get_run` and `GET /api/v1/observe/{id}` return the same `settled` value for a running run (never `restarted`, which describes one call), so a reader can tell a run that already has its result from one still working.
 They also return `check_failures` and `check_failures_max`: a run going back to the queue with that count rising is waiting on a server check, and it fails with `check_failed` at the limit.

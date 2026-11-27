@@ -9,6 +9,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -24,6 +25,12 @@ type Call struct {
 	Name  string
 	Input json.RawMessage
 	Turn  *Turn
+	Hints *Hints
+}
+
+type Hints struct {
+	Sweep bool   `json:"sweep"`
+	Step  string `json:"step"`
 }
 
 type RunMeta struct {
@@ -103,6 +110,7 @@ func (a Answer) Text() string {
 
 type admitted struct {
 	adm       guard.Admission
+	hints     *Hints
 	seq       int
 	notes     []string
 	answer    *Answer
@@ -123,7 +131,7 @@ func (s *Service) Call(ctx context.Context, req revisions.Request, call Call, di
 	var first admitted
 	err := s.with(ctx, req, func(ctx context.Context, sess *session) error {
 		var err error
-		first, err = sess.admit(ctx, gc, call.Turn.valid())
+		first, err = sess.admitWith(ctx, gc, call.Turn.valid(), call.Hints)
 		return err
 	})
 	if errors.Is(err, errRunNotRunning) {
@@ -197,12 +205,19 @@ func (sess *session) endedAnswer(notes []string) Answer {
 }
 
 func (sess *session) admit(ctx context.Context, c guard.Call, turn *Turn) (admitted, error) {
+	return sess.admitWith(ctx, c, turn, nil)
+}
+
+func (sess *session) admitWith(ctx context.Context, c guard.Call, turn *Turn, hints *Hints) (admitted, error) {
 	var out admitted
 	if turn != nil && turn.Usage != nil {
 		sess.state.noteModel(*turn.Usage)
 	}
 	if sess.state.AgentHarness {
-		sess.state.Guard.Counts.ToolCalls++
+		out.hints = hints
+		if !out.sweep() {
+			sess.state.Guard.Counts.ToolCalls++
+		}
 		out.adm = guard.Admission{Verdict: guard.Dispatch, Phase: sess.state.Guard.Phase(c.Name)}
 		return out, nil
 	}
@@ -253,8 +268,15 @@ func (sess *session) endedAnswerWith(answer Answer, notes []string) Answer {
 	return answer
 }
 
+func (a admitted) sweep() bool {
+	return a.hints != nil && a.hints.Sweep
+}
+
 func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dispatched) (Answer, error) {
 	state := &sess.state
+	if a.sweep() {
+		return sess.settleSweep(d)
+	}
 	state.Usage.ToolMS += d.took.Milliseconds()
 	sess.endRead(c, a)
 	step := revisions.Step{At: d.start, Phase: a.adm.Phase, Tool: c.Name, Status: "ok", DurationMS: d.took.Milliseconds()}
@@ -272,6 +294,11 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 		step.Status = "error"
 	}
 	step.Message = state.stepMessage(c, a, d)
+	if a.hints != nil {
+		if message := claims.CleanText(a.hints.Step, maxMessageRunes); message != "" {
+			step.Message = message
+		}
+	}
 	sess.record(step)
 	answer := Answer{Content: d.content, IsError: d.res.IsError, Notes: slices.Clone(a.notes)}
 	if a.adm.Note != "" {
@@ -299,6 +326,13 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 	}
 	answer.Meta = state.meta(restarted && !sess.ended)
 	return answer, nil
+}
+
+func (sess *session) settleSweep(d dispatched) (Answer, error) {
+	if d.err != nil {
+		return Answer{}, d.err
+	}
+	return Answer{Content: d.content, IsError: d.res.IsError, Meta: sess.state.meta(false)}, nil
 }
 
 func (s *State) stepMessage(c guard.Call, a admitted, d dispatched) string {
