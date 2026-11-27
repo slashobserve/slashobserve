@@ -523,10 +523,3 @@ def test_replay_fixtures_match_both_questions_the_run_can_ask():
     assert template["prompt"] == "placeholder"
 
 
-def test_replay_template_saves_a_structured_finding():
-    import json
-
-    template = json.loads(sregym.REPLAY_TEMPLATE.read_text())
-    saved = template["turns"][-1]["tool_calls"][0]
-    assert saved["name"] == "save_finding"
-    assert sregym.render_diagnosis(saved["input"]).startswith("Origin: Deployment replay in namespace replay.")

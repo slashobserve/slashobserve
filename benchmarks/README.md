@@ -390,7 +390,9 @@ The script downloads one task's package, writes a replay fixture for its questio
 No model is called, but the snapshot must already be staged, because the trial needs the demo's data.
 The trial starts the code server like any other, so build its image first; `SLASHOBSERVE_CODESERVER_IMAGE`, `SLASHOBSERVE_SOURCE_NAMES` and `SLASHOBSERVE_SPAN_INDEX` set `codeserver_image`, `source_names` and `span_index`, and the fixture's question carries the code and spans notes to match.
 Run it by hand on a machine that has the snapshot; it is not part of any test.
-The fixture saves a finding with the structured fields, so it needs a server that has them.
+The fixture saves a finding with one cause, so it needs a server built from `agent-rca-accuracy` or later; an older one refuses `causes` and the trial ends without a finding.
+It saves twice, because with grounding enforced the server sends the first save back once, and the second is accepted.
+The replay cause cites nothing the run read, so the server scores it low and marks it unconfirmed, and the report is written from the Markdown with the cause under Unexplored branches.
 
 ### Judge
 
@@ -487,7 +489,8 @@ A run that stops before the investigation (no `diagnosis` stage, the tool not ap
 The options are those of ORCA-bench without `code_context`, as `--` flags, plus `--conductor-url`, `--mcp-url`, `--prometheus-url`, `--loki-url`, `--kubectl-wait-sec`, `--without-kubectl` and `--out`.
 `--without-kubectl` is for a telemetry-only baseline, or for a run on an image older than `agent-rca-accuracy`, which cannot approve the tool.
 `--model` defaults to SREGym's `--model`, `--server-image` to `slashobserve-server:local` and `--out` to `AGENT_LOGS_DIR`.
-`--model replay/replay` without `--replay-dir` writes a replay fixture for the problem's question from `fixtures/sregym-answer.json`, so a run proves the plumbing with no model; give SREGym a real `--judge-model`, or its judge leaves the attempt unscored.
+`--model replay/replay` without `--replay-dir` writes a replay fixture for the problem's question from `fixtures/sregym-answer.json`, so a run proves the plumbing with no model.
+Like the ORCA-bench fixture it saves one cause twice, for the send-back of enforced grounding, and its cause comes back unconfirmed, so the Markdown is submitted; give SREGym a real `--judge-model`, or its judge leaves the attempt unscored.
 The spend ledger, the cost cap and the key file work as for o11y-bench.
 
 ### Requirements
