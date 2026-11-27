@@ -223,14 +223,14 @@ export interface paths {
         post?: never;
         /**
          * Remove a deactivated person and their My Dashboards.
-         * @description Admin only, from a person's session; service-account keys cannot. Only a deactivated person can be removed; an active one answers 409 with code not_deactivated. Deleted with them: their My Dashboards folder and the dashboards, observations, findings and saved searches in it (counted in personal_items), their saved prompts, stars, views, inbox state and folder grants. Kept under their stored name: dashboards, versions, observations, comments, proposals and activity in shared folders, and the service accounts and keys they created. A new sign-in with the same identity-provider account afterwards makes a new person.
+         * @description Admin only, from a person's session; service-account keys cannot. Only a deactivated person can be removed; an active one answers 409 with code not_deactivated and the person's `state` and `allowed_actions`. Deleted with them: their My Dashboards folder and the dashboards, observations, findings and saved searches in it (counted in personal_items), their saved prompts, stars, views, inbox state and folder grants. Kept under their stored name: dashboards, versions, observations, comments, proposals and activity in shared folders, and the service accounts and keys they created. A new sign-in with the same identity-provider account afterwards makes a new person.
          */
         delete: operations["removePerson"];
         options?: never;
         head?: never;
         /**
          * Set or clear the role an Admin chose for a person.
-         * @description A role value sets the chosen role and null clears it, after which the role is computed again from the server settings, the identity provider's groups and the default. A role decided by SLASHOBSERVE_ADMIN_EMAILS, by being the first person, or by an identity-provider group is locked and answers 409 with code role_locked. Lowering the last Admin answers 409 with code last_admin. Service accounts cannot call this endpoint.
+         * @description A role value sets the chosen role and null clears it, after which the role is computed again from the server settings, the identity provider's groups and the default. A role decided by SLASHOBSERVE_ADMIN_EMAILS, by being the first person, or by an identity-provider group is locked and answers 409 with code role_locked. Lowering the last Admin answers 409 with code last_admin. Both refusals carry the person's `state` and `allowed_actions`. Service accounts cannot call this endpoint.
          */
         patch: operations["updatePersonRole"];
         trace?: never;
@@ -270,7 +270,7 @@ export interface paths {
         put?: never;
         /**
          * Stop a person from signing in or acting, and keep what they made.
-         * @description Admin only, from a person's session; service-account keys cannot. Deletes every session of the person and disconnects every MCP client they connected in the same transaction, and refuses their next sign-in. Their dashboards, observations, comments and folder grants stay; queued agent runs they requested fail when claimed, and webhooks they own stop. Service-account keys they created keep working, because a key acts as its service account. Deactivating a deactivated person answers 200 and changes nothing. Deactivating yourself answers 409 with code cannot_deactivate_self, and the last active Admin answers 409 with code last_admin.
+         * @description Admin only, from a person's session; service-account keys cannot. Deletes every session of the person and disconnects every MCP client they connected in the same transaction, and refuses their next sign-in. Their dashboards, observations, comments and folder grants stay; queued agent runs they requested fail when claimed, and webhooks they own stop. Service-account keys they created keep working, because a key acts as its service account. Deactivating a deactivated person answers 200 and changes nothing. Deactivating yourself answers 409 with code cannot_deactivate_self, and the last active Admin answers 409 with code last_admin; both carry the person's `state` and `allowed_actions`.
          */
         post: operations["deactivatePerson"];
         delete?: never;
@@ -4503,6 +4503,10 @@ export interface components {
         Error: {
             error: string;
             code: string;
+            /** @description Present on a refusal that depends on the state of the object the request names, such as a person's `role_locked`, `last_admin`, `cannot_deactivate_self` and `not_deactivated`; the state the object is in. */
+            state?: string;
+            /** @description Present with `state`; the actions the caller may take on the object now, as in the object's own `allowed_actions`. */
+            allowed_actions?: string[];
             /** @description Present with `admins_only_folder` when the content reads an Admins-only datasource, so it cannot leave its folder and public links are not available for it; the uid of that datasource. */
             datasource?: string;
             /** @description Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`. The `error` message names the field and says what to change. */
@@ -4696,6 +4700,13 @@ export interface components {
             token: string;
         };
         Person: {
+            /**
+             * @description Where the person is in the person lifecycle of `docs/reference/states.md`. An invited email is listed by `GET /invites` and a removed person is not listed.
+             * @enum {string}
+             */
+            state: "active" | "deactivated";
+            /** @description What the caller may do to this person now: `set_role` is left out while `role_locked` is true, `deactivate` for the caller's own entry, and every action for a service-account key, which cannot change people. `invite` and `withdraw` belong to an invite and are never listed for a person. */
+            allowed_actions: ("invite" | "withdraw" | "set_role" | "sign_out" | "deactivate" | "reactivate" | "remove")[];
             /** Format: uuid */
             id: string;
             name: string;

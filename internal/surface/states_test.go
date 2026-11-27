@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/public"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/threads"
+	"github.com/slashobserve/slashobserve/internal/users"
 	"github.com/slashobserve/slashobserve/internal/webhooks"
 )
 
@@ -45,6 +46,7 @@ func statesReference() string {
 		inboundmcp.ToolMachine.Doc("MCP source tool", "An MCP source tool is one tool of an MCP server an Admin registered, returned by `GET /api/v1/mcp-sources/{uid}/tools`; discovery moves it between `offered`, `changed`, `gone` and `refused`, and an Admin approves or revokes it."),
 		inboundmcp.SourceStates.Doc("MCP source", "`GET /api/v1/mcp-sources` returns the `state` of each MCP source."),
 		presence.States.Doc("Agent presence", "Whether an outside agent is taking runs: derived from when it last asked for work and the runs it holds."),
+		users.PersonMachine.Doc("Person", "A person is someone who signs in, returned by `GET /users` with `state` and `allowed_actions`; an invited email is listed by `GET /invites` until its first sign-in."),
 	)
 }
 
@@ -215,6 +217,21 @@ func TestObservationEnumsMatchTheMachines(t *testing.T) {
 		if got := enumOf(t, doc, c.schema, c.property); !slices.Equal(got, c.want) {
 			t.Errorf("%s.%s enum = %v, want %v", c.schema, c.property, got, c.want)
 		}
+	}
+}
+
+func TestPersonEnumsMatchTheMachine(t *testing.T) {
+	doc := apitest.Load(t)
+	var offered []string
+	for _, a := range users.PersonMachine.Offered() {
+		offered = append(offered, string(a))
+	}
+	listed := []string{string(users.StateActive), string(users.StateDeactivated)}
+	if got := enumOf(t, doc, "Person", "state"); !slices.Equal(got, listed) {
+		t.Errorf("Person.state enum = %v, want %v", got, listed)
+	}
+	if got := enumOf(t, doc, "Person", "allowed_actions"); !slices.Equal(got, offered) {
+		t.Errorf("Person.allowed_actions enum = %v, want %v", got, offered)
 	}
 }
 
