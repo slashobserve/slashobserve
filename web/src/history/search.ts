@@ -1,3 +1,4 @@
+import { firstText } from "@/lib/search"
 import { validateBack } from "@/dashboards/search"
 
 export type HistorySearch = {
@@ -16,10 +17,10 @@ export function versionChangesSearch(version: number): {
 const versionNumber = /^(0|[1-9][0-9]{0,8})$/
 
 function versionParam(value: unknown): number | undefined {
-  const item = Array.isArray(value) ? value[0] : value
-  if (typeof item !== "string" && typeof item !== "number") return undefined
-  const text = String(item)
-  return versionNumber.test(text) ? Number(text) : undefined
+  const text = firstText(value)
+  return text !== undefined && versionNumber.test(text)
+    ? Number(text)
+    : undefined
 }
 
 export function validateHistorySearch(

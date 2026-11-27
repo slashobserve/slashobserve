@@ -1,14 +1,7 @@
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react"
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { Link } from "@tanstack/react-router"
 
+import { useNarrow } from "@/lib/use-narrow"
 import { CopyButton } from "@/components/copy-button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -45,7 +38,7 @@ import { usePrepared } from "./prepared"
 import { volumeKindNames, volumeKinds } from "./volume"
 import { spanIdOf, traceIdOf, traceRangeAround } from "./trace-link"
 import { useFirstRowShortcut } from "./row-shortcut"
-import { useElementSize } from "./use-element-size"
+import { useElementSize } from "@/lib/use-element-size"
 
 type ExploreLogsProps = {
   frames: WireFrame[]
@@ -123,22 +116,6 @@ export function ExploreLogs({
         />
       ) : null}
     </div>
-  )
-}
-
-const phoneQuery = "(max-width: 899px)"
-
-function subscribePhone(onChange: () => void) {
-  const media = window.matchMedia(phoneQuery)
-  media.addEventListener("change", onChange)
-  return () => media.removeEventListener("change", onChange)
-}
-
-export function usePhone(): boolean {
-  return useSyncExternalStore(
-    subscribePhone,
-    () => window.matchMedia(phoneQuery).matches,
-    () => false
   )
 }
 
@@ -295,7 +272,7 @@ export function LogsResults({
   isNew?: (entry: LogEntry) => boolean
   newSince?: NewSince
 }) {
-  const phone = usePhone()
+  const phone = useNarrow()
   useFirstRowShortcut()
   const sortId = useId()
   const { ref: rowsRef, height: rowsHeight } = useElementSize<HTMLDivElement>()

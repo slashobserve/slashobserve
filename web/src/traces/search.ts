@@ -1,8 +1,8 @@
+import { firstString } from "@/lib/search"
 import type { TimeRangeValue } from "@/dashboards/time-range-picker"
 import { resolveTime } from "@/lib/time"
 import type { DatasourceStatus } from "@/datasources/queries"
 import {
-  firstString,
   validAsk,
   validDatasource,
   validObservation,

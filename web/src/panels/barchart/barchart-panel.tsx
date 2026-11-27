@@ -1,6 +1,5 @@
 import {
   memo,
-  useCallback,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -9,6 +8,7 @@ import {
   type MouseEvent,
 } from "react"
 
+import { useElementSize } from "@/lib/use-element-size"
 import { axisFormat } from "@/lib/units"
 import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
@@ -71,25 +71,6 @@ const valueAxisEstimate = 56
 
 type Size = { width: number; height: number }
 type Pointer = Hit & { x: number; y: number }
-
-function useMeasuredSize(): [
-  Size | null,
-  (node: HTMLDivElement | null) => void,
-] {
-  const [measured, setMeasured] = useState<Size | null>(null)
-  const ref = useCallback((node: HTMLDivElement | null) => {
-    if (node === null) return
-    const observer = new ResizeObserver(([entry]) =>
-      setMeasured({
-        width: entry.contentRect.width,
-        height: entry.contentRect.height,
-      })
-    )
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [])
-  return [measured, ref]
-}
 
 function textWidth(text: string): number {
   return text.length * characterWidth
@@ -831,7 +812,7 @@ const BarchartPanel: PanelRenderer = ({
     () => barchartModel(source, display, { width, height }, legend.hidden),
     [source, display, width, height, legend.hidden]
   )
-  const [measured, plotRef] = useMeasuredSize()
+  const { ref: plotRef, size: measured } = useElementSize<HTMLDivElement>()
   const estimate = {
     width: width - legend.width,
     height: height - (legend.placement === "bottom" ? 28 : 0),

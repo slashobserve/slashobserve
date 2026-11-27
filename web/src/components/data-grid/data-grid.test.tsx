@@ -9,9 +9,9 @@ import { createRef, useState } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { DataGrid, type DataGridColumn } from "./data-grid"
-import { useNarrow } from "./use-narrow"
+import { useNarrow } from "@/lib/use-narrow"
 
-vi.mock("./use-narrow", () => ({ useNarrow: vi.fn(() => false) }))
+vi.mock("@/lib/use-narrow", () => ({ useNarrow: vi.fn(() => false) }))
 
 type Row = { id: string; name: string; owner: string; note: string }
 

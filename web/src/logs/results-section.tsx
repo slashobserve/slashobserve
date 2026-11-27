@@ -10,6 +10,7 @@ import {
   type UIEvent,
 } from "react"
 
+import { useNarrow } from "@/lib/use-narrow"
 import { EmptyState } from "@/components/empty-state"
 import { PageBar } from "@/components/page-bar"
 import { StatusLabel } from "@/components/status-label"
@@ -44,12 +45,7 @@ import {
   type TailBuffer,
 } from "./frames"
 import { columnList, columnsText } from "./line-fields"
-import {
-  LogsResults,
-  openingView,
-  usePhone,
-  type ResultsView,
-} from "./logs-results"
+import { LogsResults, openingView, type ResultsView } from "./logs-results"
 import { isPlainResult, PlainTable } from "./plain-table"
 import { useUserScroll } from "./user-scroll"
 import { PatternsTabLabel, PatternsView } from "./patterns-view"
@@ -69,7 +65,7 @@ import {
 import { TailVolume } from "./tail-volume"
 import { unreadableKql } from "./query-problem"
 import { traceDatasourceFor } from "./trace-link"
-import { useElementSize } from "./use-element-size"
+import { useElementSize } from "@/lib/use-element-size"
 import { tailRows, type TailConnection } from "./use-live-tail"
 import { useLogsWorkspace } from "./workspace"
 
@@ -179,7 +175,11 @@ function TailBody({
     | "newSince"
   >
 }) {
-  const { ref: regionRef, height } = useElementSize<HTMLDivElement>()
+  const {
+    ref: regionRef,
+    node: region,
+    height,
+  } = useElementSize<HTMLDivElement>()
   const [state, dispatch] = useReducer(reduceTail, buffer, (initial) => ({
     tail: tailStarted([...initial.keys]),
     now: initial.startedAt ?? 0,
@@ -246,9 +246,8 @@ function TailBody({
 
   const scroller = useCallback(
     () =>
-      regionRef.current?.querySelector<HTMLElement>(listSelector)
-        ?.parentElement ?? null,
-    [regionRef]
+      region?.querySelector<HTMLElement>(listSelector)?.parentElement ?? null,
+    [region]
   )
   const toBottom = useCallback(() => {
     const element = scroller()
@@ -398,7 +397,7 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
     levels,
   } = useLogsWorkspace()
   const allDatasources = useDatasources()
-  const phone = usePhone()
+  const phone = useNarrow()
   const [view, setView] = useState<ResultsView>(() => openingView(phone))
   const onViewChange = useCallback(
     (change: Partial<ResultsView>) =>

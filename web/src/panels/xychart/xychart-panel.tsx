@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 
+import { useElementSize } from "@/lib/use-element-size"
 import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
@@ -37,27 +38,7 @@ const tooltipOffset = 12
 const markerPadding = 4
 const minMarker = 12
 
-type Size = { width: number; height: number }
 type Hover = { x: number; y: number }
-
-function useMeasuredSize(): [
-  Size | null,
-  (node: HTMLDivElement | null) => void,
-] {
-  const [size, setSize] = useState<Size | null>(null)
-  const ref = useCallback((node: HTMLDivElement | null) => {
-    if (node === null) return
-    const observer = new ResizeObserver(([entry]) =>
-      setSize({
-        width: entry.contentRect.width,
-        height: entry.contentRect.height,
-      })
-    )
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [])
-  return [size, ref]
-}
 
 function YLabels({
   ticks,
@@ -240,7 +221,7 @@ const XychartPanel: PanelRenderer = ({
   stateScope,
 }) => {
   const { resolved: theme } = useTheme()
-  const [size, measure] = useMeasuredSize()
+  const { ref: measure, size } = useElementSize<HTMLDivElement>()
   const [hover, setHover] = useState<Hover | null>(null)
   const options = useMemo(() => xyOptions(display), [display])
   const data = useMemo(

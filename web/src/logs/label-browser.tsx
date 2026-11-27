@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query"
 import { SearchIcon } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
+import { useDebouncedValue } from "@/lib/use-debounced-value"
 import type { NameListParams } from "@/api/keys"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -21,15 +22,6 @@ const rowClass =
   "block w-full truncate px-2.5 py-[5px] text-left font-mono hover:bg-selection focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
 const searchClass =
   "min-w-0 flex-1 rounded-control border-0 bg-transparent font-mono text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
-
-function useDebounced<T>(value: T): T {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), searchDelayMs)
-    return () => clearTimeout(timer)
-  }, [value])
-  return debounced
-}
 
 function ListState({
   items,
@@ -103,8 +95,8 @@ function BrowserBody({ datasourceUid, datasourceType, onPick }: Props) {
   const [labelText, setLabelText] = useState("")
   const [valueText, setValueText] = useState("")
   const [label, setLabel] = useState<string | null>(null)
-  const labelSearch = useDebounced(labelText)
-  const valueSearch = useDebounced(valueText)
+  const labelSearch = useDebouncedValue(labelText, labelText, searchDelayMs)
+  const valueSearch = useDebouncedValue(valueText, valueText, searchDelayMs)
   const scope: NameListParams =
     datasourceType === "clickhouse" ? { table: "otel_logs" } : {}
 

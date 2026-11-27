@@ -1,6 +1,5 @@
 import {
   memo,
-  useCallback,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -9,6 +8,7 @@ import {
   type MouseEvent,
 } from "react"
 
+import { useElementSize } from "@/lib/use-element-size"
 import { formatValue } from "@/lib/units"
 import { cn } from "@/lib/utils"
 
@@ -293,22 +293,6 @@ function Tooltip({
   )
 }
 
-function useMeasuredHeight(): [
-  number | null,
-  (node: HTMLDivElement | null) => void,
-] {
-  const [measured, setMeasured] = useState<number | null>(null)
-  const ref = useCallback((node: HTMLDivElement | null) => {
-    if (node === null) return
-    const observer = new ResizeObserver(([entry]) =>
-      setMeasured(entry.contentRect.height)
-    )
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [])
-  return [measured, ref]
-}
-
 const HistogramPanel: PanelRenderer = ({
   panel,
   frames,
@@ -336,13 +320,13 @@ const HistogramPanel: PanelRenderer = ({
     [entries, display, legend.hidden]
   )
   const buckets = Math.max(0, model.edges.length - 1)
-  const [measuredHeight, plotRef] = useMeasuredHeight()
+  const { ref: plotRef, size: measured } = useElementSize<HTMLDivElement>()
   const estimatedHeight =
     height -
     padTop -
     xAxisHeight -
     (legend.placement === "bottom" ? legendHeight : 0)
-  const plotHeight = measuredHeight ?? estimatedHeight
+  const plotHeight = measured?.height ?? estimatedHeight
   const axis = useMemo(
     () => valueTicks(model, plotHeight / tickSpacing),
     [model, plotHeight]

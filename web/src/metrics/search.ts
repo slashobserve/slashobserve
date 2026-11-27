@@ -1,5 +1,5 @@
+import { firstString } from "@/lib/search"
 import {
-  firstString,
   validAsk,
   validDatasource,
   validObservation,

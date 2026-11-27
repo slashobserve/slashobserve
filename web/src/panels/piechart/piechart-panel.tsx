@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react"
 
+import { useElementSize } from "@/lib/use-element-size"
 import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
@@ -71,23 +72,6 @@ function labelTextColors(
       return [slice.key, rgb ? readableText(rgb) : unparsed]
     })
   )
-}
-
-function useBox() {
-  const [node, setNode] = useState<HTMLDivElement | null>(null)
-  const [box, setBox] = useState<Box | null>(null)
-  useLayoutEffect(() => {
-    if (!node) return
-    const observer = new ResizeObserver(([entry]) =>
-      setBox({
-        width: entry.contentRect.width,
-        height: entry.contentRect.height,
-      })
-    )
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [node])
-  return { node, box, ref: setNode }
 }
 
 function SliceLabels({
@@ -342,7 +326,7 @@ const PiechartPanel: PanelRenderer = ({
 
   const [hovered, setHovered] = useState<string | null>(null)
   const [pointer, setPointer] = useState<Pointer | null>(null)
-  const { node, box, ref: boxRef } = useBox()
+  const { node, size: box, ref: boxRef } = useElementSize<HTMLDivElement>()
   const hover = useCallback((key: string | null) => {
     setHovered(key)
     if (key === null) setPointer(null)

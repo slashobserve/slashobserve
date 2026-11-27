@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Outlet } from "@tanstack/react-router"
 
+import { narrowQuery } from "@/lib/use-narrow"
 import { InboxPanel } from "@/inbox/inbox-panel"
 import { useInboxLive } from "@/inbox/queries"
 import { isModChord } from "@/lib/shortcuts"
@@ -18,8 +19,6 @@ import { ActionsHostContext } from "./top-row-actions"
 import { TitleHostContext } from "./top-row-title"
 import { useFoldedByWidth } from "./use-folded"
 
-const phoneQuery = "(max-width: 899px)"
-
 function useSidebarShortcut() {
   const forced = useFoldedByWidth()
   useEffect(() => {
@@ -29,7 +28,7 @@ function useSidebarShortcut() {
       const { collapsed, sheetOpen, setCollapsed, setSheetOpen } =
         useSidebarStore.getState()
       const action = sidebarShortcut({
-        phone: window.matchMedia(phoneQuery).matches,
+        phone: window.matchMedia(narrowQuery).matches,
         forced,
         collapsed,
         sheetOpen,

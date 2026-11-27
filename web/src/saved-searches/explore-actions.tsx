@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { useNarrow } from "@/lib/use-narrow"
 import { CopyButton } from "@/components/copy-button"
 import { Button } from "@/components/ui/button"
 import {
@@ -24,7 +25,6 @@ import {
   type TimeRangeValue,
 } from "@/dashboards/time-range-picker"
 import { cn } from "@/lib/utils"
-import { usePhone } from "@/logs/logs-results"
 import { TopRowActions } from "@/shell/top-row-actions"
 
 import type { SavedSearch } from "./queries"
@@ -63,7 +63,7 @@ export function ExploreActions({
   onSave,
   shareHref = window.location.href,
 }: Props) {
-  const phone = usePhone()
+  const phone = useNarrow()
   return (
     <TopRowActions>
       <div className="flex items-center gap-2">

@@ -1,3 +1,4 @@
+import { firstString } from "@/lib/search"
 import type { LogLevelKind } from "@/panels/logs/logs-model"
 
 import { volumeKinds } from "./volume"
@@ -16,8 +17,8 @@ function normalized(kinds: ReadonlySet<LogLevelKind>): ShownLevels {
 }
 
 export function parseLevels(value: unknown): ShownLevels {
-  const text = Array.isArray(value) ? value[0] : value
-  if (typeof text !== "string") return undefined
+  const text = firstString(value)
+  if (text === undefined) return undefined
   const named = new Set(text.split(","))
   return normalized(new Set(volumeKinds.filter((kind) => named.has(kind))))
 }

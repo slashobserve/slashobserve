@@ -1,8 +1,9 @@
-import { useEffect, useId, useState, type RefObject } from "react"
+import { useId, useState, type RefObject } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 
+import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { exploreKeys } from "@/api/keys"
@@ -36,15 +37,6 @@ type Target = { id: string; title: string }
 
 const searchDelayMs = 250
 const skeletonRows = [0, 1, 2]
-
-function useDebounced(value: string): string {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), searchDelayMs)
-    return () => clearTimeout(timer)
-  }, [value])
-  return debounced
-}
 
 function AddButton({
   target,
@@ -138,7 +130,8 @@ export function AddPanelToDashboard({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [title, setTitle] = useState(defaultTitle)
   const [problem, setProblem] = useState<Problem | null>(null)
-  const search = useDebounced(searchText.trim())
+  const trimmed = searchText.trim()
+  const search = useDebouncedValue(trimmed, trimmed, searchDelayMs)
   const targets = useQuery({
     queryKey: exploreKeys.targets(search),
     queryFn: ({ signal }) =>

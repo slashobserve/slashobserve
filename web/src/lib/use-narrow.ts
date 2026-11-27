@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react"
 
-const narrowQuery = "(max-width: 899px)"
+export const narrowQuery = "(max-width: 899px)"
 
 function subscribeNarrow(onChange: () => void) {
   const media = window.matchMedia(narrowQuery)

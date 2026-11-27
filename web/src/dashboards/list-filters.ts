@@ -1,3 +1,4 @@
+import { firstString, firstText } from "@/lib/search"
 import type { DashboardListFilters } from "@/api/keys"
 import { auditDatasourceUid } from "@/audit/audit-source"
 import {
@@ -57,16 +58,6 @@ export function clampQuery(text: string): string {
     : points.slice(0, maxQueryLength).join("")
 }
 
-function firstString(value: unknown): string | undefined {
-  const item = Array.isArray(value) ? value[0] : value
-  return typeof item === "string" ? item : undefined
-}
-
-function pageText(value: unknown): string | undefined {
-  const item = Array.isArray(value) ? value[0] : value
-  return typeof item === "number" ? String(item) : firstString(item)
-}
-
 function validTags(value: unknown): string[] | undefined {
   const items = Array.isArray(value) ? value : [value]
   const tags = new Set<string>()
@@ -117,7 +108,7 @@ export function validateListSearch(raw: Record<string, unknown>): ListSearch {
   if (isProblemFilter(kind)) search.kind = kind
   const sort = firstString(raw.sort)
   search.sort = listSorts.find((known) => known === sort)
-  const page = pageText(raw.page)
+  const page = firstText(raw.page)
   if (page !== undefined && pagePattern.test(page)) {
     const n = Number(page)
     if (n >= 2 && n <= maxListPage) search.page = n

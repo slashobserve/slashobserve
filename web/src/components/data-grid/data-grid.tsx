@@ -31,6 +31,7 @@ import {
   type Ref,
 } from "react"
 
+import { useNarrow } from "@/lib/use-narrow"
 import { cn } from "@/lib/utils"
 
 import {
@@ -53,7 +54,6 @@ import {
 import { gridTheme } from "./theme"
 import { TruncatedText } from "./truncated-text"
 import { useFillHeight } from "./use-fill-height"
-import { useNarrow } from "./use-narrow"
 import { useRemeasureRows } from "./use-remeasure-rows"
 import { useWidth } from "./use-width"
 

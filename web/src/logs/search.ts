@@ -4,6 +4,7 @@ import {
   validPageSize,
   type PageSize,
 } from "@/lib/paging"
+import { firstString } from "@/lib/search"
 import { isTimeValue } from "@/lib/time"
 
 import { levelsParam, parseLevels } from "./levels"
@@ -84,11 +85,6 @@ export function queryModeLabel(type: string): string {
   if (type === "loki") return "LogQL"
   if (type === "clickhouse") return "SQL"
   return "Query"
-}
-
-export function firstString(value: unknown): string | undefined {
-  const item = Array.isArray(value) ? value[0] : value
-  return typeof item === "string" ? item : undefined
 }
 
 export function validDatasource(value: unknown): string | undefined {

@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query"
 import { SearchIcon } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
+import { useDebouncedValue } from "@/lib/use-debounced-value"
 import type { NameListParams } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import { Button } from "@/components/ui/button"
@@ -44,15 +45,6 @@ const clickhouseTables = ["otel_logs", "otel_traces"]
 const listClass = "m-0 max-h-64 list-none overflow-y-auto py-1"
 const rowClass =
   "block w-full truncate px-2.5 py-[5px] text-left font-mono hover:bg-selection focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-
-function useDebounced<T>(value: T): T {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), searchDelayMs)
-    return () => clearTimeout(timer)
-  }, [value])
-  return debounced
-}
 
 function metricEntries(
   type: string | undefined,
@@ -176,8 +168,12 @@ function BrowserBody({
   const [selected, setSelected] = useState<Selection | null>(null)
   const [label, setLabel] = useState<string | null>(null)
 
-  const metricsSearch = useDebounced(metricsText)
-  const rightSearch = useDebounced(rightText)
+  const metricsSearch = useDebouncedValue(
+    metricsText,
+    metricsText,
+    searchDelayMs
+  )
+  const rightSearch = useDebouncedValue(rightText, rightText, searchDelayMs)
 
   const metrics = useQuery(metricNamesQuery(datasourceUid, metricsSearch))
   const scope = selectionScope(selected)

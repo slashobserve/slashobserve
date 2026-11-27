@@ -1,6 +1,7 @@
-import { useEffect, useId, useState, type RefObject } from "react"
+import { useId, useState, type RefObject } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
+import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { api } from "@/api/client"
 import { unwrap, loadProblemText } from "@/api/errors"
 import { exploreKeys } from "@/api/keys"
@@ -36,15 +37,6 @@ type PanelChoice = { id: string; title: string; type: string; panel: DataPanel }
 
 const searchDelayMs = 250
 
-function useDebounced(value: string): string {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), searchDelayMs)
-    return () => clearTimeout(timer)
-  }, [value])
-  return debounced
-}
-
 function panelChoices(raw: unknown): PanelChoice[] {
   return allPanels(asDashboardSpec(raw))
     .map((entry) => entry.panel)
@@ -73,7 +65,8 @@ export function PanelPicker({
   const [dashboard, setDashboard] = useState<DashboardChoice | null>(null)
   const [panel, setPanel] = useState<PanelChoice | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
-  const search = useDebounced(searchText.trim())
+  const trimmed = searchText.trim()
+  const search = useDebouncedValue(trimmed, trimmed, searchDelayMs)
 
   const dashboards = useQuery({
     queryKey: exploreKeys.targets(search),

@@ -35,7 +35,7 @@ import { exploreErrorText } from "./explore"
 import { rowCount } from "./frames"
 import { ExploreLogs } from "./logs-results"
 import { isSearchFamily } from "./search"
-import { useElementSize } from "./use-element-size"
+import { useElementSize } from "@/lib/use-element-size"
 
 type Props = {
   datasource: DatasourceStatus

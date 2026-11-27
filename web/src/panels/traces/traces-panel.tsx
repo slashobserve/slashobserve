@@ -27,7 +27,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { traceLink, tracesLink } from "@/lib/links"
 import { zonedDateTimeMs } from "@/lib/time"
 import { cn } from "@/lib/utils"
-import { useElementSize } from "@/logs/use-element-size"
+import { useElementSize } from "@/lib/use-element-size"
 import {
   wholeTrace,
   zoomedOffset,
