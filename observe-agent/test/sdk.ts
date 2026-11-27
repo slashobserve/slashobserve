@@ -1,7 +1,7 @@
 import { MockLanguageModelV4 } from "ai/test"
 import { modelSettings, type ModelSettings } from "../src/protocol"
 import type { RetryEnv } from "../src/session/mechanics/retry"
-import type { Start, ToolResult, TurnIO } from "../src/session/types"
+import type { Start, ToolResult, ToolSpec, TurnIO } from "../src/session/types"
 
 type Doer = MockLanguageModelV4["doStream"]
 type StreamResult = Awaited<ReturnType<Doer>>
@@ -27,17 +27,18 @@ export function settings(
   }
 }
 
+export const tools: ToolSpec[] = [
+  {
+    name: "list",
+    description: "lists things",
+    inputSchema: { type: "object", properties: { q: { type: "string" } } },
+  },
+  { name: "save", description: "", inputSchema: {} },
+]
+
 export function start(overrides: Partial<Start> = {}): Start {
   return {
     system: "the system text",
-    tools: [
-      {
-        name: "list",
-        description: "lists things",
-        inputSchema: { type: "object", properties: { q: { type: "string" } } },
-      },
-      { name: "save", description: "", inputSchema: {} },
-    ],
     prompt: "make a dashboard",
     userMessage: "the first user message",
     buildSaves: 0,
@@ -58,7 +59,7 @@ export function io(
   signal: AbortSignal = new AbortController().signal
 ): TurnIO & { texts: string[] } {
   const texts: string[] = []
-  return { signal, onText: (text) => texts.push(text), texts }
+  return { signal, tools, onText: (text) => texts.push(text), texts }
 }
 
 export function freshEnv(): RetryEnv & { waits: number[] } {

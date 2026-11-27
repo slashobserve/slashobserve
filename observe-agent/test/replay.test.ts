@@ -70,7 +70,6 @@ const noSignal = new AbortController().signal
 function startOf(buildSaves = 0, prompt = "p"): Start {
   return {
     system: "",
-    tools: [],
     prompt,
     userMessage: "",
     buildSaves,
@@ -78,7 +77,7 @@ function startOf(buildSaves = 0, prompt = "p"): Start {
   }
 }
 
-const io = { signal: noSignal, onText: () => {} }
+const io = { signal: noSignal, tools: [], onText: () => {} }
 
 async function newSession(
   maxTokens: number,
@@ -183,7 +182,7 @@ describe("delay", () => {
     const controller = new AbortController()
     setTimeout(() => controller.abort(new Error("stopped")), 20)
     const error = await failureOf(
-      session.next(undefined, { signal: controller.signal, onText: () => {} })
+      session.next(undefined, { ...io, signal: controller.signal })
     )
     expect((error as Error).message).toBe("stopped")
   })
@@ -388,7 +387,7 @@ describe("live text", () => {
     )
     const texts: string[] = []
     await session.next(undefined, {
-      signal: noSignal,
+      ...io,
       onText: (text) => texts.push(text),
     })
     expect(texts).toEqual(["hello"])
