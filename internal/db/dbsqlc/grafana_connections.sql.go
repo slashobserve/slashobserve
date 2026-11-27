@@ -24,7 +24,7 @@ func (q *Queries) DeleteGrafanaConnection(ctx context.Context, id pgtype.UUID) (
 }
 
 const getGrafanaConnection = `-- name: GetGrafanaConnection :one
-SELECT id, name, url, token_ciphertext, created_by, created_at, updated_at, last_test_at, last_test_ok, last_test_message, last_sync FROM grafana_connections WHERE id = $1
+SELECT id, name, url, token_ciphertext, created_by, created_at, updated_at, last_test_at, last_test_ok, last_test_message, last_sync, last_test_failure_kind FROM grafana_connections WHERE id = $1
 `
 
 func (q *Queries) GetGrafanaConnection(ctx context.Context, id pgtype.UUID) (GrafanaConnection, error) {
@@ -42,12 +42,13 @@ func (q *Queries) GetGrafanaConnection(ctx context.Context, id pgtype.UUID) (Gra
 		&i.LastTestOk,
 		&i.LastTestMessage,
 		&i.LastSync,
+		&i.LastTestFailureKind,
 	)
 	return i, err
 }
 
 const getGrafanaConnectionForUpdate = `-- name: GetGrafanaConnectionForUpdate :one
-SELECT id, name, url, token_ciphertext, created_by, created_at, updated_at, last_test_at, last_test_ok, last_test_message, last_sync FROM grafana_connections WHERE id = $1 FOR UPDATE
+SELECT id, name, url, token_ciphertext, created_by, created_at, updated_at, last_test_at, last_test_ok, last_test_message, last_sync, last_test_failure_kind FROM grafana_connections WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) GetGrafanaConnectionForUpdate(ctx context.Context, id pgtype.UUID) (GrafanaConnection, error) {
@@ -65,6 +66,7 @@ func (q *Queries) GetGrafanaConnectionForUpdate(ctx context.Context, id pgtype.U
 		&i.LastTestOk,
 		&i.LastTestMessage,
 		&i.LastSync,
+		&i.LastTestFailureKind,
 	)
 	return i, err
 }
@@ -72,7 +74,7 @@ func (q *Queries) GetGrafanaConnectionForUpdate(ctx context.Context, id pgtype.U
 const insertGrafanaConnection = `-- name: InsertGrafanaConnection :one
 INSERT INTO grafana_connections (id, name, url, token_ciphertext, created_by)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, name, url, token_ciphertext, created_by, created_at, updated_at, last_test_at, last_test_ok, last_test_message, last_sync
+RETURNING id, name, url, token_ciphertext, created_by, created_at, updated_at, last_test_at, last_test_ok, last_test_message, last_sync, last_test_failure_kind
 `
 
 type InsertGrafanaConnectionParams struct {
@@ -104,12 +106,13 @@ func (q *Queries) InsertGrafanaConnection(ctx context.Context, arg InsertGrafana
 		&i.LastTestOk,
 		&i.LastTestMessage,
 		&i.LastSync,
+		&i.LastTestFailureKind,
 	)
 	return i, err
 }
 
 const listGrafanaConnections = `-- name: ListGrafanaConnections :many
-SELECT id, name, url, token_ciphertext, created_by, created_at, updated_at, last_test_at, last_test_ok, last_test_message, last_sync FROM grafana_connections ORDER BY created_at, id
+SELECT id, name, url, token_ciphertext, created_by, created_at, updated_at, last_test_at, last_test_ok, last_test_message, last_sync, last_test_failure_kind FROM grafana_connections ORDER BY created_at, id
 `
 
 func (q *Queries) ListGrafanaConnections(ctx context.Context) ([]GrafanaConnection, error) {
@@ -133,6 +136,7 @@ func (q *Queries) ListGrafanaConnections(ctx context.Context) ([]GrafanaConnecti
 			&i.LastTestOk,
 			&i.LastTestMessage,
 			&i.LastSync,
+			&i.LastTestFailureKind,
 		); err != nil {
 			return nil, err
 		}
@@ -146,19 +150,25 @@ func (q *Queries) ListGrafanaConnections(ctx context.Context) ([]GrafanaConnecti
 
 const setGrafanaConnectionTest = `-- name: SetGrafanaConnectionTest :one
 UPDATE grafana_connections
-SET last_test_at = now(), last_test_ok = $1, last_test_message = $2
-WHERE id = $3
-RETURNING id, name, url, token_ciphertext, created_by, created_at, updated_at, last_test_at, last_test_ok, last_test_message, last_sync
+SET last_test_at = now(), last_test_ok = $1, last_test_message = $2, last_test_failure_kind = $3
+WHERE id = $4
+RETURNING id, name, url, token_ciphertext, created_by, created_at, updated_at, last_test_at, last_test_ok, last_test_message, last_sync, last_test_failure_kind
 `
 
 type SetGrafanaConnectionTestParams struct {
-	Ok      bool
-	Message string
-	ID      pgtype.UUID
+	Ok          bool
+	Message     string
+	FailureKind pgtype.Text
+	ID          pgtype.UUID
 }
 
 func (q *Queries) SetGrafanaConnectionTest(ctx context.Context, arg SetGrafanaConnectionTestParams) (GrafanaConnection, error) {
-	row := q.db.QueryRow(ctx, setGrafanaConnectionTest, arg.Ok, arg.Message, arg.ID)
+	row := q.db.QueryRow(ctx, setGrafanaConnectionTest,
+		arg.Ok,
+		arg.Message,
+		arg.FailureKind,
+		arg.ID,
+	)
 	var i GrafanaConnection
 	err := row.Scan(
 		&i.ID,
@@ -172,6 +182,7 @@ func (q *Queries) SetGrafanaConnectionTest(ctx context.Context, arg SetGrafanaCo
 		&i.LastTestOk,
 		&i.LastTestMessage,
 		&i.LastSync,
+		&i.LastTestFailureKind,
 	)
 	return i, err
 }
@@ -181,9 +192,10 @@ UPDATE grafana_connections
 SET name = $1, url = $2, token_ciphertext = $3, updated_at = now(),
   last_test_at = CASE WHEN $4::boolean THEN NULL ELSE last_test_at END,
   last_test_ok = CASE WHEN $4::boolean THEN false ELSE last_test_ok END,
-  last_test_message = CASE WHEN $4::boolean THEN '' ELSE last_test_message END
+  last_test_message = CASE WHEN $4::boolean THEN '' ELSE last_test_message END,
+  last_test_failure_kind = CASE WHEN $4::boolean THEN NULL ELSE last_test_failure_kind END
 WHERE id = $5
-RETURNING id, name, url, token_ciphertext, created_by, created_at, updated_at, last_test_at, last_test_ok, last_test_message, last_sync
+RETURNING id, name, url, token_ciphertext, created_by, created_at, updated_at, last_test_at, last_test_ok, last_test_message, last_sync, last_test_failure_kind
 `
 
 type UpdateGrafanaConnectionParams struct {
@@ -215,6 +227,7 @@ func (q *Queries) UpdateGrafanaConnection(ctx context.Context, arg UpdateGrafana
 		&i.LastTestOk,
 		&i.LastTestMessage,
 		&i.LastSync,
+		&i.LastTestFailureKind,
 	)
 	return i, err
 }

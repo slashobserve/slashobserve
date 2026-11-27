@@ -79,6 +79,7 @@ func (p *Provider) Start(ctx context.Context, req llm.Request) (llm.Session, err
 		system:   system,
 		tools:    tools,
 		history:  []sdk.MessageParam{sdk.NewUserMessage(sdk.NewTextBlock(req.UserMessage()))},
+		turns:    llm.NewTurnGuard(name),
 
 		buildSaves: req.BuildSaves,
 		pruner:     llm.NewPruner(req.Pruning),
@@ -106,8 +107,7 @@ type session struct {
 	tools    []sdk.ToolUnionParam
 	history  []sdk.MessageParam
 	calls    int
-	pending  []string
-	ended    bool
+	turns    *llm.TurnGuard
 
 	buildSaves int
 	pruner     *llm.Pruner
@@ -117,7 +117,7 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 	if err := ctx.Err(); err != nil {
 		return llm.Turn{}, err
 	}
-	if err := llm.CheckResults(name, s.ended, s.pending, results); err != nil {
+	if err := s.turns.Accept(results); err != nil {
 		return llm.Turn{}, err
 	}
 
@@ -153,8 +153,7 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 	messages = append(messages, resp.ToParam())
 	s.history = messages
 	s.calls++
-	s.pending = llm.PendingIDs(turn.ToolCalls)
-	s.ended = len(s.pending) == 0
+	s.turns.Answered(turn.ToolCalls)
 	return turn, nil
 }
 
@@ -169,7 +168,7 @@ func (s *session) Compact(c llm.Compaction) error {
 	rest := s.history[1:]
 	if endsInPlainAnswer(rest) {
 		rest = rest[:len(rest)-1]
-		s.ended = false
+		s.turns.Reopen()
 	}
 	weighed := make([]llm.Weighed, len(rest))
 	for i, m := range rest {

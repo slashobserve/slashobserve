@@ -465,6 +465,8 @@ The stream sends Server-Sent Events, polls the datasource every second and ends 
 
 - You may hold 5 tails at a time.
 - A tail reconnects by itself after a dropped connection or at the server's 30 minute limit, from the newest line it already holds, so no line is lost or repeated.
+  The status line reads "Reconnecting" until the stream is back.
+- A tail closes its stream once the page has been hidden for 15 seconds, so a tab in the background does not hold one of your 5 tails, and opens it again from the newest line when you return.
 - On every one of these datasources the server reads the last 5 seconds again at each poll and drops the lines it already sent.
   A line that arrives out of order or is indexed late still appears, and a line stamped in the future does not hide the lines that follow it.
 - When the store says a poll did not cover everything, such as a failed shard, the stream flags that poll as partial with the store's text.

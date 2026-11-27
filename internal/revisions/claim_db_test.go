@@ -5,7 +5,9 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -180,13 +182,55 @@ func TestEndOfALostAttemptWritesNothing(t *testing.T) {
 	rev := submit(t, svc, seedDashboard(t, d, 1), "lease lost")
 	assignTo(t, d, rev.ID, "grant", grantA)
 	claimed, _ := claimAs(t, svc, grantClaimant(grantA, userID))
-	d.Exec(t, "UPDATE agent_requests SET attempts = attempts + 1 WHERE id = $1", claimed.Row.ID)
+	d.Exec(t, "UPDATE agent_requests SET attempts = attempts + 1, claim_epoch = claim_epoch + 1 WHERE id = $1", claimed.Row.ID)
 
 	if _, err := svc.End(reading(context.Background()), claimed.Row, revisions.Ending{}); !errors.Is(err, revisions.ErrLeaseLost) {
 		t.Fatalf("End error = %v, want ErrLeaseLost", err)
 	}
 	if row := storedRun(t, svc, rev.ID); row.State != string(revisions.StateRunning) {
 		t.Fatalf("run state = %s, want running", row.State)
+	}
+}
+
+func TestAReleasedClaimWritesNothingOnceTheRunIsClaimedAgain(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	ctx := reading(context.Background())
+	rev := submit(t, svc, seedDashboard(t, d, 1), "released")
+	assignTo(t, d, rev.ID, "grant", grantA)
+	first, _ := claimAs(t, svc, grantClaimant(grantA, userID))
+	svc.Release(ctx, first.Row)
+	if queued := storedRun(t, svc, rev.ID); queued.State != string(revisions.StateQueued) || queued.ClaimedBy.Valid || queued.Attempts != 0 {
+		t.Fatalf("released run = state %s, claimed by %q, attempts %d, want queued, claimed by nobody, attempts 0", queued.State, queued.ClaimedBy.String, queued.Attempts)
+	}
+	second, found := claimAs(t, svc, grantClaimant(grantA, userID))
+	if !found || second.Row.Attempts != first.Row.Attempts || second.Row.ClaimEpoch <= first.Row.ClaimEpoch {
+		t.Fatalf("second claim = attempts %d epoch %d found %v after attempts %d epoch %d, want the same attempt under a later epoch",
+			second.Row.Attempts, second.Row.ClaimEpoch, found, first.Row.Attempts, first.Row.ClaimEpoch)
+	}
+	before := storedRun(t, svc, rev.ID)
+
+	if _, err := svc.RenewLease(ctx, first.Row); !errors.Is(err, revisions.ErrLeaseLost) {
+		t.Fatalf("renew by the released claim = %v, want ErrLeaseLost", err)
+	}
+	revisions.NewSteps(d.DB, quietLogger()).RecordStep(ctx, first.Request, revisions.Step{
+		At: time.Now(), Phase: "query", Tool: "query_range", Status: "ok", Message: "from the released claim",
+	})
+	if _, err := d.Queries().UpsertAgentRequestBuild(ctx, dbsqlc.UpsertAgentRequestBuildParams{
+		AgentRequestID: first.Row.ID, Spec: []byte(`{}`), ClaimEpoch: first.Row.ClaimEpoch,
+	}); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("build save by the released claim = %v, want no row written", err)
+	}
+	if _, err := svc.End(ctx, first.Row, revisions.Ending{}); !errors.Is(err, revisions.ErrLeaseLost) {
+		t.Fatalf("End by the released claim = %v, want ErrLeaseLost", err)
+	}
+
+	after := storedRun(t, svc, rev.ID)
+	if after.State != string(revisions.StateRunning) || string(after.Steps) != string(before.Steps) || !after.LeaseUntil.Time.Equal(before.LeaseUntil.Time) {
+		t.Fatalf("run after the released claim wrote = state %s, steps %s, lease %s, want it as the second claim left it: running, steps %s, lease %s",
+			after.State, after.Steps, after.LeaseUntil.Time, before.Steps, before.LeaseUntil.Time)
+	}
+	if _, err := svc.RenewLease(ctx, second.Row); err != nil {
+		t.Fatalf("renew by the second claim: %v", err)
 	}
 }
 

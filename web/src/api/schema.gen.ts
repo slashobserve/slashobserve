@@ -1376,7 +1376,7 @@ export interface paths {
         put?: never;
         /**
          * Start a thread on a dashboard, an annotation, an observation or a proposal.
-         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on an annotation or an observation. `block_id` anchors the first message to one block of an observation; absent or null means the whole observation. It is refused on a dashboard, an annotation or a proposal, and must name a block of this observation, with 422 `invalid_block` otherwise. Deleting the block keeps the message, now about the whole observation. `anchor` points the thread at one spot of a dashboard panel or, with `block_id`, of an observation block, and is refused on an annotation or a proposal (422 `invalid_target`) or when its kind lacks a field it needs (422 `invalid_anchor`). `block_id` with an anchor sets the thread's block; without an anchor it keeps its message meaning, the block the first message is about. `block_id` with an anchor of a kind that cannot sit on a block, `variable`, answers 422 `invalid_anchor` naming both fields. An observation has one page thread, its discussion, and any number of anchored threads; starting a second page thread adds the message to the first. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). Mention a person with `@[Name](user:<id>)`, the built-in agent with `@observe`, one of your own connected agents with `@[Name](grant:<grant id>)` and a service account that takes runs with `@[Name](service_account:<id>)`, at most 20 mentions in a message, a repeated mention counting each time (422 `too_many_mentions`). A grant that is not yours, revoked or expired, a service account that takes no runs, and a person who does not exist or cannot see the target all answer 422 `invalid_mention`; a service-account key may mention `@observe` and service accounts, never a grant. A mention is recorded, shows in the activity log, and a mentioned person gets it in their Inbox. `to` decides who the message is for. Absent, a message that mentions one agent asks it, a message that mentions a person asks no agent, and any other message asks the thread's agent unless it is off. `agent` asks the agent it mentions, else the thread's agent, else `@observe`; `everyone` asks no agent and turns the thread's agent off. The agent a message asks becomes the thread's agent, so later plain replies ask it too. More than one agent in a message answers 422 `too_many_agents` and writes nothing, whatever `to` says. The agent asked gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context. A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts a read-only `investigate` run about the observation, which needs Comment on it, has no per-person cap and answers in the thread without writing on the page. An annotation or a proposal thread starts no run. A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider, or a thread agent that was disconnected, which is then cleared), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` or `too_many_runs`. A started run is in `message.run`, and `to` in the answer says how the message was delivered. `client_id` is a UUID the caller makes for the message; sending it again answers 200 with the message already posted, `replayed: true` and no new run, and reusing it on another target answers 422 `client_id_reused`. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream; a change of the thread's agent is audited as `thread.agent_set`. A comment sent to a dashboard with `request_revision` has its own path. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
+         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on an annotation or an observation. `block_id` anchors the first message to one block of an observation; absent or null means the whole observation. It is refused on a dashboard, an annotation or a proposal, and must name a block of this observation, with 422 `invalid_block` otherwise. Deleting the block keeps the message, now about the whole observation. `anchor` points the thread at one spot of a dashboard panel or, with `block_id`, of an observation block, and is refused on an annotation or a proposal (422 `invalid_target`) or when its kind lacks a field it needs (422 `invalid_anchor`). `block_id` with an anchor sets the thread's block; without an anchor it keeps its message meaning, the block the first message is about. `block_id` with an anchor of a kind that cannot sit on a block, `variable`, answers 422 `invalid_anchor` naming both fields. An observation has one page thread, its discussion, and any number of anchored threads; starting a second page thread adds the message to the first. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). Mention a person with `@[Name](user:<id>)`, the built-in agent with `@observe`, one of your own connected agents with `@[Name](grant:<grant id>)` and a service account that takes runs with `@[Name](service_account:<id>)`, at most 20 mentions in a message, a repeated mention counting each time (422 `too_many_mentions`). A grant that is not yours, revoked or expired, a service account that takes no runs, and a person who does not exist or cannot see the target all answer 422 `invalid_mention`; a service-account key may mention `@observe` and service accounts, never a grant. A mention is recorded, shows in the activity log, and a mentioned person gets it in their Inbox. `to` decides who the message is for. Absent, a message that mentions one agent asks it, a message that mentions a person asks no agent, and any other message asks the thread's agent unless it is off. `agent` asks the agent it mentions, else the thread's agent, else `@observe`; `everyone` asks no agent and turns the thread's agent off. The agent a message asks becomes the thread's agent, so later plain replies ask it too. More than one agent in a message answers 422 `too_many_agents` and writes nothing, whatever `to` says. The agent asked gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context. A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts a read-only `investigate` run about the observation, which needs Comment on it, has no per-person cap and answers in the thread without writing on the page. An annotation or a proposal thread starts no run. A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider, or a thread agent that was disconnected, which is then cleared), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` or `too_many_runs`. A started run is in `message.run`, and `to` in the answer says how the message was delivered. `client_id` is a UUID the caller makes for the message; sending it again answers 200 with the message already posted, `replayed: true`, the same `message.run` or `message.run_refusal` as the first time and no new run, and reusing it on another target answers 422 `client_id_reused`. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream; a change of the thread's agent is audited as `thread.agent_set`. A comment sent to a dashboard with `request_revision` has its own path. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
          */
         post: operations["openThread"];
         delete?: never;
@@ -3800,7 +3800,7 @@ export interface paths {
         head?: never;
         /**
          * Change a webhook's name, address, format, event types or state.
-         * @description Only Admins can call this endpoint. The owner stays as it is. `owner: "me"` makes the caller the owner on purpose, so the webhook then delivers only what the caller can read, including the caller's personal folder. A webhook disabled with reason `owner` moves to the caller when `enabled: true` turns it on. A new address is checked against the outbound allowlist and resets the failure count. `enabled: true` clears the disable reason and the failure count and resumes delivery from the webhook's position in the log, still limited to events of the last 24 hours; `enabled: false` disables it with reason `manual`.
+         * @description Only Admins can call this endpoint. The owner stays as it is. `owner: "me"` makes the caller the owner on purpose, so the webhook then delivers only what the caller can read, including the caller's personal folder. A webhook disabled with reason `owner` moves to the caller when `enabled: true` turns it on. A new address is checked against the outbound allowlist and resets the failure count. `enabled: true` clears the disable reason and the failure count and resumes delivery from the webhook's position in the log, still limited to events of the last 24 hours; `enabled: false` disables it with reason `manual`. A new address and `enabled: true` also drop an attempt that is on its way: it is not recorded, and the event is sent again at once.
          */
         patch: operations["updateWebhook"];
         trace?: never;
@@ -5357,13 +5357,16 @@ export interface components {
             /** @description True when the MCP sources file set `allowPrivate`, so the source may be an `http` address that resolves to a private network. Only the file can set it, and it is never writable through the API. */
             private: boolean;
             /**
-             * @description `unchecked` until discovery runs, `unreachable` when the last discovery failed, `ready` otherwise.
+             * @description `unchecked` until discovery runs, `unreachable` when the last discovery failed or an agent's call could not reach the server since, `ready` otherwise.
              * @enum {string}
              */
             state: "unchecked" | "unreachable" | "ready";
-            /** @description Why the last discovery failed, as a code such as `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`. */
+            /** @description Why the last discovery failed, or why an agent's call could not reach the server since, as a code such as `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`. The next call the server answers clears it. */
             failure: string | null;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When the last discovery ran, or when an agent's call last moved the source between `ready` and `unreachable`.
+             */
             checked_at: string | null;
             tools: components["schemas"]["MCPSourceToolCounts"];
             /** Format: date-time */
@@ -5916,6 +5919,11 @@ export interface components {
             dashboard: components["schemas"]["DashboardSummary"];
             version: components["schemas"]["Version"];
             merged_from?: components["schemas"]["MergedFrom"];
+            /**
+             * @description What the save did: `created` made the new version from the request, `merged` made it by merging a stale save onto the latest version, and `replayed` made no version because the request repeats one that exists (the answer also has `Idempotent-Replay: true`).
+             * @enum {string}
+             */
+            outcome: "replayed" | "merged" | "created";
         };
         /** @description Present when a stale save was merged on the server. */
         MergedFrom: {
@@ -6046,6 +6054,11 @@ export interface components {
             diff: components["schemas"]["SpecChange"][];
             /** @description While the proposal is open and behind, the units that both it and the newer versions changed, which a merge needs a choice for; empty otherwise. */
             conflicts: components["schemas"]["MergeConflict"][];
+            /**
+             * @description What a merge would meet now, computed on every read from `behind` and `conflicts`; null once the proposal is merged or discarded. `current` builds on the latest version, `behind_clean` merges onto newer versions without a choice, `behind_conflicting` needs a choice for each conflict, and `blocked` has a conflict whose reason is `invalid`, which no choice resolves: a merge answers 409 `version_conflict` until the author saves a new revision. `allowed_actions` still lists `merge` in every one of them. See docs/reference/states.md.
+             * @enum {string|null}
+             */
+            mergeability: "current" | "behind_clean" | "behind_conflicting" | "blocked" | null;
         };
         ProposalChange: {
             /** @enum {string} */
@@ -6060,6 +6073,11 @@ export interface components {
         };
         /** @description The answer to a save that became a proposal. */
         ProposalCreated: {
+            /**
+             * @description Always `proposed`, the save outcome that made no version.
+             * @enum {string}
+             */
+            outcome: "proposed";
             /** Format: uuid */
             proposal_id: string;
             /** @description The revision this save added. */
@@ -7935,6 +7953,18 @@ export interface components {
             /** @description A fixed sentence chosen by the outcome, such as the folder and dashboard counts or why Grafana could not be read. */
             message: string;
         };
+        GrafanaConnectionTestState: {
+            /**
+             * @description `untested` while `last_test` is null, `failing` when the last test could not read Grafana, `ok` otherwise.
+             * @enum {string}
+             */
+            state: "untested" | "failing" | "ok";
+            /**
+             * @description Who can fix a `failing` test, and null in every other state. `transient` means Grafana did not answer or answered 429 or 5xx, so testing again may pass; `credentials` means it refused the token; `configuration` means the URL, the outbound allowlist or what answers at the address is wrong; `unsupported` means an answer this server cannot take; `unknown` covers the rest, and every failure stored before the cause was kept.
+             * @enum {string|null}
+             */
+            failure_kind: "transient" | "credentials" | "configuration" | "unsupported" | "unknown" | null;
+        };
         GrafanaImportSummary: {
             /** Format: uuid */
             id: string;
@@ -8019,6 +8049,8 @@ export interface components {
             updated_at: string;
             /** @description Null until the connection is tested, and again after its URL or token changes. */
             last_test: components["schemas"]["GrafanaConnectionTest"] | null;
+            /** @description The state of the connection's test, derived from `last_test`, so a reader does not parse `last_test.message`. */
+            test: components["schemas"]["GrafanaConnectionTestState"];
             /** @description The summary of the last finished import, or null before the first one. */
             last_sync: components["schemas"]["GrafanaImportSummary"] | null;
         };
@@ -8114,10 +8146,10 @@ export interface components {
             /** @enum {string} */
             outcome: "delivered" | "failed" | "skipped";
             /**
-             * @description Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit; `skipped_by_admin` is `skipped`, because an Admin chose to pass the event over.
+             * @description Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit; `skipped_by_admin` is `skipped`, because an Admin chose to pass the event over; `expired` is `skipped`, because the event was more than 24 hours old when its turn came, and nothing was sent.
              * @enum {string|null}
              */
-            error_code: "status" | "unreachable" | "blocked_address" | "domain_not_allowed" | "too_large" | "skipped_by_admin" | null;
+            error_code: "status" | "unreachable" | "blocked_address" | "domain_not_allowed" | "too_large" | "skipped_by_admin" | "expired" | null;
         };
         WebhookSkipResult: {
             webhook: components["schemas"]["Webhook"];
@@ -8278,6 +8310,11 @@ export interface components {
             expired: boolean;
             /** @description False when the link is expired or the dashboard's latest version reads the viewer's identity. */
             usable: boolean;
+            /**
+             * @description Why the link does not open, set whenever `usable` is false and null otherwise: `expired` when its expiry time has passed, `user_scoped` when the dashboard's latest version reads the viewer's identity. An expired link reports `expired` whatever the dashboard reads.
+             * @enum {string|null}
+             */
+            unusable_reason: "expired" | "user_scoped" | null;
             /**
              * @description Computed from `expired`. See `docs/reference/states.md`.
              * @enum {string}
@@ -12805,7 +12842,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The message `client_id` names was already posted; it is returned as it was, with `replayed` true. */
+            /** @description The message `client_id` names was already posted; it is returned as it was, with `replayed` true and the `message.run` or `message.run_refusal` it was first answered with. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12912,7 +12949,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The message `client_id` names was already posted; it is returned as it was, with `replayed` true. */
+            /** @description The message `client_id` names was already posted; it is returned as it was, with `replayed` true and the `message.run` or `message.run_refusal` it was first answered with. */
             200: {
                 headers: {
                     [name: string]: unknown;

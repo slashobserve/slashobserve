@@ -60,12 +60,14 @@ const (
 	schemaGetRunBrief = `{"type":"object","properties":{` +
 		`"run_id":{"type":"string","format":"uuid","description":"The run id from claim_run."},` +
 		`"attempt":{"type":"integer","minimum":1,"description":"The attempt from claim_run."},` +
+		`"claim_epoch":{"type":"integer","minimum":1,"description":"The claim_epoch from claim_run."},` +
 		`"reason":{"type":"string","enum":["restart","output_limit","pending","conflict","continue","renewed","call_timeout","no_finding","no_answer"],"description":"Why a model session starts again; leave it out for the first."}},` +
 		`"required":["run_id","attempt"],"additionalProperties":false}`
 
 	schemaReportRun = `{"type":"object","properties":{` +
 		`"run_id":{"type":"string","format":"uuid","description":"The run id from claim_run."},` +
 		`"attempt":{"type":"integer","minimum":1,"description":"The attempt from claim_run."},` +
+		`"claim_epoch":{"type":"integer","minimum":1,"description":"The claim_epoch from claim_run."},` +
 		`"note":{"type":"string","maxLength":500,"description":"One line on what you are doing, shown in the run's steps."},` +
 		`"text":{"type":"string","maxLength":4000,"description":"The end of what your model is writing, shown as live text while the run is running and never stored."},` +
 		`"usage":` + schemaRunUsage + `},` +
@@ -74,6 +76,7 @@ const (
 	schemaFinishRun = `{"type":"object","properties":{` +
 		`"run_id":{"type":"string","format":"uuid","description":"The run id from claim_run."},` +
 		`"attempt":{"type":"integer","minimum":1,"description":"The attempt from claim_run."},` +
+		`"claim_epoch":{"type":"integer","minimum":1,"description":"The claim_epoch from claim_run."},` +
 		`"outcome":{"type":"string","enum":["succeeded","failed"],"description":"succeeded once saved, failed when you could not."},` +
 		`"message":{"type":"string","maxLength":500,"description":"Why the run failed, shown on the run."},` +
 		`"failure_code":{"type":"string","description":"Model-side failure: call_timeout, rate_limited, provider_error, output_limit, no_tool_call, no_finding, refused, no_fixture or internal."},` +
@@ -86,7 +89,7 @@ var errClaimsNotConfigured = errors.New("claims are not configured")
 
 type ClaimService interface {
 	Claim(ctx context.Context, c claims.Claimer, wait time.Duration) (claims.Offer, error)
-	ClaimedRun(ctx context.Context, c claims.Claimer, runID string, attempt int) (revisions.Request, error)
+	ClaimedRun(ctx context.Context, c claims.Claimer, runID string, attempt, claimEpoch int) (revisions.Request, error)
 	Report(ctx context.Context, c claims.Claimer, in claims.ReportInput) (claims.ReportAnswer, error)
 }
 
@@ -143,12 +146,17 @@ func (u *runUsage) reported() *revisions.Usage {
 	}
 }
 
+type runRefInput struct {
+	RunID      string `json:"run_id"`
+	Attempt    int    `json:"attempt"`
+	ClaimEpoch int    `json:"claim_epoch"`
+}
+
 type reportRunInput struct {
-	RunID   string    `json:"run_id"`
-	Attempt int       `json:"attempt"`
-	Note    string    `json:"note"`
-	Text    string    `json:"text"`
-	Usage   *runUsage `json:"usage"`
+	runRefInput
+	Note  string    `json:"note"`
+	Text  string    `json:"text"`
+	Usage *runUsage `json:"usage"`
 }
 
 type reportRunOut struct {
@@ -157,8 +165,7 @@ type reportRunOut struct {
 }
 
 type finishRunInput struct {
-	RunID       string    `json:"run_id"`
-	Attempt     int       `json:"attempt"`
+	runRefInput
 	Outcome     string    `json:"outcome"`
 	Message     string    `json:"message"`
 	FailureCode string    `json:"failure_code"`
@@ -167,9 +174,8 @@ type finishRunInput struct {
 }
 
 type getRunBriefInput struct {
-	RunID   string `json:"run_id"`
-	Attempt int    `json:"attempt"`
-	Reason  string `json:"reason"`
+	runRefInput
+	Reason string `json:"reason"`
 }
 
 func (r *Registry) claimRun(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -198,10 +204,10 @@ func (r *Registry) getRunBrief(ctx context.Context, input json.RawMessage) (Resu
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	if res, ok := checkRunRef(in.RunID, in.Attempt); !ok {
+	if res, ok := checkRunRef(in.runRefInput); !ok {
 		return res, nil
 	}
-	return r.asClaimedRun(ctx, in.RunID, in.Attempt, func(claimer claims.Claimer, req revisions.Request) (Result, error) {
+	return r.asClaimedRun(ctx, in.runRefInput, func(claimer claims.Claimer, req revisions.Request) (Result, error) {
 		answer, err := r.deps.RunSessions.Brief(ctx, req, in.Reason)
 		if err != nil {
 			return claimFailure(ctx, err)
@@ -215,7 +221,7 @@ func (r *Registry) reportRun(ctx context.Context, input json.RawMessage) (Result
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	if res, ok := checkRunRef(in.RunID, in.Attempt); !ok {
+	if res, ok := checkRunRef(in.runRefInput); !ok {
 		return res, nil
 	}
 	if res, ok := checkRunText("note", in.Note, maxRunTextRunes); !ok {
@@ -224,7 +230,7 @@ func (r *Registry) reportRun(ctx context.Context, input json.RawMessage) (Result
 	if res, ok := checkRunText("text", in.Text, maxLiveTextRunes); !ok {
 		return res, nil
 	}
-	return r.asClaimedRun(ctx, in.RunID, in.Attempt, func(claimer claims.Claimer, req revisions.Request) (Result, error) {
+	return r.asClaimedRun(ctx, in.runRefInput, func(claimer claims.Claimer, req revisions.Request) (Result, error) {
 		answer, err := r.report(ctx, claimer, req, in)
 		if err != nil {
 			return claimFailure(ctx, err)
@@ -234,7 +240,7 @@ func (r *Registry) reportRun(ctx context.Context, input json.RawMessage) (Result
 }
 
 func (r *Registry) report(ctx context.Context, claimer claims.Claimer, req revisions.Request, in reportRunInput) (reportRunOut, error) {
-	ref := claims.ReportInput{RunID: in.RunID, Attempt: in.Attempt, Note: in.Note}
+	ref := claims.ReportInput{RunID: in.RunID, Attempt: in.Attempt, ClaimEpoch: in.ClaimEpoch, Note: in.Note}
 	answer, err := r.deps.Claims.Report(ctx, claimer, ref)
 	if err != nil || answer.Stop {
 		return reportRunOut{ReportAnswer: answer}, err
@@ -245,7 +251,7 @@ func (r *Registry) report(ctx context.Context, claimer claims.Claimer, req revis
 			return reportRunOut{}, err
 		}
 		if stop {
-			answer, err = r.deps.Claims.Report(ctx, claimer, claims.ReportInput{RunID: in.RunID, Attempt: in.Attempt})
+			answer, err = r.deps.Claims.Report(ctx, claimer, claims.ReportInput{RunID: in.RunID, Attempt: in.Attempt, ClaimEpoch: in.ClaimEpoch})
 			answer.Stop = true
 			return reportRunOut{ReportAnswer: answer}, err
 		}
@@ -280,7 +286,7 @@ func (r *Registry) finishRun(ctx context.Context, input json.RawMessage) (Result
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	if res, ok := checkRunRef(in.RunID, in.Attempt); !ok {
+	if res, ok := checkRunRef(in.runRefInput); !ok {
 		return res, nil
 	}
 	if in.Outcome != "succeeded" && in.Outcome != "failed" {
@@ -289,7 +295,7 @@ func (r *Registry) finishRun(ctx context.Context, input json.RawMessage) (Result
 	if res, ok := checkRunText("message", in.Message, maxRunTextRunes); !ok {
 		return res, nil
 	}
-	return r.asClaimedRun(ctx, in.RunID, in.Attempt, func(claimer claims.Claimer, req revisions.Request) (Result, error) {
+	return r.asClaimedRun(ctx, in.runRefInput, func(claimer claims.Claimer, req revisions.Request) (Result, error) {
 		answer, err := r.deps.RunSessions.Finish(ctx, req, RunFinish{
 			Outcome: in.Outcome, FailureCode: in.FailureCode, Message: in.Message, Commit: in.Commit, Usage: in.Usage.reported(),
 		})
@@ -311,12 +317,12 @@ func (r *Registry) asClaimer(ctx context.Context, use func(claims.Claimer) (Resu
 	return use(claimer)
 }
 
-func (r *Registry) asClaimedRun(ctx context.Context, runID string, attempt int, use func(claims.Claimer, revisions.Request) (Result, error)) (Result, error) {
+func (r *Registry) asClaimedRun(ctx context.Context, ref runRefInput, use func(claims.Claimer, revisions.Request) (Result, error)) (Result, error) {
 	return r.asClaimer(ctx, func(claimer claims.Claimer) (Result, error) {
 		if r.deps.RunSessions == nil {
 			return Result{}, errClaimsNotConfigured
 		}
-		req, err := r.deps.Claims.ClaimedRun(ctx, claimer, runID, attempt)
+		req, err := r.deps.Claims.ClaimedRun(ctx, claimer, ref.RunID, ref.Attempt, ref.ClaimEpoch)
 		if err != nil {
 			return claimFailure(ctx, err)
 		}
@@ -324,12 +330,15 @@ func (r *Registry) asClaimedRun(ctx context.Context, runID string, attempt int, 
 	})
 }
 
-func checkRunRef(runID string, attempt int) (Result, bool) {
-	if _, err := db.ParseUUID(runID); err != nil {
+func checkRunRef(in runRefInput) (Result, bool) {
+	if _, err := db.ParseUUID(in.RunID); err != nil {
 		return invalid("run_id must be a UUID"), false
 	}
-	if attempt < 1 {
+	if in.Attempt < 1 {
 		return invalid("attempt must be at least 1"), false
+	}
+	if in.ClaimEpoch < 0 {
+		return invalid("claim_epoch must be at least 1"), false
 	}
 	return Result{}, true
 }
