@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -18,6 +19,7 @@ import (
 	mcplib "github.com/mark3labs/mcp-go/mcp"
 
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/grantmode"
@@ -68,6 +70,8 @@ type fakeRuns struct {
 	mode          tools.Mode
 	investigation bool
 	chatID        string
+	task          route.Task
+	allTools      bool
 	scopeErr      error
 	notes         []string
 	meta          runsession.RunMeta
@@ -80,7 +84,7 @@ func (r *fakeRuns) Scope(_ context.Context, req revisions.Request) (tools.Run, e
 	if r.scopeErr != nil {
 		return tools.Run{}, r.scopeErr
 	}
-	return tools.Run{Mode: r.mode, RequestID: req.ID, Attempt: req.Attempt, Build: r.mode != tools.ModeInvestigate, Investigation: r.investigation, ChatID: r.chatID}, nil
+	return tools.Run{Mode: r.mode, RequestID: req.ID, Attempt: req.Attempt, Build: r.mode != tools.ModeInvestigate, Investigation: r.investigation, ChatID: r.chatID, Task: r.task, AllTools: r.allTools}, nil
 }
 
 func (r *fakeRuns) Call(ctx context.Context, req revisions.Request, call runsession.Call, dispatch func(context.Context) (tools.Result, error)) (runsession.Answer, error) {
@@ -219,7 +223,7 @@ func TestRunSessionListsTheToolsOfTheBuiltInAgentForItsKindAndTheRequestersRole(
 				listed := f.listToolsAs(t, r.token)
 				want := map[string]tools.Tool{}
 				for _, tool := range f.reg.List() {
-					if tool.OfferedIn(mode) && (tool.Answers || r.principal.Role.AtLeast(tool.MinRole)) {
+					if tool.OfferedInRun(tools.Run{Mode: mode}) && (tool.Answers || r.principal.Role.AtLeast(tool.MinRole)) {
 						want[tool.Name] = tool.ForRun(mode, false)
 					}
 				}
@@ -673,5 +677,32 @@ func TestOnlyABuiltInRunWritesAsTheObserveAgent(t *testing.T) {
 				t.Fatalf("label = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestARunSessionListsOnlyTheToolsOfItsTaskTypeForEveryAssignee(t *testing.T) {
+	for _, assignee := range []revisions.AssigneeKind{revisions.AssignBuiltin, revisions.AssignGrant} {
+		f := newAssignedRunFixture(t, tools.ModeInvestigate, assignee)
+		f.runs.investigation, f.runs.task = true, route.Measure
+		run := tools.Run{Mode: tools.ModeInvestigate, Investigation: true, Task: route.Measure}
+		var want []string
+		for _, tool := range f.reg.List() {
+			if tool.OfferedInRun(run) && (tool.Answers || adminRequester.Role.AtLeast(tool.MinRole)) {
+				want = append(want, tool.Name)
+			}
+		}
+		listed := f.listToolsAs(t, adminRunToken)
+		got := slices.Sorted(maps.Keys(listed))
+		slices.Sort(want)
+		if !slices.Equal(got, want) {
+			t.Errorf("%s: listed %v, want %v", assignee, got, want)
+		}
+		if _, ok := listed["log_patterns"]; ok {
+			t.Errorf("%s: a measure run lists log_patterns", assignee)
+		}
+		f.runs.allTools = true
+		if _, ok := f.listToolsAs(t, adminRunToken)["log_patterns"]; !ok {
+			t.Errorf("%s: a widened run does not list log_patterns", assignee)
+		}
 	}
 }

@@ -48,7 +48,8 @@ type State struct {
 
 	Triage *Triage `json:"triage,omitempty"`
 
-	Task route.Task `json:"task,omitempty"`
+	Task     route.Task `json:"task,omitempty"`
+	AllTools bool       `json:"all_tools,omitempty"`
 }
 
 type Settled struct {

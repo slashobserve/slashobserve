@@ -1,10 +1,13 @@
 package runsession
 
 import (
+	"context"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/agent/route"
+	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -36,6 +39,30 @@ func TestAnInvestigateRunIsRoutedOnceWithoutItsQuestionInTheStep(t *testing.T) {
 	}
 	if strings.Contains(routed[0], req.Prompt) {
 		t.Fatal("the route step carries the question")
+	}
+}
+
+func TestListMoreToolsWidensTheRunForEveryLaterCall(t *testing.T) {
+	r := newRig(t)
+	req := r.investigate()
+	run, err := r.svc.Scope(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.Task != route.Incident || run.AllTools {
+		t.Fatalf("scope = %s, all tools %v", run.Task, run.AllTools)
+	}
+	r.call(req, "list_more_tools", `{}`, nil, func(context.Context) (tools.Result, error) {
+		return tools.Result{Content: map[string]any{}, Step: "Offered every investigation tool for the rest of the run", AllTools: true}, nil
+	})
+	if run, err = r.svc.Scope(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	if run.Task != route.Incident || !run.AllTools {
+		t.Fatalf("after list_more_tools: scope = %s, all tools %v", run.Task, run.AllTools)
+	}
+	if !slices.Contains(r.steps.messages(), "Offered every investigation tool for the rest of the run") {
+		t.Fatalf("steps = %v", r.steps.messages())
 	}
 }
 

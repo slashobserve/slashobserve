@@ -324,6 +324,7 @@ func (s *Service) Scope(ctx context.Context, req revisions.Request) (tools.Run, 
 	ended := false
 	err = s.with(ctx, req, func(ctx context.Context, sess *session) error {
 		run.ParentVersion = sess.state.Guard.ParentVersion
+		run.Task, run.AllTools = sess.state.Task, sess.state.AllTools
 		run.Access, run.WriteFolders = sess.access, sess.writes.Folders
 		if run.Mode != tools.ModeSuggest {
 			return nil

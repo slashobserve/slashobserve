@@ -272,6 +272,9 @@ func (sess *session) settleOutcome(ctx context.Context, c guard.Call, d dispatch
 		answer.Notes = append(answer.Notes, settled.Note)
 	}
 	if !isSave(c.Name) {
+		if d.res.AllTools && !d.res.IsError {
+			state.AllTools = true
+		}
 		if tools.Phase(c.Name) == tools.PhaseWrite && !d.res.IsError {
 			state.Wrote = true
 			state.noteCreated(d.res.Created)

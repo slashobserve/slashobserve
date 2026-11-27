@@ -516,9 +516,9 @@ When they can still comment on the dashboard but can no longer edit it, or the r
 
 ### Tools in a run
 
-The server has 118 tools: MCP clients get 117, every one except `save_finding`, which only a run offers.
-A run offers 93 of them in a new-dashboard or revision request, 92 in an investigation and 62 in a suggestion.
-With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a second tool that only a run offers, in an investigation only: the server has 119 tools, MCP clients outside a run still get 117 and an investigation offers 93.
+The server has 119 tools: MCP clients get 117, every one except `save_finding` and `list_more_tools`, which only a run offers.
+A run offers 93 of them in a new-dashboard or revision request, 93 in an investigation and 62 in a suggestion.
+With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a third tool that only a run offers, in an investigation only: the server has 120 tools, MCP clients outside a run still get 117 and an investigation offers 94.
 Those are an Admin's counts: inside a run each tool needs the same role as over MCP, except `save_finding`, and a run session does not list a tool above the requester's role.
 
 - Reads are offered in every run.
@@ -526,6 +526,8 @@ Those are an Admin's counts: inside a run each tool needs the same role as over 
 - An investigation never gets the Spec writers `create_dashboard`, `update_dashboard`, `update_panels` and `import_grafana_dashboard`.
 - `list_mcp_sources`, `find_mcp_tools` and `call_mcp_tool` are offered in an investigation and in a question asked in a chat, never when a dashboard is built or revised or a panel is suggested.
   A question asked from the home page starts as a new-dashboard run, so it offers 96 tools: the 93 and these three.
+- An investigation, and a question asked about a dashboard or an observation, offers only the tools of its [task type](investigate.md#task-types) when one is decided, and the full list otherwise.
+  `list_more_tools` is offered only then, and calling it offers every investigation tool for the rest of the run.
 
 The tools fall in five groups:
 

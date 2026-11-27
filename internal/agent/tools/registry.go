@@ -23,6 +23,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/accessrequests"
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/agent/grounding"
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/audit/trail"
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -141,6 +142,7 @@ type Result struct {
 	Created    []string
 	App        json.RawMessage
 	Ledger     []revisions.Hypothesis
+	AllTools   bool
 }
 
 type Edits struct {
@@ -223,6 +225,10 @@ func (t Tool) onlyInWords() string {
 }
 
 func (t Tool) OfferedInRun(run Run) bool {
+	return t.OfferedInMode(run) && t.InTask(run)
+}
+
+func (t Tool) OfferedInMode(run Run) bool {
 	return t.OfferedIn(run.Mode) || t.AlsoInChats && run.Chat()
 }
 
@@ -245,6 +251,8 @@ type Run struct {
 	AsOf          time.Time
 	ChatID        string
 	ThreadAsk     bool
+	Task          route.Task
+	AllTools      bool
 }
 
 func (run Run) asOf() *time.Time {
