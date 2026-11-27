@@ -147,6 +147,26 @@ It also rewrites the table in `benchmarks/results/README.md`, and `make test-ben
 A trial that Harbor reports as skipped (`TaskSkipped` or `agent/skipped.txt`) is listed under `skipped` and counted apart from the scores, and a trial with no `agent/` folder is an errored attempt recorded as an adapter fault unless you classify it otherwise.
 A rerun keeps the notes and benchmark version of the existing file unless you pass new ones.
 
+## Check saved answers without a model
+
+`answer_checks.py` reads the `agent/run.json` of every trial in a Harbor job folder and flags answers that break a rule the graders apply, with no model call and no server:
+
+```sh
+uv run --project benchmarks python -m slashobserve_bench.answer_checks --job benchmarks/jobs/<job> [--list]
+```
+
+| Check | What it flags |
+| --- | --- |
+| `no_finding` | The run ended without a saved answer. |
+| `short_trace_id` | A trace id cut short, where the grader needs all 32 hex characters. |
+| `range_for_value` | A range where one value was asked for, such as `120-135 ms`. |
+| `hedged_value` | A value behind a hedge, such as `about 20 minutes` or `~4.2%`. |
+
+The summary counts the flagged trials among the failed ones and among the passed ones, so it shows how many recorded failures a rule would have caught and how often it fires on a good answer.
+`--list` prints one line per flag with the trial name, its reward and the check.
+The checks read only the agent's own answer and copy no task text.
+They are text rules, so they cannot see two different figures for one quantity or a wrong number; those need the typed answer the server will check at save time.
+
 ## Skipped tasks
 
 The 7 `dashboarding` and 6 `grafana_api` tasks are graded on Grafana's own state, which this agent neither writes nor reads, so they do not apply.
