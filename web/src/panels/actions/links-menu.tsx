@@ -1,4 +1,4 @@
-import { EllipsisIcon } from "lucide-react"
+import { EllipsisIcon, LinkIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -9,22 +9,30 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { anchorProps, NewTabMark } from "@/dashboards/dashboard-links"
+import { cn } from "@/lib/utils"
 
-import { ActionMenuItems } from "../../actions/action-menu-items"
-import type { FieldAction } from "../../actions/field-actions"
-import type { ResolvedLink } from "../../field-config"
+import type { ResolvedLink } from "../field-config"
+import { ActionMenuItems } from "./action-menu-items"
+import type { FieldAction } from "./field-actions"
 
-export function MoreLinks({
+export function LinksMenu({
   links,
   actions,
   onAction,
   reason,
+  subject,
+  className,
+  linkIcon = false,
 }: {
   links: ResolvedLink[]
   actions: FieldAction[]
   onAction: (action: FieldAction) => void
   reason: string | null
+  subject?: string
+  className?: string
+  linkIcon?: boolean
 }) {
+  const label = actions.length > 0 ? "More links and actions" : "More links"
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -32,14 +40,18 @@ export function MoreLinks({
           <Button
             variant="ghost"
             size="icon-xs"
-            className="text-muted-foreground"
+            className={cn("text-muted-foreground", className)}
             aria-label={
-              actions.length > 0 ? "More links and actions" : "More links"
+              subject === undefined ? label : `${label} for ${subject}`
             }
           />
         }
       >
-        <EllipsisIcon aria-hidden="true" />
+        {linkIcon && actions.length === 0 ? (
+          <LinkIcon aria-hidden="true" />
+        ) : (
+          <EllipsisIcon aria-hidden="true" />
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-max">
         {links.map((link, index) => (

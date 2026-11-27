@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { WireFrame } from "@/dashboards/queries"
+import type { StableActionRunner } from "@/panels/actions/action-runner"
+import { itemInteraction } from "@/panels/actions/item-interaction"
 import { createFieldResolver } from "@/panels/field-config"
 import { prepareFrames, type PreparedFrame } from "@/panels/transforms"
 import { displayWithDefaults, type DataPanel } from "@/spec"
 
 import {
   arcPath,
-  gaugeActions,
   gaugeLimits,
-  gaugeLinks,
   gaugeModel,
   gaugeScope,
   gaugeSizes,
@@ -17,6 +17,15 @@ import {
   valueFontSize,
   type Gauge,
 } from "./gauge-model"
+
+const noRunner: StableActionRunner = {
+  context: null,
+  reason: null,
+  open: () => {},
+  panelId: "p1",
+  fromMs: 0,
+  toMs: 0,
+}
 
 beforeEach(() => {
   vi.stubGlobal("location", { origin: "https://observe.example.com" })
@@ -549,7 +558,11 @@ describe("gauge links", () => {
       displayWithDefaults("gauge", {}),
       undefined
     )
-    return gaugeLinks(gauge, fields, { vars: {}, fields })
+    return itemInteraction(
+      gauge,
+      gaugeScope(gauge, fields, { vars: {}, fields }),
+      noRunner
+    ).links
   }
 
   it("resolves data links with the frame labels, the value and the last row", () => {
@@ -584,7 +597,11 @@ describe("gauge links", () => {
       undefined
     )
     const titles = gauges.map((gauge) =>
-      gaugeLinks(gauge, fields, { vars: {}, fields }).map((link) => link.title)
+      itemInteraction(
+        gauge,
+        gaugeScope(gauge, fields, { vars: {}, fields }),
+        noRunner
+      ).links.map((link) => link.title)
     )
     expect(titles).toEqual([[], ["B 2"]])
   })
@@ -613,8 +630,13 @@ describe("gauge field actions", () => {
       displayWithDefaults("gauge", {}),
       undefined
     )
-    return gauges.map((gauge) =>
-      gaugeActions(gauge, fields, { vars: {}, fields })
+    return gauges.map(
+      (gauge) =>
+        itemInteraction(
+          gauge,
+          gaugeScope(gauge, fields, { vars: {}, fields }),
+          noRunner
+        ).actions
     )
   }
 
@@ -729,7 +751,11 @@ describe("gaugeModel value options", () => {
     const extra = { links: [link] } as Partial<DataPanel>
     const gauges = build([rows], extra, { allValues: true })
     const fields = createFieldResolver(panel(extra))
-    const resolved = gaugeLinks(gauges[1], fields, { vars: {}, fields })
+    const resolved = itemInteraction(
+      gauges[1],
+      gaugeScope(gauges[1], fields, { vars: {}, fields }),
+      noRunner
+    ).links
     expect(resolved[0].href).toBe("/r?v=40&t=2")
   })
 

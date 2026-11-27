@@ -1,33 +1,21 @@
 import { useLayoutEffect, useMemo, useRef, type CSSProperties } from "react"
-import { EllipsisIcon } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  anchorProps,
-  NewTabMark,
-  oneClickProps,
-} from "@/dashboards/dashboard-links"
+import { anchorProps, NewTabMark } from "@/dashboards/dashboard-links"
 import { cn } from "@/lib/utils"
 
-import { ActionMenuItems } from "../actions/action-menu-items"
-import { runFieldAction, useStableActionRunner } from "../actions/action-runner"
-import { oneClickTarget, type FieldAction } from "../actions/field-actions"
-import type { FieldResolver, LinkScope, ResolvedLink } from "../field-config"
+import {
+  useStableActionRunner,
+  type StableActionRunner,
+} from "../actions/action-runner"
+import { itemInteraction } from "../actions/item-interaction"
+import { LinksMenu } from "../actions/links-menu"
+import type { FieldResolver, LinkScope } from "../field-config"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
 import { useAnchorPublisher } from "../anchor-layout"
 import { valueAnchorLayout } from "../value-layout"
 import {
-  gaugeActions,
   gaugeLimits,
-  gaugeLinks,
   gaugeModel,
   gaugeScope,
   gaugeSizes,
@@ -43,57 +31,6 @@ const bodyInsetX = 16
 const bodyInsetY = 8
 const compactCellWidth = 160
 
-function MoreLinks({
-  links,
-  actions,
-  onAction,
-  reason,
-}: {
-  links: ResolvedLink[]
-  actions: FieldAction[]
-  onAction: (action: FieldAction) => void
-  reason: string | null
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            className="text-muted-foreground"
-            aria-label={
-              actions.length > 0 ? "More links and actions" : "More links"
-            }
-          />
-        }
-      >
-        <EllipsisIcon aria-hidden="true" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-max">
-        {links.map((link, index) => (
-          <DropdownMenuItem
-            key={`${index}:${link.href}`}
-            render={<a {...anchorProps(link)} />}
-            className="justify-between gap-3"
-          >
-            {link.title}
-            {link.newTab ? <NewTabMark /> : null}
-          </DropdownMenuItem>
-        ))}
-        {links.length > 0 && actions.length > 0 ? (
-          <DropdownMenuSeparator />
-        ) : null}
-        <ActionMenuItems
-          actions={actions}
-          reason={reason}
-          onAction={onAction}
-        />
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 type CellProps = {
   gauge: Gauge
   named: boolean
@@ -104,8 +41,7 @@ type CellProps = {
     LinkScope,
     "row" | "seriesName" | "fieldName" | "value" | "valueText"
   >
-  reason: string | null
-  onAction: (action: FieldAction, scope: LinkScope) => void
+  runner: StableActionRunner
 }
 
 const nameOffset = 17
@@ -122,23 +58,14 @@ function GaugeCell({
   sizes,
   fields,
   scope,
-  reason,
-  onAction,
+  runner,
 }: CellProps) {
-  const links = gaugeLinks(gauge, fields, scope)
-  const actions = gaugeActions(gauge, fields, scope)
+  const { links, actions, oneClick, run } = itemInteraction(
+    gauge,
+    gaugeScope(gauge, fields, scope),
+    runner
+  )
   const [first, ...more] = links
-  const runAction = (action: FieldAction) =>
-    onAction(action, gaugeScope(gauge, fields, scope))
-  const target = oneClickTarget(links, actions)
-  const oneClick =
-    target === null
-      ? {}
-      : target.kind === "link"
-        ? oneClickProps(links)
-        : reason === null
-          ? oneClickProps([], () => runAction(target.action))
-          : {}
   const hasMenu = more.length > 0 || actions.length > 0
   const { level, label: word } = gauge.threshold
   const Icon = level === "base" ? null : thresholdIcons[level]
@@ -173,11 +100,11 @@ function GaugeCell({
         )}
       </span>
       {hasMenu ? (
-        <MoreLinks
+        <LinksMenu
           links={more}
           actions={actions}
-          onAction={runAction}
-          reason={reason}
+          onAction={run}
+          reason={runner.reason}
         />
       ) : null}
     </div>
@@ -344,8 +271,7 @@ const GaugePanel: PanelRenderer = ({
             sizes={sizes}
             fields={fields}
             scope={links}
-            reason={runner.reason}
-            onAction={(action, scope) => runFieldAction(runner, action, scope)}
+            runner={runner}
           />
         ))}
       </div>

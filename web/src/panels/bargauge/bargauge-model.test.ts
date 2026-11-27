@@ -1,13 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import type { StableActionRunner } from "@/panels/actions/action-runner"
+import { itemInteraction } from "@/panels/actions/item-interaction"
 import { createFieldResolver } from "@/panels/field-config"
 import type { PreparedFrame } from "@/panels/transforms"
 import { displayWithDefaults, type DataPanel } from "@/spec"
 
 import {
-  barActions,
   barLimits,
-  barLinks,
+  barScope,
   barSizes,
   barStyleOf,
   bargaugeModel,
@@ -19,6 +20,27 @@ import {
   showUnfilledOf,
   valueModeOf,
 } from "./bargauge-model"
+
+const noRunner: StableActionRunner = {
+  context: null,
+  reason: null,
+  open: () => {},
+  panelId: "p1",
+  fromMs: 0,
+  toMs: 0,
+}
+
+function barInteraction(...args: Parameters<typeof barScope>) {
+  return itemInteraction(args[1], barScope(...args), noRunner)
+}
+
+function barLinks(...args: Parameters<typeof barScope>) {
+  return barInteraction(...args).links
+}
+
+function barActions(...args: Parameters<typeof barScope>) {
+  return barInteraction(...args).actions
+}
 
 beforeEach(() => {
   vi.stubGlobal("location", { origin: "https://observe.example.com" })
@@ -168,6 +190,13 @@ describe("range", () => {
     const [a, b] = build(frames).model.bars
     expect([a.min, a.max]).toEqual([0, 8])
     expect([a.fraction, b.fraction]).toEqual([0.25, 1])
+  })
+
+  it("takes the data range from the raw values, not the reduced ones", () => {
+    const [bar] = build([series([100, 10])], {}, { reduce: "last" }).model.bars
+    expect([bar.value, bar.min, bar.max, bar.fraction]).toEqual([
+      10, 0, 100, 0.1,
+    ])
   })
 
   it("starts below zero when a value is negative", () => {

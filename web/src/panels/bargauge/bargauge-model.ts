@@ -2,18 +2,17 @@ import { decimalsByUnit } from "@/lib/units"
 import type { Reducer } from "@/spec"
 
 import {
+  dataRange,
   displayValue,
   fieldRange,
-  isDataLink,
-  resolveLink,
+  gaugeFraction,
+  gaugeRange,
   type FieldConfig,
   type FieldResolver,
   type LinkScope,
-  type ResolvedLink,
 } from "../field-config"
-import { fieldActions, type FieldAction } from "../actions/field-actions"
 import { reduce } from "../reducers"
-import { reduceItems, reduceOptionsOf, type ReduceItem } from "../reduce-items"
+import { reduceItems, reduceOptionsOf } from "../reduce-items"
 import type { ThresholdLevel } from "../thresholds"
 import type { PreparedField, PreparedFrame } from "../transforms"
 
@@ -56,16 +55,9 @@ const lcdCellSize = 10
 const lcdMinCells = 4
 const lcdMaxCells = 40
 
-type Entry = ReduceItem
-
 export function reducerOf(display: Record<string, unknown>): Reducer {
   return display.reduce as Reducer
 }
-
-const unitRanges = new Map([
-  ["percent", { min: 0, max: 100 }],
-  ["percentunit", { min: 0, max: 1 }],
-])
 
 export function orientationOf(
   display: Record<string, unknown>,
@@ -130,26 +122,6 @@ export function lcdLitCells(fraction: number, cells: number): number {
   return Math.min(cells, Math.max(1, Math.round(fraction * cells)))
 }
 
-function sharedRange(entries: Entry[]): { low: number; high: number } {
-  let low = 0
-  let high = -Infinity
-  for (const { value } of entries) {
-    if (value === null) continue
-    if (value < low) low = value
-    if (value > high) high = value
-  }
-  return { low, high }
-}
-
-function ownRange(field: PreparedField): { low: number; high: number } {
-  const { min, max } = fieldRange(field)
-  return { low: Math.min(0, min ?? 0), high: max ?? -Infinity }
-}
-
-function clamp(fraction: number): number {
-  return Math.min(1, Math.max(0, fraction))
-}
-
 export function bargaugeModel(
   frames: PreparedFrame[],
   fields: FieldResolver,
@@ -162,7 +134,7 @@ export function bargaugeModel(
     reduceOptionsOf("bargauge", display),
     zone
   )
-  const shared = sharedRange(entries)
+  const shared = dataRange(new Set(entries.map((entry) => entry.field)))
   const decimals = decimalsByUnit(
     entries.map(({ config, value }) => ({
       unit: config.unit,
@@ -172,11 +144,11 @@ export function bargaugeModel(
   )
   const bars = entries.map(
     ({ key, label, frame, field, config, value, raw, row }): Bar => {
-      const implied = unitRanges.get(config.unit ?? "")
-      const data = config.fieldMinMax ? ownRange(field) : shared
-      const min = config.min ?? implied?.min ?? data.low
-      const configured = config.max ?? implied?.max ?? data.high
-      const max = configured <= min ? min + 1 : configured
+      const range = gaugeRange(
+        config,
+        config.fieldMinMax ? fieldRange(field) : shared
+      )
+      const { min, max } = range
       const shown = displayValue(raw, config, {
         decimals: decimals.get(config.unit),
         fieldMin: min,
@@ -194,10 +166,7 @@ export function bargaugeModel(
         word: own ? threshold.label : "",
         min,
         max,
-        fraction:
-          shown.numeric === null
-            ? 0
-            : clamp((shown.numeric - min) / (max - min)),
+        fraction: gaugeFraction(shown.numeric, range),
         frame,
         field,
         config,
@@ -245,26 +214,4 @@ export function barScope(
     value: bar.value,
     valueText: bar.text,
   }
-}
-
-export function barLinks(
-  fields: FieldResolver,
-  bar: Bar,
-  reducer: Reducer,
-  scope: LinkScope
-): ResolvedLink[] {
-  const links = bar.config.links.filter(isDataLink)
-  if (links.length === 0) return []
-  const full = barScope(fields, bar, reducer, scope)
-  return links.flatMap((link) => resolveLink(link, full) ?? [])
-}
-
-export function barActions(
-  fields: FieldResolver,
-  bar: Bar,
-  reducer: Reducer,
-  scope: LinkScope
-): FieldAction[] {
-  if (bar.config.actions.length === 0) return []
-  return fieldActions(bar.config, barScope(fields, bar, reducer, scope))
 }

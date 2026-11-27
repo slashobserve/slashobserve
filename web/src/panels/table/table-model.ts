@@ -7,6 +7,8 @@ import {
   displayValue,
   effectiveColorMode,
   fieldRange,
+  gaugeFraction,
+  gaugeRange,
   isDataLink,
   resolveLink,
   type DisplayOptions,
@@ -21,8 +23,6 @@ import type { ThresholdLevel } from "../thresholds"
 import type { PreparedField, PreparedFrame } from "../transforms"
 import {
   cellSpecOf,
-  gaugeFraction,
-  gaugeRange,
   lastNumber,
   numberSeries,
   usesFixedColor,
@@ -515,7 +515,10 @@ export function gaugeFractionAt(
   const config = configAt(fields, column, row)
   const raw = row.values[column.key]
   const value = typeof raw === "number" && Number.isFinite(raw) ? raw : null
-  const range = gaugeRange(config, column.range)
+  const range = gaugeRange(config, {
+    min: column.range.fieldMin,
+    max: column.range.fieldMax,
+  })
   return { ...range, value, fraction: gaugeFraction(value, range) }
 }
 
