@@ -188,5 +188,7 @@ func TestReopeningOnlyMovesAnEndedSession(t *testing.T) {
 	if g.State() != llm.TurnAwaitingResults {
 		t.Fatalf("state = %q, want awaiting_results", g.State())
 	}
-	protocolFault(t, g.Accept(nil))
+	if fault := protocolFault(t, g.Accept(nil)); fault.Fault != llm.FaultResultCount {
+		t.Fatalf("fault = %q, want tool_result_count", fault.Fault)
+	}
 }
