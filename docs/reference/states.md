@@ -268,6 +268,16 @@ This state is computed from stored fields on every read; nothing stores it.
 | `unreachable` | The last discovery failed; failure says why, such as the domain not being on the outbound allowlist, the secret being refused or the server not answering. |
 | `ready` | None of the above: the last discovery listed the server's tools. |
 
+## Panel and variable verification
+
+`GET /dashboards/{id}` returns the panels and variables of a version that are not verified in `unverified`, each with the `reason` the save kept it.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `unverified` | The version lists it in `unverified`: its query failed or returned nothing when the version was saved and the save kept it, with a `reason` of `empty` (it returned no data), `timeout` (it timed out and the save did not change it), `carried` (the parent version already listed it and it is unchanged), `restored` (the restored version listed it) or `imported` (a Grafana import keeps every failing panel). |
+| `verified` | None of the above; its query ran when the version was saved, or when the last version that changed it was. |
+
 ## Agent presence
 
 Whether an outside agent is taking runs: derived from when it last asked for work and the runs it holds.

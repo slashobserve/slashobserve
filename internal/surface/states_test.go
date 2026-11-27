@@ -10,6 +10,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/inboundmcp"
@@ -46,6 +47,7 @@ func statesReference() string {
 		grafanaconn.SyncMachine.Doc("Grafana import", "A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /grafana/{id}/imports/{sync_id}`; its moves write server log lines with these names, not activity events, because a Grafana connection is Admin only."),
 		inboundmcp.ToolMachine.Doc("MCP source tool", "An MCP source tool is one tool of an MCP server an Admin registered, returned by `GET /api/v1/mcp-sources/{uid}/tools`; discovery moves it between `offered`, `changed`, `gone` and `refused`, and an Admin approves or revokes it."),
 		inboundmcp.SourceStates.Doc("MCP source", "`GET /api/v1/mcp-sources` returns the `state` of each MCP source."),
+		dashboards.VerificationStates.Doc("Panel and variable verification", "`GET /dashboards/{id}` returns the panels and variables of a version that are not verified in `unverified`, each with the `reason` the save kept it."),
 		presence.States.Doc("Agent presence", "Whether an outside agent is taking runs: derived from when it last asked for work and the runs it holds."),
 	)
 }
@@ -102,6 +104,17 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 		{"PublicLink", "state", public.LinkStates.Names()},
 		{"MCPSource", "state", inboundmcp.SourceStates.Names()},
 	}
+	var reasons []string
+	for _, r := range dashboards.UnverifiedReasons {
+		reasons = append(reasons, string(r))
+	}
+	cases = append(cases, struct {
+		schema, property string
+		want             []string
+	}{"UnverifiedPanel", "reason", reasons}, struct {
+		schema, property string
+		want             []string
+	}{"UnverifiedVariable", "reason", reasons})
 	var offered []string
 	for _, a := range threads.ThreadMachine.Offered() {
 		offered = append(offered, string(a))

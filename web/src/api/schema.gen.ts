@@ -5861,12 +5861,19 @@ export interface components {
         };
         UnverifiedPanel: {
             panel_id: string;
+            reason?: components["schemas"]["UnverifiedReason"];
             issues: components["schemas"]["Issue"][];
         };
         UnverifiedVariable: {
             name: string;
             issues: components["schemas"]["Issue"][];
+            reason?: components["schemas"]["UnverifiedReason"];
         };
+        /**
+         * @description Why the save kept the item although its query did not verify: `empty` (it returned no data), `timeout` (it timed out and the save did not change it), `carried` (the parent version already listed it and it is unchanged), `restored` (the restored version listed it) or `imported` (a Grafana import keeps every failing panel and variable). Absent on a version saved before reasons were kept, and a copy made by duplicating keeps the reasons of its source.
+         * @enum {string}
+         */
+        UnverifiedReason: "empty" | "timeout" | "carried" | "restored" | "imported";
         DashboardWithVersion: {
             dashboard: components["schemas"]["DashboardSummary"];
             version: components["schemas"]["Version"];

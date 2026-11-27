@@ -2979,6 +2979,8 @@ components:
       properties:
         panel_id:
           type: string
+        reason:
+          $ref: "#/components/schemas/UnverifiedReason"
         issues:
           type: array
           minItems: 1
@@ -2996,6 +2998,16 @@ components:
           minItems: 1
           items:
             $ref: "#/components/schemas/Issue"
+        reason:
+          $ref: "#/components/schemas/UnverifiedReason"
+    UnverifiedReason:
+      type: string
+      enum: [empty, timeout, carried, restored, imported]
+      description: >-
+        Why the save kept the item although its query did not verify:
+        `empty` (it returned no data), `timeout` (it timed out and the save did not change it), `carried` (the parent version already listed it and it is unchanged),
+        `restored` (the restored version listed it) or `imported` (a Grafana import keeps every failing panel and variable).
+        Absent on a version saved before reasons were kept, and a copy made by duplicating keeps the reasons of its source.
     DashboardWithVersion:
       type: object
       additionalProperties: false
