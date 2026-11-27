@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
+import { afterAll, afterEach, describe, expect, test } from "bun:test"
+import { readFileSync, writeFileSync } from "node:fs"
 import { resolve } from "node:path"
 import type { Hypothesis } from "../src/brief/hypotheses"
 import { parseTime } from "../src/grounding/time"
@@ -44,6 +44,7 @@ import type {
 import { type FakeServer, startMcpServer } from "./mcpServer"
 
 const fixtures = resolve(import.meta.dir, "fixtures", "triage")
+const updating = process.env["UPDATE_GOLDENS"] === "1"
 
 function fixture<T>(name: string): T {
   return JSON.parse(readFileSync(resolve(fixtures, name), "utf8")) as T
@@ -252,12 +253,27 @@ function reportOf(r: ReportJSON): Report {
 }
 
 describe("render", () => {
-  for (const c of fixture<
-    { name: string; report: ReportJSON; budget: number; want: string }[]
-  >("render.json")) {
+  const cases =
+    fixture<
+      { name: string; report: ReportJSON; budget: number; want: string }[]
+    >("render.json")
+  for (const c of cases) {
     test(c.name, () => {
-      expect(render(reportOf(c.report), c.budget)).toBe(c.want)
+      const got = render(reportOf(c.report), c.budget)
+      if (updating) {
+        c.want = got
+        return
+      }
+      expect(got).toBe(c.want)
     })
+  }
+  if (updating) {
+    afterAll(() =>
+      writeFileSync(
+        resolve(fixtures, "render.json"),
+        JSON.stringify(cases, null, 2) + "\n"
+      )
+    )
   }
 
   test("clips text on whole runes", () => {
