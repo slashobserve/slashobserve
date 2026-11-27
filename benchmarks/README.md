@@ -132,7 +132,7 @@ An image built from `agent-investigation-core` or later (an image with task type
 | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX` | 40, or the calls setting when higher | the calls setting |
 | `SLASHOBSERVE_AGENT_FINDING_GROUNDING` | `enforce` | `off` |
 | `SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF` | `on` | no sweep, and the setting is ignored |
-| `SLASHOBSERVE_LLM_EFFORT` | on `anthropic`, `high` for an investigation and a question about a dashboard or an observation, `medium` for other runs | the provider's default |
+| `SLASHOBSERVE_LLM_EFFORT` | on `anthropic`, `high` for an investigation and a question about a dashboard or an observation, `medium` for other runs; on `openai`, nothing sent | on `anthropic`, `medium`; on `openai`, nothing sent |
 
 v0.1.5 has none of the loop, ceiling and grounding settings and ignores them when they are sent.
 What omitting an option means:
@@ -142,6 +142,19 @@ What omitting an option means:
 - `llm_effort`: nothing is sent, so the server picks the effort per run as in the table; the results file records `server default`.
 
 The configuration reference in the repository's `docs/reference/configuration.md` is the source of these values.
+
+### Reproduce the older behaviour
+
+A baseline that runs an image with task types the way an older image ran sets every option the newer defaults changed:
+
+```sh
+--ak investigation_calls=12 --ak investigation_loop=false --ak finding_grounding=off --ak investigation_brief=off
+```
+
+The SREGym runner takes the same values as `--investigation-calls 12 --investigation-loop false --finding-grounding off --investigation-brief off`.
+On `anthropic`, add `--ak llm_effort=medium` (`--llm-effort medium` for SREGym) to keep the older effort too, because unset an investigation now runs at `high`.
+Task types still sort the question and narrow its tools on such an image, since no setting turns them off, so the baseline is the older limits and loop, not the older server.
+Finding grounding `off` also leaves a finding's causes unscored, so the ORCA-bench report and the SREGym diagnosis name every cause as stated (see [Finding grounding](#finding-grounding)).
 
 ### Finding grounding
 
@@ -587,6 +600,34 @@ A real run must confirm:
 
 SREGym is MIT licensed.
 The adapter reads the app's name, namespaces and description from the conductor at run time, and copies none of SREGym's code, prompts, problem descriptions or judge checklists into this repository.
+
+## First real runs
+
+Each section lists what its adapter has not yet shown against a real trial.
+Gathered in the order a person meets them, the first trial of each benchmark must confirm the following.
+
+o11y-bench:
+
+1. Which Grafana credentials the task's Grafana needs: a token or a user and password from the task environment, or `--ak grafana_user` and `--ak grafana_password` (see [Reading Grafana](#reading-grafana)).
+
+ORCA-bench:
+
+1. That the filesystem holding the snapshot cache and the jobs folder has room, since the 100 GB is an estimate from the scripts (see [Disk and memory](#disk-and-memory)).
+2. That Harbor reports ten trials for `--subset` (see [Run the subset](#run-the-subset)).
+3. That the Jaeger 2.12.0 of the trial writes span documents in the shape the server reads, which was checked against Jaeger 2.21 (see [Spans](#spans)).
+4. That the collector writes `otel-logs-*` in the OpenSearch exporter's default mapping, with the ids at `traceId` and `spanId`; read one document's fields with `logs` before trusting `logs_for_trace`.
+
+SREGym:
+
+1. That a container reaches the host's port-forwards through `host.docker.internal` mapped to `host-gateway`, which depends on the host's firewall.
+2. That `kubectl port-forward` works through SREGym's filtering proxy.
+3. That the Services and ports in `observe` are the ones a run deploys, and that its Prometheus and Loki hold the app's metrics and logs.
+4. That SSE to SREGym's kubectl server works through its port-forward.
+5. That `exec_kubectl_cmd_safely` comes back `approved` from the provisioning file, and that `notes.txt` records it as not marked read-only.
+6. That a slow kubectl command finishes within the server's MCP call timeout, because SREGym allows one up to 300 seconds.
+7. What one problem costs, before the loop over the subset.
+8. That the judge reads the rendered diagnosis as intended.
+9. That the ten problems of the subset are the ones whose fault telemetry can see, a split made from the problem names (see [Run the subset](#run-the-subset-1)).
 
 ## License
 

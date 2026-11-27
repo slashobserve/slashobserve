@@ -71,6 +71,34 @@ Read-only on the cluster is an instruction in the playbook and not enforced by t
 Its diagnosis success rate compares only loosely with SREGym's published diagnosis numbers, and the adapter has not yet run against a cluster.
 The steps, what SREGym records and what a first run must confirm are in the SREGym section of [`benchmarks/README.md`](https://github.com/slashobserve/slashobserve/blob/main/benchmarks/README.md).
 
+## Server defaults and baselines
+
+An image built with task types has newer investigation defaults than an older one, such as main or v0.1.5; the [configuration reference](../reference/configuration.md) has the newer values.
+
+| Option | Omitted, on an image with task types | Omitted, on an older image |
+| --- | --- | --- |
+| `investigation_loop` | `true`, sent by the adapter | `true`, sent by the adapter, where the image has the setting |
+| `investigation_calls_max` | 40, sent by the adapter | 40, sent by the adapter, where the image has the setting |
+| `investigation_brief` | `on`, sent by the adapter | ignored, the image has no sweep |
+| `finding_grounding` | `enforce`, sent by the adapter | `enforce`, sent by the adapter, where the image has the setting |
+| `investigation_calls` | not sent, so each task type has its own limit, from 12 to 30 | not sent, so 12 |
+| `llm_effort` | not sent, so `high` for an investigation on Anthropic | not sent, so `medium` on Anthropic |
+
+v0.1.5 has none of the loop, ceiling and grounding settings.
+To measure an image with task types the way an older image ran, pass `investigation_calls=12`, `investigation_loop=false`, `finding_grounding=off` and `investigation_brief=off`, and `llm_effort=medium` on Anthropic.
+Task types still sort each question and narrow its tools then, because no setting turns them off.
+Each attempt in a results file also records the task type the server chose, the call limit the run ended with and its stage at save, when the run returns them.
+
+## First real runs
+
+No adapter has run every part against a real trial yet, so the first trial of each benchmark must confirm what the README lists, in this order:
+
+- o11y-bench: which Grafana credentials the task's Grafana needs.
+- ORCA-bench: the disk the snapshot cache needs, that Harbor reports ten trials for the subset, that the trial's Jaeger writes span documents the server reads, and that the log index keeps the trace and span ids where the server finds them.
+- SREGym: that the server container reaches the host's port-forwards, that port-forwarding works through SREGym's proxy, that the stores hold the app's data, that SSE to the kubectl server works, that the kubectl tool is approved, that a slow kubectl command finishes in time, what one problem costs, that the judge reads the diagnosis as intended, and that the subset's split holds on a running cluster.
+
+The full checklist is under First real runs in [`benchmarks/README.md`](https://github.com/slashobserve/slashobserve/blob/main/benchmarks/README.md).
+
 ## Reference
 
 ### What runs where
