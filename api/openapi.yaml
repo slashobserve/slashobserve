@@ -38,6 +38,8 @@ paths:
     $ref: "./paths/users.yaml#/users-id-deactivate"
   /users/{id}/reactivate:
     $ref: "./paths/users.yaml#/users-id-reactivate"
+  /jobs:
+    $ref: "./paths/jobs.yaml#/jobs"
   /invites:
     $ref: "./paths/invites.yaml#/invites"
   /invites/{id}:
@@ -7721,6 +7723,51 @@ components:
           type: string
           format: date-time
           description: When the repair finished, else when it started, else when it was queued.
+    ScheduledJob:
+      type: object
+      additionalProperties: false
+      required: [name, state, every_seconds, next_run_at, last_started_at, last_finished_at, last_outcome, last_error]
+      properties:
+        name:
+          type: string
+        state:
+          type: string
+          enum: [running, interrupted, due, waiting]
+          description: Computed on read; see `docs/reference/states.md`. `interrupted` means the last run did not finish, because its server crashed or shut down.
+        every_seconds:
+          type: integer
+          minimum: 1
+          description: The interval between runs.
+        next_run_at:
+          type: string
+          format: date-time
+        last_started_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_finished_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When a run last recorded an outcome; older than `last_started_at` while a run is in flight or after one that did not finish.
+        last_outcome:
+          type: string
+          nullable: true
+          enum: [succeeded, failed, interrupted]
+          description: The outcome of the last run that recorded one, or `interrupted` once a server took over the lease of a run that crashed. Null before the first outcome.
+        last_error:
+          type: string
+          nullable: true
+          description: The `key=value` summary of the last failure, never the error's own text; null when the last outcome was not a failure.
+    ScheduledJobList:
+      type: object
+      additionalProperties: false
+      required: [jobs]
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduledJob"
     HealthJob:
       type: object
       additionalProperties: false

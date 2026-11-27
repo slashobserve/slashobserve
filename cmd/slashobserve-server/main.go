@@ -673,6 +673,7 @@ func run() error {
 			proxyhttp.NewFindingData(proxyHandler, findingsService),
 			proxyhttp.NewObservationData(proxyHandler, observationsService),
 			users.NewHandler(database, authService, folderAccess, logger),
+			scheduler.NewHandler(database, logger),
 			outbound,
 			prompts.NewHandler(database, logger),
 			news.NewHandler(egressClient, logger),

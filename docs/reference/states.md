@@ -269,6 +269,18 @@ A person is someone who signs in, returned by `GET /users` with `state` and `all
 | `reactivate` | `deactivated` | `active` | `user.reactivated` | admin |
 | `remove` | `deactivated` | `removed` | `user.removed` | admin |
 
+## Scheduled job
+
+`GET /jobs` returns the `state` of each scheduled job to an Admin.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `running` | A server holds its lease and is running it. |
+| `interrupted` | Its last run did not finish: the server crashed and the lease ran out, or the server shut down and gave the lease back. The next server that finds it due runs it again. |
+| `due` | Its next run time has passed and no server has claimed it yet. |
+| `waiting` | Its last run finished, or it never ran, and the next run time is ahead. |
+
 ## Access request
 
 `GET /access-requests` returns the `state` of each request for Comment access; the list of requests you can grant holds only open ones, and `scope=mine` returns your own in every state.

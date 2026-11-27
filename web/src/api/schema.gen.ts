@@ -301,6 +301,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the server's scheduled jobs with their state.
+         * @description Admin only, and an Admin service-account key can call it too. Every job the servers registered, ordered by name, each with its `state` and its last run. A job whose last run did not finish is `interrupted`, and once another server takes over its lease its `last_outcome` is `interrupted` too. The list changes nothing: jobs run on their schedule, and only `dashboard_health` can be started by hand.
+         */
+        get: operations["listJobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invites": {
         parameters: {
             query?: never;
@@ -8373,6 +8393,35 @@ export interface components {
              */
             updated_at: string;
         };
+        ScheduledJob: {
+            name: string;
+            /**
+             * @description Computed on read; see `docs/reference/states.md`. `interrupted` means the last run did not finish, because its server crashed or shut down.
+             * @enum {string}
+             */
+            state: "running" | "interrupted" | "due" | "waiting";
+            /** @description The interval between runs. */
+            every_seconds: number;
+            /** Format: date-time */
+            next_run_at: string;
+            /** Format: date-time */
+            last_started_at: string | null;
+            /**
+             * Format: date-time
+             * @description When a run last recorded an outcome; older than `last_started_at` while a run is in flight or after one that did not finish.
+             */
+            last_finished_at: string | null;
+            /**
+             * @description The outcome of the last run that recorded one, or `interrupted` once a server took over the lease of a run that crashed. Null before the first outcome.
+             * @enum {string|null}
+             */
+            last_outcome: "succeeded" | "failed" | "interrupted" | null;
+            /** @description The `key=value` summary of the last failure, never the error's own text; null when the last outcome was not a failure. */
+            last_error: string | null;
+        };
+        ScheduledJobList: {
+            jobs: components["schemas"]["ScheduledJob"][];
+        };
         HealthJob: {
             /** Format: date-time */
             last_started_at: string | null;
@@ -9763,6 +9812,29 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listJobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every scheduled job. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduledJobList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
         };
     };
