@@ -225,6 +225,38 @@ func (q *Queries) ListDatasources(ctx context.Context) ([]Datasource, error) {
 	return items, nil
 }
 
+const lockDatasource = `-- name: LockDatasource :one
+SELECT id, uid, type, name, config, secrets, secret_names, created_by, created_at, updated_at, audience FROM datasources WHERE uid = $1 FOR UPDATE
+`
+
+func (q *Queries) LockDatasource(ctx context.Context, uid string) (Datasource, error) {
+	row := q.db.QueryRow(ctx, lockDatasource, uid)
+	var i Datasource
+	err := row.Scan(
+		&i.ID,
+		&i.Uid,
+		&i.Type,
+		&i.Name,
+		&i.Config,
+		&i.Secrets,
+		&i.SecretNames,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Audience,
+	)
+	return i, err
+}
+
+const lockDatasourceCount = `-- name: LockDatasourceCount :exec
+SELECT pg_advisory_xact_lock(hashtextextended('datasources:count', 0))
+`
+
+func (q *Queries) LockDatasourceCount(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockDatasourceCount)
+	return err
+}
+
 const updateDatasource = `-- name: UpdateDatasource :one
 UPDATE datasources
 SET name = $1, audience = $2, config = $3, secrets = $4, secret_names = $5, updated_at = clock_timestamp()

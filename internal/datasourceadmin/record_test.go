@@ -47,7 +47,7 @@ func TestCreateUpdateAndDeleteAreRecordedWithoutCredentials(t *testing.T) {
 	}
 	moved := prometheus("metrics", "https://prom2.example.com")
 	moved.Name = "Renamed"
-	if _, err := svc.Update(reading(t.Context()), r.admin, "metrics", moved, SecretsChange{Set: Secrets{BearerToken: "token-new-456"}}); err != nil {
+	if _, err := svc.Update(reading(t.Context()), r.admin, "metrics", moved, SecretsChange{Set: Secrets{BearerToken: "token-new-456"}, Clear: []string{"header:X-Org"}}); err != nil {
 		t.Fatal(err)
 	}
 	if err := svc.Delete(reading(t.Context()), r.admin, "metrics"); err != nil {
