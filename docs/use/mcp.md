@@ -889,6 +889,8 @@ Use it only to rewrite most of a dashboard; for anything smaller, use `update_pa
 - It runs every panel query before it saves, as `create_dashboard` does.
 - If a newer version has been saved since and your save changed none of the panels, variables and settings that version changed, the server merges the two.
   The result then carries `merged_from`, with the `base_version` you read and the `onto_version` it merged onto.
+- The result's `outcome` says whether the save made a version: `created` or `merged` did, `replayed` returned a version that already exists, and `proposed` opened or revised a proposal.
+  `update_panels` answers with it too.
 - If both changed the same panel, variable or setting, it returns the tool error `version_conflict` with `latest_version` and `conflicts`.
   Each conflict has a `kind`, an `id`, a `reason` and a `message`.
   The client reads the latest version and applies its change again.

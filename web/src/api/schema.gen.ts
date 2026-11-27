@@ -5875,6 +5875,11 @@ export interface components {
             dashboard: components["schemas"]["DashboardSummary"];
             version: components["schemas"]["Version"];
             merged_from?: components["schemas"]["MergedFrom"];
+            /**
+             * @description What the save did: `created` made the new version from the request, `merged` made it by merging a stale save onto the latest version, and `replayed` made no version because the request repeats one that exists (the answer also has `Idempotent-Replay: true`).
+             * @enum {string}
+             */
+            outcome: "replayed" | "merged" | "created";
         };
         /** @description Present when a stale save was merged on the server. */
         MergedFrom: {
@@ -6019,6 +6024,11 @@ export interface components {
         };
         /** @description The answer to a save that became a proposal. */
         ProposalCreated: {
+            /**
+             * @description Always `proposed`, the save outcome that made no version.
+             * @enum {string}
+             */
+            outcome: "proposed";
             /** Format: uuid */
             proposal_id: string;
             /** @description The revision this save added. */
