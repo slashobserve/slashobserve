@@ -147,22 +147,6 @@ func TestOnlyTheRequesterSavesAnAnswerAsAnObservation(t *testing.T) {
 	}
 }
 
-func TestAnUnsavedAnswerCannotBePinnedButCanBecomeADashboard(t *testing.T) {
-	r := newRig(t)
-	request := r.request(t, editor, r.open)
-	answer := r.save(t, editor, findings.SaveInput{AgentRequestID: request, DashboardID: r.open})
-
-	if _, _, err := r.service.Pin(reading(t.Context()), editor, mustUUID(t, answer.ID)); !errors.Is(err, findings.ErrNotSaved) {
-		t.Fatalf("pin: %v, want ErrNotSaved", err)
-	}
-	if _, _, err := r.service.SaveAsObservation(reading(t.Context()), editor, request); err != nil {
-		t.Fatal(err)
-	}
-	if _, created, err := r.service.Pin(reading(t.Context()), editor, mustUUID(t, answer.ID)); err != nil || !created {
-		t.Fatalf("pin after saving: created %v, %v", created, err)
-	}
-}
-
 func TestAnUnsavedAnswerOnADashboardFollowsWhoCanStillSeeThatDashboard(t *testing.T) {
 	r := newRig(t)
 	private := r.dashboard(t, "Mine")

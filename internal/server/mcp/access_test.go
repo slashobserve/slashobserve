@@ -127,7 +127,7 @@ func newAccessFixture(t *testing.T) *accessFixture {
 	service := dashboards.New(database.DB, runner, access, logger)
 	notes := annotations.New(database.DB, access)
 	observationService := observations.New(database.DB, access, nil, nil, logger)
-	found, err := findings.New(database.DB, access, notes, service, observationService, logger)
+	found, err := findings.New(database.DB, access, service, observationService, logger)
 	if err != nil {
 		t.Fatal(err)
 	}

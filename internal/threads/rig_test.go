@@ -118,7 +118,7 @@ func newAgentRig(t *testing.T, agent bool) *rig {
 	dashboardService := dashboards.New(database.DB, queryproxy.NewRunner(registry, logger), access, logger)
 	annotationService := annotations.New(database.DB, access)
 	observationService := observations.New(database.DB, access, nil, nil, logger)
-	findingService, err := findings.New(database.DB, access, annotationService, dashboardService, observationService, logger)
+	findingService, err := findings.New(database.DB, access, dashboardService, observationService, logger)
 	if err != nil {
 		t.Fatal(err)
 	}

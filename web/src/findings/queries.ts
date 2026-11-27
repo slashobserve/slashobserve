@@ -7,12 +7,7 @@ import {
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
-import {
-  annotationKeys,
-  chatKeys,
-  dashboardKeys,
-  findingKeys,
-} from "@/api/keys"
+import { chatKeys, dashboardKeys, findingKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import { panelRequestLimiter } from "@/dashboards/limiter"
 import { asDashboardSpec } from "@/dashboards/queries"
@@ -110,26 +105,6 @@ export function useFindingPanelData({
     enabled,
     retry: panelRetry,
     staleTime: 0,
-  })
-}
-
-export function usePinFinding({
-  id,
-  dashboard_id: dashboardId,
-}: Pick<Finding, "id" | "dashboard_id">) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: () =>
-      api.POST("/findings/{id}/pin", { params: { path: { id } } }).then(unwrap),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: findingKeys.one(id) })
-      void queryClient.invalidateQueries({ queryKey: annotationKeys.all })
-      if (dashboardId !== null) {
-        void queryClient.invalidateQueries({
-          queryKey: findingKeys.forDashboard(dashboardId),
-        })
-      }
-    },
   })
 }
 

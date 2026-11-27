@@ -12,7 +12,6 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
-	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -279,61 +278,6 @@ func activityOwner(dashboardID, observationID pgtype.UUID) activity.Owner {
 		return activity.OnDashboard(dashboardID)
 	}
 	return activity.OnObservation(observationID)
-}
-
-func (s *store) setAnnotation(ctx context.Context, by actor.Actor, id, dashboardID, observationID, annotationID pgtype.UUID) (bool, error) {
-	won := false
-	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		n, err := q.SetFindingAnnotation(ctx, dbsqlc.SetFindingAnnotationParams{ID: id, AnnotationID: annotationID})
-		if err != nil || n == 0 {
-			return err
-		}
-		won = true
-		_, err = activity.Append(ctx, q, activity.Entry{
-			Type:     activity.TypeFindingPinned,
-			TargetID: id,
-			Owner:    activityOwner(dashboardID, observationID),
-			Actor:    by,
-			Data:     map[string]string{"annotation_id": annotationID.String()},
-		}, nil)
-		return err
-	})
-	if err != nil {
-		return false, fmt.Errorf("set finding annotation: %w", err)
-	}
-	return won, nil
-}
-
-func (s *store) annotation(ctx context.Context, id pgtype.UUID) (annotations.Annotation, error) {
-	r, err := s.db.Queries().GetAnnotation(ctx, id)
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		return annotations.Annotation{}, ErrNotFound
-	case err != nil:
-		return annotations.Annotation{}, fmt.Errorf("get annotation of finding: %w", err)
-	}
-	a := annotations.Annotation{
-		ID:        r.ID.String(),
-		PanelID:   r.PanelID,
-		From:      r.TimeFrom.Time.UTC(),
-		Text:      r.Text,
-		Tags:      r.Tags,
-		CreatedAt: r.CreatedAt.Time.UTC(),
-	}
-	if r.DashboardID.Valid {
-		a.DashboardID = r.DashboardID.String()
-	}
-	if r.TimeTo.Valid {
-		to := r.TimeTo.Time.UTC()
-		a.To = &to
-	}
-	if r.CreatedBy.Valid {
-		a.CreatedBy = r.CreatedBy.String()
-	}
-	if a.Tags == nil {
-		a.Tags = []string{}
-	}
-	return a, nil
 }
 
 func findingsOf[R any](rows []R, split func(R) (dbsqlc.Finding, pgtype.UUID, bool)) ([]Finding, error) {

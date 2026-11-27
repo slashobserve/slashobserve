@@ -250,8 +250,6 @@ paths:
     $ref: "./paths/findings.yaml#/findings"
   /findings/{id}:
     $ref: "./paths/findings.yaml#/findings-id"
-  /findings/{id}/pin:
-    $ref: "./paths/findings.yaml#/findings-id-pin"
   /findings/{id}/dashboard:
     $ref: "./paths/findings.yaml#/findings-id-dashboard"
   /findings/{id}/panels/{panel_id}/data:

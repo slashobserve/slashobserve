@@ -2702,29 +2702,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/findings/{id}/pin": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Pin a finding to its dashboard as an annotation.
-         * @deprecated
-         * @description The annotation's text is the finding's first line and a link to it, tagged `finding`, at the end of the finding's window; pinning needs Edit on the dashboard. Pinning a finding that is already pinned answers 200 with the same annotation. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
-         */
-        post: operations["pinFinding"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/findings/{id}/dashboard": {
         parameters: {
             query?: never;
@@ -16461,54 +16438,6 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            500: components["responses"]["Internal"];
-        };
-    };
-    pinFinding: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The finding was already pinned; this is its annotation. */
-            200: {
-                headers: {
-                    Deprecation: components["headers"]["Deprecation"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Annotation"];
-                };
-            };
-            /** @description The annotation made for the finding. */
-            201: {
-                headers: {
-                    Location: string;
-                    Deprecation: components["headers"]["Deprecation"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Annotation"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description The finding has no dashboard to pin to (`finding_has_no_dashboard`), or is the answer to a plain question that is not an observation yet (`finding_not_saved`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the finding is `restricted` and its dashboard is not in a folder only Admins can read (`restricted_answer`, saying why). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
-                };
-            };
             500: components["responses"]["Internal"];
         };
     };

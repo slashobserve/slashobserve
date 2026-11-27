@@ -17,7 +17,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
-	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/usertext"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -37,7 +36,6 @@ const (
 
 var (
 	ErrNotFound      = errors.New("finding not found")
-	ErrNoDashboard   = errors.New("the finding has no dashboard to pin to")
 	ErrNoEvidence    = errors.New("the finding has no evidence panels")
 	ErrInvalidCursor = errors.New("invalid cursor")
 
@@ -128,10 +126,6 @@ func Words(markdown string) int {
 		}
 	}
 	return n
-}
-
-func PinText(f Finding) string {
-	return FirstLine(f.Markdown) + " " + links.Finding(nil, f.ID)
 }
 
 func firstNonBlankLine(text string) string {

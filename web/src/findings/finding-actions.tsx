@@ -3,15 +3,11 @@ import { toast } from "sonner"
 
 import { sentence } from "@/api/errors"
 import { Button } from "@/components/ui/button"
-import {
-  mayEditBesidesContent,
-  useLatestPermissions,
-  useLatestProvisioned,
-} from "@/dashboards/permissions"
 import { useOnDashboard } from "@/dashboards/use-on-dashboard"
 import { dashboardLink } from "@/lib/links"
+import { useObservation, usePinObservation } from "@/observations/queries"
 
-import { useMakeDashboard, usePinFinding, type Finding } from "./queries"
+import { useMakeDashboard, type Finding } from "./queries"
 
 const linkClass =
   "rounded-sm text-foreground underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -21,24 +17,50 @@ function toastError(error: Error) {
 }
 
 export function PinAction({ finding }: { finding: Finding }) {
-  if (finding.dashboard_id === null) return null
-  return <PinOnDashboard finding={finding} dashboardId={finding.dashboard_id} />
+  if (finding.observation_id === null) return null
+  return (
+    <ObservationPin
+      observationId={finding.observation_id}
+      pinnedBefore={finding.annotation_id !== null}
+    />
+  )
+}
+
+function ObservationPin({
+  observationId,
+  pinnedBefore,
+}: {
+  observationId: string
+  pinnedBefore: boolean
+}) {
+  const observation = useObservation(observationId).data?.observation
+  if (observation === undefined || observation.dashboard_id === null) {
+    return null
+  }
+  return (
+    <PinOnDashboard
+      observationId={observationId}
+      dashboardId={observation.dashboard_id}
+      pinned={observation.pinned || pinnedBefore}
+      mayPin={observation.can_pin}
+    />
+  )
 }
 
 function PinOnDashboard({
-  finding,
+  observationId,
   dashboardId,
+  pinned,
+  mayPin,
 }: {
-  finding: Finding
+  observationId: string
   dashboardId: string
+  pinned: boolean
+  mayPin: boolean
 }) {
-  const pin = usePinFinding(finding)
+  const pin = usePinObservation(observationId)
   const onDashboard = useOnDashboard(dashboardId)
-  const mayPin = mayEditBesidesContent(
-    useLatestPermissions(dashboardId),
-    useLatestProvisioned(dashboardId)
-  )
-  if (pin.isSuccess || finding.annotation_id !== null) {
+  if (pin.isSuccess || pinned) {
     return (
       <p className="flex flex-wrap items-center gap-x-2 text-[13px]">
         <span>Pinned to the dashboard</span>

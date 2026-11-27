@@ -538,6 +538,14 @@ describe("AnswerCard", () => {
       screen.queryByRole("button", { name: "Pin to dashboard" })
     ).toBeNull()
     view.unmount()
+    stubFetch({
+      observation: {
+        id: "o9",
+        dashboard_id: "d1",
+        pinned: false,
+        can_pin: true,
+      },
+    })
     renderCard({
       finding: finding({ dashboard_id: "d1", observation_id: "o9" }),
     })
@@ -545,7 +553,7 @@ describe("AnswerCard", () => {
       await screen.findByRole("button", { name: "Make a dashboard" })
     ).toBeVisible()
     expect(
-      screen.getByRole("button", { name: "Pin to dashboard" })
+      await screen.findByRole("button", { name: "Pin to dashboard" })
     ).toBeVisible()
     expect(
       screen.getByRole("button", { name: "2 evidence panels" })

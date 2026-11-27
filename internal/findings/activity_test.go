@@ -3,7 +3,6 @@ package findings_test
 import (
 	"encoding/json"
 	"slices"
-	"strings"
 	"testing"
 	"time"
 
@@ -25,16 +24,6 @@ func (r rig) activityFor(t *testing.T, by auth.Principal) []activity.Event {
 		t.Fatal(err)
 	}
 	return got
-}
-
-func withoutObservationEvents(events []activity.Event) []activity.Event {
-	var out []activity.Event
-	for _, e := range events {
-		if !strings.HasPrefix(e.Type, "observation.") {
-			out = append(out, e)
-		}
-	}
-	return out
 }
 
 func typesOf(events []activity.Event) []string {
@@ -177,97 +166,6 @@ func TestAReplayedFindingAppendsOnce(t *testing.T) {
 	if got := typesOf(findingEvents(r.activityFor(t, admin))); !slices.Equal(got, []string{activity.TypeFindingCreated}) {
 		t.Errorf("activity = %v", got)
 	}
-}
-
-func TestAPinAppendsTheAnnotationAndThePin(t *testing.T) {
-	r := newRig(t)
-	f := r.save(t, editor, findings.SaveInput{DashboardID: r.open})
-	a, created, err := r.service.Pin(reading(t.Context()), editor, mustUUID(t, f.ID))
-	if err != nil || !created {
-		t.Fatalf("pin: created %v, %v", created, err)
-	}
-	if _, created, err := r.service.Pin(reading(t.Context()), editor, mustUUID(t, f.ID)); err != nil || created {
-		t.Fatalf("second pin: created %v, %v", created, err)
-	}
-
-	got := withoutObservationEvents(r.activityFor(t, viewer))
-	want := []string{activity.TypeFindingCreated, activity.TypeAnnotationCreated, activity.TypeFindingPinned}
-	if !slices.Equal(typesOf(got), want) {
-		t.Fatalf("activity = %v, want %v", typesOf(got), want)
-	}
-	pinned := got[2]
-	if pinned.TargetID != f.ID || pinned.DashboardID != r.open.String() || pinned.FolderID != got[0].FolderID || pinned.Actor.ID != editor.ID {
-		t.Errorf("pin event = %+v", pinned)
-	}
-	if data := dataOf(t, pinned); len(data) != 1 || data["annotation_id"] != a.ID {
-		t.Errorf("pin data = %s, want annotation %s", pinned.Data, a.ID)
-	}
-}
-
-func TestALostPinRaceCleansUpWithoutPinningTwice(t *testing.T) {
-	r := newRig(t)
-	f := r.save(t, editor, findings.SaveInput{DashboardID: r.open})
-	id := mustUUID(t, f.ID)
-	var winner string
-	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO annotations (dashboard_id, time_from, text, created_by) VALUES ($1, now(), 'the winner', $2::uuid) RETURNING id::text`, r.open, otherEditor.ID).Scan(&winner); err != nil {
-		t.Fatal(err)
-	}
-	holder, err := r.db.SQLDB(t).BeginTx(reading(t.Context()), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = holder.Rollback() }()
-	if _, err := holder.ExecContext(reading(t.Context()), `UPDATE findings SET annotation_id = $1 WHERE id = $2`, winner, id); err != nil {
-		t.Fatal(err)
-	}
-
-	type outcome struct {
-		annotationID string
-		created      bool
-		err          error
-	}
-	done := make(chan outcome, 1)
-	go func() {
-		a, created, err := r.service.Pin(reading(t.Context()), editor, id)
-		done <- outcome{a.ID, created, err}
-	}()
-	waitForALockWait(t, r)
-	if err := holder.Commit(); err != nil {
-		t.Fatal(err)
-	}
-
-	select {
-	case o := <-done:
-		if o.err != nil || o.created || o.annotationID != winner {
-			t.Fatalf("pin = %+v, want the winner's annotation %s and created false", o, winner)
-		}
-	case <-time.After(10 * time.Second):
-		t.Fatal("pin did not finish")
-	}
-	got := withoutObservationEvents(r.activityFor(t, admin))
-	want := []string{activity.TypeFindingCreated, activity.TypeAnnotationCreated, activity.TypeAnnotationDeleted}
-	if !slices.Equal(typesOf(got), want) {
-		t.Fatalf("activity = %v, want %v", typesOf(got), want)
-	}
-	if got[1].TargetID != got[2].TargetID || got[1].TargetID == winner {
-		t.Errorf("created %s, deleted %s, winner %s: the cleanup must remove the annotation the losing pin made", got[1].TargetID, got[2].TargetID, winner)
-	}
-}
-
-func waitForALockWait(t *testing.T, r rig) {
-	t.Helper()
-	deadline := time.Now().Add(10 * time.Second)
-	for time.Now().Before(deadline) {
-		var waiting int
-		if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND datname = current_database()`).Scan(&waiting); err != nil {
-			t.Fatal(err)
-		}
-		if waiting > 0 {
-			return
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Fatal("the pin never waited on the finding row")
 }
 
 func TestAFindingOfARunKeptWithAdminsIsRecordedOnItsObservationNotOnTheDashboard(t *testing.T) {

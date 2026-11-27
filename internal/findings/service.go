@@ -13,7 +13,6 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
-	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auditfolder"
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -38,7 +37,6 @@ var ErrNoObservations = errors.New("findings need an observation service")
 type Service struct {
 	store        *store
 	access       *folders.Access
-	annotations  *annotations.Service
 	dashboards   *dashboards.Service
 	observations Observations
 	threads      ThreadReader
@@ -46,11 +44,11 @@ type Service struct {
 	logger       *slog.Logger
 }
 
-func New(database *db.DB, access *folders.Access, ann *annotations.Service, dash *dashboards.Service, observations Observations, logger *slog.Logger) (*Service, error) {
+func New(database *db.DB, access *folders.Access, dash *dashboards.Service, observations Observations, logger *slog.Logger) (*Service, error) {
 	if observations == nil {
 		return nil, ErrNoObservations
 	}
-	return &Service{store: &store{db: database}, access: access, annotations: ann, dashboards: dash, observations: observations, logger: logger}, nil
+	return &Service{store: &store{db: database}, access: access, dashboards: dash, observations: observations, logger: logger}, nil
 }
 
 func (s *Service) ReadThreadsWith(read ThreadReader) {
@@ -376,92 +374,6 @@ func (s *Service) visibleFolders(ctx context.Context, by auth.Principal) ([]pgty
 		return nil, err
 	}
 	return levels.Visible(), nil
-}
-
-func (s *Service) pinnable(ctx context.Context, by auth.Principal, id pgtype.UUID) (Finding, error) {
-	f, err := s.Get(ctx, by, id)
-	switch {
-	case err != nil:
-		return Finding{}, err
-	case !f.Saved():
-		return Finding{}, ErrNotSaved
-	case f.DashboardID == "":
-		return Finding{}, ErrNoDashboard
-	}
-	return f, nil
-}
-
-func (s *Service) Pin(ctx context.Context, by auth.Principal, id pgtype.UUID) (annotations.Annotation, bool, error) {
-	f, err := s.pinnable(ctx, by, id)
-	if err != nil {
-		return annotations.Annotation{}, false, err
-	}
-	if f.AnnotationID != "" {
-		a, err := s.pinned(ctx, f)
-		if !errors.Is(err, ErrNotFound) {
-			return a, false, err
-		}
-	}
-	dashboardID, err := db.ParseUUID(f.DashboardID)
-	if err != nil {
-		return annotations.Annotation{}, false, err
-	}
-	pin, err := pinOf(f, dashboardID)
-	if err != nil {
-		return annotations.Annotation{}, false, err
-	}
-	a, err := s.annotations.Create(ctx, by, pin)
-	switch {
-	case errors.Is(err, annotations.ErrNotFound):
-		return annotations.Annotation{}, false, ErrNotFound
-	case err != nil:
-		return annotations.Annotation{}, false, err
-	}
-	annotationID, err := db.ParseUUID(a.ID)
-	if err != nil {
-		return annotations.Annotation{}, false, err
-	}
-	observationID, err := db.ParseUUID(f.ObservationID)
-	if err != nil {
-		return annotations.Annotation{}, false, err
-	}
-	won, err := s.store.setAnnotation(ctx, actor.In(ctx, by, ""), id, dashboardID, observationID, annotationID)
-	if err != nil {
-		return annotations.Annotation{}, false, err
-	}
-	if won {
-		return a, true, nil
-	}
-	if err := s.annotations.Delete(ctx, by, annotationID); err != nil {
-		s.logger.WarnContext(ctx, "delete the annotation of a pin that lost the race", logattrs.Failure("finding_pin_cleanup_failed", err, slog.String("finding_id", f.ID), slog.String("annotation_id", a.ID))...)
-	}
-	winner, err := s.store.get(ctx, id)
-	if err != nil {
-		return annotations.Annotation{}, false, err
-	}
-	a, err = s.pinned(ctx, winner)
-	return a, false, err
-}
-
-func pinOf(f Finding, dashboardID pgtype.UUID) (annotations.CreateInput, error) {
-	pin := annotations.CreateInput{DashboardID: dashboardID, From: f.CreatedAt, Text: PinText(f), Tags: []string{PinTag}}
-	if f.RequestTo != nil {
-		pin.From = *f.RequestTo
-	}
-	run, err := runOf(f)
-	pin.AnswerOf = run
-	return pin, err
-}
-
-func (s *Service) pinned(ctx context.Context, f Finding) (annotations.Annotation, error) {
-	if f.AnnotationID == "" {
-		return annotations.Annotation{}, ErrNotFound
-	}
-	id, err := db.ParseUUID(f.AnnotationID)
-	if err != nil {
-		return annotations.Annotation{}, err
-	}
-	return s.store.annotation(ctx, id)
 }
 
 func (s *Service) SaveAsDashboard(ctx context.Context, by auth.Principal, id pgtype.UUID) (dashboards.Dashboard, dashboards.Version, error) {

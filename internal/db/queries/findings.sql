@@ -66,9 +66,6 @@ WHERE o.folder_id = @folder_id AND f.dashboard_id IS NULL
 ORDER BY f.created_at DESC, f.id DESC
 LIMIT @row_limit;
 
--- name: SetFindingAnnotation :execrows
-UPDATE findings SET annotation_id = @annotation_id WHERE id = @id AND annotation_id IS NULL;
-
 -- name: LockFinding :one
 SELECT observation_id FROM findings WHERE id = @id FOR UPDATE;
 

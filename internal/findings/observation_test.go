@@ -8,7 +8,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/findings"
@@ -68,7 +67,7 @@ func (r rig) openRunObservation(t *testing.T, by auth.Principal, request pgtype.
 func TestServiceNeedsAnObservationWriter(t *testing.T) {
 	d := newRig(t).db
 	access := folders.NewAccess(d.DB)
-	if _, err := findings.New(d.DB, access, annotations.New(d.DB, access), nil, nil, slog.New(slog.DiscardHandler)); !errors.Is(err, findings.ErrNoObservations) {
+	if _, err := findings.New(d.DB, access, nil, nil, slog.New(slog.DiscardHandler)); !errors.Is(err, findings.ErrNoObservations) {
 		t.Fatalf("error %v, want %v", err, findings.ErrNoObservations)
 	}
 }
@@ -108,7 +107,7 @@ func TestAFindingFromARunWritesIntoTheRunsObservationOnceAndGetsItsOwnId(t *test
 func TestAFailureAfterTheConclusionLeavesNeitherObservationNorFinding(t *testing.T) {
 	r := newRig(t)
 	access := folders.NewAccess(r.db.DB)
-	service, err := findings.New(r.db.DB, access, annotations.New(r.db.DB, access), nil, failingAfterConclusion{r.observations}, slog.New(slog.DiscardHandler))
+	service, err := findings.New(r.db.DB, access, nil, failingAfterConclusion{r.observations}, slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
 	}

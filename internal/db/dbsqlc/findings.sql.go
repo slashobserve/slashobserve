@@ -623,23 +623,6 @@ func (q *Queries) MarkAgentRequestFindingCommitted(ctx context.Context, arg Mark
 	return result.RowsAffected(), nil
 }
 
-const setFindingAnnotation = `-- name: SetFindingAnnotation :execrows
-UPDATE findings SET annotation_id = $1 WHERE id = $2 AND annotation_id IS NULL
-`
-
-type SetFindingAnnotationParams struct {
-	AnnotationID pgtype.UUID
-	ID           pgtype.UUID
-}
-
-func (q *Queries) SetFindingAnnotation(ctx context.Context, arg SetFindingAnnotationParams) (int64, error) {
-	result, err := q.db.Exec(ctx, setFindingAnnotation, arg.AnnotationID, arg.ID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
-}
-
 const setFindingObservation = `-- name: SetFindingObservation :execrows
 UPDATE findings SET observation_id = $1 WHERE id = $2 AND observation_id IS NULL
 `

@@ -64,7 +64,6 @@ var exceptions = map[string]exception{
 
 	"listFindings":           {MCP: notBuilt, CLI: notBuilt},
 	"getFinding":             {MCP: notBuilt, CLI: notBuilt},
-	"pinFinding":             {MCP: notBuilt, CLI: notBuilt},
 	"saveFindingAsDashboard": {MCP: notBuilt, CLI: notBuilt},
 	"getFindingPanelData":    {MCP: personOnly, CLI: personOnly},
 

@@ -17,7 +17,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -71,7 +70,7 @@ func newFindingRig(t *testing.T) *findingRig {
 	access := folders.NewAccess(database.DB)
 	service := dashboards.New(database.DB, runner, access, logger)
 	obs := observations.New(database.DB, access, snapshotFreezer{}, nil, logger)
-	found, err := findings.New(database.DB, access, annotations.New(database.DB, access), service, obs, logger)
+	found, err := findings.New(database.DB, access, service, obs, logger)
 	if err != nil {
 		t.Fatal(err)
 	}

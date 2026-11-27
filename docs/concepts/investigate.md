@@ -362,16 +362,9 @@ These rules decide the folder:
 
 ## Pin a finding or turn it into a dashboard
 
-Two deprecated routes act on a finding.
-`POST /api/v1/findings/{id}/pin` pins the finding to its dashboard as an [annotation](../use/annotations.md).
-`POST /api/v1/findings/{id}/dashboard` saves the evidence panels as a new dashboard in the caller's My Dashboards, after running their queries again.
-
-Details of pinning:
-
-- The annotation sits at the end of the finding's window, tagged `finding`.
-- Its text is the finding's first line and its `/findings/<id>` path.
-- Pinning needs Edit on the dashboard.
-- Pinning a finding twice returns the same annotation, with `200` the second time and `201` the first.
+A saved finding is pinned through its observation: `POST /api/v1/observations/{id}/pin` pins it to the dashboard its run was about as an [annotation](../use/annotations.md), and [Observations](../use/observations.md#pin-it-to-a-dashboard-or-make-a-dashboard-from-it) describes the rules.
+A finding pinned before this release keeps its annotation, and its card still reads "Pinned to the dashboard".
+The deprecated route `POST /api/v1/findings/{id}/dashboard` saves the evidence panels as a new dashboard in the caller's My Dashboards, after running their queries again.
 
 ## When an investigation fails
 
