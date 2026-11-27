@@ -248,6 +248,25 @@ func TestQueryRangeCountsOverTime(t *testing.T) {
 	assertJSONEqual(t, mustJSON(t, aggs), histogramBody)
 }
 
+func TestEpochSourceDatesKeepTheirUnit(t *testing.T) {
+	want := time.Date(2026, 11, 6, 11, 59, 59, 0, time.UTC)
+	sources := []string{`1793966399`, `1793966399000`, `1793966399000000`, `1793966399000000000`, `"1793966399"`, `1793966399.0`}
+	hits := make([]string, len(sources))
+	for i, source := range sources {
+		hits[i] = fmt.Sprintf(`{"_index":"logs-shop-2026.11","_id":"id%d","_source":{"@timestamp":%s,"message":"line"}}`, i, source)
+	}
+	_, ds := searchServer(t, `{"timed_out":false,"_shards":{"failed":0},"hits":{"total":{"value":6,"relation":"eq"},"hits":[`+strings.Join(hits, ",")+`]}}`)
+	frames, err := ds.QueryInstant(context.Background(), datasource.Query{Limits: datasource.Limits{MaxRows: 1000}}, queryRange)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, got := range frames[0].Fields[0].Values {
+		if got != want {
+			t.Errorf("source %s = %v, want %v", sources[i], got, want)
+		}
+	}
+}
+
 func mustJSON(t *testing.T, v any) string {
 	t.Helper()
 	raw, err := json.Marshal(v)
