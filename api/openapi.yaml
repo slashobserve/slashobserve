@@ -2566,7 +2566,7 @@ components:
     InboxItem:
       type: object
       additionalProperties: false
-      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread, target_title, excerpt, question]
+      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread, state, target_title, excerpt, question]
       description: An activity event as `listActivity` returns it, with why it is in the inbox and whether it is unread.
       properties:
         seq:
@@ -2608,6 +2608,13 @@ components:
           description: The first rule the event matches, or null in the `everything` view when it matches none.
         unread:
           type: boolean
+        state:
+          type: string
+          enum: [done, unread, read]
+          description: >-
+            Where the item stands for the caller: `done` once they marked it done, else `unread` while `unread` is true, else `read`.
+            The `open` filter lists `unread` and `read` items, the `unread` filter `unread` ones and the `done` filter `done` ones.
+            See docs/reference/states.md.
         target_title:
           type: string
           nullable: true

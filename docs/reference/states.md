@@ -236,6 +236,17 @@ This state is computed from stored fields on every read; nothing stores it.
 | `expired` | Its expiry time has passed; the link no longer opens. |
 | `active` | None of the above; usable says whether the link opens, and unusable_reason says why it does not. |
 
+## Inbox item
+
+`GET /inbox` returns the `state` of each item for the person reading it.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `done` | The reader marked it done; it stays done when the inbox is read, until it is brought back or marked unread. |
+| `unread` | It is newer than the position the reader read up to, or the reader marked it unread. |
+| `read` | None of the above. |
+
 ## Grafana import
 
 A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /grafana/{id}/imports/{sync_id}`; its moves write server log lines with these names, not activity events, because a Grafana connection is Admin only.

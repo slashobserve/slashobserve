@@ -1874,7 +1874,7 @@ It covers dashboard saves, restores, moves and deletes, annotations, findings an
 #### `list_inbox`
 
 Lists the [inbox](inbox.md) of the person who signed in to the connected agent: what asks something of them.
-Each item has the `reason` and whether it is `unread`, and the result has `unread_count`.
+Each item has the `reason`, whether it is `unread` and its `state` (`unread`, `read` or `done`), and the result has `unread_count`.
 
 - Pass `view` (`for_you`, `proposals`, `mentions` or `everything`, `for_you` by default), `filter`, `limit` and `cursor` from `next_cursor`.
   `filter` is `open` by default, `unread` for the open items that are unread, or `done` for the items marked done.

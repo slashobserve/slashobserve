@@ -9,6 +9,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 
 	"github.com/slashobserve/slashobserve/api/apitest"
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -48,6 +49,7 @@ func statesReference() string {
 		mcpauth.GrantStates.Doc("Connected agent", "`GET /me/grants` and `GET /grants` return the `state` of each connected agent."),
 		dashboards.SaveOutcomes.Doc("Dashboard save", "`POST /dashboards/{id}/versions` and `PATCH /dashboards/{id}/panels` return the `outcome` of the save, and so do the `update_dashboard` and `update_panels` tools."),
 		public.LinkStates.Doc("Public link", "`GET /dashboards/{id}/public-links` returns the `state` of each link."),
+		activity.InboxItemStates.Doc("Inbox item", "`GET /inbox` returns the `state` of each item for the person reading it."),
 		grafanaconn.SyncMachine.Doc("Grafana import", "A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /grafana/{id}/imports/{sync_id}`; its moves write server log lines with these names, not activity events, because a Grafana connection is Admin only."),
 		grafanaconn.TestStates.Doc("Grafana connection test", "`GET /grafana` returns the `test.state` of each connection."),
 		inboundmcp.ToolMachine.Doc("MCP source tool", "An MCP source tool is one tool of an MCP server an Admin registered, returned by `GET /api/v1/mcp-sources/{uid}/tools`; discovery moves it between `offered`, `changed`, `gone` and `refused`, and an Admin approves or revokes it."),
@@ -115,6 +117,7 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 		{"Proposal", "mergeability", proposals.MergeabilityStates.Names()},
 		{"PublicLink", "state", public.LinkStates.Names()},
 		{"PublicLink", "unusable_reason", public.UnusableReasons},
+		{"InboxItem", "state", activity.InboxItemStates.Names()},
 		{"MCPSource", "state", inboundmcp.SourceStates.Names()},
 		{"DatasourceStatus", "health_state", datasource.HealthStates.Names()},
 		{"DatasourceStatus", "failure_kind", failureKinds},
