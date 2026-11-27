@@ -311,8 +311,8 @@ A query that fails, a reply that cannot be read or a changed part the reply left
 The read-back check runs each query with one value per variable, so it cannot see a wrong variable shape or a query that fails only with many or All values.
 The replay model writes nothing to Grafana.
 
-A dashboard run saves no finding, so the answer the grader reads is written by the adapter from the dashboard as read back from Grafana, with no model call: the dashboard's title and uid, the panels added and changed with their type and queries, the panels removed, the panels left exactly as fetched, the variables and annotations added, changed and removed, and the names of the other settings that differ.
-When the run also saved a finding, that text follows the finding.
+The answer of a dashboard task describes the Grafana dashboard, not the SlashObserve one the run worked on, so the answer the grader reads is written by the adapter from the dashboard as read back from Grafana, with no model call: the dashboard's title and uid, the panels added and changed with their type and queries, the panels removed, the panels left exactly as fetched, the variables and annotations added, changed and removed, and the names of the other settings that differ.
+A finding the run also saved is left out of the answer, because it describes the SlashObserve dashboard, where an annotation is a stored point and not a query; it stays in `detail/run.json`.
 
 The call's tokens and cost are added to the trial's usage and to `final_metrics` of the trajectory, and its cost is added to the spend ledger.
 The cost is priced from the server's price table, `internal/llm/pricing/prices.yaml`, read from this checkout.

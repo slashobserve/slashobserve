@@ -90,13 +90,12 @@ def structured_lines(finding: dict[str, Any]) -> list[str]:
 
 
 def answer_text(request: dict[str, Any], saved: str | None = None) -> str:
+    if saved:
+        return saved
     finding = request.get("finding")
     if finding:
         header = structured_lines(finding)
-        text = "\n".join([*header, "", finding["markdown"]]) if header else finding["markdown"]
-        return f"{text}\n\n{saved}" if saved else text
-    if saved:
-        return saved
+        return "\n".join([*header, "", finding["markdown"]]) if header else finding["markdown"]
     state = request.get("state", "unknown")
     if state == "succeeded":
         return "The run finished without saving a finding."
