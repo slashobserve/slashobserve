@@ -162,20 +162,30 @@ func TestAFailingHeartbeatKeepsTheLastCount(t *testing.T) {
 
 func TestAFailureStreakLogsOnce(t *testing.T) {
 	d := dbtest.New(t)
-	d.Exec(t, "ALTER TABLE server_instances RENAME TO server_instances_away")
+	d.Exec(t, "CREATE SEQUENCE heartbeat_attempts")
+	d.Exec(t, "CREATE FUNCTION refuse_heartbeat() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM nextval('heartbeat_attempts'); RAISE EXCEPTION 'refused'; END $$")
+	d.Exec(t, "CREATE TRIGGER refuse_heartbeat BEFORE INSERT OR UPDATE ON server_instances FOR EACH ROW EXECUTE FUNCTION refuse_heartbeat()")
+	sqlDB := d.SQLDB(t)
+	attempts := func() int {
+		var n int
+		row := sqlDB.QueryRowContext(t.Context(), "SELECT CASE WHEN is_called THEN last_value ELSE 0 END FROM heartbeat_attempts")
+		if err := row.Scan(&n); err != nil {
+			t.Fatalf("count heartbeat attempts: %v", err)
+		}
+		return n
+	}
 	logger, logs := logtest.New()
 	m := New(d.DB, "server-a", "test", logger)
 	m.beat = 10 * time.Millisecond
 	stop := start(t, m)
 
 	deadline := time.Now().Add(30 * time.Second)
-	for strings.Count(logs.String(), "fleet_heartbeat_failed") == 0 {
+	for attempts() < 5 {
 		if time.Now().After(deadline) {
-			t.Fatal("no heartbeat failure was logged")
+			t.Fatal("the heartbeat did not keep failing")
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	time.Sleep(100 * time.Millisecond)
 	stop()
 	if got := strings.Count(logs.String(), "fleet_heartbeat_failed"); got != 1 {
 		t.Errorf("logged the failure %d times, want once per streak", got)
