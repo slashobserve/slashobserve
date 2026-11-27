@@ -140,6 +140,14 @@ type session struct {
 }
 
 func (s *Service) with(ctx context.Context, req revisions.Request, fn func(ctx context.Context, sess *session) error) error {
+	return s.withStart(ctx, req, nil, fn)
+}
+
+type start struct {
+	harness bool
+}
+
+func (s *Service) withStart(ctx context.Context, req revisions.Request, begin *start, fn func(ctx context.Context, sess *session) error) error {
 	id, err := db.ParseUUID(req.ID)
 	if err != nil {
 		return fmt.Errorf("run session: run id: %w", err)
@@ -163,7 +171,7 @@ func (s *Service) with(ctx context.Context, req revisions.Request, fn func(ctx c
 	var steps []revisions.Step
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		ctx := datasource.WithAccess(ctx, access)
-		sess, err := s.open(ctx, q, req, id)
+		sess, err := s.open(ctx, q, req, id, begin)
 		if err != nil {
 			return err
 		}
@@ -185,12 +193,12 @@ func (s *Service) with(ctx context.Context, req revisions.Request, fn func(ctx c
 	return nil
 }
 
-func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Request, id pgtype.UUID) (*session, error) {
+func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Request, id pgtype.UUID, begin *start) (*session, error) {
 	key := dbsqlc.GetRunSessionForUpdateParams{AgentRequestID: id, Attempt: httpapi.Int32(req.Attempt)}
 	stored, err := q.GetRunSessionForUpdate(ctx, key)
 	created := errors.Is(err, pgx.ErrNoRows)
 	if created {
-		stored, err = s.create(ctx, q, req, id)
+		stored, err = s.create(ctx, q, req, id, begin != nil && begin.harness)
 	}
 	if err != nil {
 		return nil, err
@@ -202,7 +210,10 @@ func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Req
 	if err := json.Unmarshal(stored.State, &sess.state); err != nil {
 		return nil, fmt.Errorf("decode run session: %w", err)
 	}
-	if created {
+	if begin != nil {
+		sess.state.AgentHarness = begin.harness
+	}
+	if created && !sess.state.AgentHarness {
 		sess.recordRoute()
 	}
 	if sess.state.Guard.InvestigationCalls == 0 {
@@ -211,7 +222,7 @@ func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Req
 	return sess, nil
 }
 
-func (s *Service) create(ctx context.Context, q *dbsqlc.Queries, req revisions.Request, id pgtype.UUID) (dbsqlc.GetRunSessionForUpdateRow, error) {
+func (s *Service) create(ctx context.Context, q *dbsqlc.Queries, req revisions.Request, id pgtype.UUID, harness bool) (dbsqlc.GetRunSessionForUpdateRow, error) {
 	var none dbsqlc.GetRunSessionForUpdateRow
 	row, err := q.GetAgentRequestByID(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) || (err == nil && (revisions.State(row.State).Terminal() || int(row.ClaimEpoch) != req.ClaimEpoch)) {
@@ -220,7 +231,7 @@ func (s *Service) create(ctx context.Context, q *dbsqlc.Queries, req revisions.R
 	if err != nil {
 		return none, fmt.Errorf("get run for its session: %w", err)
 	}
-	initial, err := s.initial(ctx, req, id)
+	initial, err := s.initial(ctx, req, id, harness)
 	if err != nil {
 		return none, err
 	}
@@ -244,12 +255,17 @@ func (s *Service) create(ctx context.Context, q *dbsqlc.Queries, req revisions.R
 	return q.GetRunSessionForUpdate(ctx, dbsqlc.GetRunSessionForUpdateParams{AgentRequestID: id, Attempt: attempt})
 }
 
-func (s *Service) initial(ctx context.Context, req revisions.Request, id pgtype.UUID) (State, error) {
+func (s *Service) initial(ctx context.Context, req revisions.Request, id pgtype.UUID, harness bool) (State, error) {
 	run, err := tools.RunFor(req)
 	if err != nil {
 		return State{}, err
 	}
-	state := s.watched(run, req, s.routed(ctx, run, req))
+	var state State
+	if harness {
+		state = State{Guard: guard.New(run.Mode), AgentHarness: true}
+	} else {
+		state = s.watched(run, req, s.routed(ctx, run, req))
+	}
 	parent := 0
 	switch {
 	case run.Mode == tools.ModeSuggest:
@@ -351,6 +367,14 @@ func (s *Service) Scope(ctx context.Context, req revisions.Request) (tools.Run, 
 		return tools.Run{}, tools.ErrRunEnded
 	}
 	return run, err
+}
+
+func (s *Service) BeginHarness(ctx context.Context, req revisions.Request) error {
+	err := s.withStart(ctx, req, &start{harness: true}, func(context.Context, *session) error { return nil })
+	if errors.Is(err, errRunNotRunning) {
+		return tools.ErrRunEnded
+	}
+	return err
 }
 
 func (s *Service) Progress(ctx context.Context, req revisions.Request) (*tools.BuildProgress, error) {

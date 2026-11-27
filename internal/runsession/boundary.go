@@ -201,6 +201,11 @@ func (sess *session) admit(ctx context.Context, c guard.Call, turn *Turn) (admit
 	if turn != nil && turn.Usage != nil {
 		sess.state.noteModel(*turn.Usage)
 	}
+	if sess.state.AgentHarness {
+		sess.state.Guard.Counts.ToolCalls++
+		out.adm = guard.Admission{Verdict: guard.Dispatch, Phase: sess.state.Guard.Phase(c.Name)}
+		return out, nil
+	}
 	if sess.state.Turn.Open && !sess.state.Turn.joinedBy(turn) {
 		notes, err := sess.closeTurn(ctx)
 		if err != nil {
@@ -256,8 +261,10 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 	if d.err != nil {
 		return Answer{}, sess.settleFailed(ctx, c, a, step)
 	}
-	d.content = state.issueFacts(c, d)
-	state.noteGrounding(c, d)
+	if !state.AgentHarness {
+		d.content = state.issueFacts(c, d)
+		state.noteGrounding(c, d)
+	}
 	if !d.res.IsError && guard.ReadsData(c.Name) {
 		state.DataReads++
 	}
@@ -333,6 +340,9 @@ func (sess *session) settleOutcome(ctx context.Context, c guard.Call, d dispatch
 	if errors.Is(err, guard.ErrMalformed) {
 		sess.s.failure(ctx, "run session save result is malformed", string(revisions.FailureMalformedResult), err, sess.req)
 		return false, sess.end(ctx, endSpec{failure: revisions.FailureMalformedResult, message: "the " + c.Name + " tool returned an unreadable result"})
+	}
+	if state.AgentHarness {
+		settled.Note, settled.Stop = "", nil
 	}
 	if settled.Note != "" {
 		answer.Notes = append(answer.Notes, settled.Note)

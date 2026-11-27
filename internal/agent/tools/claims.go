@@ -35,6 +35,7 @@ const (
 
 	failureLiveTextAppend = "live_text_append_failed"
 	failureUsageNotNoted  = "usage_not_noted"
+	failureHarnessRelease = "harness_release_failed"
 
 	codeNotAWorker = "not_a_worker"
 	codeNotYourRun = "not_your_run"
@@ -51,7 +52,8 @@ const (
 	descReleaseRun = "Hand a run you claimed back to the queue when you cannot work it, for example because you are stopping. The run is queued again with its saved progress and steps, and it does not count as failed; the next claim_run of an agent it is assigned to takes it. The answer has the run's state: queued, canceled when its requester had canceled it, or the state it had already ended in. Call finish_run instead when the run is done or cannot be done."
 
 	schemaClaimRun = `{"type":"object","properties":{` +
-		`"wait_seconds":{"type":"integer","minimum":0,"maximum":30,"description":"How long to wait for a run, 0 to 30 seconds. Default 30."}},"additionalProperties":false}`
+		`"wait_seconds":{"type":"integer","minimum":0,"maximum":30,"description":"How long to wait for a run, 0 to 30 seconds. Default 30."},` +
+		`"harness":{"type":"boolean","description":"Only for the server's own agent, which keeps the run's guards itself."}},"additionalProperties":false}`
 
 	schemaRunUsage = `{"type":"object","description":"Your cumulative model use.","properties":{` +
 		`"provider":{"type":"string"},"model":{"type":"string"},` +
@@ -139,6 +141,7 @@ func (r *Registry) claimEntries() []entry {
 
 type claimRunInput struct {
 	WaitSeconds *int `json:"wait_seconds"`
+	Harness     bool `json:"harness"`
 }
 
 type runUsage struct {
@@ -237,6 +240,9 @@ func (r *Registry) claimRun(ctx context.Context, input json.RawMessage) (Result,
 		return res, nil
 	}
 	return r.asClaimer(ctx, func(claimer claims.Claimer) (Result, error) {
+		if in.Harness && claimer.Kind != revisions.AssignBuiltin {
+			return invalid("harness is only for the server's own agent"), nil
+		}
 		offer, err := r.deps.Claims.Claim(ctx, claimer, time.Duration(wait)*time.Second)
 		if err != nil {
 			return claimFailure(ctx, err)
@@ -244,8 +250,29 @@ func (r *Registry) claimRun(ctx context.Context, input json.RawMessage) (Result,
 		if offer.Run == nil {
 			return success("No run waiting", offer), nil
 		}
+		if in.Harness {
+			if err := r.beginHarness(ctx, claimer, *offer.Run); err != nil {
+				return claimFailure(ctx, err)
+			}
+		}
 		return success("Claimed a run", offer), nil
 	})
+}
+
+func (r *Registry) beginHarness(ctx context.Context, claimer claims.Claimer, run claims.OfferedRun) error {
+	if r.deps.RunSessions == nil {
+		return errClaimsNotConfigured
+	}
+	req, err := r.deps.Claims.ClaimedRun(ctx, claimer, run.ID, run.Attempt, run.ClaimEpoch)
+	if err == nil {
+		err = r.deps.RunSessions.BeginHarness(ctx, req)
+	}
+	if err != nil {
+		if _, releaseErr := r.deps.Claims.Release(context.WithoutCancel(ctx), claimer, run.ID, run.Attempt, run.ClaimEpoch); releaseErr != nil {
+			r.deps.Logger.WarnContext(ctx, "run not released after its harness session failed to open", logattrs.Failure(failureHarnessRelease, releaseErr, slog.String("agent_request_id", run.ID))...)
+		}
+	}
+	return err
 }
 
 func (r *Registry) getRunBrief(ctx context.Context, input json.RawMessage) (Result, error) {

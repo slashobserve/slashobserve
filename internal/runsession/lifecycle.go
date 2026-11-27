@@ -362,10 +362,12 @@ func (sess *session) brief(ctx context.Context, why brief.Reason, health []datas
 		sess.state.Build = buildProgress(*build)
 	}
 	view := brief.View{Current: current, Build: build}
-	message, err := brief.Render(health, task, view, why, sess.state.Digest.Text())
-	if err != nil {
-		sess.s.failure(ctx, "run session could not render the brief", "run_session_brief_failed", err, sess.req)
-		return tools.BriefAnswer{}, fmt.Errorf("render the brief: %w", err)
+	var message brief.Message
+	if !sess.state.AgentHarness {
+		if message, err = brief.Render(health, task, view, why, sess.state.Digest.Text()); err != nil {
+			sess.s.failure(ctx, "run session could not render the brief", "run_session_brief_failed", err, sess.req)
+			return tools.BriefAnswer{}, fmt.Errorf("render the brief: %w", err)
+		}
 	}
 	structured := brief.Structured(health, everyone, task, view, sess.req.Draft)
 	return tools.BriefAnswer{System: message.System, Message: message.User, Reason: string(why), Build: sess.state.Build, Brief: &structured, AgentState: sess.state.Agent}, nil

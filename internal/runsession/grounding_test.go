@@ -170,7 +170,7 @@ func TestEveryRunButASuggestionStartsWithAGroundingRecord(t *testing.T) {
 		{"a suggestion in enforce", grounding.Enforce, suggest, false, false},
 	}
 	for _, c := range cases {
-		state, err := (&Service{findingGrounding: c.mode}).initial(context.Background(), c.req, pgtype.UUID{})
+		state, err := (&Service{findingGrounding: c.mode}).initial(context.Background(), c.req, pgtype.UUID{}, false)
 		if err != nil {
 			t.Fatalf("%s: %v", c.name, err)
 		}

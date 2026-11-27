@@ -24,7 +24,7 @@ func TestEachTaskTypeStartsWithItsOwnCallLimitUnlessTheSettingIsSet(t *testing.T
 		{"what is the p99 latency of checkout", 25, 25},
 	} {
 		req := revisions.Request{ID: "run", Attempt: 1, Intent: revisions.IntentAsk, Prompt: c.prompt, Investigation: true}
-		state, err := (&Service{investigationCalls: c.set}).initial(context.Background(), req, pgtype.UUID{})
+		state, err := (&Service{investigationCalls: c.set}).initial(context.Background(), req, pgtype.UUID{}, false)
 		if err != nil {
 			t.Fatal(err)
 		}

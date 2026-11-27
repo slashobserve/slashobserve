@@ -59,7 +59,7 @@ func (s *Service) preflight(ctx context.Context, req revisions.Request, access d
 	}
 	needed := false
 	if err := s.with(ctx, req, func(_ context.Context, sess *session) error {
-		needed = sess.state.Triage == nil
+		needed = sess.state.Triage == nil && !sess.state.AgentHarness
 		return nil
 	}); err != nil || !needed {
 		return err

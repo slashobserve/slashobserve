@@ -252,7 +252,7 @@ func TestTheStageLoopStartsOnlyWithANewSessionOfABuiltInInvestigationWithTheLoop
 	}
 	for _, c := range cases {
 		svc := &Service{investigationLoop: c.on, investigationCalls: 14, investigationMax: 30}
-		state, err := svc.initial(context.Background(), c.req, pgtype.UUID{})
+		state, err := svc.initial(context.Background(), c.req, pgtype.UUID{}, false)
 		if err != nil {
 			t.Fatalf("%s: %v", c.name, err)
 		}

@@ -213,7 +213,7 @@ func TestOnlyAnInvestigationRunWithTheLoopOnStartsWithTheLoopState(t *testing.T)
 		{"an investigation with the loop off", false, investigation, false},
 	}
 	for _, c := range cases {
-		state, err := (&Service{investigationLoop: c.loop}).initial(context.Background(), c.req, pgtype.UUID{})
+		state, err := (&Service{investigationLoop: c.loop}).initial(context.Background(), c.req, pgtype.UUID{}, false)
 		if err != nil {
 			t.Fatalf("%s: %v", c.name, err)
 		}

@@ -416,7 +416,7 @@ A run that no outside agent took within 10 minutes fails as `agent_unavailable`.
 
 ### The run session enforces the guards
 
-The server enforces the guards of [SlashObserve's own agent](../concepts/agent.md#guards) on every run session, whatever agent works in it:
+The server enforces the guards of [SlashObserve's own agent](../concepts/agent.md#guards) on every run session, whatever agent works in it, except a run its own agent claimed with `harness: true` (below):
 
 - The save-now window: after 6 turns without a save, 12 in a suggest run and `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` (by default the task type's limit, 12 to 30, and 12 in a create run) in an investigate run and in a create run until its first panel is saved, only a save runs and a read in a turn without a save is refused; the call before the limit gets a note.
 - Identical reads: a third identical read is refused, and an errored read or a query result runs again.
@@ -461,6 +461,10 @@ A result of a call that ran also carries `call`, what the call did that its cont
 - `unchecked`: the error code of a read that could not finish, `query_timeout`, `datasource_unavailable` or `too_many_requests`, so the data it asked for is not known to be missing, or `null`.
 - `discovered`: `{"datasource", "of", "names"}` for a read that listed names, such as metrics or labels, or `null`.
 - `ranges`: each time range the call resolved and read, as `{"from", "to"}` in RFC 3339 UTC, in the order it read them; empty when it read none.
+`claim_run` takes `harness: true` only from SlashObserve's own agent, and answers `invalid_request` to any other claimer.
+Such a run's session leaves the guards to the agent: it skips the admission guards and their nudges and stops, the grounding check and the fact ids, the candidate check, the preflight sweep, the task type and its narrowed tool list, and the text of the brief, so `get_run_brief` answers empty `system` and `message` with `brief` filled.
+It keeps the run's lifecycle: the build, the steps, how a save settles the run, the parent version pin, the rebase or restart on a conflict, usage, the cost limit, the lease and the write scope.
+
 `get_run` and `GET /api/v1/observe/{id}` return the same `settled` value for a running run (never `restarted`, which describes one call), so a reader can tell a run that already has its result from one still working.
 They also return `check_failures` and `check_failures_max`: a run going back to the queue with that count rising is waiting on a server check, and it fails with `check_failed` at the limit.
 Some results also carry a note after the content, which an agent reads like any other tool text.

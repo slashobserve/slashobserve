@@ -384,6 +384,15 @@ describe("protocol", () => {
     ).toBe(false)
   })
 
+  test("a claim may ask for a harness session", () => {
+    expect(
+      claimInput.safeParse({ wait_seconds: 0, harness: true }).success
+    ).toBe(true)
+    expect(claimInput.safeParse({ wait_seconds: 0, harness: 1 }).success).toBe(
+      false
+    )
+  })
+
   test("the run key reads the call side fields when the server sends them", () => {
     const meta = runMeta.parse({
       settled: null,

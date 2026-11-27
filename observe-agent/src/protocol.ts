@@ -295,6 +295,7 @@ export type TurnMeta = z.infer<typeof turnMeta>
 
 export const claimInput = z.strictObject({
   wait_seconds: z.number().int().min(0).max(30),
+  harness: z.boolean().optional(),
 })
 export type ClaimInput = z.infer<typeof claimInput>
 

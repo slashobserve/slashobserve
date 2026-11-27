@@ -55,7 +55,8 @@ type State struct {
 	Task     route.Task `json:"task,omitempty"`
 	AllTools bool       `json:"all_tools,omitempty"`
 
-	Agent *tools.AgentState `json:"agent_state,omitempty"`
+	Agent        *tools.AgentState `json:"agent_state,omitempty"`
+	AgentHarness bool              `json:"agent_harness,omitempty"`
 }
 
 type Settled struct {

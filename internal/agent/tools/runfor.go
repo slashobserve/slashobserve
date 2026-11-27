@@ -83,6 +83,7 @@ type RunSessions interface {
 	Finish(ctx context.Context, req revisions.Request, in RunFinish) (RunFinished, error)
 	Progress(ctx context.Context, req revisions.Request) (*BuildProgress, error)
 	NoteAgent(ctx context.Context, req revisions.Request, in AgentReport) error
+	BeginHarness(ctx context.Context, req revisions.Request) error
 }
 
 type RunWrites struct {
