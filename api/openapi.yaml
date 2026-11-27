@@ -2067,20 +2067,23 @@ components:
     MCPSourceDefinition:
       type: object
       additionalProperties: false
-      required: [description, input_schema, hash]
+      required: [description, input_schema, read_only, hash]
       properties:
         description:
           type: string
         input_schema:
           type: object
           additionalProperties: true
+        read_only:
+          type: boolean
+          description: Whether the server marks the tool read-only (`readOnlyHint`).
         hash:
           type: string
-          description: SHA-256 over the tool's name, description and input schema, as 64 hex characters.
+          description: SHA-256 over the tool's name, description, input schema and read-only mark, as 64 hex characters.
     MCPSourceTool:
       type: object
       additionalProperties: false
-      required: [name, state, refusal, description, input_schema, hash, seen, approved_by, approved_at, updated_at, allowed_actions]
+      required: [name, state, refusal, description, input_schema, read_only, hash, seen, approved_by, approved_at, updated_at, allowed_actions]
       properties:
         name:
           type: string
@@ -2097,9 +2100,15 @@ components:
         input_schema:
           type: object
           additionalProperties: true
+        read_only:
+          type: boolean
+          description: >-
+            Whether the server marks the pinned tool read-only (`readOnlyHint`).
+            A tool that is not marked can still be approved, by name only, and the agent may then call it, so it can change the system it reaches.
+            A tool discovered before the server stored the mark reads `false` while it was refused, until the next discovery fills it in.
         hash:
           type: string
-          description: SHA-256 over the pinned name, description and input schema, as 64 hex characters.
+          description: SHA-256 over the pinned name, description, input schema and read-only mark, as 64 hex characters.
         seen:
           nullable: true
           description: What the server describes now, for a `changed` tool; null otherwise.

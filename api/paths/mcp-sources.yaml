@@ -207,9 +207,9 @@ mcp-sources-uid-discover:
     description: >-
       Only Admins can call this endpoint.
       The server connects over MCP streamable HTTP through the outbound allowlist and lists its tools.
-      A tool the server marks destructive, or does not mark read-only, is stored as `refused` with the reason.
-      A new read-only tool is stored as `offered`; nothing is approved automatically.
-      An approved tool whose name, description or input schema changed becomes `changed` and is not served until an Admin approves it again.
+      A tool the server marks destructive (`destructiveHint: true`), or whose description or input schema is too large, is stored as `refused` with the reason.
+      Any other new tool is stored as `offered` with `read_only` saying whether the server marks it read-only; nothing is approved automatically.
+      An approved tool whose name, description, input schema or read-only mark changed becomes `changed` and is not served until an Admin approves it again.
       An approved tool the server no longer lists becomes `gone`.
       A failed discovery answers 200 with `source.state` `unreachable` and `source.failure` naming why: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
     responses:
@@ -248,7 +248,7 @@ mcp-sources-uid-tools:
     summary: List what discovery found on an MCP source.
     description: >-
       Only Admins can call this endpoint.
-      Each tool carries the definition that was pinned (`description`, `input_schema`, `hash`), and for a `changed` tool the definition the server offers now in `seen`.
+      Each tool carries the definition that was pinned (`description`, `input_schema`, `read_only`, `hash`), and for a `changed` tool the definition the server offers now in `seen`.
     responses:
       "200":
         description: The tools, sorted by name.
@@ -276,14 +276,15 @@ mcp-sources-uid-tools-approve-read-only:
     x-audit: { action: mcp_source.approve, target: { kind: mcp_source, id: path.uid } }
     x-surfaces:
       cli: [observe mcp-sources approve]
-    summary: Approve every offered tool of an MCP source at once.
+    summary: Approve every offered read-only tool of an MCP source at once.
     description: >-
       Only Admins can call this endpoint.
-      Every `offered` tool is approved as it is pinned now; the server marks each of them read-only.
+      Every `offered` tool the server marks read-only is approved as it is pinned now.
+      An `offered` tool that is not marked read-only is left alone: it is approved only by name, with the single-tool approve route.
       `changed` tools are left alone because each needs its own review, and `refused` tools cannot be approved.
     responses:
       "200":
-        description: The tools approved by this call; empty when none was offered.
+        description: The tools approved by this call; empty when no read-only tool was offered.
         content:
           application/json:
             schema:

@@ -1834,7 +1834,8 @@ Lists the MCP sources the caller may use, each with the approved tools it may ca
 
 - A source shows its `source` (the id to pass to `call_mcp_tool`), `name`, an `about` line, a `status` when its last check failed, and its `tool_count`.
   The line is the description an Admin gave the source, or "<name>, an MCP server at <host>" when it has none.
-- While the caller may use 20 approved tools or fewer in all, each tool also shows its `name`, a one-line `description` and its `arguments`, such as `query (string, required), limit (integer)`.
+- While the caller may use 20 approved tools or fewer in all, each tool also shows its `name`, a one-line `description`, its `arguments`, such as `query (string, required), limit (integer)`, and `read_only`.
+  `read_only` is true when the source's server marks the tool as only reading, and false for a tool an Admin approved by name although the server does not mark it so; calling such a tool may change the system it reaches.
   Above that the list gives only the count for each source and a `find` line that points to `find_mcp_tools`, so the answer stays short however many tools there are.
 - A source set to Admins only is listed for an Admin and left out for anyone else.
 - A source whose last check failed is still listed, with a `status` that says so, and a call to it is still tried: it either works or answers `source_unavailable`.
@@ -1849,7 +1850,7 @@ Finds the approved tools that fit what the caller needs, for when a source has t
 - It takes `query`, in plain words and at most 200 bytes, and an optional `source` id to look in one source only.
 - Tools are ranked by the words of their names, their parameter names and their descriptions, so `logs of a crashing pod` finds `pods_log`.
   There are no embeddings; a query that shares no word with a tool does not find it.
-- The answer holds at most 8 `matches`, each with `source`, `source_name`, `tool`, `description`, `arguments` and the pinned `input_schema`, ready to pass to `call_mcp_tool`.
+- The answer holds at most 8 `matches`, each with `source`, `source_name`, `tool`, `description`, `arguments`, `read_only` and the pinned `input_schema`, ready to pass to `call_mcp_tool`.
   A schema over 3 KiB is left out with `schema_omitted: true`, and `arguments` still names the parameters.
   `more_matches` counts the matches that are not shown, and a `hint` says what to try when none matched.
 - Only approved tools of sources the caller may use are looked at.

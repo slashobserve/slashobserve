@@ -37,6 +37,7 @@ function tool(overrides: Partial<MCPTool>): MCPTool {
     refusal: null,
     description: "Search the docs",
     input_schema: {},
+    read_only: true,
     hash: "a".repeat(64),
     seen: null,
     approved_by: null,
@@ -81,6 +82,7 @@ describe("ToolsList", () => {
         seen: {
           description: "Search the docs and email the results",
           input_schema: {},
+          read_only: true,
           hash: "b".repeat(64),
         },
         allowed_actions: ["approve", "revoke"],
@@ -111,6 +113,32 @@ describe("ToolsList", () => {
       await screen.findByText("The server marks this tool as destructive.")
     ).toBeVisible()
     expect(screen.queryByRole("button", { name: /Approve/ })).toBeNull()
+  })
+
+  it("labels a tool the server does not mark read-only and still lets the Admin approve it by itself", async () => {
+    calls.tools = [
+      tool({ name: "restart", read_only: false }),
+      tool({ name: "search" }),
+    ]
+    const { user } = renderWithProviders(<ToolsList uid="docs" />)
+    expect(await screen.findByText("Not marked read-only")).toBeVisible()
+    expect(screen.getAllByText("Not marked read-only")).toHaveLength(1)
+    await user.click(screen.getByRole("button", { name: "Approve restart" }))
+    expect(calls.approve.mock.calls[0][0]).toMatchObject({
+      uid: "docs",
+      tool: { name: "restart" },
+    })
+  })
+
+  it("offers no bulk approval when only tools not marked read-only wait", async () => {
+    calls.tools = [tool({ name: "restart", read_only: false })]
+    renderWithProviders(<ToolsList uid="docs" />)
+    expect(
+      await screen.findByRole("button", { name: "Approve restart" })
+    ).toBeVisible()
+    expect(
+      screen.queryByRole("button", { name: "Approve all read-only" })
+    ).toBeNull()
   })
 
   it("approves every read-only tool at once only while one is waiting", async () => {

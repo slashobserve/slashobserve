@@ -67,10 +67,12 @@ func (s *Service) ApproveListed(ctx context.Context, entries []config.MCPSource)
 	return errors.Join(errs...)
 }
 
-func names(tools []Tool) map[string]bool {
+func decidable(tools []Tool) map[string]bool {
 	out := make(map[string]bool, len(tools))
 	for _, t := range tools {
-		out[t.Name] = true
+		if t.State != ToolRefused {
+			out[t.Name] = true
+		}
 	}
 	return out
 }
@@ -107,7 +109,7 @@ func (s *Service) approveListedOf(ctx context.Context, e config.MCPSource) error
 			stored[i] = toolOf(r)
 		}
 		var toApprove []Tool
-		toApprove, skipped = listedApprovals(stored, e.Approve, names(before))
+		toApprove, skipped = listedApprovals(stored, e.Approve, decidable(before))
 		now := time.Now()
 		approvedNames = nil
 		for _, t := range toApprove {

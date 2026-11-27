@@ -80,6 +80,46 @@ func TestTheFileApprovesTheToolsItListsAndRefusesTheRest(t *testing.T) {
 	}
 }
 
+func TestTheFileApprovesANamedToolNotMarkedReadOnly(t *testing.T) {
+	r := newRig(t, readOnlyTool("search", "Search"), unmarkedTool("restart"))
+	entries := filedCode("restart")
+	if err := r.service.Provision(t.Context(), entries); err != nil {
+		t.Fatal(err)
+	}
+	r.allow(t, fakeHost)
+	if err := r.service.ApproveListed(t.Context(), entries); err != nil {
+		t.Fatal(err)
+	}
+	tools := r.tools(t, "code")
+	if got := tools["restart"]; got.State != "approved" || got.ReadOnly {
+		t.Errorf("restart = %+v, want approved and not read-only", got)
+	}
+	if got := tools["search"].State; got != "offered" {
+		t.Errorf("search is %q, want offered: the file approves only what it names", got)
+	}
+}
+
+func TestTheFileApprovesANamedToolThatWasRefusedAsUnmarkedBeforeTheUpgrade(t *testing.T) {
+	r := newRig(t, unmarkedTool("restart"))
+	entries := filedCode("restart")
+	if err := r.service.Provision(t.Context(), entries); err != nil {
+		t.Fatal(err)
+	}
+	r.allow(t, fakeHost)
+	if _, err := r.service.Discover(t.Context(), provisioningFile, "code"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.database.SQLDB(t).ExecContext(t.Context(), `UPDATE mcp_source_tools SET state = 'refused', refusal = 'The server does not mark this tool as read-only.' WHERE name = 'restart'`); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.service.ApproveListed(t.Context(), entries); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.tools(t, "code")["restart"]; got.State != "approved" || got.Refusal != nil {
+		t.Errorf("restart = %+v, want approved", got)
+	}
+}
+
 func TestTheFileNeverApprovesAChangedDefinition(t *testing.T) {
 	r := newRig(t, readOnlyTool("search", "Search"))
 	entries := filedCode("search")

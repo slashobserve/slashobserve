@@ -20,7 +20,6 @@ const (
 	maxToolNameBytes    = 128
 
 	refusalDestructive = "The server marks this tool as destructive."
-	refusalUnmarked    = "The server does not mark this tool as read-only."
 	refusalDescription = "The description is longer than 4000 characters."
 	refusalSchema      = "The input schema is larger than 32 KiB."
 )
@@ -38,6 +37,7 @@ type Found struct {
 type Definition struct {
 	Description string
 	InputSchema json.RawMessage
+	ReadOnly    bool
 	Hash        string
 }
 
@@ -83,9 +83,15 @@ func canonicalSchema(raw json.RawMessage) (json.RawMessage, error) {
 	return out, err
 }
 
-func hashOf(name, description string, schema json.RawMessage) string {
+// A read-only tool hashes exactly as it did before the mark was part of the
+// definition, so tools approved then keep their pins.
+func hashOf(name, description string, schema json.RawMessage, readOnly bool) string {
 	sum := sha256.New()
-	for _, part := range []string{name, description, string(schema)} {
+	parts := []string{name, description, string(schema)}
+	if !readOnly {
+		parts = append(parts, "not read-only")
+	}
+	for _, part := range parts {
 		sum.Write([]byte(part))
 		sum.Write([]byte{0})
 	}
@@ -96,8 +102,6 @@ func refusalOf(f Found, schema json.RawMessage) string {
 	switch {
 	case f.Destructive != nil && *f.Destructive:
 		return refusalDestructive
-	case f.ReadOnly == nil || !*f.ReadOnly:
-		return refusalUnmarked
 	case utf8.RuneCountInString(f.Description) > maxDescriptionRunes:
 		return refusalDescription
 	case len(schema) > maxSchemaBytes:
@@ -134,7 +138,9 @@ func listingOf(found []Found) ([]listing, int) {
 		if err != nil {
 			schema = json.RawMessage(`{"type":"object"}`)
 		}
-		out = append(out, listing{found: f, def: Definition{Description: f.Description, InputSchema: schema, Hash: hashOf(f.Name, f.Description, schema)}, refusal: refusalOf(f, schema)})
+		readOnly := f.ReadOnly != nil && *f.ReadOnly
+		def := Definition{Description: f.Description, InputSchema: schema, ReadOnly: readOnly, Hash: hashOf(f.Name, f.Description, schema, readOnly)}
+		out = append(out, listing{found: f, def: def, refusal: refusalOf(f, schema)})
 	}
 	slices.SortFunc(out, func(a, b listing) int { return strings.Compare(a.found.Name, b.found.Name) })
 	return out, ignored
@@ -193,7 +199,7 @@ func reconcileUnapproved(cur Tool, l listing) (Change, bool) {
 	case cur.State == ToolRefused:
 		action = ActionOffer
 	}
-	if next.State == cur.State && next.Refusal == cur.Refusal && next.Pinned.Hash == cur.Pinned.Hash {
+	if next.State == cur.State && next.Refusal == cur.Refusal && next.Pinned.Hash == cur.Pinned.Hash && next.Pinned.ReadOnly == cur.Pinned.ReadOnly {
 		return Change{}, false
 	}
 	return Change{Tool: next, Action: action}, true

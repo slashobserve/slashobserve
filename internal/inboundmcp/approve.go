@@ -107,7 +107,7 @@ func (s *Service) ApproveReadOnly(ctx context.Context, by auth.Principal, uid st
 		out = nil
 		for _, row := range rows {
 			current := toolOf(row)
-			if current.State != ToolOffered {
+			if current.State != ToolOffered || !current.Pinned.ReadOnly {
 				continue
 			}
 			next, err := approved(current, by, now)

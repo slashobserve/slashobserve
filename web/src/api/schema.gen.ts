@@ -1664,7 +1664,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the server for its tools and compare them with what was approved.
-         * @description Only Admins can call this endpoint. The server connects over MCP streamable HTTP through the outbound allowlist and lists its tools. A tool the server marks destructive, or does not mark read-only, is stored as `refused` with the reason. A new read-only tool is stored as `offered`; nothing is approved automatically. An approved tool whose name, description or input schema changed becomes `changed` and is not served until an Admin approves it again. An approved tool the server no longer lists becomes `gone`. A failed discovery answers 200 with `source.state` `unreachable` and `source.failure` naming why: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
+         * @description Only Admins can call this endpoint. The server connects over MCP streamable HTTP through the outbound allowlist and lists its tools. A tool the server marks destructive (`destructiveHint: true`), or whose description or input schema is too large, is stored as `refused` with the reason. Any other new tool is stored as `offered` with `read_only` saying whether the server marks it read-only; nothing is approved automatically. An approved tool whose name, description, input schema or read-only mark changed becomes `changed` and is not served until an Admin approves it again. An approved tool the server no longer lists becomes `gone`. A failed discovery answers 200 with `source.state` `unreachable` and `source.failure` naming why: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
          */
         post: operations["discoverMCPSourceTools"];
         delete?: never;
@@ -1684,7 +1684,7 @@ export interface paths {
         };
         /**
          * List what discovery found on an MCP source.
-         * @description Only Admins can call this endpoint. Each tool carries the definition that was pinned (`description`, `input_schema`, `hash`), and for a `changed` tool the definition the server offers now in `seen`.
+         * @description Only Admins can call this endpoint. Each tool carries the definition that was pinned (`description`, `input_schema`, `read_only`, `hash`), and for a `changed` tool the definition the server offers now in `seen`.
          */
         get: operations["listMCPSourceTools"];
         put?: never;
@@ -1707,8 +1707,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Approve every offered tool of an MCP source at once.
-         * @description Only Admins can call this endpoint. Every `offered` tool is approved as it is pinned now; the server marks each of them read-only. `changed` tools are left alone because each needs its own review, and `refused` tools cannot be approved.
+         * Approve every offered read-only tool of an MCP source at once.
+         * @description Only Admins can call this endpoint. Every `offered` tool the server marks read-only is approved as it is pinned now. An `offered` tool that is not marked read-only is left alone: it is approved only by name, with the single-tool approve route. `changed` tools are left alone because each needs its own review, and `refused` tools cannot be approved.
          */
         post: operations["approveReadOnlyMCPSourceTools"];
         delete?: never;
@@ -5372,7 +5372,9 @@ export interface components {
             input_schema: {
                 [key: string]: unknown;
             };
-            /** @description SHA-256 over the tool's name, description and input schema, as 64 hex characters. */
+            /** @description Whether the server marks the tool read-only (`readOnlyHint`). */
+            read_only: boolean;
+            /** @description SHA-256 over the tool's name, description, input schema and read-only mark, as 64 hex characters. */
             hash: string;
         };
         MCPSourceTool: {
@@ -5386,7 +5388,9 @@ export interface components {
             input_schema: {
                 [key: string]: unknown;
             };
-            /** @description SHA-256 over the pinned name, description and input schema, as 64 hex characters. */
+            /** @description Whether the server marks the pinned tool read-only (`readOnlyHint`). A tool that is not marked can still be approved, by name only, and the agent may then call it, so it can change the system it reaches. A tool discovered before the server stored the mark reads `false` while it was refused, until the next discovery fills it in. */
+            read_only: boolean;
+            /** @description SHA-256 over the pinned name, description, input schema and read-only mark, as 64 hex characters. */
             hash: string;
             /** @description What the server describes now, for a `changed` tool; null otherwise. */
             seen: components["schemas"]["MCPSourceDefinition"] | null;
@@ -13451,7 +13455,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The tools approved by this call; empty when none was offered. */
+            /** @description The tools approved by this call; empty when no read-only tool was offered. */
             200: {
                 headers: {
                     [name: string]: unknown;

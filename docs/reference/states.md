@@ -203,11 +203,11 @@ An MCP source tool is one tool of an MCP server an Admin registered, returned by
 
 | State | Meaning | Actions |
 | --- | --- | --- |
-| `offered` | The server marks the tool read-only and an Admin has not approved it; the agent cannot call it. | `approve` |
+| `offered` | An Admin has not approved the tool; the agent cannot call it. read_only says whether the server marks it as only reading. | `approve` |
 | `approved` | An Admin approved the tool as pinned (its name, description and input schema, by hash); the agent may call it. | `revoke` |
 | `changed` | The server now describes an approved tool differently from what was pinned; it is not served until an Admin approves the new description. | `approve`, `revoke` |
 | `gone` | The server no longer lists an approved tool; it is not served, and it returns to approved if the server lists it again unchanged. | - |
-| `refused` | The server marks the tool destructive, or does not mark it read-only, or its description or schema is too large; refusal says why and nobody can approve it. | - |
+| `refused` | The server marks the tool destructive, or its description or schema is too large; refusal says why and nobody can approve it. | - |
 
 | Action | From | To | Event | By |
 | --- | --- | --- | --- | --- |

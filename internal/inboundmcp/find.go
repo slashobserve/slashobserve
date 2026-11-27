@@ -74,5 +74,6 @@ func matchOf(hit scored) tools.ContextMatch {
 		Description: queryproxy.ClipBytes(hit.tool.Pinned.Description, maxFoundDescription),
 		Arguments:   argumentsOf(hit.tool.Pinned.InputSchema),
 		InputSchema: hit.tool.Pinned.InputSchema,
+		ReadOnly:    hit.tool.Pinned.ReadOnly,
 	}
 }

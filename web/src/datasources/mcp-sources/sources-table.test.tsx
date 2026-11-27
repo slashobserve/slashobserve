@@ -84,6 +84,7 @@ function tool(overrides: Partial<MCPTool>): MCPTool {
     refusal: null,
     description: "Search the docs",
     input_schema: {},
+    read_only: true,
     hash: "a".repeat(64),
     seen: null,
     approved_by: null,

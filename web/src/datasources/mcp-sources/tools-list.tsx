@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   contextProblemText,
   hasReadOnlyToApprove,
+  isMarkedReadOnly,
   toolStatus,
 } from "./problems"
 import {
@@ -50,6 +51,11 @@ function ToolRow({ uid, tool }: { uid: string; tool: MCPTool }) {
             {tool.name}
           </span>
           <StatusLabel tone={status.tone}>{status.label}</StatusLabel>
+          {tool.state === "refused" || isMarkedReadOnly(tool) ? null : (
+            <span className="text-xs text-muted-foreground">
+              Not marked read-only
+            </span>
+          )}
         </div>
         <p className="mt-0.5 text-xs wrap-anywhere text-muted-foreground">
           {status.detail}
@@ -163,6 +169,7 @@ export function ToolsList({ uid }: { uid: string }) {
           </Button>
           <span className="text-xs text-muted-foreground">
             Approves every tool to review that the server marks read-only.
+            Approve any other tool by itself.
           </span>
         </div>
       ) : null}

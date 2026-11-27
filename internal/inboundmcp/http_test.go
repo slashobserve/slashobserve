@@ -39,12 +39,16 @@ type sourceView struct {
 }
 
 type toolView struct {
-	Name           string  `json:"name"`
-	State          string  `json:"state"`
-	Refusal        *string `json:"refusal"`
-	Description    string  `json:"description"`
-	Hash           string  `json:"hash"`
-	Seen           *struct{ Hash string }
+	Name        string  `json:"name"`
+	State       string  `json:"state"`
+	Refusal     *string `json:"refusal"`
+	Description string  `json:"description"`
+	ReadOnly    bool    `json:"read_only"`
+	Hash        string  `json:"hash"`
+	Seen        *struct {
+		Hash     string `json:"hash"`
+		ReadOnly bool   `json:"read_only"`
+	}
 	AllowedActions []string `json:"allowed_actions"`
 }
 
@@ -131,16 +135,21 @@ func TestAnAdminRegistersDiscoversAndApprovesTools(t *testing.T) {
 		t.Fatalf("discovery = %+v", found)
 	}
 	tools := r.tools(t, "docs")
-	for name, want := range map[string]string{"search": "offered", "list": "offered", "wipe": "refused", "plain": "refused"} {
+	for name, want := range map[string]string{"search": "offered", "list": "offered", "wipe": "refused", "plain": "offered"} {
 		if tools[name].State != want {
 			t.Errorf("%s is %q, want %q", name, tools[name].State, want)
+		}
+	}
+	for name, want := range map[string]bool{"search": true, "list": true, "wipe": false, "plain": false} {
+		if tools[name].ReadOnly != want {
+			t.Errorf("%s read_only = %v, want %v", name, tools[name].ReadOnly, want)
 		}
 	}
 	if tools["wipe"].Refusal == nil || !strings.Contains(*tools["wipe"].Refusal, "destructive") {
 		t.Errorf("wipe refusal = %v", tools["wipe"].Refusal)
 	}
-	if tools["plain"].Refusal == nil || !strings.Contains(*tools["plain"].Refusal, "read-only") {
-		t.Errorf("plain refusal = %v", tools["plain"].Refusal)
+	if tools["plain"].Refusal != nil {
+		t.Errorf("an unmarked tool must not be refused: %v", *tools["plain"].Refusal)
 	}
 
 	one := r.call(t, http.MethodPost, base+"/docs/tools/search/approve", `{"hash":"`+tools["search"].Hash+`"}`)
@@ -148,16 +157,22 @@ func TestAnAdminRegistersDiscoversAndApprovesTools(t *testing.T) {
 		t.Fatalf("search = %+v", got)
 	}
 	expectCode(t, r.call(t, http.MethodPost, base+"/docs/tools/wipe/approve", ""), http.StatusConflict, "tool_refused")
-	expectCode(t, r.call(t, http.MethodPost, base+"/docs/tools/plain/approve", ""), http.StatusConflict, "tool_refused")
 
 	all := decodeJSON[struct {
 		Approved []toolView `json:"approved"`
 	}](t, r.call(t, http.MethodPost, base+"/docs/tools/approve-read-only", ""), http.StatusOK)
 	if len(all.Approved) != 1 || all.Approved[0].Name != "list" {
-		t.Fatalf("approve-read-only = %+v", all.Approved)
+		t.Fatalf("approve-read-only must skip the tool not marked read-only: %+v", all.Approved)
+	}
+	if r.tools(t, "docs")["plain"].State != "offered" {
+		t.Fatal("bulk approval approved a tool not marked read-only")
+	}
+	plain := r.call(t, http.MethodPost, base+"/docs/tools/plain/approve", `{"hash":"`+tools["plain"].Hash+`"}`)
+	if got := decodeJSON[toolView](t, plain, http.StatusOK); got.State != "approved" || got.ReadOnly {
+		t.Fatalf("plain = %+v", got)
 	}
 	counts := decodeJSON[sourceView](t, r.call(t, http.MethodGet, base+"/docs", ""), http.StatusOK)
-	if counts.Tools.Approved != 2 || counts.Tools.Refused != 2 || counts.Tools.Offered != 0 {
+	if counts.Tools.Approved != 3 || counts.Tools.Refused != 1 || counts.Tools.Offered != 0 {
 		t.Errorf("counts = %+v", counts.Tools)
 	}
 

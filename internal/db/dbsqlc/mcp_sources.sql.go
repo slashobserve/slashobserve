@@ -85,7 +85,7 @@ func (q *Queries) GetMCPSource(ctx context.Context, uid string) (McpSource, erro
 }
 
 const getMCPSourceTool = `-- name: GetMCPSourceTool :one
-SELECT source_id, name, state, refusal, description, input_schema, hash, seen_description, seen_input_schema, seen_hash, approved_by, approved_at, updated_at FROM mcp_source_tools WHERE source_id = $1 AND name = $2 FOR UPDATE
+SELECT source_id, name, state, refusal, description, input_schema, hash, seen_description, seen_input_schema, seen_hash, approved_by, approved_at, updated_at, read_only, seen_read_only FROM mcp_source_tools WHERE source_id = $1 AND name = $2 FOR UPDATE
 `
 
 type GetMCPSourceToolParams struct {
@@ -110,6 +110,8 @@ func (q *Queries) GetMCPSourceTool(ctx context.Context, arg GetMCPSourceToolPara
 		&i.ApprovedBy,
 		&i.ApprovedAt,
 		&i.UpdatedAt,
+		&i.ReadOnly,
+		&i.SeenReadOnly,
 	)
 	return i, err
 }
@@ -200,7 +202,7 @@ func (q *Queries) ListMCPSourceToolCounts(ctx context.Context) ([]ListMCPSourceT
 }
 
 const listMCPSourceTools = `-- name: ListMCPSourceTools :many
-SELECT source_id, name, state, refusal, description, input_schema, hash, seen_description, seen_input_schema, seen_hash, approved_by, approved_at, updated_at FROM mcp_source_tools WHERE source_id = $1 ORDER BY name COLLATE "C"
+SELECT source_id, name, state, refusal, description, input_schema, hash, seen_description, seen_input_schema, seen_hash, approved_by, approved_at, updated_at, read_only, seen_read_only FROM mcp_source_tools WHERE source_id = $1 ORDER BY name COLLATE "C"
 `
 
 func (q *Queries) ListMCPSourceTools(ctx context.Context, sourceID pgtype.UUID) ([]McpSourceTool, error) {
@@ -226,6 +228,8 @@ func (q *Queries) ListMCPSourceTools(ctx context.Context, sourceID pgtype.UUID) 
 			&i.ApprovedBy,
 			&i.ApprovedAt,
 			&i.UpdatedAt,
+			&i.ReadOnly,
+			&i.SeenReadOnly,
 		); err != nil {
 			return nil, err
 		}
@@ -338,12 +342,12 @@ func (q *Queries) MarkMCPSourceChecked(ctx context.Context, arg MarkMCPSourceChe
 }
 
 const putMCPSourceTool = `-- name: PutMCPSourceTool :exec
-INSERT INTO mcp_source_tools (source_id, name, state, refusal, description, input_schema, hash, seen_description, seen_input_schema, seen_hash, approved_by, approved_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+INSERT INTO mcp_source_tools (source_id, name, state, refusal, description, input_schema, read_only, hash, seen_description, seen_input_schema, seen_read_only, seen_hash, approved_by, approved_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 ON CONFLICT (source_id, name) DO UPDATE SET
   state = EXCLUDED.state, refusal = EXCLUDED.refusal, description = EXCLUDED.description, input_schema = EXCLUDED.input_schema,
-  hash = EXCLUDED.hash, seen_description = EXCLUDED.seen_description, seen_input_schema = EXCLUDED.seen_input_schema,
-  seen_hash = EXCLUDED.seen_hash, approved_by = EXCLUDED.approved_by, approved_at = EXCLUDED.approved_at,
+  read_only = EXCLUDED.read_only, hash = EXCLUDED.hash, seen_description = EXCLUDED.seen_description, seen_input_schema = EXCLUDED.seen_input_schema,
+  seen_read_only = EXCLUDED.seen_read_only, seen_hash = EXCLUDED.seen_hash, approved_by = EXCLUDED.approved_by, approved_at = EXCLUDED.approved_at,
   updated_at = clock_timestamp()
 `
 
@@ -354,9 +358,11 @@ type PutMCPSourceToolParams struct {
 	Refusal         pgtype.Text
 	Description     string
 	InputSchema     []byte
+	ReadOnly        bool
 	Hash            string
 	SeenDescription pgtype.Text
 	SeenInputSchema []byte
+	SeenReadOnly    pgtype.Bool
 	SeenHash        pgtype.Text
 	ApprovedBy      pgtype.UUID
 	ApprovedAt      pgtype.Timestamptz
@@ -370,9 +376,11 @@ func (q *Queries) PutMCPSourceTool(ctx context.Context, arg PutMCPSourceToolPara
 		arg.Refusal,
 		arg.Description,
 		arg.InputSchema,
+		arg.ReadOnly,
 		arg.Hash,
 		arg.SeenDescription,
 		arg.SeenInputSchema,
+		arg.SeenReadOnly,
 		arg.SeenHash,
 		arg.ApprovedBy,
 		arg.ApprovedAt,
