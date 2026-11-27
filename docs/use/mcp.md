@@ -460,7 +460,7 @@ A request on the run's token after the run ended is answered with HTTP 409 and `
 - `usage`: the agent's model use so far, cumulative, with `provider`, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `cost_usd`, `model_calls`, `failed_calls`, `retries`, `compactions`, `renewals`, `model_ms` and `max_save_output_tokens`.
 
 Its answer has, next to `state`, `stop` and `lease_until`, the run's `build` progress and `server_time`, the server's clock when it renewed the lease.
-`lease_until` minus `server_time` is how long the lease has left, so an agent can time it on its own clock from the moment the answer arrives, whatever the difference between its clock and the server's.
+`lease_until` minus `server_time` is how long the lease has left, so an agent can time it on its own clock from the moment it sent the report, whatever the difference between its clock and the server's.
 
 `finish_run` also takes `failure_code`, one of `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `no_finding`, `refused`, `no_fixture` and `internal`, with `outcome` `failed`.
 The server stores its own text for the code, so no `message` is needed.
