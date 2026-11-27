@@ -392,11 +392,12 @@ func (c cleanedPatch) apply(current dbsqlc.Webhook, ownerKind string, ownerID pg
 	if c.types != nil {
 		params.EventTypes = c.types
 	}
-	if c.address != "" && c.address != current.Url {
+	enables := c.enabled != nil && *c.enabled
+	if enables || (c.address != "" && c.address != current.Url) {
 		params.ConsecutiveFailures, params.NextAttemptAt = 0, at
+		params.DropsLease = true
 	}
-	if c.enabled != nil && *c.enabled {
-		params.ConsecutiveFailures, params.NextAttemptAt = 0, at
+	if enables {
 		params.DisabledAt, params.DisabledReason = pgtype.Timestamptz{}, pgtype.Text{}
 	}
 	if c.enabled != nil && !*c.enabled && !current.DisabledAt.Valid {

@@ -10,9 +10,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/egress"
 )
 
@@ -334,5 +337,32 @@ func TestCleanFormat(t *testing.T) {
 	}
 	if _, err := cleanFormat("discord"); err == nil || !strings.Contains(err.Error(), "generic, slack or teams") {
 		t.Errorf("cleanFormat(discord) = %v, want a message naming the formats", err)
+	}
+}
+
+func TestOnlyAPatchThatRestartsDeliveryTakesTheLeaseFromTheDeliveryInFlight(t *testing.T) {
+	on, off := true, false
+	retrying := dbsqlc.Webhook{Name: "Pipeline", Url: receiverURL, Format: FormatGeneric, EventTypes: []string{activity.TypeFindingCreated}, ConsecutiveFailures: 49}
+	cases := []struct {
+		name  string
+		patch cleanedPatch
+		want  bool
+	}{
+		{"enable", cleanedPatch{enabled: &on}, true},
+		{"a new address", cleanedPatch{address: "https://" + receiverHost + "/moved"}, true},
+		{"the address it already has", cleanedPatch{address: receiverURL}, false},
+		{"disable", cleanedPatch{enabled: &off}, false},
+		{"rename", cleanedPatch{name: "Other"}, false},
+		{"other event types", cleanedPatch{types: []string{activity.TypeRunSucceeded}}, false},
+		{"a new owner", cleanedPatch{takeOwnership: true}, false},
+	}
+	for _, tc := range cases {
+		got := tc.patch.apply(retrying, string(auth.KindUser), pgtype.UUID{}, time.Now())
+		if got.DropsLease != tc.want {
+			t.Errorf("%s: drops the lease %v, want %v", tc.name, got.DropsLease, tc.want)
+		}
+		if restarted := got.ConsecutiveFailures == 0; restarted != tc.want {
+			t.Errorf("%s: failures %d, want a reset only with the lease", tc.name, got.ConsecutiveFailures)
+		}
 	}
 }

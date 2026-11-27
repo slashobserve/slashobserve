@@ -3780,7 +3780,7 @@ export interface paths {
         head?: never;
         /**
          * Change a webhook's name, address, format, event types or state.
-         * @description Only Admins can call this endpoint. The owner stays as it is. `owner: "me"` makes the caller the owner on purpose, so the webhook then delivers only what the caller can read, including the caller's personal folder. A webhook disabled with reason `owner` moves to the caller when `enabled: true` turns it on. A new address is checked against the outbound allowlist and resets the failure count. `enabled: true` clears the disable reason and the failure count and resumes delivery from the webhook's position in the log, still limited to events of the last 24 hours; `enabled: false` disables it with reason `manual`.
+         * @description Only Admins can call this endpoint. The owner stays as it is. `owner: "me"` makes the caller the owner on purpose, so the webhook then delivers only what the caller can read, including the caller's personal folder. A webhook disabled with reason `owner` moves to the caller when `enabled: true` turns it on. A new address is checked against the outbound allowlist and resets the failure count. `enabled: true` clears the disable reason and the failure count and resumes delivery from the webhook's position in the log, still limited to events of the last 24 hours; `enabled: false` disables it with reason `manual`. A new address and `enabled: true` also drop an attempt that is on its way: it is not recorded, and the event is sent again at once.
          */
         patch: operations["updateWebhook"];
         trace?: never;

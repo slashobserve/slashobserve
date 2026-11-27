@@ -607,6 +607,9 @@ SET cursor_xid = $1,
   cursor_seq = $2,
   consecutive_failures = 0,
   next_attempt_at = clock_timestamp(),
+  lease_id = NULL,
+  leased_by = NULL,
+  lease_until = NULL,
   updated_at = now()
 WHERE id = $3
 `
@@ -637,8 +640,11 @@ SET name = $1,
   next_attempt_at = $8,
   disabled_at = $9,
   disabled_reason = $10,
+  lease_id = CASE WHEN $11::boolean THEN NULL ELSE lease_id END,
+  leased_by = CASE WHEN $11::boolean THEN NULL ELSE leased_by END,
+  lease_until = CASE WHEN $11::boolean THEN NULL ELSE lease_until END,
   updated_at = now()
-WHERE id = $11
+WHERE id = $12
 RETURNING id, name, url, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq, consecutive_failures, next_attempt_at, lease_id, leased_by, lease_until, disabled_at, disabled_reason, created_at, updated_at, format
 `
 
@@ -653,6 +659,7 @@ type UpdateWebhookParams struct {
 	NextAttemptAt       pgtype.Timestamptz
 	DisabledAt          pgtype.Timestamptz
 	DisabledReason      pgtype.Text
+	DropsLease          bool
 	ID                  pgtype.UUID
 }
 
@@ -668,6 +675,7 @@ func (q *Queries) UpdateWebhook(ctx context.Context, arg UpdateWebhookParams) (W
 		arg.NextAttemptAt,
 		arg.DisabledAt,
 		arg.DisabledReason,
+		arg.DropsLease,
 		arg.ID,
 	)
 	var i Webhook

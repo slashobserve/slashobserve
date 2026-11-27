@@ -152,6 +152,98 @@ func TestAFailureKeepsAnAdminDisableMadeDuringTheDelivery(t *testing.T) {
 	}
 }
 
+func TestAnEnableDuringAFailingDeliveryKeepsItsResetAndSendsTheEventAgain(t *testing.T) {
+	r := newRig(t)
+	created := r.create(t, activity.TypeFindingCreated)
+	seq := r.append(t, activity.TypeFindingCreated)
+	r.db.Exec(t, `UPDATE webhooks SET consecutive_failures = 49 WHERE id = $1::uuid`, created.Webhook.ID)
+	on := true
+	r.sender.script(func(n int, _ call) (egress.SendResult, error) {
+		if n > 0 {
+			return egress.SendResult{Status: http.StatusOK}, nil
+		}
+		if _, err := r.svc.Update(t.Context(), adminTwo, r.uuid(t, created.Webhook.ID), Patch{Enabled: &on}); err != nil {
+			t.Error(err)
+		}
+		return egress.SendResult{Status: http.StatusInternalServerError}, nil
+	})
+
+	r.pass(t)
+
+	row := r.row(t, created.Webhook.ID)
+	if row.DisabledAt.Valid || row.ConsecutiveFailures != 0 || row.NextAttemptAt.Time.After(time.Now()) || row.LeaseID.Valid {
+		t.Fatalf("webhook after a failure that raced an admin enable %+v", row)
+	}
+	if rows := r.deliveries(t, created.Webhook.ID); len(rows) != 0 {
+		t.Fatalf("recorded %d attempts of the delivery the enable replaced", len(rows))
+	}
+	if logs := r.logs.String(); strings.Contains(logs, `"level":"ERROR"`) {
+		t.Fatalf("the worker logged an error for the lease the enable took: %s", logs)
+	}
+
+	r.pass(t)
+
+	if got, want := seqsSent(t, r.sender.all()), []int64{seq, seq}; !slices.Equal(got, want) {
+		t.Fatalf("sent %v, want the event again at once: %v", got, want)
+	}
+	if row := r.row(t, created.Webhook.ID); row.CursorSeq != seq || row.ConsecutiveFailures != 0 {
+		t.Fatalf("webhook after the second attempt %+v", row)
+	}
+}
+
+func TestAnAddressChangeDuringADeliveryDropsTheOldAddressesAnswer(t *testing.T) {
+	r := newRig(t)
+	created := r.create(t, activity.TypeFindingCreated)
+	seq := r.append(t, activity.TypeFindingCreated)
+	moved := "https://" + receiverHost + "/moved"
+	r.sender.script(func(n int, _ call) (egress.SendResult, error) {
+		if n > 0 {
+			return egress.SendResult{Status: http.StatusOK}, nil
+		}
+		if _, err := r.svc.Update(t.Context(), adminTwo, r.uuid(t, created.Webhook.ID), Patch{URL: &moved}); err != nil {
+			t.Error(err)
+		}
+		return egress.SendResult{Status: http.StatusGone}, nil
+	})
+
+	r.pass(t)
+
+	if row := r.row(t, created.Webhook.ID); row.DisabledAt.Valid || row.ConsecutiveFailures != 0 || row.LeaseID.Valid {
+		t.Fatalf("webhook after the old address answered 410 %+v", row)
+	}
+
+	r.pass(t)
+
+	calls := r.sender.all()
+	if got, want := seqsSent(t, calls), []int64{seq, seq}; !slices.Equal(got, want) || calls[1].URL != moved {
+		t.Fatalf("sent %v, the second to %q, want %v with the second to %q", got, calls[len(calls)-1].URL, want, moved)
+	}
+}
+
+func TestASkipAfterTheLeaseRanOutIsNotOverwrittenByTheDeliveryStillInFlight(t *testing.T) {
+	r := newRig(t)
+	created := r.create(t, activity.TypeFindingCreated)
+	first := r.append(t, activity.TypeFindingCreated)
+	r.db.Exec(t, `UPDATE webhooks SET consecutive_failures = 3 WHERE id = $1::uuid`, created.Webhook.ID)
+	r.sender.script(func(int, call) (egress.SendResult, error) {
+		r.db.Exec(t, `UPDATE webhooks SET lease_until = now() - interval '1 second' WHERE id = $1::uuid`, created.Webhook.ID)
+		if _, _, err := r.svc.SkipEvent(t.Context(), adminOne, r.uuid(t, created.Webhook.ID)); err != nil {
+			t.Error(err)
+		}
+		return egress.SendResult{Status: http.StatusInternalServerError}, nil
+	})
+
+	r.pass(t)
+
+	if row := r.row(t, created.Webhook.ID); row.ConsecutiveFailures != 0 || row.CursorSeq != first || row.LeaseID.Valid {
+		t.Fatalf("webhook after a failure that raced an admin skip %+v", row)
+	}
+	rows := r.deliveries(t, created.Webhook.ID)
+	if len(rows) != 1 || rows[0].Outcome != outcomeSkipped || rows[0].ErrorCode.String != errorSkippedByAdmin {
+		t.Fatalf("attempts %+v, want only the skip", rows)
+	}
+}
+
 func TestA410DisablesTheWebhookAsGone(t *testing.T) {
 	r := newRig(t)
 	created := r.create(t)

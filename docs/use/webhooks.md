@@ -307,6 +307,7 @@ Treat unknown fields as allowed, because a later version may add some: the `run.
 
 - **At least once.**
   A request can reach you twice, for example when your answer was lost on the way back.
+  Enabling a webhook or changing its address while a request is on its way drops that attempt: it is not recorded, and the event is sent again at once to the address the webhook then has.
   Keep the delivery ids you handled and ignore a repeat.
 - **In order for one webhook.**
   A webhook sends its next event only after the previous one was delivered, so a failing event holds back the events behind it.
