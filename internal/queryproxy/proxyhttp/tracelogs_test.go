@@ -232,9 +232,28 @@ func TestTraceLogsMapDatasourceErrorsLikeExplore(t *testing.T) {
 		})
 	}
 	lokiDS.answer, lokiDS.panicky = nil, true
-	expectError(t, hn.traceLogs("logs", traceLogsBody()), http.StatusInternalServerError, "internal")
+	func() {
+		defer func() {
+			if recover() == nil {
+				t.Fatal("a panic in the datasource did not reach the server's recover middleware")
+			}
+		}()
+		hn.traceLogs("logs", traceLogsBody())
+	}()
 	if held := hn.heldSlots(); held != 0 {
 		t.Fatalf("%d slots still held", held)
+	}
+}
+
+func TestTraceLogsRefuseAnOversizedResponse(t *testing.T) {
+	hn, lokiDS, _ := newTraceLogsHarness(t)
+	lokiDS.answer = func(datasource.TraceLogsRequest) ([]datasource.Frame, error) {
+		return bigFrames(maxResponseBytes + 1), nil
+	}
+	rec := hn.traceLogs("logs", traceLogsBody())
+	expectError(t, rec, http.StatusUnprocessableEntity, "limit_exceeded")
+	if msg := decodeError(t, rec).Error; msg != "response too large" {
+		t.Fatalf("message = %q", msg)
 	}
 }
 

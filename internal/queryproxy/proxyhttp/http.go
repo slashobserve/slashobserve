@@ -779,6 +779,14 @@ func (h *Handler) fail(c *gin.Context, err error) {
 	abortError(c, status, code, message)
 }
 
+func (h *Handler) tooLarge(c *gin.Context, size int) bool {
+	if size <= maxResponseBytes {
+		return false
+	}
+	h.fail(c, errTooLarge)
+	return true
+}
+
 func (h *Handler) readQuery(c *gin.Context) (url.Values, bool) {
 	query, err := parseQuery(c.Request.URL.RawQuery)
 	switch {

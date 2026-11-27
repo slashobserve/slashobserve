@@ -219,8 +219,7 @@ func (h *Handler) explorePage(c *gin.Context, inst datasource.Instance, rng data
 		h.fail(c, errInternal)
 		return
 	}
-	if len(frames) > maxResponseBytes {
-		h.fail(c, errTooLarge)
+	if h.tooLarge(c, len(frames)) {
 		return
 	}
 	meta := resultMetaOf(queryproxy.KindInstant, res.Frames).took(time.Since(started))

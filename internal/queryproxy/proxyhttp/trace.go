@@ -90,8 +90,7 @@ func (h *Handler) trace(c *gin.Context) {
 		h.fail(c, errInternal)
 		return
 	}
-	if len(frames) > maxResponseBytes {
-		h.fail(c, errTooLarge)
+	if h.tooLarge(c, len(frames)) {
 		return
 	}
 	entry := dataEntry{

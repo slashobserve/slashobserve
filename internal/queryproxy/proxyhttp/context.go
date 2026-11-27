@@ -102,8 +102,7 @@ func (h *Handler) logContext(c *gin.Context) {
 		h.exploreFail(c, uid, err)
 		return
 	}
-	if len(results[0].Frames)+len(results[1].Frames) > maxResponseBytes {
-		h.fail(c, errTooLarge)
+	if h.tooLarge(c, len(results[0].Frames)+len(results[1].Frames)) {
 		return
 	}
 	c.JSON(http.StatusOK, contextResponse{Anchor: *req.Anchor, Before: results[0], After: results[1]})
