@@ -243,6 +243,8 @@ The answer is `201` with the connection, its `id` and a `Location` header.
 | `POST /api/v1/grafana/{id}/test` | Reads Grafana's health, its top-level folders and the first page of its dashboards, and stores the outcome in `last_test`. |
 
 A test of a Grafana that cannot be reached or refuses the token still answers `200`, with `last_test.ok` false.
+Every connection also carries `test.state`: `untested` while `last_test` is null, `failing` or `ok`.
+A `failing` test names who can fix it in `test.failure_kind`: `transient` (Grafana did not answer, or answered 429 or 5xx, so test again), `credentials` (the token was refused), `configuration` (the URL, the outbound allowlist or what answers at the address), `unsupported` (an answer the server cannot take) or `unknown`.
 The name is 1 to 100 characters, the URL at most 2048 and the token at most 4096.
 The URL needs a domain name and no user info, query or fragment.
 

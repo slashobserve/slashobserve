@@ -6839,6 +6839,20 @@ components:
         message:
           type: string
           description: A fixed sentence chosen by the outcome, such as the folder and dashboard counts or why Grafana could not be read.
+    GrafanaConnectionTestState:
+      type: object
+      additionalProperties: false
+      required: [state, failure_kind]
+      properties:
+        state:
+          type: string
+          enum: [untested, failing, ok]
+          description: "`untested` while `last_test` is null, `failing` when the last test could not read Grafana, `ok` otherwise."
+        failure_kind:
+          type: string
+          nullable: true
+          enum: [transient, credentials, configuration, unsupported, unknown]
+          description: Who can fix a `failing` test, and null in every other state. `transient` means Grafana did not answer or answered 429 or 5xx, so testing again may pass; `credentials` means it refused the token; `configuration` means the URL, the outbound allowlist or what answers at the address is wrong; `unsupported` means an answer this server cannot take; `unknown` covers the rest, and every failure stored before the cause was kept.
     GrafanaImportSummary:
       type: object
       additionalProperties: false
@@ -6959,7 +6973,7 @@ components:
     GrafanaConnection:
       type: object
       additionalProperties: false
-      required: [id, name, url, created_by, created_at, updated_at, last_test, last_sync]
+      required: [id, name, url, created_by, created_at, updated_at, last_test, test, last_sync]
       properties:
         id:
           type: string
@@ -6985,6 +6999,10 @@ components:
           description: Null until the connection is tested, and again after its URL or token changes.
           allOf:
             - $ref: "#/components/schemas/GrafanaConnectionTest"
+        test:
+          description: The state of the connection's test, derived from `last_test`, so a reader does not parse `last_test.message`.
+          allOf:
+            - $ref: "#/components/schemas/GrafanaConnectionTestState"
         last_sync:
           nullable: true
           description: The summary of the last finished import, or null before the first one.

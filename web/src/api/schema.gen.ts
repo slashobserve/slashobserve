@@ -7897,6 +7897,18 @@ export interface components {
             /** @description A fixed sentence chosen by the outcome, such as the folder and dashboard counts or why Grafana could not be read. */
             message: string;
         };
+        GrafanaConnectionTestState: {
+            /**
+             * @description `untested` while `last_test` is null, `failing` when the last test could not read Grafana, `ok` otherwise.
+             * @enum {string}
+             */
+            state: "untested" | "failing" | "ok";
+            /**
+             * @description Who can fix a `failing` test, and null in every other state. `transient` means Grafana did not answer or answered 429 or 5xx, so testing again may pass; `credentials` means it refused the token; `configuration` means the URL, the outbound allowlist or what answers at the address is wrong; `unsupported` means an answer this server cannot take; `unknown` covers the rest, and every failure stored before the cause was kept.
+             * @enum {string|null}
+             */
+            failure_kind: "transient" | "credentials" | "configuration" | "unsupported" | "unknown" | null;
+        };
         GrafanaImportSummary: {
             /** Format: uuid */
             id: string;
@@ -7981,6 +7993,8 @@ export interface components {
             updated_at: string;
             /** @description Null until the connection is tested, and again after its URL or token changes. */
             last_test: components["schemas"]["GrafanaConnectionTest"] | null;
+            /** @description The state of the connection's test, derived from `last_test`, so a reader does not parse `last_test.message`. */
+            test: components["schemas"]["GrafanaConnectionTestState"];
             /** @description The summary of the last finished import, or null before the first one. */
             last_sync: components["schemas"]["GrafanaImportSummary"] | null;
         };

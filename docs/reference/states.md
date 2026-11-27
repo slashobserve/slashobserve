@@ -197,6 +197,17 @@ A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /g
 | `exhaust` | `running` | `failed` | `grafana sync lease expired twice` | server |
 | `cancel` | `running` | `canceled` | `grafana sync canceled` | admin |
 
+## Grafana connection test
+
+`GET /grafana` returns the `test.state` of each connection.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `untested` | The connection has not been tested since it was added or its URL or token changed; last_test is null. |
+| `failing` | The last test could not read Grafana; failure_kind says who can fix it: transient (Grafana did not answer, try again), credentials (the token was refused), configuration (the URL, the outbound allowlist or what answers at the address), unsupported (an answer this server cannot take) or unknown. |
+| `ok` | None of the above: the last test read Grafana's health, folders and dashboards. |
+
 ## MCP source tool
 
 An MCP source tool is one tool of an MCP server an Admin registered, returned by `GET /api/v1/mcp-sources/{uid}/tools`; discovery moves it between `offered`, `changed`, `gone` and `refused`, and an Admin approves or revokes it.
