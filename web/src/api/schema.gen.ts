@@ -5750,6 +5750,10 @@ export interface components {
             creator: components["schemas"]["Creator"];
             folder: components["schemas"]["DashboardFolder"];
             permissions: components["schemas"]["Permissions"];
+            /** @description Whether the caller may delete the dashboard, which needs Edit on its folder; true for an Editor on a starter dashboard, whose `permissions.edit` is false. */
+            can_delete: boolean;
+            /** @description Whether the caller may add, change and remove annotations on the dashboard and pin to it, which needs Edit on its folder; true for an Editor on a starter dashboard, whose `permissions.edit` is false. */
+            can_annotate: boolean;
             /** @description True for a starter dashboard the server keeps current with each release, such as those in the Audit folder. Its `permissions.edit` is false, every change to its content answers 409 `provisioned`, and duplicating it makes an ordinary editable dashboard. */
             provisioned: boolean;
             /**
@@ -5801,6 +5805,10 @@ export interface components {
             view_count: number;
             folder: components["schemas"]["DashboardFolder"];
             permissions: components["schemas"]["Permissions"];
+            /** @description Whether the caller may delete the dashboard, which needs Edit on its folder; true for an Editor on a starter dashboard, whose `permissions.edit` is false. */
+            can_delete: boolean;
+            /** @description Whether the caller may add, change and remove annotations on the dashboard and pin to it, which needs Edit on its folder; true for an Editor on a starter dashboard, whose `permissions.edit` is false. */
+            can_annotate: boolean;
             /** @description True for a starter dashboard the server keeps current with each release. Its `permissions.edit` is false, so a list never offers to move or change it. */
             provisioned: boolean;
             /**

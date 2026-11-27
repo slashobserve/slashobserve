@@ -44,6 +44,8 @@ type dashboardJSON struct {
 	Creator       creatorJSON         `json:"creator"`
 	Folder        dashboardFolderJSON `json:"folder"`
 	Permissions   folders.Permissions `json:"permissions"`
+	CanDelete     bool                `json:"can_delete"`
+	CanAnnotate   bool                `json:"can_annotate"`
 	Provisioned   bool                `json:"provisioned"`
 	ManagedBy     string              `json:"managed_by"`
 }
@@ -63,6 +65,8 @@ type dashboardListItemJSON struct {
 	ViewCount        int                 `json:"view_count"`
 	Folder           dashboardFolderJSON `json:"folder"`
 	Permissions      folders.Permissions `json:"permissions"`
+	CanDelete        bool                `json:"can_delete"`
+	CanAnnotate      bool                `json:"can_annotate"`
 	Provisioned      bool                `json:"provisioned"`
 	ManagedBy        string              `json:"managed_by"`
 }
@@ -148,6 +152,8 @@ func newDashboardJSON(d Dashboard) dashboardJSON {
 		Creator:       newCreatorJSON(d.Creator),
 		Folder:        newDashboardFolderJSON(d.Folder),
 		Permissions:   folders.PermissionsJSON(d.Abilities),
+		CanDelete:     d.MayDelete(),
+		CanAnnotate:   d.MayAnnotate(),
 		Provisioned:   d.Provisioned,
 		ManagedBy:     d.ManagedBy.String(),
 	}
@@ -204,6 +210,8 @@ func newDashboardListItemJSON(item ListItem) dashboardListItemJSON {
 		ViewCount:        item.ViewCount,
 		Folder:           newDashboardFolderJSON(d.Folder),
 		Permissions:      folders.PermissionsJSON(d.Abilities),
+		CanDelete:        d.MayDelete(),
+		CanAnnotate:      d.MayAnnotate(),
 		Provisioned:      d.Provisioned,
 		ManagedBy:        d.ManagedBy.String(),
 	}

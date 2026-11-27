@@ -225,6 +225,39 @@ func TestAStarterDashboardCanStillBeDeleted(t *testing.T) {
 	}
 }
 
+func TestAStarterDashboardTellsAnEditorItMayStillDeleteAndAnnotateIt(t *testing.T) {
+	r := newRig(t, false)
+	b := boards{rig: r}
+	id := r.starterDashboard(t).String()
+	type abilities struct {
+		CanDelete   bool `json:"can_delete"`
+		CanAnnotate bool `json:"can_annotate"`
+		Permissions struct{ Edit bool }
+	}
+	for _, c := range []struct {
+		name string
+		by   auth.Principal
+		want bool
+	}{{"an Editor", testUser, true}, {"a Viewer", viewerNoGrant, false}} {
+		rec := b.serve(c.by, http.MethodGet, "/dashboards/"+id, "")
+		var read struct{ Dashboard abilities }
+		if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &read) != nil {
+			t.Fatalf("%s: get answered %d %s", c.name, rec.Code, rec.Body.String())
+		}
+		if read.Dashboard.Permissions.Edit || read.Dashboard.CanDelete != c.want || read.Dashboard.CanAnnotate != c.want {
+			t.Errorf("%s reads %+v, want edit false and may delete and annotate %v", c.name, read.Dashboard, c.want)
+		}
+		rec = b.serve(c.by, http.MethodGet, "/dashboards", "")
+		var list struct{ Dashboards []abilities }
+		if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &list) != nil || len(list.Dashboards) != 1 {
+			t.Fatalf("%s: list answered %d %s", c.name, rec.Code, rec.Body.String())
+		}
+		if row := list.Dashboards[0]; row.CanDelete != c.want || row.CanAnnotate != c.want {
+			t.Errorf("%s lists %+v, want may delete and annotate %v", c.name, row, c.want)
+		}
+	}
+}
+
 func TestAStarterDashboardRefusesSavesAndProposalsFromTheService(t *testing.T) {
 	r := newRig(t, false)
 	id := r.starterDashboard(t)

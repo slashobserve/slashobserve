@@ -6,7 +6,6 @@ import {
   appliedNote,
   editNote,
   fileOwnedNote,
-  mayEditBesidesContent,
   readerNote,
   type DashboardPermissions,
 } from "./permissions"
@@ -77,16 +76,6 @@ describe("contentChange", () => {
     [{ comment: true }, true, "none"],
   ] as const)("maps %j, provisioned %s, to %s", (flags, provisioned, want) => {
     expect(contentChange(permissions(flags), provisioned)).toBe(want)
-  })
-})
-
-describe("mayEditBesidesContent", () => {
-  it("stays true on a starter, where deleting, annotating and asking still work", () => {
-    expect(mayEditBesidesContent(permissions({ edit: true }), false)).toBe(true)
-    expect(mayEditBesidesContent(permissions({}), true)).toBe(true)
-    expect(mayEditBesidesContent(permissions({ comment: true }), false)).toBe(
-      false
-    )
   })
 })
 

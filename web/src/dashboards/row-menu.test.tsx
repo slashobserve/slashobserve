@@ -45,6 +45,8 @@ function dashboard(over: Partial<Summary>): Summary {
     latest_version: 2,
     folder: { id: shopId, title: "Shop", general: false, personal: false },
     permissions: { comment: true, edit: true, manage: true, create: true },
+    can_delete: true,
+    can_annotate: true,
     provisioned: false,
     ...over,
   } as Summary
@@ -118,6 +120,32 @@ describe("DashboardRowMenu", () => {
     ).toBeVisible()
     expect(screen.queryByText("Move to")).toBeNull()
     expect(screen.queryByRole("menuitemradio")).toBeNull()
+  })
+
+  it("offers no Delete on a starter to a reader the server does not let delete it", async () => {
+    stubServer()
+    const { user } = renderMenu(
+      <DashboardRowMenu
+        dashboard={dashboard({
+          provisioned: true,
+          can_delete: false,
+          can_annotate: false,
+          permissions: {
+            comment: false,
+            edit: false,
+            manage: false,
+            create: false,
+          },
+        })}
+      />
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "More for Audit overview" })
+    )
+    await screen.findByRole("menu")
+    expect(
+      screen.queryByRole("menuitem", { name: "Delete dashboard..." })
+    ).toBeNull()
   })
 
   it("offers an ordinary dashboard with Edit the folder choices too", async () => {

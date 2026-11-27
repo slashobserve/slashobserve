@@ -27,7 +27,6 @@ import { DeleteDashboardDialog } from "./delete-dashboard-dialog"
 import { neighbourAfterDelete } from "./delete-dashboard"
 import { duplicateTargets } from "./duplicate"
 import { DuplicateDashboardDialog } from "./duplicate-dashboard-dialog"
-import { mayEditBesidesContent } from "./permissions"
 import { useMoveDashboard } from "./queries"
 
 type Target = { id: string; title: string }
@@ -78,10 +77,7 @@ export function DashboardRowMenu({
   const [duplicating, setDuplicating] = useState(false)
   const current = dashboard.folder.id
   const canEdit = dashboard.permissions.edit
-  const canDelete = mayEditBesidesContent(
-    dashboard.permissions,
-    dashboard.provisioned
-  )
+  const canDelete = dashboard.can_delete
   const publishing = dashboard.folder.personal
   const movedVerb = publishing ? "Published" : "Moved"
   const targets = duplicateTargets(folders, current)

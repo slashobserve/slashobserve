@@ -2836,7 +2836,7 @@ components:
     DashboardSummary:
       type: object
       additionalProperties: false
-      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator, folder, permissions, provisioned, managed_by]
+      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator, folder, permissions, can_delete, can_annotate, provisioned, managed_by]
       properties:
         id:
           type: string
@@ -2864,6 +2864,12 @@ components:
           $ref: "#/components/schemas/DashboardFolder"
         permissions:
           $ref: "#/components/schemas/Permissions"
+        can_delete:
+          type: boolean
+          description: Whether the caller may delete the dashboard, which needs Edit on its folder; true for an Editor on a starter dashboard, whose `permissions.edit` is false.
+        can_annotate:
+          type: boolean
+          description: Whether the caller may add, change and remove annotations on the dashboard and pin to it, which needs Edit on its folder; true for an Editor on a starter dashboard, whose `permissions.edit` is false.
         provisioned:
           type: boolean
           description: True for a starter dashboard the server keeps current with each release, such as those in the Audit folder. Its `permissions.edit` is false, every change to its content answers 409 `provisioned`, and duplicating it makes an ordinary editable dashboard.
@@ -2910,7 +2916,7 @@ components:
     DashboardListItem:
       type: object
       additionalProperties: false
-      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, view_count, folder, permissions, provisioned, managed_by]
+      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, view_count, folder, permissions, can_delete, can_annotate, provisioned, managed_by]
       properties:
         id:
           type: string
@@ -2955,6 +2961,12 @@ components:
           $ref: "#/components/schemas/DashboardFolder"
         permissions:
           $ref: "#/components/schemas/Permissions"
+        can_delete:
+          type: boolean
+          description: Whether the caller may delete the dashboard, which needs Edit on its folder; true for an Editor on a starter dashboard, whose `permissions.edit` is false.
+        can_annotate:
+          type: boolean
+          description: Whether the caller may add, change and remove annotations on the dashboard and pin to it, which needs Edit on its folder; true for an Editor on a starter dashboard, whose `permissions.edit` is false.
         provisioned:
           type: boolean
           description: True for a starter dashboard the server keeps current with each release. Its `permissions.edit` is false, so a list never offers to move or change it.

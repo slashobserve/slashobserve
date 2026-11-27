@@ -132,11 +132,7 @@ import { PanelContainer } from "./panel-container"
 import { ProposalsButton } from "./proposals-button"
 import { mixesDatasources } from "./panel-datasources"
 import type { VariableSource } from "./panel-source"
-import {
-  contentChange,
-  mayEditBesidesContent,
-  type DashboardAccess,
-} from "./permissions"
+import { contentChange, type DashboardAccess } from "./permissions"
 import {
   asDashboardSpec,
   dashboardVersionQuery,
@@ -279,10 +275,14 @@ function DashboardView({
 }) {
   const search = useDashboardSearch()
   const setSearch = useSetDashboardSearch()
-  const { permissions, provisioned } = access
+  const {
+    permissions,
+    provisioned,
+    can_delete: canDelete,
+    can_annotate: canAnnotate,
+  } = access
   const { principal } = useRouteContext({ from: "/_authed" })
   const content = contentChange(permissions, provisioned)
-  const besidesContent = mayEditBesidesContent(permissions, provisioned)
   const { threads } = useThreads(`dashboard:${dashboardId}`)
   const openByPanel = useMemo(() => openThreadsByPanel(threads), [threads])
   const openTotal = useMemo(() => openThreadCount(threads), [threads])
@@ -887,7 +887,7 @@ function DashboardView({
       key="more"
       dashboardId={dashboardId}
       mayEdit={permissions.edit}
-      mayDelete={besidesContent}
+      mayDelete={canDelete}
       detailsBlockedBy={detailsBlockReason({
         pinned,
         editingLayout: editing,
@@ -1016,7 +1016,7 @@ function DashboardView({
     dashboardId,
     zone: displayZone(undefined, viewZone),
     panelTitle: annotationPanelTitle,
-    canEdit: besidesContent && !kiosk,
+    canEdit: canAnnotate && !kiosk,
     principal,
   }
 
