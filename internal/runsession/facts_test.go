@@ -104,6 +104,23 @@ func TestAnUnknownFactIsSentBackOnceAndTheSecondSaveStillSaves(t *testing.T) {
 	}
 }
 
+func TestTwoAnswersForOneQuantityAreSentBack(t *testing.T) {
+	s := groundingScript(t, grounding.Enforce)
+	s.readAnswer("measure_window", `{"datasource":"prom","stat":"max","step":"30s"}`, measured, &Turn{ID: "t1", Calls: 1})
+	finer := strings.Replace(strings.Replace(measured, "0.5234123", "0.61", 1), "[2h:30s]", "[2h:15s]", 1)
+	s.readAnswer("measure_window", `{"datasource":"prom","stat":"max","step":"15s"}`, finer, &Turn{ID: "t2", Calls: 1})
+	const save = `{"markdown":"Checkout p99 peaked at {{f1:ms}}.","answers":[{"quantity":"peak p99","fact":"f1"},{"quantity":"peak p99","fact":"f2"}]}`
+
+	message := sendBackMessage(t, s.admitSave(save, &Turn{ID: "t3", Calls: 1}))
+	if !strings.Contains(message, `"answers: peak p99 = f1 or f2": one quantity takes one fact`) {
+		t.Errorf("the send-back does not name the conflict:\n%s", message)
+	}
+	clean := s.admitSave(`{"markdown":"Checkout p99 peaked at {{f2:ms}}.","answers":[{"quantity":"peak p99","fact":"f2"}]}`, &Turn{ID: "t4", Calls: 1})
+	if clean.answer != nil || clean.unverified != nil {
+		t.Errorf("the settled save = %+v, %+v", clean.answer, clean.unverified)
+	}
+}
+
 func TestReportRecordsABrokenCitationWithoutSendingItBack(t *testing.T) {
 	s := groundingScript(t, grounding.Report)
 	s.readAnswer("measure_window", `{"datasource":"prom","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1})

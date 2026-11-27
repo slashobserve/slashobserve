@@ -41,10 +41,11 @@ type Fact struct {
 	From   string            `json:"from,omitempty"`
 	To     string            `json:"to,omitempty"`
 	Query  string            `json:"query,omitempty"`
+	Asked  string            `json:"asked,omitempty"`
 }
 
 func (f Fact) same(g Fact) bool {
-	return f.Of == g.Of && f.Text == g.Text && f.At == g.At && f.From == g.From && f.To == g.To && f.Query == g.Query && maps.Equal(f.Labels, g.Labels)
+	return f.Of == g.Of && f.Text == g.Text && f.At == g.At && f.From == g.From && f.To == g.To && f.Query == g.Query && f.Asked == g.Asked && maps.Equal(f.Labels, g.Labels)
 }
 
 type factSource map[string][]string
@@ -116,6 +117,7 @@ type issuing struct {
 	from    string
 	to      string
 	query   string
+	asked   string
 	qualify string
 	issued  int
 }
@@ -131,6 +133,9 @@ func (r *Record) IssueFacts(tool string, input, content []byte, ranges []Range) 
 	}
 	is := issuing{record: r, tool: tool, source: source, top: top}
 	is.window(ranges)
+	if in, ok := parseJSON(input); ok && in.kind == nodeObject {
+		is.asked = clipBytes(in.str("query"), maxFactQuery)
+	}
 	is.query = top.str("query")
 	if is.query == "" {
 		if executed := top.get("executed"); executed != nil && len(executed.vals) > 0 {
@@ -138,9 +143,7 @@ func (r *Record) IssueFacts(tool string, input, content []byte, ranges []Range) 
 		}
 	}
 	if is.query == "" {
-		if in, ok := parseJSON(input); ok && in.kind == nodeObject {
-			is.query = in.str("query")
-		}
+		is.query = is.asked
 	}
 	is.qualify = strings.TrimSpace(top.str("stat") + " " + top.str("op"))
 	is.visit(top, "", nil)
@@ -232,7 +235,7 @@ func (is *issuing) fact(n *node, path, key string, labels map[string]string) str
 		return ""
 	}
 	kind, unit := kindOf(key)
-	f := Fact{Kind: kind, Unit: unit, Of: is.of(path, key), Labels: labels, At: n.str("at"), From: is.from, To: is.to, Query: clipBytes(is.query, maxFactQuery)}
+	f := Fact{Kind: kind, Unit: unit, Of: is.of(path, key), Labels: labels, At: n.str("at"), From: is.from, To: is.to, Query: clipBytes(is.query, maxFactQuery), Asked: is.asked}
 	if q := factQueries[key]; q != "" {
 		f.Query = clipBytes(is.top.str(q), maxFactQuery)
 	}

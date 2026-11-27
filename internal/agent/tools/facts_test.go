@@ -43,7 +43,7 @@ func TestASavedFindingHoldsTheRenderedFiguresAndNoPlaceholder(t *testing.T) {
 	r := newFindingRig(t)
 	run := investigateRun(findingWindowTo.Add(-2*time.Hour), findingWindowTo)
 	ctx := WithFacts(WithRun(auth.WithPrincipal(t.Context(), editorCaller), run), factLedger)
-	res, err := r.registry.Call(ctx, nameSaveFinding, []byte(`{"markdown":"Checkout p99 peaked at {{f1:ms:4}}."}`))
+	res, err := r.registry.Call(ctx, nameSaveFinding, []byte(`{"markdown":"Checkout p99 peaked at {{f1:ms:4}}.","answers":[{"quantity":"peak p99","fact":"f1"}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}

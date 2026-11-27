@@ -295,7 +295,7 @@ See [LLM providers](../connect/llm-providers.md) for how the settings combine.
 | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | `12` | Model calls an investigation makes, `6` to `60`. |
 | `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` | `false` | Gives investigations of the built-in agent a hypothesis ledger, stages, and a call limit that grows with progress. |
 | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX` | the value of `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | The most model calls a growing investigation limit can reach, from `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` to `60`. |
-| `SLASHOBSERVE_AGENT_FINDING_GROUNDING` | `off` | Checks an investigation's finding against what the run read: `off`, `report` or `enforce`. |
+| `SLASHOBSERVE_AGENT_FINDING_GROUNDING` | `off` | Numbers what reads return as facts and checks a run's finding against what the run read: `off`, `report` or `enforce`. |
 | `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` | `256` | Session size that triggers shortening, `32` to `4096` KiB. |
 | `SLASHOBSERVE_LLM_PRICES_FILE` | the built-in table | YAML file of model prices. |
 | `SLASHOBSERVE_LLM_REPLAY_DIR` | unset | Folder of recorded model scripts. Required for `replay`. |
@@ -408,7 +408,7 @@ The measurement and trace reads also number their values as facts (`"facts":{"va
 
 A send-back is not a rejected save: it does not count toward the 3 rejected saves in a row, and the call that answers it may read past the call limit.
 The check never fails a run.
-It covers investigate runs of the built-in agent and of connected agents, and a run keeps the mode it started with across a restart.
+It covers every run that can save a finding, an investigation, a question asked on Home and a revision, of the built-in agent and of connected agents, and a run keeps the mode it started with across a restart; `save_finding` also takes `answers`, one fact per quantity the question asks for, and two facts for one quantity are an item of the check.
 The items are returned as `unverified` on the finding and on the observation's `findings`, and the observation shows one line under its header.
 Changing the setting needs a server restart.
 

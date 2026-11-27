@@ -167,6 +167,19 @@ A placeholder takes options after colons, in any order:
 A trace id fact takes no option and renders as the whole id.
 A placeholder naming a fact the run does not hold, or an option that does not fit the fact or would move the value by more than 1%, is a problem with the finding: with `enforce` it is sent back once naming the id, and when the finding is saved anyway, an unknown fact is written as `[figure not read]`, a broken option is ignored, and the item is stored with the finding.
 
+### One value per quantity
+
+`save_finding` takes `answers`: for each quantity the question asks for, a few words naming it and the one fact that answers it, such as `{"quantity":"peak p99 of checkout","fact":"f12"}`.
+The list is checked and then dropped; the finding stores the rendered text, not the list.
+These are problems with the finding, handled like any other item of the check:
+
+- An entry names a fact the run does not hold.
+- Two entries name the same quantity (compared without case or punctuation) with facts whose values are more than 1% apart, or with two different trace ids.
+- An entry's fact is not given in the Markdown or the impact, cited or written within 1% of its value.
+- The Markdown or the impact cites two facts of one quantity with values more than 1% apart: the same tool, statistic and field for the same labels, window and asked query, such as one peak read at two steps, or two durations of one trace.
+
+The check runs on a finding saved in any run that can save one, so a question asked on Home or in a revision's chat is checked like an investigation, and a suggestion has none.
+
 With `report`, the items that did not pass are stored with the finding and nothing else changes.
 With `enforce`, the first save with such items is sent back once with a line per item that says "read it, correct it, or remove it".
 The agent may read past its call limit to do that, and the send-back is not counted as a rejected save.

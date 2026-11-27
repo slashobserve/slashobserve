@@ -259,7 +259,7 @@ func (s *Service) watched(run tools.Run, req revisions.Request) State {
 	if state.Loop {
 		state.Guard.WatchLedger()
 	}
-	if run.Mode == tools.ModeInvestigate {
+	if run.Mode != tools.ModeSuggest {
 		state.Grounding = grounding.NewRecord(s.findingGrounding)
 	}
 	if state.Grounding.Enforced() {

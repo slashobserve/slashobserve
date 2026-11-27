@@ -15,6 +15,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/findings"
@@ -48,6 +49,7 @@ const (
 
 	propFindingSuggestedChange = `"suggested_change":{"type":"string","maxLength":500,"description":"Asked about a dashboard only: the change the person asked for, in their terms, or the nearest safe one; omitted when none is needed, never repeated in markdown; a person with Comment applies it with Revise the dashboard, an agent over MCP."}`
 	propFindingObserveWorthy   = `"observe_worthy":{"type":"boolean","description":"True when the answer shows a jump, drop or error spike."}`
+	propFindingAnswers         = `"answers":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"quantity":{"type":"string"},"fact":{"type":"string"}},"required":["quantity","fact"]},"description":"When results gave fact ids: each quantity asked, in a few words, with the one fact id answering it, cited in markdown as {{f1}}."}`
 
 	propFindingRootCause = `"root_cause":{"type":"object","properties":{"component":{"type":"string","maxLength":120,"description":"Service, datastore, host or flag as named in the telemetry."},"kind":{"type":"string","enum":["deploy","config_or_flag","dependency","resource","data","traffic","infrastructure","unknown"]},"summary":{"type":"string","maxLength":300}},"required":["component","kind","summary"],"additionalProperties":false}`
 	propFindingOnset     = `"onset":{"type":"string","description":"Absolute RFC 3339 time."}`
@@ -60,7 +62,7 @@ const (
 	maxSuggestedChangeRunes = 500
 
 	schemaFindingHead       = `{"type":"object","properties":{` + propFindingTitle + `,` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,`
-	schemaFindingPlain      = propFindingSuggestedChange + `,` + propFindingObserveWorthy
+	schemaFindingPlain      = propFindingSuggestedChange + `,` + propFindingObserveWorthy + `,` + propFindingAnswers
 	schemaFindingStructured = `,` + propFindingRootCause + `,` + propFindingOnset + `,` + propFindingImpact + `,` + propFindingConf + `,` + propFindingRuledOut + `,` + propFindingNext + `,` + propFindingNoInc
 	schemaFindingEnd        = `},"required":["markdown"],"additionalProperties":false}`
 
@@ -105,8 +107,9 @@ type findingInput struct {
 	To       string            `json:"to"`
 	AskOn    string            `json:"ask_on_dashboard_id"`
 
-	SuggestedChange string `json:"suggested_change"`
-	ObserveWorthy   bool   `json:"observe_worthy"`
+	SuggestedChange string             `json:"suggested_change"`
+	ObserveWorthy   bool               `json:"observe_worthy"`
+	Answers         []grounding.Answer `json:"answers"`
 
 	findings.StructuredInput
 }
