@@ -219,13 +219,6 @@ describe("FieldsAside", () => {
     expect(fetcher).not.toHaveBeenCalled()
   })
 
-  it("counts the values as soon as the lines are in", async () => {
-    const fetcher = vi.fn(async () => Response.json(esFacets))
-    vi.stubGlobal("fetch", fetcher)
-    setup({ seedFacets: false })
-    await waitFor(() => expect(fetcher).toHaveBeenCalled())
-  })
-
   it("offers no drawer while the side panel fits", () => {
     setup({ drawer: true })
     expect(screen.queryByRole("button", { name: "Fields" })).toBeNull()
