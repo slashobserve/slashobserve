@@ -105,6 +105,7 @@ type importedJSON struct {
 	dashboards.DashboardVersionJSON
 	Import     importJSON `json:"import"`
 	FolderNote *string    `json:"folder_note"`
+	Warning    string     `json:"warning,omitempty"`
 }
 
 type metaJSON struct {
@@ -261,7 +262,7 @@ func respondImported(c *gin.Context, imported Imported) {
 		c.JSON(http.StatusOK, saved)
 		return
 	}
-	body := importedJSON{DashboardVersionJSON: saved, Import: newImportJSON(imported.Record), FolderNote: httpapi.OptionalString(imported.FolderNote)}
+	body := importedJSON{DashboardVersionJSON: saved, Import: newImportJSON(imported.Record), FolderNote: httpapi.OptionalString(imported.FolderNote), Warning: imported.Dashboard.ManagedBy.EditWarning()}
 	if imported.Updated {
 		c.JSON(http.StatusOK, body)
 		return

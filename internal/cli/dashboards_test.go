@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -198,6 +199,9 @@ func TestDashboardsShowPrintsViewsAndAddsThemToJSON(t *testing.T) {
 	if code != 0 || !strings.Contains(out, "9 in the last 30 days") {
 		t.Fatalf("exit %d, stdout %q, stderr %q", code, out, errOut)
 	}
+	if strings.Contains(out, "Managed by") {
+		t.Fatalf("stdout %q names what manages a dashboard the server said nothing about", out)
+	}
 	out, errOut, code = runDashboards(t, handler, "--json", "dashboards", "show", testDashboard)
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errOut)
@@ -236,5 +240,21 @@ func TestDashboardsListSendsExcludeAuditOnlyWhenAsked(t *testing.T) {
 		if got := strings.Contains(query, "exclude_audit=true"); got != tt.want {
 			t.Errorf("%v: query %q, sends exclude_audit=true is %t, want %t", tt.args, query, got, tt.want)
 		}
+	}
+}
+
+func TestDashboardsShowNamesWhatManagesTheDashboard(t *testing.T) {
+	const shown = `{"dashboard":{"id":"` + testDashboard + `","title":"Shop","latest_version":2,"managed_by":"apply","updated_at":"2026-01-02T00:00:00Z","updated_by":{"name":"Ada"}},"version":{"version":2,"summary":"s","actor":{"label":"Ada"},"created_at":"2026-01-02T00:00:00Z","spec":{"panels":[]}}}`
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.HasSuffix(r.URL.Path, "/views") {
+			_, _ = fmt.Fprint(w, `{"view_count":9,"window_days":30}`)
+			return
+		}
+		_, _ = fmt.Fprint(w, shown)
+	}
+	out, errOut, code := runDashboards(t, handler, "dashboards", "show", testDashboard)
+	if code != 0 || !regexp.MustCompile(`(?m)^Managed by\s+apply$`).MatchString(out) {
+		t.Fatalf("exit %d, stdout %q, stderr %q, want a Managed by line that says apply", code, out, errOut)
 	}
 }

@@ -2811,7 +2811,7 @@ components:
     DashboardSummary:
       type: object
       additionalProperties: false
-      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator, folder, permissions, provisioned]
+      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator, folder, permissions, provisioned, managed_by]
       properties:
         id:
           type: string
@@ -2842,6 +2842,15 @@ components:
         provisioned:
           type: boolean
           description: True for a starter dashboard the server keeps current with each release, such as those in the Audit folder. Its `permissions.edit` is false, every change to its content answers 409 `provisioned`, and duplicating it makes an ordinary editable dashboard.
+        managed_by:
+          type: string
+          enum: [starter, file, apply, workspace]
+          description: >-
+            What writes the dashboard's content.
+            `starter` is the same dashboards as `provisioned: true`.
+            `file` is bound to a file in the server's provisioning directory: a save works, and a change to that file replaces it, leaving it in the version history. The value stays after the file is removed.
+            `apply` was last written by `observe dashboards apply`: a save works, and applying its file again after the file changes replaces it, leaving it in the version history.
+            `workspace` is every other dashboard: people edit it in the app, and no file and no release writes it.
     HomeDashboard:
       type: object
       additionalProperties: false
@@ -2876,7 +2885,7 @@ components:
     DashboardListItem:
       type: object
       additionalProperties: false
-      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, view_count, folder, permissions, provisioned]
+      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, view_count, folder, permissions, provisioned, managed_by]
       properties:
         id:
           type: string
@@ -2924,6 +2933,10 @@ components:
         provisioned:
           type: boolean
           description: True for a starter dashboard the server keeps current with each release. Its `permissions.edit` is false, so a list never offers to move or change it.
+        managed_by:
+          type: string
+          enum: [starter, file, apply, workspace]
+          description: What writes the dashboard's content, with the values and meanings of `managed_by` on `GET /dashboards/{id}`.
     VersionMeta:
       type: object
       additionalProperties: false
@@ -3094,6 +3107,12 @@ components:
           $ref: "#/components/schemas/Version"
         merged_from:
           $ref: "#/components/schemas/MergedFrom"
+        warning:
+          type: string
+          description: >-
+            Present when the save or restore went to a dashboard whose `managed_by` is `file` or `apply`.
+            It says what replaces this version, which stays in the version history.
+            That is a change to the provisioning file, or applying the file again after it changes.
         outcome:
           type: string
           enum: [replayed, merged, created]
@@ -3254,6 +3273,9 @@ components:
             What the caller may do now. `update` means saving again to add a revision and has no route of its own;
             `merge` needs Edit on the dashboard and a connection that is not in propose mode; `discard` is for the author or someone who may merge.
             See docs/reference/states.md.
+        warning:
+          type: string
+          description: Only on the answer to a merge that saved a version of a dashboard whose `managed_by` is `file` or `apply`. It is the `warning` of a save to that dashboard.
     Proposal:
       type: object
       additionalProperties: false
@@ -6865,6 +6887,9 @@ components:
           type: string
           nullable: true
           description: Why the dashboard is not in the requested folder, or null when it is where the request or the source asked.
+        warning:
+          type: string
+          description: Present when `update_dashboard` saved a version of a dashboard whose `managed_by` is `file` or `apply`. It is the `warning` of a save to that dashboard.
     DatasourcesUnresolved:
       type: object
       additionalProperties: false

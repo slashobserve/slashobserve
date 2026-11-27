@@ -287,6 +287,10 @@ func (s *Service) replayedCommit(ctx context.Context, by auth.Principal, request
 		if err := s.DiscardBuild(ctx, requestID, claimEpoch); err != nil {
 			return Commit{}, false, err
 		}
+		dash, err = s.placed(ctx, by, dash)
+		if err != nil {
+			return Commit{}, false, err
+		}
 		return Commit{Dashboard: dash, Version: ver, Replayed: true}, true, nil
 	}
 	return s.proposedByRun(ctx, by, requestID, claimEpoch)
@@ -312,7 +316,7 @@ func (s *Service) proposeBuild(ctx context.Context, by auth.Principal, build Bui
 	if err != nil {
 		return Commit{}, err
 	}
-	return Commit{Dashboard: withAccess(dash, access), Proposal: &ref}, nil
+	return Commit{Dashboard: dash.WithAccess(access), Proposal: &ref}, nil
 }
 
 func (s *Service) proposedByRun(ctx context.Context, by auth.Principal, requestID pgtype.UUID, claimEpoch int) (Commit, bool, error) {
@@ -334,7 +338,7 @@ func (s *Service) proposedByRun(ctx context.Context, by auth.Principal, requestI
 	if err := s.DiscardBuild(ctx, requestID, claimEpoch); err != nil {
 		return Commit{}, false, err
 	}
-	return Commit{Dashboard: withAccess(dash, access), Proposal: &ProposalRef{ID: row.ID.String(), Revision: int(row.Revision)}}, true, nil
+	return Commit{Dashboard: dash.WithAccess(access), Proposal: &ProposalRef{ID: row.ID.String(), Revision: int(row.Revision)}}, true, nil
 }
 
 func (s *Service) DiscardBuild(ctx context.Context, requestID pgtype.UUID, claimEpoch int) error {
@@ -382,8 +386,16 @@ func (s *Service) RebaseBuild(ctx context.Context, by auth.Principal, requestID 
 }
 
 func (s *Service) SaveStoppedBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
-	if dash, ver, found, err := s.store.savedByRequest(ctx, requestID, pgtype.UUID{}); err != nil || found {
-		return dash, ver, found, err
+	dash, ver, saved, err := s.store.savedByRequest(ctx, requestID, pgtype.UUID{})
+	if err != nil {
+		return Dashboard{}, Version{}, false, err
+	}
+	if saved {
+		dash, err = s.placed(ctx, by, dash)
+		if err != nil {
+			return Dashboard{}, Version{}, false, err
+		}
+		return dash, ver, true, nil
 	}
 	build, found, err := s.viewRow(ctx, requestID)
 	if err != nil {
@@ -491,11 +503,11 @@ func (s *Service) commitRevision(ctx context.Context, by auth.Principal, build B
 		if !found {
 			return Dashboard{}, Version{}, false, fmt.Errorf("revise dashboard: %w", errRequestSaved)
 		}
-		return withAccess(dash, access), ver, true, nil
+		return dash.WithAccess(access), ver, true, nil
 	case err != nil:
 		return Dashboard{}, Version{}, false, err
 	}
-	return withAccess(dash, access), ver, false, nil
+	return dash.WithAccess(access), ver, false, nil
 }
 
 func (st store) rebaseBuild(ctx context.Context, b Build, claimEpoch int) error {

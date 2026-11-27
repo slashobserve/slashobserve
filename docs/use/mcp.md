@@ -851,19 +851,21 @@ Its content is described under [Tool text and instructions](#tool-text-and-instr
 
 #### `list_dashboards`
 
-Lists the dashboards the key can see, with `id`, `title`, `tags`, `folder`, `latest_version`, `updated_at`, `view_count` and `url`.
+Lists the dashboards the key can see, with `id`, `title`, `tags`, `folder`, `latest_version`, `updated_at`, `view_count`, `url` and `managed_by`.
 
 - `limit` is 1 to 50, 20 by default, and `cursor` takes the `next_cursor` of the previous page.
 - `order` is `updated` (the default), `views` for the most viewed first, or `name` for A to Z by title.
   Pass a `next_cursor` back with the order that produced it.
 - `exclude_audit: true` leaves out the dashboards in the [Audit folder](activity.md#audit-folder).
 - `view_count` is the number of people-days on which the dashboard was opened in the last 30 days.
+- `managed_by` has the values it has on [`get_dashboard`](#get_dashboard).
 
 #### `get_dashboard`
 
 Reads a dashboard's Spec at the latest version, or at `version`.
 
 - The result has `saved_by`, `origin`, `saved_at` and `summary` of that version, its `url`, its `folder` and its `unverified` panels and variables.
+- `managed_by` says what writes the dashboard: `starter` (a release, so it is read-only), `file` (a file in the server's [provisioning directory](../operate/provisioning.md#edits-made-in-the-app)), `apply` (`observe dashboards apply`) or `workspace` (only people in the app).
 - It also has `view_count`, with `window_days`.
 - A Spec over 128 KiB returns `too_large`; read its panels with `get_panels` instead.
 
@@ -901,6 +903,8 @@ Use it only to rewrite most of a dashboard; for anything smaller, use `update_pa
 - If both changed the same panel, variable or setting, it returns the tool error `version_conflict` with `latest_version` and `conflicts`.
   Each conflict has a `kind`, an `id`, a `reason` and a `message`.
   The client reads the latest version and applies its change again.
+- A save to a dashboard whose `managed_by` is `file` or `apply` works, and the result carries a `warning`: a change to the provisioning file, or applying the file again after it changes, replaces the edit, which stays in the version history.
+- Every result that answers with a saved version has the dashboard's `managed_by`: a create, a save, a restore, a move, a duplicate and a build commit.
 - It saves a [proposal](../concepts/proposals.md) instead when the caller can comment but not edit, or when its connection is in propose mode.
   The answer is a success, not a tool error.
   Its code is `proposed`, and it carries `proposal_id`, `revision`, `opened` (false when the save added a revision to the caller's open proposal) and the dashboard's `url`.
@@ -926,7 +930,7 @@ Behavior:
 - It runs only the queries it changed, and every query when `time` changes to a different range, as [What a save checks](../concepts/agent.md#what-a-save-checks) describes.
 - A rejection lists `failing_panels`, so the client resends only those panels.
 - An overlap is reported at the panel the patch upserted or moved, with both panels' positions in the message.
-- Merging, `version_conflict`, `proposed` and `proposal_required` work as for `update_dashboard`.
+- Merging, the `warning` on a dashboard that a file writes, `version_conflict`, `proposed` and `proposal_required` work as for `update_dashboard`.
 
 #### `list_dashboard_versions`
 
@@ -943,6 +947,7 @@ It takes `dashboard_id`, `from` (0 compares against an empty dashboard; by defau
 Saves an earlier version as a new one.
 It takes `dashboard_id`, `version`, the `parent_version` you read as the latest, and an optional `summary` of at most 200 characters.
 It applies the same `parent_version` check as a save.
+Its result carries the same `warning` as a save when a file writes the dashboard.
 A connection in propose mode cannot restore a dashboard directly and gets `proposal_required`.
 It can save the change with `update_dashboard`, which becomes a proposal.
 
@@ -973,7 +978,7 @@ See [Import Grafana dashboards](import-grafana.md).
 - A file whose Grafana uid an earlier import already holds, in a dashboard you can see, is not imported twice.
   The call fails with `already_imported`, and `existing` names that dashboard with its `dashboard_id`, `title`, `version`, `url` and `can_update`.
   - Pass its `dashboard_id` as the tool's `update_dashboard` argument, which is not the `update_dashboard` tool, to save the JSON as its next version.
-    That needs Edit, keeps the folder, and answers `updated: true`.
+    That needs Edit, keeps the folder, and answers `updated: true`, with the `warning` of a save when a file writes the dashboard.
   - Or set `import_as_new` to make another dashboard on purpose.
 - An update with a file that has another Grafana uid than the dashboard was imported from fails with `grafana_uid_mismatch` and changes nothing.
 - A retried call of the same agent request still answers with the dashboard it made.
@@ -1389,6 +1394,7 @@ Saves a proposal as a new version.
 - It takes the `proposal_id`, the `revision` read with `get_proposal` and, for each conflict, a choice such as `{ "kind": "panel", "id": "p1", "take": "theirs" }`.
   `ours` keeps the dashboard's unit and `theirs` takes the proposal's.
 - It needs Edit on the dashboard, and runs the queries of the panels it changes like any save.
+- Its result carries the `warning` of a save when it saved a version of a dashboard whose `managed_by` is `file` or `apply`.
 - It answers `proposal_changed` with the newest `revision` when the author added one.
   It answers `version_conflict` with `conflicts` when a conflict has no choice.
   It answers `invalid_transition` with the `state` and `allowed_actions` when the proposal is already closed.
