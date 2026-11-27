@@ -127,11 +127,7 @@ func (h *Handler) readSide(ctx context.Context, datasourceUID string, source dat
 	if err != nil {
 		return empty, err
 	}
-	wire, err := appendWireFrames([]wireFrame{}, contextFrameRef, frames)
-	if err != nil {
-		return empty, err
-	}
-	encoded, err := json.Marshal(wire)
+	encoded, err := queryproxy.MarshalFrames([]queryproxy.QueryResult{{Ref: contextFrameRef, Frames: frames}})
 	if err != nil {
 		return empty, err
 	}

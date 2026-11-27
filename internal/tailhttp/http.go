@@ -352,7 +352,7 @@ func (t *tail) emit(res pollResult) bool {
 	if datasource.Points(res.frames) == 0 && !res.partial {
 		return true
 	}
-	frames, err := marshalFrames(frameRef, res.frames)
+	frames, err := queryproxy.MarshalFrames([]queryproxy.QueryResult{{Ref: frameRef, Frames: res.frames}})
 	if err != nil {
 		t.h.logger.ErrorContext(t.c.Request.Context(), "convert tail frames", logattrs.Failure(string(queryproxy.CodeInternal), err, slog.String("datasource_uid", t.req.uid))...)
 		writeEvent(t.c, "error", errorData{Code: string(queryproxy.CodeInternal), Error: "internal error"})

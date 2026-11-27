@@ -1403,7 +1403,9 @@ func multiQueryPanel(id string, queries ...spec.Query) spec.Panel {
 
 func frameRefs(t *testing.T, body dataResponse) []string {
 	t.Helper()
-	var frames []wireFrame
+	var frames []struct {
+		Ref string `json:"ref"`
+	}
 	if err := json.Unmarshal(body.Frames, &frames); err != nil {
 		t.Fatalf("frames: %v", err)
 	}

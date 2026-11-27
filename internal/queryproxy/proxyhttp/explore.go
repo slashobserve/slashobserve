@@ -213,7 +213,7 @@ func (h *Handler) explorePage(c *gin.Context, inst datasource.Instance, rng data
 		h.exploreFail(c, inst.UID, err)
 		return
 	}
-	frames, err := marshalFrames([]queryproxy.QueryResult{{Ref: exploreQueryRef, Kind: queryproxy.KindInstant, Frames: res.Frames}})
+	frames, err := queryproxy.MarshalFrames([]queryproxy.QueryResult{{Ref: exploreQueryRef, Kind: queryproxy.KindInstant, Frames: res.Frames}})
 	if err != nil {
 		h.logger.ErrorContext(ctx, "convert page frames", append([]any{slog.String("datasource_uid", inst.UID)}, failureAttrs(err)...)...)
 		h.fail(c, errInternal)

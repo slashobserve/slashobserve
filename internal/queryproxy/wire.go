@@ -1,4 +1,4 @@
-package tailhttp
+package queryproxy
 
 import (
 	"encoding/json"
@@ -21,8 +21,18 @@ type wireField struct {
 	Values []any                `json:"values"`
 }
 
-func marshalFrames(ref string, frames []datasource.Frame) ([]byte, error) {
-	out := make([]wireFrame, 0, len(frames))
+func MarshalFrames(queries []QueryResult) ([]byte, error) {
+	out := []wireFrame{}
+	for _, q := range queries {
+		var err error
+		if out, err = appendWireFrames(out, q.Ref, q.Frames); err != nil {
+			return nil, err
+		}
+	}
+	return json.Marshal(out)
+}
+
+func appendWireFrames(out []wireFrame, ref string, frames []datasource.Frame) ([]wireFrame, error) {
 	for _, f := range frames {
 		wf := wireFrame{Ref: ref, Name: f.Name, Labels: f.Labels, Fields: make([]wireField, len(f.Fields))}
 		for j, field := range f.Fields {
@@ -34,7 +44,7 @@ func marshalFrames(ref string, frames []datasource.Frame) ([]byte, error) {
 		}
 		out = append(out, wf)
 	}
-	return json.Marshal(out)
+	return out, nil
 }
 
 func wireValues(field datasource.Field) ([]any, error) {

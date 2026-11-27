@@ -119,7 +119,7 @@ func (h *Handler) safeTraceLogs(ctx context.Context, uid string, source datasour
 }
 
 func traceLogsEntry(rng datasource.TimeRange, frames []datasource.Frame) (dataEntry, error) {
-	part, err := marshalFrames([]queryproxy.QueryResult{{Ref: traceLogsRef, Kind: queryproxy.KindInstant, Frames: frames}})
+	part, err := queryproxy.MarshalFrames([]queryproxy.QueryResult{{Ref: traceLogsRef, Kind: queryproxy.KindInstant, Frames: frames}})
 	if err != nil {
 		return dataEntry{}, err
 	}

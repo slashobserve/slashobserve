@@ -434,7 +434,7 @@ func (h *Handler) renderRun(ctx context.Context, req queryproxy.Request) (entry 
 		if capsSeries {
 			q.Frames, shown, all = queryproxy.CapSeries(q.Frames, queryproxy.MaxPanelSeries)
 		}
-		part, err := marshalFrames([]queryproxy.QueryResult{q})
+		part, err := queryproxy.MarshalFrames([]queryproxy.QueryResult{q})
 		if err != nil {
 			h.logger.ErrorContext(ctx, "convert panel frames", append([]any{slog.String("panel_id", req.PanelID)}, failureAttrs(err)...)...)
 			return errInternal
