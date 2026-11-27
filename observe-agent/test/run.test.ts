@@ -9,7 +9,7 @@ import {
   widened,
 } from "../src/run"
 import { estimateOutputTokens } from "../src/session/replay/replay"
-import { CallError, type SessionFactory, type Turn } from "../src/session/types"
+import { CallError, type SessionFactory } from "../src/session/types"
 import {
   FakeClaim,
   claimed,
@@ -457,6 +457,8 @@ describe("restarts", () => {
   })
 
   describe("after a saved version opened the write window", () => {
+    type Session = Awaited<ReturnType<SessionFactory>>
+    type Turn = Awaited<ReturnType<Session["next"]>>["turn"]
     const usage = {
       inputTokens: 0,
       outputTokens: 0,
