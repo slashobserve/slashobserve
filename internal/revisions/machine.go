@@ -104,6 +104,18 @@ func (s State) Terminal() bool {
 	return slices.Contains(RunMachine.Terminal, s)
 }
 
+func (s State) Status() Status {
+	switch s {
+	case StateQueued:
+		return StatusQueued
+	case StateRunning, StateCanceling:
+		return StatusRunning
+	case StateSucceeded:
+		return StatusSucceeded
+	}
+	return StatusFailed
+}
+
 type runFacts struct {
 	state       State
 	source      Source

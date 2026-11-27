@@ -4664,6 +4664,7 @@ components:
         - base_version
         - prompt
         - status
+        - state
         - steps
         - panel
         - error
@@ -4696,6 +4697,11 @@ components:
         status:
           type: string
           enum: [queued, running, succeeded, failed]
+          description: Computed from `state`; kept for clients that read it.
+        state:
+          type: string
+          enum: [queued, running, canceling, succeeded, failed, canceled]
+          description: "Where the suggestion is in its life, the same six states every run has. A suggestion cannot be canceled, so it is never `canceling` or `canceled`."
         steps:
           type: array
           maxItems: 2000

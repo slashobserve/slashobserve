@@ -287,7 +287,7 @@ func (r *RunDesk) attachFinding(ctx context.Context, caller auth.Principal, row 
 		return err
 	}
 	out.Finding = raw
-	if out.Status != StatusSucceeded || !row.ObservationID.Valid || r.opts.ObservationURL == nil {
+	if out.State != StateSucceeded || !row.ObservationID.Valid || r.opts.ObservationURL == nil {
 		return nil
 	}
 	url := r.opts.ObservationURL(row.ObservationID.String())
@@ -318,7 +318,7 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 		Trigger:       row.Trigger,
 		Title:         titleShownTo(row, caller),
 		Prompt:        row.Prompt,
-		Status:        Status(row.Status),
+		Status:        State(row.State).Status(),
 		State:         State(row.State),
 		ResultKind:    ReportedResultKind(row.ResultKind, row.ObservationID),
 		Attempt:       int(row.Attempts),
@@ -363,7 +363,7 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 	if row.DashboardID.Valid {
 		id := row.DashboardID.String()
 		out.DashboardID = &id
-		if out.Status == StatusSucceeded && out.Kind == KindBuild && r.opts.DashboardURL != nil {
+		if out.State == StateSucceeded && out.Kind == KindBuild && r.opts.DashboardURL != nil {
 			url := r.opts.DashboardURL(id, "")
 			out.URL = &url
 		}
@@ -510,7 +510,7 @@ func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, caller auth.Princip
 		Title:         requestTitle(row.Title, row.Prompt),
 		PinnedAt:      httpapi.FormatOptionalTime(optionalTime(row.PinnedAt)),
 		Prompt:        row.Prompt,
-		Status:        Status(row.Status),
+		Status:        State(row.State).Status(),
 		State:         State(row.State),
 		ResultKind:    ReportedResultKind(row.ResultKind, row.ObservationID),
 		PanelID:       optionalText(row.PanelID),
@@ -542,12 +542,12 @@ func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, caller auth.Princip
 		id := row.DashboardID.String()
 		out.DashboardID = &id
 		out.DashboardTitle = optionalText(row.DashboardTitle)
-		if out.Status == StatusSucceeded && out.Kind == KindBuild && r.opts.DashboardURL != nil {
+		if out.State == StateSucceeded && out.Kind == KindBuild && r.opts.DashboardURL != nil {
 			url := r.opts.DashboardURL(id, row.DashboardTitle.String)
 			out.URL = &url
 		}
 	}
-	if out.Status == StatusSucceeded && row.FindingID.Valid && row.ObservationID.Valid && r.opts.ObservationURL != nil {
+	if out.State == StateSucceeded && row.FindingID.Valid && row.ObservationID.Valid && r.opts.ObservationURL != nil {
 		url := r.opts.ObservationURL(row.ObservationID.String())
 		out.URL = &url
 	}

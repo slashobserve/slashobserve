@@ -6759,8 +6759,16 @@ export interface components {
             /** @description The version the proposal is judged inside. */
             base_version: number;
             prompt: string;
-            /** @enum {string} */
+            /**
+             * @description Computed from `state`; kept for clients that read it.
+             * @enum {string}
+             */
             status: "queued" | "running" | "succeeded" | "failed";
+            /**
+             * @description Where the suggestion is in its life, the same six states every run has. A suggestion cannot be canceled, so it is never `canceling` or `canceled`.
+             * @enum {string}
+             */
+            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
             steps: components["schemas"]["AgentStep"][];
             /** @description The proposed panel, set only when the status is `succeeded`. It is not saved anywhere; the client decides whether to apply it. */
             panel: {

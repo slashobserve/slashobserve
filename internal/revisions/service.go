@@ -1204,7 +1204,7 @@ func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 		Investigation: row.Investigation,
 		Source:        SourceOf(row),
 		Prompt:        row.Prompt,
-		Status:        Status(row.Status),
+		Status:        State(row.State).Status(),
 		State:         State(row.State),
 		ResultKind:    ReportedResultKind(row.ResultKind, row.ObservationID),
 		Attempts:      int(row.Attempts),
