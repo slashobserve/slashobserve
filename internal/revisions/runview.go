@@ -264,7 +264,7 @@ func (s *Service) settled(ctx context.Context, row dbsqlc.AgentRequest) (*string
 	if !holdsSession(State(row.State)) {
 		return nil, nil
 	}
-	kind, err := s.db.Queries().GetRunSessionSettled(ctx, dbsqlc.GetRunSessionSettledParams{AgentRequestID: row.ID, Attempt: row.Attempts})
+	kind, err := s.db.Queries().GetRunSessionSettled(ctx, dbsqlc.GetRunSessionSettledParams{AgentRequestID: row.ID, Attempt: row.Attempts, ClaimEpoch: row.ClaimEpoch})
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, fmt.Errorf("read what a running agent request already settled: %w", err)
 	}
