@@ -1,6 +1,7 @@
 import asyncio
 import dataclasses
 import json
+import tempfile
 import time
 from pathlib import Path
 
@@ -11,7 +12,7 @@ from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 from pydantic import Field, model_validator
 
-from slashobserve_bench import atif, grafana, grafana_write, model_call, o11y
+from slashobserve_bench import atif, grafana, grafana_write, model_call, o11y, replay
 from slashobserve_bench.api import ApiError, Client, RunTimeout, wait_for_terminal
 from slashobserve_bench.ledger import SpendLedger
 from slashobserve_bench.loop_options import LoopOptions
@@ -133,6 +134,12 @@ class SlashObserveAgent(BaseAgent):
         grafana_state = None
         if self._category in o11y.GRAFANA_CATEGORIES:
             grafana_state = await grafana.read_state(self._grafana_client(task_env, environment))
+        fixtures = None
+        replay_dir = None
+        if options.replay_dir:
+            fixtures = tempfile.TemporaryDirectory(prefix="slashobserve-bench-fixtures-")
+            replay_dir = Path(fixtures.name)
+            replay.copy_fixtures(Path(options.replay_dir), replay_dir)
         config = ServerConfig(
             image=options.server_image,
             network=options.network,
@@ -141,7 +148,7 @@ class SlashObserveAgent(BaseAgent):
             llm_effort=options.llm_effort,
             **options.server_settings(),
             run_max_cost_usd=options.run_max_cost_usd,
-            replay_dir=Path(options.replay_dir) if options.replay_dir else None,
+            replay_dir=replay_dir,
         )
         grafana_uids = grafana.grafana_uids_by_type(grafana_state.datasources) if grafana_state else None
         stack = Stack(config, datasources_yaml(stores, grafana_uids), self.logs_dir, self._llm_key(provider))
@@ -164,9 +171,13 @@ class SlashObserveAgent(BaseAgent):
                     await self._dashboard_task(Client(stack.base_url, stack.key), task, context, deadline)
                     return
                 prompt = grafana.question_prompt(instruction, grafana_state, imported)
+                if replay_dir is not None:
+                    replay.rekey(replay_dir, environment.environment_name, instruction, prompt)
             await self._answer(stack, prompt, as_of, environment.environment_name, context, deadline)
         finally:
             await asyncio.to_thread(stack.stop)
+            if fixtures is not None:
+                fixtures.cleanup()
 
     def _grafana_client(self, task_env: dict[str, str], environment: BaseEnvironment) -> grafana.GrafanaClient:
         options = self._options

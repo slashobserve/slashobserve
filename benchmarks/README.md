@@ -62,6 +62,8 @@ The fixture is generated because its prompt is the task statement, which belongs
 `fixtures/store-answer.json` is the template.
 It saves the answer a second time, expecting the first save to have been sent back, because an investigation with the loop on sends back a finding that leaves a triage candidate of the preflight sweep unaccounted for; a question ends at the first save.
 Every replay fixture marks its second save with `expect` and `is_error: true`, since the replay provider fails a run whose tool result is an error it did not expect.
+The replay provider finds a fixture by its prompt, and a `grafana_api` question's prompt is the statement plus the Grafana note, which names the dashboards imported during the trial.
+So with `replay_dir` set the trial mounts its own copy of that folder, and once the note is written it adds `<task>-sent.json`, the task's fixture with the prompt the run is sent.
 
 ## Run a subset with a real model
 
