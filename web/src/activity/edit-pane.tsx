@@ -22,6 +22,7 @@ import {
 } from "@/dashboards/live/deleted-store"
 import {
   contentChange,
+  useLatestEditNote,
   useLatestPermissions,
   useLatestProvisioned,
 } from "@/dashboards/permissions"
@@ -30,6 +31,7 @@ import { saveToast } from "@/dashboards/save-outcome"
 import { useSetDashboardSearch } from "@/dashboards/search"
 import type { Selections } from "@/api/keys"
 import { DockHeader } from "@/components/dock/dock-header"
+import { RoleNote } from "@/components/role-note"
 import { Button } from "@/components/ui/button"
 import { proposalLink } from "@/lib/links"
 import { guardLoad } from "@/panels/renderer-load"
@@ -160,6 +162,7 @@ export function EditPane({
   const deletedBy = useDeletedBy(dashboardId)
   const permissions = useLatestPermissions(dashboardId)
   const provisioned = useLatestProvisioned(dashboardId)
+  const editNote = useLatestEditNote(dashboardId)
   const patch = usePatchPanels(dashboardId)
 
   useEffect(
@@ -311,6 +314,9 @@ export function EditPane({
             view.
           </AlertDescription>
         </Alert>
+      )}
+      {editNote === null ? null : (
+        <RoleNote className="mx-4 mt-3 items-start">{editNote}</RoleNote>
       )}
       <div className="flex min-h-0 flex-1 flex-col">{body}</div>
       {dialog}

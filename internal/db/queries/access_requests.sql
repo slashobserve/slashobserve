@@ -81,3 +81,21 @@ ORDER BY r.created_at, r.id;
 UPDATE access_requests
 SET granted_at = now(), granted_by_kind = @granted_by_kind::text, granted_by_id = sqlc.narg('granted_by_id')::uuid
 WHERE id = @id AND granted_at IS NULL;
+
+-- name: ListOwnAccessRequests :many
+SELECT r.id, r.dashboard_id, r.observation_id, coalesce(d.title, o.title)::text AS title,
+  coalesce(d.folder_id, o.folder_id)::uuid AS folder_id,
+  r.requester_kind, r.requester_id, r.requester_name, r.note, r.created_at,
+  (r.granted_at IS NOT NULL)::boolean AS granted,
+  EXISTS (
+    SELECT 1 FROM inbox_item_states s
+    WHERE s.seq = r.activity_seq AND s.done AND s.user_id = ANY(r.granters)
+  )::boolean AS dismissed,
+  now()::timestamptz AS read_at
+FROM access_requests r
+LEFT JOIN dashboards d ON d.id = r.dashboard_id
+LEFT JOIN observations o ON o.id = r.observation_id
+WHERE r.requester_kind = @requester_kind::text AND r.requester_id = @requester_id::uuid
+  AND coalesce(d.folder_id, o.folder_id) = ANY(@visible::uuid[])
+ORDER BY r.created_at DESC, r.id DESC
+LIMIT @row_limit;

@@ -44,6 +44,7 @@ type ActivityHandler struct {
 	logger        *slog.Logger
 	pingInterval  time.Duration
 	retryInterval time.Duration
+	lifetime      time.Duration
 	slots         *slots
 }
 
@@ -55,6 +56,7 @@ func NewActivityHandler(b *events.Broker, log ActivityLog, principals Principals
 		logger:        logger,
 		pingInterval:  pingInterval,
 		retryInterval: heldRetryInterval,
+		lifetime:      maxStreamLifetime,
 		slots:         newSlots(maxActivityStreamsPerUser, maxActivityStreamsPerProc),
 	}
 }
@@ -83,8 +85,8 @@ func (h *ActivityHandler) serve(c *gin.Context) {
 	}
 	principal, _ := auth.FromContext(ctx)
 	key := string(principal.Kind) + ":" + principal.ID
-	if status, code := h.slots.acquire(key); status != 0 {
-		abort(c, status, code, "too many open event streams")
+	if status, reason := h.slots.acquire(key); status != 0 {
+		abortTooManyStreams(c, status, reason, tooManyEventStreams)
 		return
 	}
 	defer h.slots.release(key)
@@ -137,76 +139,90 @@ func (h *ActivityHandler) refuse(c *gin.Context, action string, err error) {
 }
 
 func (h *ActivityHandler) pump(r *activityReader, follower *events.Follower) {
+	sayClosed(r.c, h.follow(r, follower))
+}
+
+func (h *ActivityHandler) follow(r *activityReader, follower *events.Follower) closeReason {
 	ping := time.NewTicker(h.pingInterval)
 	defer ping.Stop()
-	lifetime := time.NewTimer(maxStreamLifetime)
+	lifetime := time.NewTimer(h.lifetime)
 	defer lifetime.Stop()
 	var retry <-chan time.Time
-	drain := func() bool {
-		held, ok := r.drain()
+	drain := func() closeReason {
+		held, end := r.drain()
 		retry = nil
 		if held {
 			retry = time.After(h.retryInterval)
 		}
-		return ok
+		return end
 	}
-	if !drain() {
-		return
+	if end := drain(); end != stillOpen {
+		return end
 	}
 	for {
 		select {
 		case <-follower.Wakes():
-			if !drain() {
-				return
+			if end := drain(); end != stillOpen {
+				return end
 			}
 		case <-retry:
-			if !drain() {
-				return
+			if end := drain(); end != stillOpen {
+				return end
 			}
 		case <-ping.C:
-			if !h.ping(r) || !drain() {
-				return
+			if end := h.ping(r); end != stillOpen {
+				return end
+			}
+			if end := drain(); end != stillOpen {
+				return end
 			}
 		case <-lifetime.C:
-			return
+			return closedLifetime
 		case <-follower.Done():
-			return
+			return closedStopping
 		case <-r.c.Request.Context().Done():
-			return
+			return unannounced
 		}
 	}
 }
 
-func (r *activityReader) drain() (held, ok bool) {
+func (r *activityReader) drain() (held bool, end closeReason) {
 	ctx := r.c.Request.Context()
 	for {
 		page, to, held, err := r.log.Next(ctx, r.audience, r.filter, r.from, activityBatch)
 		if err != nil {
-			if ctx.Err() == nil {
-				r.logger.ErrorContext(ctx, "read activity stream", logattrs.Failure("activity_stream_failed", err)...)
+			if ctx.Err() != nil {
+				return false, unannounced
 			}
-			return false, false
+			r.logger.ErrorContext(ctx, "read activity stream", logattrs.Failure("activity_stream_failed", err)...)
+			return false, closedReadFailed
 		}
 		for _, e := range page {
 			if !writeFrame(r.c, e.Seq, "activity", activity.JSONOf(e)) {
-				return false, false
+				return false, unannounced
 			}
 		}
 		r.from = to
 		if len(page) < activityBatch {
-			return held, true
+			return held, stillOpen
 		}
 	}
 }
 
-func (h *ActivityHandler) ping(r *activityReader) bool {
+func (h *ActivityHandler) ping(r *activityReader) closeReason {
 	valid, failed := h.refresh(r)
 	if failed {
 		r.failedChecks++
 	} else {
 		r.failedChecks = 0
 	}
-	return valid && r.failedChecks < maxFailedChecks && write(r.c, ": ping\n\n")
+	if end := endAfterCheck(valid, failed, maxFailedChecks-r.failedChecks); end != stillOpen {
+		return end
+	}
+	if !write(r.c, ": ping\n\n") {
+		return unannounced
+	}
+	return stillOpen
 }
 
 func (h *ActivityHandler) refresh(r *activityReader) (valid, failed bool) {

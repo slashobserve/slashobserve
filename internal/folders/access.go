@@ -97,6 +97,8 @@ type DashboardAccess struct {
 	Folder      Folder
 	Abilities   Abilities
 	Provisioned bool
+	FromFile    bool
+	Applied     bool
 }
 
 func (a DashboardAccess) Shown() Abilities {
@@ -186,7 +188,7 @@ func (a *Access) Dashboard(ctx context.Context, p auth.Principal, id pgtype.UUID
 	if !ok {
 		return DashboardAccess{}, ErrNoAccess
 	}
-	return DashboardAccess{DashboardID: id, Folder: e.Folder, Abilities: e.Abilities, Provisioned: placement.Provisioned}, nil
+	return DashboardAccess{DashboardID: id, Folder: e.Folder, Abilities: e.Abilities, Provisioned: placement.Provisioned, FromFile: placement.FromFile, Applied: placement.Applied}, nil
 }
 
 func (a *Access) Folder(ctx context.Context, p auth.Principal, id pgtype.UUID) (Folder, Abilities, error) {

@@ -136,7 +136,7 @@ func (h *Handler) merge(c *gin.Context) {
 	if p.MergedVersion != nil {
 		c.Header("Location", "/api/v1/dashboards/"+p.DashboardID+"/versions/"+strconv.Itoa(*p.MergedVersion))
 	}
-	c.JSON(http.StatusOK, NewSummaryJSON(p.Item))
+	c.JSON(http.StatusOK, NewMergedJSON(p))
 }
 
 func (h *Handler) discard(c *gin.Context) {

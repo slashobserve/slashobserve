@@ -104,15 +104,22 @@ func serveEvents(t *testing.T, broker *events.Broker, ping time.Duration, sessio
 	h := NewHandler(broker, fakeDashboards{}, sessions, access, allowAll, slog.New(slog.DiscardHandler))
 	h.pingInterval = ping
 	h.roleInterval = testPing
+	return serveRoutes(t, caller, func(routes auth.Routes) {
+		h.Register(routes)
+		if extra != nil {
+			extra(routes)
+		}
+	})
+}
+
+func serveRoutes(t *testing.T, caller auth.Principal, register func(auth.Routes)) *httptest.Server {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	api := engine.Group("/api/v1", func(c *gin.Context) {
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), caller))
 	})
-	routes := auth.NewRoutes(api)
-	h.Register(routes)
-	if extra != nil {
-		extra(routes)
-	}
+	register(auth.NewRoutes(api))
 	srv := httptest.NewServer(engine)
 	t.Cleanup(srv.Close)
 	t.Cleanup(srv.CloseClientConnections)
@@ -121,7 +128,12 @@ func serveEvents(t *testing.T, broker *events.Broker, ping time.Duration, sessio
 
 func followEvents(t *testing.T, srv *httptest.Server, cookie string) *openStream {
 	t.Helper()
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/api/v1/dashboards/"+dashboardID+"/events", nil)
+	return followPath(t, srv, "/dashboards/"+dashboardID+"/events", cookie)
+}
+
+func followPath(t *testing.T, srv *httptest.Server, path, cookie string) *openStream {
+	t.Helper()
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/api/v1"+path, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

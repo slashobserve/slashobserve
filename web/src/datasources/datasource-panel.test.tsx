@@ -28,7 +28,8 @@ function json(body: unknown, status = 200): Response {
 
 function renderEditor(
   patch: (body: unknown) => Response,
-  saved: typeof config = config
+  saved: typeof config = config,
+  tested: unknown = { healthy: true }
 ) {
   const sent: unknown[] = []
   vi.stubGlobal(
@@ -36,7 +37,7 @@ function renderEditor(
     vi.fn(async (request: Request) => {
       const path = new URL(request.url).pathname
       if (path === "/api/v1/datasources/payroll/config") return json(saved)
-      if (path === "/api/v1/datasources/test") return json({ healthy: true })
+      if (path === "/api/v1/datasources/test") return json(tested)
       if (
         path === "/api/v1/datasources/payroll" &&
         request.method === "PATCH"
@@ -171,5 +172,40 @@ describe("DatasourcePanel test result", () => {
     )
     expect(await screen.findByText(/Connected\./)).toBeInTheDocument()
     expect(reveal).toHaveBeenCalledWith({ block: "nearest" })
+  })
+
+  it("says what to do about a failed test beside its message and cause", async () => {
+    Element.prototype.scrollIntoView = vi.fn()
+    const { user } = renderEditor(() => json(config), config, {
+      healthy: false,
+      message: "The datasource refused the credentials",
+      detail: "The datasource answered HTTP 401",
+      failure_kind: "credentials",
+    })
+    await user.click(
+      await screen.findByRole("button", { name: "Test connection" })
+    )
+    expect(
+      await screen.findByText("The datasource refused the credentials")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("The datasource answered HTTP 401")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("Check the username, password or token.")
+    ).toBeInTheDocument()
+  })
+
+  it("adds no sentence to a failed test without a failure kind", async () => {
+    Element.prototype.scrollIntoView = vi.fn()
+    const { user } = renderEditor(() => json(config), config, {
+      healthy: false,
+      message: "The health check was cancelled",
+    })
+    await user.click(
+      await screen.findByRole("button", { name: "Test connection" })
+    )
+    const message = await screen.findByText("The health check was cancelled")
+    expect(message.parentElement?.children).toHaveLength(1)
   })
 })

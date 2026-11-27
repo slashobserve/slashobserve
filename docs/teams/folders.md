@@ -325,6 +325,8 @@ Revoke the links first.
 
 `POST /api/v1/access-requests` takes `{"object": {"kind": "dashboard", "id": "<id>"}, "note": "<note>"}`, with `observation` as the other kind, and answers the request.
 `GET /api/v1/access-requests` lists the open requests on the folders you manage.
+`GET /api/v1/access-requests?scope=mine` lists the requests you made, each with its `state`: `open` while it waits, `granted`, `dismissed` when someone who can grant it marked it done without granting it, or `expired` after 30 days.
+You can ask again after a request was dismissed or expired; the [states reference](../reference/states.md#access-request) lists the four states.
 Both need the Viewer role or higher.
 
 Errors:

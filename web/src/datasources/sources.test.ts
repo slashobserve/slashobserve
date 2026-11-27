@@ -32,6 +32,7 @@ function source(
     ...(traceSearch && { trace_search: true }),
     source: "file",
     healthy: true,
+    health_state: "healthy",
     checked_at: "2026-11-14T00:00:00Z",
     dashboard_count: 0,
   }

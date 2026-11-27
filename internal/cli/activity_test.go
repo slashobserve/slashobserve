@@ -225,6 +225,7 @@ func TestDescribeCoversEveryEventType(t *testing.T) {
 	}{
 		{"dashboard.created", `{"version":1,"title":"Checkout"}`, `created "Checkout"`},
 		{"dashboard.version_created", `{"version":12,"title":"Checkout"}`, `saved version 12 of "Checkout"`},
+		{"dashboard.version_created", `{"version":12,"title":"Checkout","replaced_version":11}`, `saved version 12 of "Checkout" from its file, replacing version 11`},
 		{"dashboard.restored", `{"version":13,"restored_from":9,"title":"Checkout"}`, `restored version 9 of "Checkout" as version 13`},
 		{"dashboard.moved", `{"title":"Checkout"}`, `moved "Checkout"`},
 		{"dashboard.deleted", `{"title":"Checkout"}`, `deleted "Checkout"`},

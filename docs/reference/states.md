@@ -52,6 +52,23 @@ A comment thread is a conversation on a dashboard, an observation, an annotation
 | `resolve` | `open` | `resolved` | `thread.resolved` | requester, editor, server |
 | `reopen` | `resolved` | `open` | `thread.reopened` | commenter |
 
+## Thread's agent
+
+A thread's agent is the one a plain reply asks, returned as `agent` with its `state` by `GET /threads`. No route takes these moves by name today, so the thread's `allowed_actions` do not list them: a message that mentions an agent or is sent to the agent makes `set_agent`, and a message sent to everyone makes `turn_agent_off`. Each move is recorded as the audit action `thread.agent_set`, not as an activity event.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `none` | No message has asked an agent yet, or the thread's agent can no longer take runs; a plain reply asks nobody. | `set_agent` |
+| `following` | The thread has an agent and a plain reply asks it. | `set_agent`, `turn_agent_off` |
+| `off` | The thread keeps its agent, but a message was sent to everyone, so a plain reply asks nobody until the agent is set again. | `set_agent` |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `open` | - | `none` | `thread.opened` | commenter |
+| `set_agent` | `none`, `following`, `off` | `following` | `thread.agent_set` | commenter |
+| `turn_agent_off` | `following` | `off` | `thread.agent_set` | commenter |
+| `clear_agent` | `following`, `off` | `none` | `thread.agent_set` | server |
+
 ## Observation
 
 An observation is a page of blocks in a folder, started by POST /observations or by an investigation.
@@ -90,6 +107,25 @@ A block is one item on an observation's page: Markdown, a live panel, a frozen s
 | `discard` | `requested` | `deleted` | `observation.block_discarded` | editor, requester |
 | `remove` | `live` | `deleted` | `observation.block_removed` | editor |
 
+## RCA revision
+
+An RCA revision is one published copy of an observation, returned by `GET /observations/{id}/rcas`; its state is computed on read from the newer revisions and the live public links, never stored.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `published` | The newest revision of the observation's RCA, with no live public link. | `share`, `withdraw` |
+| `superseded` | A newer revision was published after it, and it has no live public link. | `share`, `withdraw` |
+| `shared` | At least one public link that has not expired shows it, so it cannot be withdrawn until they are revoked. | `share`, `unshare` |
+| `withdrawn` | Gone: the revision and its frozen panels are deleted, so this state is never stored. Final. | - |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `publish` | - | `published` | `observation.published` | editor |
+| `supersede` | `published` | `superseded` | `observation.published` | server |
+| `share` | `published`, `superseded`, `shared` | `shared` | `public_link.created` | admin |
+| `unshare` | `shared` | `published`, `superseded` | `public_link.revoked` | admin |
+| `withdraw` | `published`, `superseded` | `withdrawn` | `observation.rca_withdrawn` | editor |
+
 ## Proposal
 
 A proposal is a change to a dashboard that someone who can edit merges or discards, returned by `GET /api/v1/proposals/{id}`.
@@ -106,6 +142,18 @@ A proposal is a change to a dashboard that someone who can edit merges or discar
 | `update` | `open` | - | `proposal.updated` | requester |
 | `merge` | `open` | `merged` | `proposal.merged` | editor |
 | `discard` | `open` | `discarded` | `proposal.discarded` | requester, editor |
+
+## Dashboard managed by
+
+`GET /dashboards/{id}` and each item of `GET /dashboards` return `managed_by`: what writes the dashboard's content.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `starter` | The server ships the dashboard and keeps it current with each release. Every change to its content answers 409 `provisioned`; duplicate it to change a copy. |
+| `file` | A file in the server's provisioning directory is bound to the dashboard. It can be edited, and a change to that file replaces the edit, which stays in the version history. The dashboard keeps this value after the file is removed or provisioning is turned off. |
+| `apply` | `observe dashboards apply` last bound a file to the dashboard. It can be edited, and applying that file again after it changes replaces the edit, which stays in the version history. |
+| `workspace` | None of the above: people edit the dashboard in the app, and no file and no release writes it. |
 
 ## Proposal mergeability
 
@@ -175,8 +223,10 @@ This state is computed from stored fields on every read; nothing stores it.
 
 | State | When |
 | --- | --- |
-| `revoked` | The person or an admin revoked it; it leaves the list. |
+| `revoked` | It was ended before its time, and `revoked_reason` says how: by its person, an admin or the client, by a newer connection of the same client, or because a code or refresh token was used twice. |
 | `active` | It may call /mcp as its person until expires_at. |
+| `expired` | Its refresh token went unused for 30 days; the person approves the client again. |
+| `aged_out` | It reached the 90 day limit of a connection; the person approves the client again. |
 
 ## Dashboard save
 
@@ -198,7 +248,7 @@ This state is computed from stored fields on every read; nothing stores it.
 | State | When |
 | --- | --- |
 | `expired` | Its expiry time has passed; the link no longer opens. |
-| `active` | None of the above; usable says whether the dashboard's latest version can be shown publicly, and unusable_reason says why it cannot. |
+| `active` | None of the above; usable says whether the link opens, and unusable_reason says why it does not. |
 
 ## Folder
 
@@ -213,6 +263,17 @@ This state is computed from stored fields on every read; nothing stores it.
 | `admins_only` | Only Admins read it, and it lists nobody. |
 | `restricted` | It lists people or groups, and only they, its creator and Admins see it. |
 | `open` | None of the above: everyone sees it, each at the level of their role. |
+
+## Inbox item
+
+`GET /inbox` returns the `state` of each item for the person reading it.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `done` | The reader marked it done; it stays done when the inbox is read, until it is brought back or marked unread. |
+| `unread` | It is newer than the position the reader read up to, or the reader marked it unread. |
+| `read` | None of the above. |
 
 ## Grafana import
 
@@ -281,6 +342,16 @@ This state is computed from stored fields on every read; nothing stores it.
 | `unreachable` | The last discovery failed, or an agent's call could not reach the server since; failure says why, such as the domain not being on the outbound allowlist, the secret being refused or the server not answering. |
 | `ready` | None of the above: the last discovery listed the server's tools, or the server has answered an agent's call since it last failed. |
 
+## Panel and variable verification
+
+`GET /dashboards/{id}` returns the panels and variables of a version that are not verified in `unverified`, each with the `reason` the save kept it.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `unverified` | The version lists it in `unverified`: its query failed or returned nothing when the version was saved and the save kept it, with a `reason` of `empty` (it returned no data), `timeout` (it timed out and the save did not change it), `carried` (the parent version already listed it and it is unchanged), `restored` (the restored version listed it) or `imported` (a Grafana import keeps every failing panel). |
+| `verified` | None of the above; its query ran when the version was saved, or when the last version that changed it was. |
+
 ## Agent presence
 
 Whether an outside agent is taking runs: derived from when it last asked for work and the runs it holds.
@@ -291,6 +362,66 @@ This state is computed from stored fields on every read; nothing stores it.
 | `working` | It holds the lease of a run it claimed. |
 | `listening` | It asked for work in the last 40 seconds. |
 | `offline` | It has not asked for work in 40 seconds and holds no run. |
+
+## Person
+
+A person is someone who signs in, returned by `GET /users` with `state` and `allowed_actions`; an invited email is listed by `GET /invites` until its first sign-in.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `invited` | An Admin invited the email and nobody has signed in with it; listed by `GET /invites`, not by `GET /users`. | `invite`, `withdraw` |
+| `active` | Can sign in and work. | `set_role`, `sign_out`, `deactivate` |
+| `deactivated` | Cannot sign in; their sessions and connected agents are gone and their work is kept. | `set_role`, `reactivate`, `remove` |
+| `removed` | The invite was withdrawn, or the deactivated person and their My Dashboards were deleted. Final. | - |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `invite` | - | `invited` | `user.invited` | admin |
+| `invite` | `invited` | - | `user.invite_updated` | admin |
+| `withdraw` | `invited` | `removed` | `user.invite_withdrawn` | admin |
+| `join` | - | `active` | `auth.login` | server |
+| `join` | `invited` | `active` | `auth.login` | server |
+| `set_role` | `active`, `deactivated` | - | `user.role_changed` | admin |
+| `sign_out` | `active` | - | `user.signed_out_everywhere` | admin |
+| `deactivate` | `active` | `deactivated` | `user.deactivated` | admin |
+| `reactivate` | `deactivated` | `active` | `user.reactivated` | admin |
+| `remove` | `deactivated` | `removed` | `user.removed` | admin |
+
+## Scheduled job
+
+`GET /jobs` returns the `state` of each scheduled job to an Admin.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `running` | A server holds its lease and is running it. |
+| `interrupted` | Its last run did not finish: the server crashed and the lease ran out, or the server shut down and gave the lease back. The next server that finds it due runs it again. |
+| `due` | Its next run time has passed and no server has claimed it yet. |
+| `waiting` | Its last run finished, or it never ran, and the next run time is ahead. |
+
+## Access request
+
+`GET /access-requests` returns the `state` of each request for Comment access; the list of requests you can grant holds only open ones, and `scope=mine` returns your own in every state.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `open` | Asked in the last 30 days, not granted, and nobody who can grant it marked it done in their inbox. |
+| `granted` | The requester got Comment access after asking. |
+| `dismissed` | Someone who can grant it marked it done in their inbox without granting it; the requester may ask again. |
+| `expired` | Nobody granted or dismissed it within 30 days; the requester may ask again. |
+
+## Datasource health
+
+`GET /datasources` and `POST /datasources/{uid}/recheck` return the `health_state` of each datasource, from the last check the answering server ran.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `unchecked` | No check has answered: the caller left before it did, or the check was cancelled. `healthy` is `false`, and nothing says the datasource is failing. |
+| `healthy` | The last check passed, or the datasource answered a query after a check it did not answer. |
+| `failing` | The last check failed, and `failure_kind` says whether to wait or to change something. |
+| `rechecking` | The last check failed 2 seconds ago or more and a new one is running; `message`, `detail` and `failure_kind` are still those of the failed check. |
 
 ## Server process
 

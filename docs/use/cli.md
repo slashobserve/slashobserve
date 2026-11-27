@@ -562,6 +562,7 @@ That cursor works only with the same `--order`, and `--all` reads every page.
 
 `dashboards show <dashboard-id>` lists the panels of the latest version, or of the version you give with `--version N`.
 It also prints how many views the dashboard had in the last 30 days, and the folder is in the details.
+`Managed by` says what writes the dashboard: `starter`, `file`, `apply` or `workspace`, the [`managed_by`](../reference/states.md#dashboard-managed-by) of the API.
 A version that does not exist answers `version_not_found` and says what the latest one is.
 `--json` adds `view_count` and `window_days`.
 
@@ -585,6 +586,7 @@ A version that does not exist answers `version_not_found` with the latest versio
 `observe dashboards restore <dashboard-id> --version <n>` saves an earlier version as the newest version.
 It prints `Restored version <n> as version <m>`.
 `--summary <text>` sets the version's summary.
+When a provisioning file or `observe dashboards apply` writes the dashboard, `restore`, `panels`, `proposals merge` and `import --update` also print the server's warning on stderr: [what replaces the edit](../operate/provisioning.md#edits-made-in-the-app).
 
 `restore` reads the latest version for `--parent` when you leave it out, and `--parent <n>` names it yourself.
 It answers `version_conflict` when someone saved since, so read the dashboard again and rerun it.

@@ -26,6 +26,14 @@ func TestDashboardPanels(t *testing.T) {
 			t.Fatalf("stdout %q, want %q", stdout, want)
 		}
 	})
+	t.Run("prints the warning of a save to a dashboard that a file writes", func(t *testing.T) {
+		warned := strings.TrimSuffix(saved, "}") + `,"warning":"A change to its file replaces this edit."}`
+		f := newManageFake(t, manageReply{http.MethodPost, panelsPath, 201, warned})
+		stdout, stderr, code := f.run("dashboards", "panels", testDashboard, "--remove", "p1", "--parent", "5", "--summary", "Drop a panel")
+		if code != 0 || stdout != "Saved version 6 of Checkout\n" || stderr != "A change to its file replaces this edit.\n" {
+			t.Fatalf("exit %d, stdout %q, stderr %q, want the save line and the warning on stderr", code, stdout, stderr)
+		}
+	})
 	t.Run("sends the patch file with the given parent", func(t *testing.T) {
 		file := filepath.Join(t.TempDir(), "patch.json")
 		patch := `{"upsert":[{"id":"p1_copy","type":"text","title":"Notes copy"}],"layout":[{"id":"p1_copy","gridPos":{"x":0,"y":8,"w":12,"h":4}}]}`

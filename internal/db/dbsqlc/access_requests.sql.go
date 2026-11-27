@@ -289,6 +289,87 @@ func (q *Queries) ListOpenAccessRequests(ctx context.Context, arg ListOpenAccess
 	return items, nil
 }
 
+const listOwnAccessRequests = `-- name: ListOwnAccessRequests :many
+SELECT r.id, r.dashboard_id, r.observation_id, coalesce(d.title, o.title)::text AS title,
+  coalesce(d.folder_id, o.folder_id)::uuid AS folder_id,
+  r.requester_kind, r.requester_id, r.requester_name, r.note, r.created_at,
+  (r.granted_at IS NOT NULL)::boolean AS granted,
+  EXISTS (
+    SELECT 1 FROM inbox_item_states s
+    WHERE s.seq = r.activity_seq AND s.done AND s.user_id = ANY(r.granters)
+  )::boolean AS dismissed,
+  now()::timestamptz AS read_at
+FROM access_requests r
+LEFT JOIN dashboards d ON d.id = r.dashboard_id
+LEFT JOIN observations o ON o.id = r.observation_id
+WHERE r.requester_kind = $1::text AND r.requester_id = $2::uuid
+  AND coalesce(d.folder_id, o.folder_id) = ANY($3::uuid[])
+ORDER BY r.created_at DESC, r.id DESC
+LIMIT $4
+`
+
+type ListOwnAccessRequestsParams struct {
+	RequesterKind string
+	RequesterID   pgtype.UUID
+	Visible       []pgtype.UUID
+	RowLimit      int32
+}
+
+type ListOwnAccessRequestsRow struct {
+	ID            pgtype.UUID
+	DashboardID   pgtype.UUID
+	ObservationID pgtype.UUID
+	Title         string
+	FolderID      pgtype.UUID
+	RequesterKind string
+	RequesterID   pgtype.UUID
+	RequesterName string
+	Note          string
+	CreatedAt     pgtype.Timestamptz
+	Granted       bool
+	Dismissed     bool
+	ReadAt        pgtype.Timestamptz
+}
+
+func (q *Queries) ListOwnAccessRequests(ctx context.Context, arg ListOwnAccessRequestsParams) ([]ListOwnAccessRequestsRow, error) {
+	rows, err := q.db.Query(ctx, listOwnAccessRequests,
+		arg.RequesterKind,
+		arg.RequesterID,
+		arg.Visible,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOwnAccessRequestsRow
+	for rows.Next() {
+		var i ListOwnAccessRequestsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DashboardID,
+			&i.ObservationID,
+			&i.Title,
+			&i.FolderID,
+			&i.RequesterKind,
+			&i.RequesterID,
+			&i.RequesterName,
+			&i.Note,
+			&i.CreatedAt,
+			&i.Granted,
+			&i.Dismissed,
+			&i.ReadAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockAccessRequestDashboard = `-- name: LockAccessRequestDashboard :one
 SELECT d.id, d.folder_id, d.title FROM dashboards d WHERE d.id = $1 FOR KEY SHARE
 `

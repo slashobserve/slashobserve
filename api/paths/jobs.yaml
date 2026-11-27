@@ -1,0 +1,23 @@
+jobs:
+  get:
+    operationId: listJobs
+    x-audit: { none: "list read; lists are not recorded" }
+    summary: List the server's scheduled jobs with their state.
+    description: >-
+      Admin only, and an Admin service-account key can call it too.
+      Every job the servers registered, ordered by name, each with its `state` and its last run.
+      A job whose last run did not finish is `interrupted`, and once another server takes over its lease its `last_outcome` is `interrupted` too.
+      The list changes nothing: jobs run on their schedule, and only `dashboard_health` can be started by hand.
+    responses:
+      "200":
+        description: Every scheduled job.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ScheduledJobList"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
