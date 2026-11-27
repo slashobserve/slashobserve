@@ -694,7 +694,7 @@ func listItemsOf(rows []dbsqlc.ListDashboardsRow) []ListItem {
 	return items
 }
 
-func (st store) provisionedAmong(ctx context.Context, ids []string) (map[string]bool, error) {
+func (st store) managersAmong(ctx context.Context, ids []string) (map[string]folders.DashboardAccess, error) {
 	parsed := make([]pgtype.UUID, 0, len(ids))
 	for _, id := range ids {
 		uuid, err := db.ParseUUID(id)
@@ -703,13 +703,13 @@ func (st store) provisionedAmong(ctx context.Context, ids []string) (map[string]
 		}
 		parsed = append(parsed, uuid)
 	}
-	refs, err := st.db.Queries().ProvisionedAmong(ctx, parsed)
+	rows, err := st.db.Queries().DashboardManagersAmong(ctx, parsed)
 	if err != nil {
-		return nil, fmt.Errorf("find provisioned dashboards: %w", err)
+		return nil, fmt.Errorf("find what manages the dashboards: %w", err)
 	}
-	found := make(map[string]bool, len(refs))
-	for _, ref := range refs {
-		found[ref.String()] = true
+	found := make(map[string]folders.DashboardAccess, len(rows))
+	for _, row := range rows {
+		found[row.ID.String()] = folders.DashboardAccess{DashboardID: row.ID, Provisioned: row.Provisioned, FromFile: row.FromFile, Applied: row.Applied}
 	}
 	return found, nil
 }

@@ -70,6 +70,7 @@ type dashboardItemOut struct {
 	ViewCount     int      `json:"view_count"`
 	URL           string   `json:"url"`
 	Folder        string   `json:"folder"`
+	ManagedBy     string   `json:"managed_by"`
 }
 
 type dashboardListOut struct {
@@ -155,6 +156,7 @@ func (r *Registry) dashboardItems(list []dashboards.ListItem) []dashboardItemOut
 			ViewCount:     d.ViewCount,
 			URL:           links.Dashboard(r.deps.PublicURL, d.ID, d.Title),
 			Folder:        d.Folder.Title,
+			ManagedBy:     d.ManagedBy.String(),
 		}
 	}
 	return items
@@ -334,6 +336,7 @@ type savedOut struct {
 	URL              string                 `json:"url"`
 	Replayed         *bool                  `json:"replayed,omitempty"`
 	MergedFrom       *dashboards.MergedFrom `json:"merged_from,omitempty"`
+	ManagedBy        string                 `json:"managed_by"`
 	Warning          string                 `json:"warning,omitempty"`
 	Panels           []panelOut             `json:"panels"`
 	Truncated        bool                   `json:"truncated,omitempty"`
@@ -774,6 +777,7 @@ func (r *Registry) savedOut(dash dashboards.Dashboard, ver dashboards.Version, r
 		Version:          ver.Number,
 		URL:              links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title),
 		Replayed:         replayed,
+		ManagedBy:        dash.ManagedBy.String(),
 		Panels:           panels,
 		Truncated:        truncated,
 		UnverifiedPanels: unverified,

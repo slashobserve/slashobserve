@@ -94,7 +94,7 @@ func TestTheDashboardReadNamesWhatManagesTheDashboard(t *testing.T) {
 		{folders.DashboardAccess{Applied: true}, "apply"},
 	}
 	for _, tc := range cases {
-		if got := managedByOf(t, withAccess(Dashboard{}, tc.access)); got != tc.want {
+		if got := managedByOf(t, Dashboard{}.WithAccess(tc.access)); got != tc.want {
 			t.Errorf("managed_by = %q, want %q", got, tc.want)
 		}
 	}
@@ -141,5 +141,23 @@ func TestAVersionEventNamesTheVersionItReplacedOnlyWhenThereIsOne(t *testing.T) 
 	}
 	if got := fields(0); len(got) != 4 {
 		t.Errorf("event data = %v, want only version, parent_version, title and summary", got)
+	}
+}
+
+func TestADashboardInAListNamesWhatManagesIt(t *testing.T) {
+	for _, managedBy := range []folders.ManagedBy{folders.ManagedByWorkspace, folders.ManagedByStarter, folders.ManagedByFile, folders.ManagedByApply} {
+		raw, err := json.Marshal(newDashboardListItemJSON(ListItem{Dashboard: Dashboard{ManagedBy: managedBy}}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got struct {
+			ManagedBy *string `json:"managed_by"`
+		}
+		if err := json.Unmarshal(raw, &got); err != nil {
+			t.Fatal(err)
+		}
+		if got.ManagedBy == nil || *got.ManagedBy != managedBy.String() {
+			t.Errorf("the list item of a dashboard managed by %s reads %s, want managed_by %q", managedBy, raw, managedBy)
+		}
 	}
 }

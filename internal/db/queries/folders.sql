@@ -21,6 +21,13 @@ SELECT d.folder_id,
   EXISTS (SELECT 1 FROM applied_dashboards a WHERE a.dashboard_id = d.id)::boolean AS applied
 FROM dashboards d WHERE d.id = @id;
 
+-- name: DashboardManagersAmong :many
+SELECT d.id,
+  EXISTS (SELECT 1 FROM starter_content s WHERE s.ref = d.id)::boolean AS provisioned,
+  EXISTS (SELECT 1 FROM provisioned_dashboards p WHERE p.dashboard_id = d.id)::boolean AS from_file,
+  EXISTS (SELECT 1 FROM applied_dashboards a WHERE a.dashboard_id = d.id)::boolean AS applied
+FROM dashboards d WHERE d.id = ANY(@ids::uuid[]);
+
 -- name: ListFolderDetails :many
 SELECT f.id, f.title, f.general, f.created_by_kind, f.created_by_id, f.created_by_name,
   (SELECT count(*) FROM dashboards d WHERE d.folder_id = f.id)::integer AS dashboard_count,

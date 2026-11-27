@@ -5799,6 +5799,11 @@ export interface components {
             permissions: components["schemas"]["Permissions"];
             /** @description True for a starter dashboard the server keeps current with each release. Its `permissions.edit` is false, so a list never offers to move or change it. */
             provisioned: boolean;
+            /**
+             * @description What writes the dashboard's content, with the values and meanings of `managed_by` on `GET /dashboards/{id}`.
+             * @enum {string}
+             */
+            managed_by: "starter" | "file" | "apply" | "workspace";
         };
         VersionMeta: {
             version: number;

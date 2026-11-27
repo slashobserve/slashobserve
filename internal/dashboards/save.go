@@ -131,7 +131,7 @@ func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Sa
 	if err != nil {
 		return SaveResult{}, err
 	}
-	res.Dashboard = withAccess(res.Dashboard, access)
+	res.Dashboard = res.Dashboard.WithAccess(access)
 	return res, nil
 }
 
@@ -167,7 +167,7 @@ func (s *Service) propose(ctx context.Context, by auth.Principal, in SaveInput, 
 	if err != nil {
 		return SaveResult{}, err
 	}
-	return SaveResult{Dashboard: withAccess(dash, access), Proposal: &ref}, nil
+	return SaveResult{Dashboard: dash.WithAccess(access), Proposal: &ref}, nil
 }
 
 func (s *Service) existingParent(ctx context.Context, in SaveInput, latest int) (*spec.Dashboard, error) {

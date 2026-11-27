@@ -2819,7 +2819,7 @@ components:
     DashboardListItem:
       type: object
       additionalProperties: false
-      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, view_count, folder, permissions, provisioned]
+      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, view_count, folder, permissions, provisioned, managed_by]
       properties:
         id:
           type: string
@@ -2867,6 +2867,10 @@ components:
         provisioned:
           type: boolean
           description: True for a starter dashboard the server keeps current with each release. Its `permissions.edit` is false, so a list never offers to move or change it.
+        managed_by:
+          type: string
+          enum: [starter, file, apply, workspace]
+          description: What writes the dashboard's content, with the values and meanings of `managed_by` on `GET /dashboards/{id}`.
     VersionMeta:
       type: object
       additionalProperties: false

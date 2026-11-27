@@ -32,7 +32,7 @@ func (s *Service) need(ctx context.Context, by auth.Principal, id pgtype.UUID, n
 	return found, nil
 }
 
-func withAccess(d Dashboard, a folders.DashboardAccess) Dashboard {
+func (d Dashboard) WithAccess(a folders.DashboardAccess) Dashboard {
 	d.Folder = a.Folder
 	d.Abilities = a.Shown()
 	d.Provisioned = a.Provisioned

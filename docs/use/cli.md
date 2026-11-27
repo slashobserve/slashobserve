@@ -560,6 +560,7 @@ That cursor works only with the same `--order`, and `--all` reads every page.
 
 `dashboards show <dashboard-id>` lists the panels of the latest version, or of the version you give with `--version N`.
 It also prints how many views the dashboard had in the last 30 days, and the folder is in the details.
+`Managed by` says what writes the dashboard: `starter`, `file`, `apply` or `workspace`, the [`managed_by`](../reference/states.md#dashboard-managed-by) of the API.
 A version that does not exist answers `version_not_found` and says what the latest one is.
 `--json` adds `view_count` and `window_days`.
 

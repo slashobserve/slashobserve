@@ -64,6 +64,7 @@ type dashboardListItemJSON struct {
 	Folder           dashboardFolderJSON `json:"folder"`
 	Permissions      folders.Permissions `json:"permissions"`
 	Provisioned      bool                `json:"provisioned"`
+	ManagedBy        string              `json:"managed_by"`
 }
 
 type versionMetaJSON struct {
@@ -202,6 +203,7 @@ func newDashboardListItemJSON(item ListItem) dashboardListItemJSON {
 		Folder:           newDashboardFolderJSON(d.Folder),
 		Permissions:      folders.PermissionsJSON(d.Abilities),
 		Provisioned:      d.Provisioned,
+		ManagedBy:        d.ManagedBy.String(),
 	}
 }
 

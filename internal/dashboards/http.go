@@ -311,9 +311,7 @@ func (s *Service) getDashboard(c *gin.Context) {
 		s.fail(c, "get dashboard", err)
 		return
 	}
-	dash.Abilities = folders.DashboardFrom(c).Shown()
-	dash.Provisioned = folders.DashboardFrom(c).Provisioned
-	dash.ManagedBy = folders.DashboardFrom(c).ManagedBy()
+	dash = dash.WithAccess(folders.DashboardFrom(c))
 	audit.Conclude(c.Request.Context(), audit.Result{
 		Outcome: audit.OutcomeSuccess,
 		Target:  audit.Target{Kind: "dashboard", ID: c.Param("id")},
@@ -394,9 +392,7 @@ func (s *Service) getVersion(c *gin.Context) {
 		s.fail(c, "get dashboard version", err)
 		return
 	}
-	dash.Abilities = folders.DashboardFrom(c).Shown()
-	dash.Provisioned = folders.DashboardFrom(c).Provisioned
-	dash.ManagedBy = folders.DashboardFrom(c).ManagedBy()
+	dash = dash.WithAccess(folders.DashboardFrom(c))
 	httpapi.RevalidatedJSON(c, NewDashboardVersionJSON(dash, ver))
 }
 

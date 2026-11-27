@@ -74,7 +74,7 @@ Dashboards provisioned from files are ordinary dashboards: people can edit, move
 
 A dashboard read tells an editor where the dashboard comes from, so the edit does not come as a surprise later:
 
-- `GET /api/v1/dashboards/{id}` and `get_dashboard` return `managed_by`: `file` for a dashboard bound to a provisioning file, `apply` for one that `observe dashboards apply` wrote, `starter` for a [starter dashboard](#starter-dashboards) and `workspace` for every other dashboard.
+- `GET /api/v1/dashboards/{id}`, each item of `GET /api/v1/dashboards`, `get_dashboard`, `list_dashboards` and `observe dashboards show` return `managed_by`: `file` for a dashboard bound to a provisioning file, `apply` for one that `observe dashboards apply` wrote, `starter` for a [starter dashboard](#starter-dashboards) and `workspace` for every other dashboard.
 - The web app shows a note on a `file` or `apply` dashboard, where an edit starts: in the panel editor and above the prompt.
 - A save to a `file` dashboard works, and its answer carries a `warning` that a change to the file replaces the edit.
   A save to an `apply` dashboard carries a `warning` that applying its file again after the file changes replaces the edit.

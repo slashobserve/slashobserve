@@ -844,13 +844,14 @@ Its content is described under [Tool text and instructions](#tool-text-and-instr
 
 #### `list_dashboards`
 
-Lists the dashboards the key can see, with `id`, `title`, `tags`, `folder`, `latest_version`, `updated_at`, `view_count` and `url`.
+Lists the dashboards the key can see, with `id`, `title`, `tags`, `folder`, `latest_version`, `updated_at`, `view_count`, `url` and `managed_by`.
 
 - `limit` is 1 to 50, 20 by default, and `cursor` takes the `next_cursor` of the previous page.
 - `order` is `updated` (the default), `views` for the most viewed first, or `name` for A to Z by title.
   Pass a `next_cursor` back with the order that produced it.
 - `exclude_audit: true` leaves out the dashboards in the [Audit folder](activity.md#audit-folder).
 - `view_count` is the number of people-days on which the dashboard was opened in the last 30 days.
+- `managed_by` has the values it has on [`get_dashboard`](#get_dashboard).
 
 #### `get_dashboard`
 
@@ -894,6 +895,7 @@ Use it only to rewrite most of a dashboard; for anything smaller, use `update_pa
   Each conflict has a `kind`, an `id`, a `reason` and a `message`.
   The client reads the latest version and applies its change again.
 - A save to a dashboard whose `managed_by` is `file` or `apply` works, and the result carries a `warning`: a change to the provisioning file, or applying the file again after it changes, replaces the edit, which stays in the version history.
+- Every result that answers with a saved version has the dashboard's `managed_by`: a create, a save, a restore, a move, a duplicate and a build commit.
 - It saves a [proposal](../concepts/proposals.md) instead when the caller can comment but not edit, or when its connection is in propose mode.
   The answer is a success, not a tool error.
   Its code is `proposed`, and it carries `proposal_id`, `revision`, `opened` (false when the save added a revision to the caller's open proposal) and the dashboard's `url`.

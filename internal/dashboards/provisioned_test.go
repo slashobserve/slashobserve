@@ -3,6 +3,7 @@ package dashboards
 import (
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
 	"strings"
 	"testing"
@@ -433,5 +434,38 @@ func TestAStarterDoesNotShowAnEmptyPanelAsUnverifiedButItsCopyDoes(t *testing.T)
 	}
 	if n := unverifiedPanelsOver(t, b, "/dashboards/"+copied.Dashboard.ID); n != 1 {
 		t.Errorf("the copy shows %d unverified panels, want the 1 it inherited", n)
+	}
+}
+
+func TestTheDashboardListNamesWhatManagesEachDashboard(t *testing.T) {
+	r := newPlacementRig(t)
+	b := boards{rig: r}
+	want := map[string]string{
+		r.starterDashboard(t).String(): "starter",
+		r.createDashboard(t).String():  "workspace",
+	}
+	fromFile, applied := r.createDashboard(t), r.createDashboard(t)
+	r.bindToProvisioningFile(t, fromFile)
+	r.bindToAppliedFile(t, applied)
+	want[fromFile.String()], want[applied.String()] = "file", "apply"
+
+	rec := b.serve(placementAdmin, http.MethodGet, "/dashboards", "")
+	var list struct {
+		Dashboards []struct {
+			ID        string
+			ManagedBy string `json:"managed_by"`
+		}
+	}
+	if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &list) != nil {
+		t.Fatalf("list answered %d %s", rec.Code, rec.Body.String())
+	}
+	got := map[string]string{}
+	for _, item := range list.Dashboards {
+		if _, ok := want[item.ID]; ok {
+			got[item.ID] = item.ManagedBy
+		}
+	}
+	if !maps.Equal(got, want) {
+		t.Fatalf("the list reads managed_by %v, want %v", got, want)
 	}
 }

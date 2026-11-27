@@ -72,3 +72,37 @@ func TestEveryEditAnswerOverMCPCarriesTheWarningOfWhatManagesTheDashboard(t *tes
 		}
 	}
 }
+
+func TestEveryDashboardAnswerOverMCPNamesWhatManagesIt(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	version := dashboards.Version{VersionMeta: dashboards.VersionMeta{Number: 2}, Spec: &spec.Dashboard{Title: "t"}}
+	listSchema := compileOutput(t, nameListDashboards, outputSchemas[nameListDashboards])
+	for _, managedBy := range []folders.ManagedBy{folders.ManagedByWorkspace, folders.ManagedByStarter, folders.ManagedByFile, folders.ManagedByApply} {
+		dash := dashboards.Dashboard{ID: "d1", Title: "t", ManagedBy: managedBy}
+		if got := r.savedOut(dash, version, nil).ManagedBy; got != managedBy.String() {
+			t.Errorf("a save, restore or move answer for a dashboard managed by %s reads managed_by %q", managedBy, got)
+		}
+		items := r.dashboardItems([]dashboards.ListItem{{Dashboard: dash}})
+		if got := items[0].ManagedBy; got != managedBy.String() {
+			t.Errorf("list_dashboards reads managed_by %q for a dashboard managed by %s", got, managedBy)
+		}
+		body, err := json.Marshal(dashboardListOut{Dashboards: items})
+		if err != nil {
+			t.Fatal(err)
+		}
+		value, err := jsonschema.UnmarshalJSON(strings.NewReader(string(body)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := listSchema.Validate(value); err != nil {
+			t.Errorf("the list_dashboards output schema refuses managed_by %q: %v", managedBy, err)
+		}
+	}
+	wrong, err := jsonschema.UnmarshalJSON(strings.NewReader(`{"dashboards":[{"id":"d1","title":"t","tags":[],"latest_version":1,"updated_at":"x","view_count":0,"url":"u","folder":"f","managed_by":"web"}],"next_cursor":null}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if listSchema.Validate(wrong) == nil {
+		t.Error("the list_dashboards output schema takes a write channel as managed_by")
+	}
+}

@@ -109,7 +109,7 @@ A proposal is a change to a dashboard that someone who can edit merges or discar
 
 ## Dashboard managed by
 
-`GET /dashboards/{id}` returns `managed_by`: what writes the dashboard's content.
+`GET /dashboards/{id}` and each item of `GET /dashboards` return `managed_by`: what writes the dashboard's content.
 This state is computed from stored fields on every read; nothing stores it.
 
 | State | When |

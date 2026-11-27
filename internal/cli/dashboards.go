@@ -28,7 +28,15 @@ type dashboardSummary struct {
 	Folder        struct {
 		Title string `json:"title"`
 	} `json:"folder"`
-	ViewCount int `json:"view_count"`
+	ViewCount int    `json:"view_count"`
+	ManagedBy string `json:"managed_by"`
+}
+
+func (d dashboardSummary) managedByFields() [][2]string {
+	if d.ManagedBy == "" {
+		return nil
+	}
+	return [][2]string{{"Managed by", text(d.ManagedBy)}}
 }
 
 type dashboardViews struct {
@@ -210,16 +218,17 @@ func (a *app) runShow(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	out.fields([][2]string{
+	out.fields(slices.Concat([][2]string{
 		{"Title", text(shown.Dashboard.Title)},
 		{"ID", text(shown.Dashboard.ID)},
 		{"Folder", text(shown.Dashboard.Folder.Title)},
+	}, shown.Dashboard.managedByFields(), [][2]string{
 		{"URL", links.Dashboard(c.base, shown.Dashboard.ID, shown.Dashboard.Title)},
 		{"Version", strconv.Itoa(shown.Version.Version)},
 		{"Views", fmt.Sprintf("%d in the last %d days", views.ViewCount, views.WindowDays)},
 		{"Author", text(shown.Version.Actor.Label)},
 		{"Summary", text(shown.Version.Summary)},
-	})
+	}))
 	var rows [][]string
 	for _, p := range shown.Version.Spec.Panels {
 		rows = appendPanelRows(rows, p)
