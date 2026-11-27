@@ -69,8 +69,8 @@ import { AddToObservationAction } from "./add-to-observation-action"
 import { wholeTrace, type Zoom } from "./minimap"
 import { TraceMinimap } from "./minimap.tsx"
 import {
+  canSearchTraces,
   normaliseTraceId,
-  traceDatasourceTypes,
   traceViewDatasource,
   traceViewRange,
   type TraceViewSearch,
@@ -154,7 +154,7 @@ function TraceForId({ id }: { id: string }) {
   const ids = useId()
   const { search, update } = useTraceViewSearch()
   const datasources = useDatasources()
-  const eligible = eligibleDatasources(datasources.data, traceDatasourceTypes)
+  const eligible = eligibleDatasources(datasources.data, canSearchTraces)
   const datasource = traceViewDatasource(eligible, search.ds)
   const range = traceViewRange(search)
   const actions: PageActions = {
@@ -197,7 +197,7 @@ function TraceForId({ id }: { id: string }) {
           <div className="flex flex-col gap-3">
             <ExploreDatasourcePicker
               id={`${ids}-datasource`}
-              types={traceDatasourceTypes}
+              accepts={canSearchTraces}
               value={undefined}
               onChange={(ds) => update({ ds })}
               label="Datasource"

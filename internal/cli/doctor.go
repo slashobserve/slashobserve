@@ -63,6 +63,7 @@ type datasourceEntry struct {
 	Detail         *string `json:"detail"`
 	Source         string  `json:"source"`
 	Spans          string  `json:"spans"`
+	TraceSearch    bool    `json:"trace_search"`
 	Audience       string  `json:"audience"`
 	CheckedAt      string  `json:"checked_at"`
 	DashboardCount int     `json:"dashboard_count"`

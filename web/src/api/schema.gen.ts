@@ -5149,6 +5149,8 @@ export interface components {
              * @enum {string}
              */
             spans?: "jaeger";
+            /** @description `true` when the Traces page and `observe traces` can search the datasource and read a trace by id through the query path: Tempo, Jaeger and ClickHouse datasources. Absent otherwise, including on an Elasticsearch or OpenSearch datasource with `spans` set, which answers the agent's trace tools only. */
+            trace_search?: boolean;
             /**
              * @description Who can query the datasource, for an Admin caller only; absent for everyone else.
              * @enum {string}

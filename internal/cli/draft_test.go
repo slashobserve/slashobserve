@@ -35,7 +35,7 @@ func newAskFake(t *testing.T, kind, draft, frames string) *askFake {
 		_ = json.Unmarshal(data, &body)
 		switch r.URL.Path {
 		case "/api/v1/datasources":
-			_, _ = fmt.Fprintf(w, `{"datasources":[{"uid":"ds","type":%q,"name":"D","healthy":true,"checked_at":"x","dashboard_count":0}]}`, f.kind)
+			_, _ = fmt.Fprintf(w, `{"datasources":[{"uid":"ds","type":%q,"name":"D","healthy":true,"trace_search":%t,"checked_at":"x","dashboard_count":0}]}`, f.kind, searchesTraces(f.kind))
 		case "/api/v1/datasources/ds/draft-query":
 			f.drafts = append(f.drafts, body)
 			w.WriteHeader(f.draftStatus)
