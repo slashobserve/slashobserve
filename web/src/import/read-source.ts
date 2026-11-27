@@ -5,6 +5,9 @@ export const MAX_FILE_BYTES = 64 * 1024 * 1024
 export const TOO_LARGE_MESSAGE =
   "This file is larger than 8 MiB, the import limit."
 
+export const UNREADABLE_MESSAGE =
+  "This file could not be read. Try again, or paste the JSON instead."
+
 type Summary = components["schemas"]["ImportSummary"]
 
 export function requestBytes(

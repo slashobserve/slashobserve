@@ -34,6 +34,7 @@ import {
   MAX_FILE_BYTES,
   MAX_IMPORT_BYTES,
   TOO_LARGE_MESSAGE,
+  UNREADABLE_MESSAGE,
   exceedsImportLimit,
   requestBytes,
   summaryLine,
@@ -99,12 +100,15 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
     setRefusal(null)
   }, [resetImport])
 
-  const refuse = useCallback(() => {
-    resetImport()
-    setSource(null)
-    setMapping(noMapping)
-    setRefusal(TOO_LARGE_MESSAGE)
-  }, [resetImport])
+  const refuse = useCallback(
+    (message = TOO_LARGE_MESSAGE) => {
+      resetImport()
+      setSource(null)
+      setMapping(noMapping)
+      setRefusal(message)
+    },
+    [resetImport]
+  )
 
   const accept = useCallback(
     (name: string, text: string, pasted: boolean) => {
@@ -126,7 +130,14 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
         refuse()
         return
       }
-      accept(file.name, await file.text(), false)
+      let text: string
+      try {
+        text = await file.text()
+      } catch {
+        refuse(UNREADABLE_MESSAGE)
+        return
+      }
+      accept(file.name, text, false)
     },
     [accept, refuse]
   )
