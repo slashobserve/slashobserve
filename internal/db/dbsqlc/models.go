@@ -403,6 +403,7 @@ type Finding struct {
 	NextSteps          []string
 	NoIncident         pgtype.Bool
 	Unverified         []byte
+	Causes             []byte
 }
 
 type Folder struct {

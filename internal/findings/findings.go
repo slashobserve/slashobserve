@@ -54,6 +54,7 @@ type Conclusion struct {
 	Title, Markdown              string
 	Evidence                     []spec.Panel
 	From, To                     time.Time
+	Causes                       []Cause
 }
 
 type Observations interface {

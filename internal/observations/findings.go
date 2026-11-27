@@ -29,7 +29,7 @@ func (s *Service) WriteConclusion(ctx context.Context, q *dbsqlc.Queries, by aut
 		}
 		evidence[i] = raw
 	}
-	in := conclusion{runID: c.RunID, title: c.Title, markdown: c.Markdown, evidence: evidence, from: c.From, to: c.To}
+	in := conclusion{runID: c.RunID, title: c.Title, markdown: findings.WithCauses(c.Markdown, c.Causes), evidence: evidence, from: c.From, to: c.To}
 	who := actor.In(ctx, by, c.RunID.String())
 	if c.Into.Valid {
 		return c.Into, false, s.writeIntoObservation(ctx, q, by, who, c.Into, in)
