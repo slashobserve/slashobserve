@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/slashobserve/slashobserve/internal/agent/prompts"
 	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/auth"
 )
@@ -116,7 +115,8 @@ func TestEveryToolATaskPromptNamesIsInThatTasksSet(t *testing.T) {
 	for _, task := range route.Tasks {
 		run := Run{Mode: ModeInvestigate, Investigation: true, Task: task, DashboardID: "d", Observations: []string{"o"}}
 		offered := offeredNames(r, run)
-		for _, word := range words.FindAllString(prompts.InvestigateBody(prompts.Variant{Task: task, Ledger: true}), -1) {
+		text := runText(t, "investigate.md") + runText(t, "playbook/"+string(task)+".md") + runText(t, "ledger.md")
+		for _, word := range words.FindAllString(text, -1) {
 			if _, isTool := r.entries[word]; isTool && !slices.Contains(offered, word) {
 				t.Errorf("the %s prompt names %s, which the task does not offer", task, word)
 			}
@@ -212,4 +212,18 @@ func TestListMoreToolsWidensTheRun(t *testing.T) {
 			t.Fatalf("a widened run still refuses log_patterns: %+v", res)
 		}
 	}
+}
+
+func runText(t *testing.T, name string) string {
+	t.Helper()
+	root, err := os.OpenRoot("../prompts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = root.Close() }()
+	text, err := root.ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(text)
 }

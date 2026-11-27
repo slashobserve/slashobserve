@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/slashobserve/slashobserve/internal/agent/prompts"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -25,7 +24,7 @@ func callLedger(t *testing.T, mode Mode, input string) Result {
 }
 
 func TestTheLedgerPromptStatesTheLimitTheToolEnforces(t *testing.T) {
-	text := prompts.InvestigateWithLedger()
+	text := runText(t, "ledger.md")
 	if want := fmt.Sprintf("at most %d hypotheses in all, the `<triage>` candidates already in it included", MaxHypotheses); !strings.Contains(text, want) {
 		t.Fatalf("the ledger section does not say %q", want)
 	}

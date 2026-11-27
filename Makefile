@@ -102,7 +102,6 @@ lint-deploy:
 
 golden:
 	go test ./pkg/grafana -run 'TestCorpusGoldens|TestOptionMapIsCurrent' -update
-	go test ./internal/agent/prompts -run TestRunTextGoldensAreCurrent -update
 
 tidy-check:
 	go mod tidy -diff
