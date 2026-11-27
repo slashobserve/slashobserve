@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test"
+import { describe, expect, spyOn, test } from "bun:test"
 import { claimLoop } from "../src/claims"
 import { configureLog } from "../src/log"
 import type { ClaimAnswer } from "../src/protocol"
@@ -47,6 +47,17 @@ class Script extends FakeClaim {
 
 const instantSleep = (log: number[]) => async (ms: number) => {
   log.push(ms)
+}
+
+const untilStopped = async (
+  _claim: unknown,
+  _run: ClaimedRun,
+  _factory: unknown,
+  signal: AbortSignal
+): Promise<void> => {
+  await new Promise<void>((resolve) =>
+    signal.addEventListener("abort", () => resolve())
+  )
 }
 
 describe("claim loop", () => {
@@ -344,21 +355,89 @@ describe("claim loop", () => {
     expect(client.releases).toHaveLength(0)
   })
 
-  test("a failing shutdown release still ends the loop", async () => {
+  test("a failing shutdown release is logged and its run is counted as still held", async () => {
+    const stop = new AbortController()
+    const client = new Script([offer("a"), offer("b"), "wait"], stop)
+    client.releaseRun = async (input) => {
+      if (input.run_id === "a") {
+        throw new Error("down")
+      }
+      return { state: "queued" }
+    }
+    const handback = { held: 0, released: 0 }
+    const lines: string[] = []
+    const stderr = spyOn(process.stderr, "write").mockImplementation(
+      (line) => lines.push(String(line)) > 0
+    )
+    configureLog("warn")
+    try {
+      await claimLoop(client, 3, factory, stop.signal, {
+        sleep: instantSleep([]),
+        handback,
+        run: untilStopped,
+      })
+    } finally {
+      configureLog("error")
+      stderr.mockRestore()
+    }
+    expect(handback).toEqual({ held: 1, released: 1 })
+    expect(lines.map((line) => JSON.parse(line))).toEqual([
+      expect.objectContaining({
+        level: "warn",
+        msg: "release of a run failed",
+        run_id: "a",
+      }),
+    ])
+  })
+
+  test("a run that ended before shutdown is neither held nor released in the count", async () => {
     const stop = new AbortController()
     const client = new Script([offer("a"), "wait"], stop)
-    client.releaseRun = async () => {
-      throw new Error("down")
-    }
-    await claimLoop(client, 2, factory, stop.signal, {
+    const handback = { held: 0, released: 0 }
+    await claimLoop(client, 1, factory, stop.signal, {
       sleep: instantSleep([]),
-      run: async (_c, _run, _f, signal) => {
-        await new Promise<void>((resolve) =>
-          signal.addEventListener("abort", () => resolve())
-        )
-      },
+      handback,
+      run: async () => {},
     })
+    expect(handback).toEqual({ held: 0, released: 0 })
+  })
+
+  test("a run whose loop has not stopped is counted as held", async () => {
+    const stop = new AbortController()
+    const client = new Script([offer("a"), "wait"], stop)
+    const handback = { held: 0, released: 0 }
+    void claimLoop(client, 2, factory, stop.signal, {
+      sleep: instantSleep([]),
+      handback,
+      run: () => new Promise<void>(() => {}),
+    })
+    await new Promise((resolve) => setTimeout(resolve, 5))
     expect(stop.signal.aborted).toBe(true)
+    expect(handback).toEqual({ held: 1, released: 0 })
+  })
+
+  test("a run without model settings that fails during the stop is still finished", async () => {
+    const stop = new AbortController()
+    const client = new Script([], stop)
+    let claims = 0
+    client.claimRun = async () => {
+      claims++
+      if (claims > 3) {
+        stop.abort()
+      }
+      return claims > 4 ? { run: null } : { ...offer("a"), model: undefined }
+    }
+    const signals: Array<AbortSignal | undefined> = []
+    client.finishRun = async (input, signal?: AbortSignal) => {
+      signals.push(signal)
+      client.finishes.push(input)
+      return { state: "failed", restarted: false }
+    }
+    await claimLoop(client, 1, factory, stop.signal, {
+      sleep: instantSleep([]),
+    })
+    expect(client.finishes).toHaveLength(1)
+    expect(signals).toEqual([undefined])
   })
 
   test("shutdown aborts held runs and waits for them", async () => {

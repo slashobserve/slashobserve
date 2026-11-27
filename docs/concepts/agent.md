@@ -599,7 +599,10 @@ A reverse proxy on the same host that adds none of them, such as nginx with a ba
 So configure it to send `X-Forwarded-For` or keep `/mcp` off it.
 
 When the server stops, it sends the sidecar `SIGTERM`.
-The sidecar stops each run it holds, hands it back to the queue with `release_run`, and logs `observe-agent stopped` with `shutdown` `drained` before it exits with status 0.
+The sidecar stops each run it holds and asks the server to requeue it with `release_run`.
+It then logs `observe-agent stopped` with `shutdown` `drained` and exits with status 0.
+`drained` means every run loop stopped in time, not that every run was handed back.
+The same line counts the runs: `released` for the ones the server took back, and `not_released` for the ones whose `release_run` failed or whose loop had not stopped.
 A sidecar that has not finished 5 seconds after the signal logs `shutdown` `forced` and exits with status 124.
 The server then hands back whatever the sidecar still held, so a run returns to the queue either way.
 

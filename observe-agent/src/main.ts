@@ -1,4 +1,4 @@
-import { claimLoop } from "./claims"
+import { claimLoop, type Handback } from "./claims"
 import { loadEnv, mcpUrl } from "./env"
 import { configureLog, log } from "./log"
 import { ClaimClient, McpClient } from "./mcp"
@@ -19,11 +19,13 @@ async function main(): Promise<number> {
   process.on("SIGTERM", stop)
   process.on("SIGINT", stop)
   log("info", "observe-agent started", { version, slots: env.slots })
+  const handback: Handback = { held: 0, released: 0 }
   const work = claimLoop(
     new ClaimClient(base),
     env.slots,
     createSession,
-    controller.signal
+    controller.signal,
+    { handback }
   ).then(() => base.close())
   const outcome = await shutdownOutcome(
     work,
@@ -32,6 +34,8 @@ async function main(): Promise<number> {
   )
   log(outcome === "forced" ? "warn" : "info", "observe-agent stopped", {
     shutdown: outcome,
+    released: handback.released,
+    not_released: handback.held,
   })
   return exitCodes[outcome]
 }
