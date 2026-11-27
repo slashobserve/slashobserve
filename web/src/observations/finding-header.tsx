@@ -122,7 +122,7 @@ function ItemsRow({
   )
 }
 
-export function listsCauses(finding: RunFinding): boolean {
+function listsCauses(finding: RunFinding): boolean {
   return (
     finding.causes.length > 1 ||
     finding.causes.some((cause) => cause.band !== null || !cause.stated)
