@@ -195,7 +195,9 @@ func TestAuthenticateRefusesTheTokenOfAReleasedClaimOnceTheRunIsClaimedAgain(t *
 	f := newFixture(t)
 	queued := f.queue(t, revisions.AssignGrant, grantID)
 	first := f.claim(t, grantClaimer)
-	f.runs.Release(context.Background(), f.stored(t, queued.ID))
+	if err := f.runs.Release(context.Background(), f.stored(t, queued.ID)); err != nil {
+		t.Fatal(err)
+	}
 
 	second := f.claim(t, grantClaimer)
 
