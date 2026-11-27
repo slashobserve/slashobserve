@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
 import { isRetryable, unwrap } from "@/api/errors"
+import { exploreKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import { panelRequestLimiter } from "@/dashboards/limiter"
 import type { LogLevelKind } from "@/panels/logs/logs-model"
@@ -56,7 +57,7 @@ function logVolumeRequest(
 
 export function logVolumeQuery(uid: string, params: VolumeParams) {
   return queryOptions({
-    queryKey: ["explore", uid, "volume", params],
+    queryKey: exploreKeys.volume(uid, params),
     queryFn: ({ signal }) => logVolumeRequest(uid, params, signal),
     staleTime: 0,
     gcTime: 60_000,

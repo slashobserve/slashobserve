@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 
 import { ApiError } from "@/api/errors"
+import { datasourceKeys } from "@/api/keys"
 import { exploreErrorText } from "@/logs/explore"
 import { ExploreFailure } from "@/logs/explore-failure"
 import { lintQuery } from "@/query-editor/server-lint"
@@ -23,7 +24,7 @@ export function QueryFailure({
 }) {
   const rejected = error instanceof ApiError && error.code === rejectedQueryCode
   const lint = useQuery({
-    queryKey: ["metrics", uid, "lint", query],
+    queryKey: datasourceKeys.lint(uid, query),
     queryFn: ({ signal }) => lintQuery(uid, query, signal),
     enabled: rejected,
     staleTime: 60_000,

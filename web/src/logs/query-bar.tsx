@@ -11,6 +11,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
+import { exploreKeys } from "@/api/keys"
 import { AskField } from "@/ask/ask-field"
 import { askModeLabel, nextMode, type InputMode } from "@/ask/input-mode"
 import { useAsk } from "@/ask/use-ask"
@@ -234,7 +235,7 @@ function lastGoodRun(
   let best: { at: number; rows: number } | null = null
   for (const query of queryClient
     .getQueryCache()
-    .findAll({ queryKey: ["explore", uid, "query"] })) {
+    .findAll({ queryKey: exploreKeys.queries(uid) })) {
     const data = query.state.data as PanelDataResponse | undefined
     if (query.state.status !== "success" || data === undefined) continue
     if (best === null || query.state.dataUpdatedAt > best.at) {
