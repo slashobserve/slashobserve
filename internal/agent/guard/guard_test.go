@@ -28,8 +28,8 @@ func readTurn(s *State, name, input string, isError bool) Admission {
 }
 
 func TestBudgetLimits(t *testing.T) {
-	if MaxRejectionsInRow != 3 || maxIdenticalReads != 3 || maxCallsBeforeSave != 6 || maxCallsBeforeProposal != 12 || DefaultInvestigationCalls != 30 || DefaultChatCalls != 12 || DefaultInvestigationCallsMax != 40 || maxStalledTurns != 2 {
-		t.Fatalf("budgets = %d %d %d %d %d %d %d %d", MaxRejectionsInRow, maxIdenticalReads, maxCallsBeforeSave, maxCallsBeforeProposal, DefaultInvestigationCalls, DefaultChatCalls, DefaultInvestigationCallsMax, maxStalledTurns)
+	if MaxRejectionsInRow != 3 || maxIdenticalReads != 3 || MaxCallsBeforeSave != 6 || MaxCallsBeforeProposal != 12 || DefaultInvestigationCalls != 30 || DefaultChatCalls != 12 || DefaultInvestigationCallsMax != 40 || maxStalledTurns != 2 {
+		t.Fatalf("budgets = %d %d %d %d %d %d %d %d", MaxRejectionsInRow, maxIdenticalReads, MaxCallsBeforeSave, MaxCallsBeforeProposal, DefaultInvestigationCalls, DefaultChatCalls, DefaultInvestigationCallsMax, maxStalledTurns)
 	}
 }
 
@@ -206,7 +206,7 @@ func TestAQuestionRunBudgetBecomesSixOnceItSavesAPanel(t *testing.T) {
 	if _, err := s.Settle(save, tools.Result{Edits: tools.Edits{Panels: []string{"a"}}}, []byte(`{"build":{},"version":0}`)); err != nil {
 		t.Fatal(err)
 	}
-	if got := s.windowLimit(); got != maxCallsBeforeSave || !s.Building {
+	if got := s.windowLimit(); got != MaxCallsBeforeSave || !s.Building {
 		t.Fatalf("limit after a build save = %d, building %v", got, s.Building)
 	}
 }
@@ -461,7 +461,7 @@ func TestSettleClearsRejectionsOnEveryAcceptedSave(t *testing.T) {
 
 func TestAdmitCountsReadsRefusedByTheWindow(t *testing.T) {
 	s := New(tools.ModeRevise)
-	s.Window.Calls = maxCallsBeforeSave - 1
+	s.Window.Calls = MaxCallsBeforeSave - 1
 	s.BeginTurn(false)
 	adm := s.Admit(0, jsonCall("get_panels", `{}`))
 	if adm.Verdict != Refuse || s.Counts.SaveNowRefusals != 1 || s.LastGuard != guardSaveNow {
@@ -668,7 +668,7 @@ func TestSettleStopsAfterTheFourthSaveThatChangedNothingNew(t *testing.T) {
 
 func TestEndTurnStopsAfterTwoTurnsInARowWithEveryCallRefused(t *testing.T) {
 	s := New(tools.ModeRevise)
-	s.Window.Calls = maxCallsBeforeSave - 1
+	s.Window.Calls = MaxCallsBeforeSave - 1
 	turn := func() (string, *Stop) {
 		s.BeginTurn(false)
 		s.Admit(0, jsonCall("get_panels", `{}`))
@@ -752,7 +752,7 @@ func TestRestrictedAnswerRefusalsBreakTheRunOfValidationRejections(t *testing.T)
 
 func TestEndTurnNudgesOneCallBeforeTheWindowClosesAndCountsIt(t *testing.T) {
 	s := New(tools.ModeRevise)
-	s.Window.Calls = maxCallsBeforeSave - 2
+	s.Window.Calls = MaxCallsBeforeSave - 2
 	s.BeginTurn(false)
 	s.Admit(0, jsonCall("get_panels", `{}`))
 	nudge, stop := s.EndTurn()
@@ -1060,14 +1060,14 @@ func TestAnImportedDashboardEndsTheQuestionBudget(t *testing.T) {
 	if _, err := s.Settle(imp, tools.Result{}, []byte(`{"dashboard_id":"d1","version":1}`)); err != nil {
 		t.Fatal(err)
 	}
-	if s.answering() || s.Building || s.windowLimit() != maxCallsBeforeSave {
+	if s.answering() || s.Building || s.windowLimit() != MaxCallsBeforeSave {
 		t.Fatalf("answering %v, building %v, limit %d", s.answering(), s.Building, s.windowLimit())
 	}
 	s.Window.Calls = 5
 	if got := s.nudge(); got != messageSaveNext {
 		t.Fatalf("nudge = %q", got)
 	}
-	s.Window.Calls = maxCallsBeforeSave
+	s.Window.Calls = MaxCallsBeforeSave
 	if got := s.readRefusal(false); got != guardSaveNow {
 		t.Fatalf("readRefusal = %q", got)
 	}

@@ -129,20 +129,96 @@ export const runSessionOffer = z.object({
 })
 export type RunSessionOffer = z.infer<typeof runSessionOffer>
 
+export const agentSettings = z.object({
+  investigation_calls: count.default(0),
+  investigation_calls_max: count.default(0),
+  default_calls: count.default(0),
+  task_calls: z.record(z.string(), count).default({}),
+  chat_calls: count.default(0),
+  save_calls: count.default(0),
+  suggest_calls: count.default(0),
+  loop: z.boolean().default(false),
+  grounding: z.string().default(""),
+  brief_sweep: z.boolean().default(false),
+  session_renew_bytes: count.default(0),
+})
+export type AgentSettings = z.infer<typeof agentSettings>
+
 export const claimAnswer = z.object({
   run: offeredRun.nullable(),
   session: runSessionOffer.nullish(),
   lease_seconds: count.optional(),
   retry_after_seconds: count.optional(),
   model: modelSettings.nullish(),
+  agent: agentSettings.nullish().catch(null),
 })
 export type ClaimAnswer = z.infer<typeof claimAnswer>
+
+const unverified = z.object({
+  panels: z.array(z.unknown()).nullish(),
+  variables: z.array(z.unknown()).nullish(),
+})
+
+export const runBrief = z.object({
+  request: z.object({
+    mode: z.string(),
+    source: z.string(),
+    prompt: z.string(),
+    panel_id: z.string().nullish(),
+    from: z.string().nullish(),
+    to: z.string().nullish(),
+    time_zone: z.string().nullish(),
+    as_of: z.string().nullish(),
+    continue_note: z.string().nullish(),
+    thread_context: z.string().nullish(),
+    continues: z.boolean().default(false),
+    attempt: z.number().int().min(1),
+    investigation: z.boolean().default(false),
+    pointer: z.object({
+      anchor: z.unknown().nullish(),
+      block_id: z.string().nullish(),
+      observation_id: z.string().nullish(),
+      thread_ask: z.boolean().default(false),
+    }),
+  }),
+  current: z
+    .object({
+      dashboard_id: z.string(),
+      number: count,
+      spec: z.unknown(),
+      unverified,
+      conversion: z.array(z.unknown()).nullish(),
+    })
+    .nullish(),
+  build: z
+    .object({
+      base_version: count,
+      spec: z.unknown(),
+      unverified,
+      progress: buildProgress,
+    })
+    .nullish(),
+  datasources: z.array(
+    z.object({
+      uid: z.string(),
+      type: z.string(),
+      name: z.string().default(""),
+      healthy: z.boolean(),
+      everyone: z.boolean().default(false),
+    })
+  ),
+  withheld: z.boolean().default(false),
+  guide: z.object({ text: z.string(), schema: z.unknown() }),
+  draft: z.unknown().nullish(),
+})
+export type RunBrief = z.infer<typeof runBrief>
 
 export const briefAnswer = z.object({
   system: z.string(),
   message: z.string(),
   reason: z.string().default(""),
   build: buildProgress.nullish(),
+  brief: runBrief.nullish().catch(null),
 })
 export type BriefAnswer = z.infer<typeof briefAnswer>
 

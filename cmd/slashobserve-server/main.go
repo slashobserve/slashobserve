@@ -510,7 +510,7 @@ func run() error {
 	asks := threads.NewAsks(threadsService, revisionsService, llmProvider != nil)
 	claimsConfig := claims.Config{
 		DB: database, Runs: revisionsService, Listen: database.Listen, PublicURL: cfg.PublicURL, InternalURL: sidecar.internalURL(),
-		InstanceID: serverID, Model: sidecar.modelSettings(cfg), RunTimeout: cfg.Agent.RunTimeout, Logger: logger,
+		InstanceID: serverID, Model: sidecar.modelSettings(cfg), Agent: sidecar.agentSettings(cfg), RunTimeout: cfg.Agent.RunTimeout, Logger: logger,
 	}
 	claimsService := claims.New(claimsConfig)
 	runSessions := runsession.New(runsession.Config{

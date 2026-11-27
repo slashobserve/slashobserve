@@ -3,6 +3,7 @@ package runsession
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -88,7 +89,7 @@ func (s *script) read(n int, turn *Turn) {
 
 func (s *script) brief(reason brief.Reason) tools.BriefAnswer {
 	s.t.Helper()
-	answer, err := s.sess.brief(context.Background(), reason, []datasource.Status{{UID: "prom", Type: "prometheus", Healthy: true}})
+	answer, err := s.sess.brief(context.Background(), reason, []datasource.Status{{UID: "prom", Type: "prometheus", Healthy: true}}, nil)
 	if err != nil {
 		s.t.Fatal(err)
 	}
@@ -174,7 +175,8 @@ func TestWithTheLoopOffTheBriefIsTheOneARunWithNoLedgerGets(t *testing.T) {
 	off.sess.state.Ledger = []revisions.Hypothesis{{ID: "pool", Text: "kept from a run made with the loop on", Status: revisions.HypothesisOpen}}
 	got := off.brief(brief.NoFinding)
 
-	if got.System != prompts.InvestigateFor(prompts.Variant{}, promGuide) || got != want {
+	same := got.System == want.System && got.Message == want.Message && got.Reason == want.Reason && got.Build == want.Build && reflect.DeepEqual(got.Brief, want.Brief)
+	if got.System != prompts.InvestigateFor(prompts.Variant{}, promGuide) || !same {
 		t.Fatalf("brief with the loop off differs:\n%+v\nwant\n%+v", got, want)
 	}
 	if strings.Contains(got.Message, "<hypotheses>") || strings.Contains(got.System, "note_hypotheses") {

@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/config"
@@ -68,6 +69,33 @@ func (s *sidecarSetup) modelSettings(cfg config.Config) func(question bool) *cla
 		return nil
 	}
 	return modelSettingsOf(cfg.LLM, cfg.Agent.SessionRenewBytes)
+}
+
+func (s *sidecarSetup) agentSettings(cfg config.Config) *claims.AgentSettings {
+	if s == nil {
+		return nil
+	}
+	return agentSettingsOf(cfg.Agent)
+}
+
+func agentSettingsOf(a config.Agent) *claims.AgentSettings {
+	tasks := map[string]int{}
+	for task, calls := range guard.TaskCalls() {
+		tasks[string(task)] = calls
+	}
+	return &claims.AgentSettings{
+		InvestigationCalls:    a.InvestigationCalls,
+		InvestigationCallsMax: a.InvestigationCallsMax,
+		DefaultCalls:          guard.DefaultInvestigationCalls,
+		TaskCalls:             tasks,
+		ChatCalls:             guard.DefaultChatCalls,
+		SaveCalls:             guard.MaxCallsBeforeSave,
+		SuggestCalls:          guard.MaxCallsBeforeProposal,
+		Loop:                  a.InvestigationLoop,
+		Grounding:             string(a.FindingGrounding),
+		BriefSweep:            a.InvestigationBrief,
+		SessionRenewBytes:     a.SessionRenewBytes,
+	}
 }
 
 func (s *sidecarSetup) start(ctx context.Context, cfg config.Config, service *claims.Service, logger *slog.Logger) (*observeagent.Supervisor, func()) {

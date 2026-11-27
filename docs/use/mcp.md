@@ -373,6 +373,8 @@ The loop of an agent that takes runs:
    - `lease_seconds` (60).
    - `session`, with a `url`, a `token` (starting `sot_`) and `expires_at`.
    - `system_prompt`, the prompt to read with the run's `kind`: its `name` (`observe`) and `arguments`.
+   - Only in a claim of SlashObserve's own agent, `model`, its model provider settings, and `agent`, the settings its run loop reads: `investigation_calls` (`SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`, 0 when unset), `investigation_calls_max`, `default_calls`, `task_calls` (each task type's call limit), `chat_calls`, `save_calls`, `suggest_calls`, `loop` (`SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`), `grounding` (`SLASHOBSERVE_AGENT_FINDING_GROUNDING`), `brief_sweep` (`SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF`) and `session_renew_bytes` (0 for the default).
+     No other claimer's answer has either.
 
       The `run` holds these fields:
    - `id`, `attempt`, `claim_epoch`, `kind` (`build` or `investigate`), `intent` (`ask`, `apply` or `suggest`) and `prompt`.
@@ -464,8 +466,17 @@ Some results also carry a note after the content, which an agent reads like any 
 
 ### Briefs, usage and live text
 
-`get_run_brief` takes `run_id`, `attempt`, an optional `claim_epoch` and an optional `reason` (`restart`, `output_limit`, `pending`, `conflict`, `continue`, `renewed`, `call_timeout`, `no_finding` or `no_answer`) and answers `system`, `message`, `reason` and `build`.
+`get_run_brief` takes `run_id`, `attempt`, an optional `claim_epoch` and an optional `reason` (`restart`, `output_limit`, `pending`, `conflict`, `continue`, `renewed`, `call_timeout`, `no_finding` or `no_answer`) and answers `system`, `message`, `reason`, `build` and `brief`.
 `message` is the first message of a model session.
+`brief` holds what `system` and `message` are written from, as fields, read in the same call:
+
+- `request`: the run's `mode` (`create`, `revise`, `suggest` or `investigate`), `source`, `prompt`, `panel_id`, `from`, `to`, `time_zone`, `as_of`, `continue_note`, `thread_context`, `continues`, `attempt`, `investigation` and `pointer` (`anchor`, `block_id`, `observation_id`, `thread_ask`); an unset value is `null`.
+- `current`: the dashboard version the run works on, with `dashboard_id`, `number`, `spec`, `unverified` and `conversion` (the import notes of that version), or `null`; for a suggest run it is the base version with the draft panel in it.
+- `build`: the saved build, with `base_version`, `spec`, `unverified` and `progress`, or `null`.
+- `datasources`: each datasource the run may read, with its health as `list_datasources` gives it and `everyone`, true when everyone may read it (never the audit datasource or an Admins-only one).
+- `withheld`: true when the run must leave out data only Admins can read.
+- `guide`: `text`, the authoring guide with the sections of the configured datasource types, and `schema`, the ObserveSpec JSON Schema.
+- `draft`: the draft panel of a suggest run, or `null`.
 Calling it starts a session: it resets the read guard and pins the parent version the run's saves are checked against.
 The server may replace `reason`, with `conflict` after a rebase and with the resume reason when the run has a build.
 An agent that never calls it works from the claim answer and the `observe` prompt.
@@ -2009,4 +2020,4 @@ Calls one approved tool of an MCP source and returns its text.
 | `report_run` | Keeps the lease, with an optional `note`, `text` and `usage`. |
 | `finish_run` | Ends the run with `outcome` `succeeded` or `failed`. |
 | `release_run` | Puts a run you cannot work back in the queue, not failed. |
-| `get_run_brief` | Returns the system text and first message of a model session. |
+| `get_run_brief` | Returns the system text and first message of a model session, and what they are written from as fields. |

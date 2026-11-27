@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/slashobserve/slashobserve/internal/agent/route"
@@ -16,8 +17,8 @@ const (
 	MaxLengthRejections    = 5
 	MaxRejectedSaves       = 8
 	maxIdenticalReads      = 3
-	maxCallsBeforeSave     = 6
-	maxCallsBeforeProposal = 12
+	MaxCallsBeforeSave     = 6
+	MaxCallsBeforeProposal = 12
 	maxStalledTurns        = 2
 	maxLedgerTurns         = 4
 	maxChangesPerPanel     = 4
@@ -66,9 +67,9 @@ type rule struct {
 
 var rules = map[string]rule{
 	guardProposeNow: {
-		message: fmt.Sprintf("%d model calls without a proposal; only a proposal can run now. Propose the panel you have checked.", maxCallsBeforeProposal),
-		refused: fmt.Sprintf("%d model calls passed without a proposal", maxCallsBeforeProposal),
-		stopped: fmt.Sprintf("Stopped: the model kept reading after %d calls without a proposal", maxCallsBeforeProposal),
+		message: fmt.Sprintf("%d model calls without a proposal; only a proposal can run now. Propose the panel you have checked.", MaxCallsBeforeProposal),
+		refused: fmt.Sprintf("%d model calls passed without a proposal", MaxCallsBeforeProposal),
+		stopped: fmt.Sprintf("Stopped: the model kept reading after %d calls without a proposal", MaxCallsBeforeProposal),
 	},
 	guardRepeatedRead: {
 		message: fmt.Sprintf("this exact call already ran %d times; use its earlier result, change its input, or save", maxIdenticalReads-1),
@@ -157,6 +158,10 @@ var investigationCallsByTask = map[route.Task]int{
 	route.Explain:   12,
 }
 
+func TaskCalls() map[route.Task]int {
+	return maps.Clone(investigationCallsByTask)
+}
+
 func InvestigationCallsFor(task route.Task) int {
 	if n, ok := investigationCallsByTask[task]; ok {
 		return n
@@ -229,7 +234,7 @@ func (s *State) repairing() bool {
 func (s *State) windowLimit() int {
 	switch s.Mode {
 	case tools.ModeSuggest:
-		return maxCallsBeforeProposal
+		return MaxCallsBeforeProposal
 	case tools.ModeInvestigate:
 		if s.Loop != nil {
 			return s.Loop.Limit
@@ -239,7 +244,7 @@ func (s *State) windowLimit() int {
 	if s.answering() {
 		return s.investigationCalls()
 	}
-	return maxCallsBeforeSave
+	return MaxCallsBeforeSave
 }
 
 func (s *State) readRefusal(hasSave bool) string {

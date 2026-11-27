@@ -40,6 +40,23 @@ func TestAnOutsideClaimersOfferHasNoModelSettings(t *testing.T) {
 	if _, found := fields["model"]; found || offer.Model != nil {
 		t.Fatalf("an outside claimer's offer carries model settings: %s", encoded)
 	}
+	if _, found := fields["agent"]; found || offer.Agent != nil {
+		t.Fatalf("an outside claimer's offer carries agent settings: %s", encoded)
+	}
+}
+
+func TestTheBuiltInClaimersOfferHasAFreshCopyOfTheAgentSettings(t *testing.T) {
+	f := newFixture(t)
+	f.queueBuiltin(t)
+
+	offer := f.claim(t, builtinClaimer)
+	if offer.Agent == nil || !reflect.DeepEqual(*offer.Agent, agentSettings) {
+		t.Fatalf("agent = %+v, want %+v", offer.Agent, agentSettings)
+	}
+	offer.Agent.TaskCalls["measure"] = 99
+	if again := f.svc.agentFor(builtinClaimer); again.TaskCalls["measure"] != 16 {
+		t.Fatalf("a claimer changed the shared agent settings: %+v", again)
+	}
 }
 
 func TestTheBuiltInClaimersOfferHasModelSettingsAndAnInternalSessionURL(t *testing.T) {

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
   ToolError,
+  briefAnswer,
   briefInput,
   claimAnswer,
   claimInput,
@@ -228,6 +229,94 @@ describe("protocol", () => {
     expect(runMeta.safeParse({ settled: "done", build: null }).success).toBe(
       false
     )
+  })
+
+  test("a claim reads the agent settings the server sends its own agent", () => {
+    const parsed = claimAnswer.parse({
+      ...claimed,
+      model,
+      agent: {
+        investigation_calls: 0,
+        investigation_calls_max: 40,
+        default_calls: 30,
+        task_calls: { measure: 16, incident: 30 },
+        chat_calls: 12,
+        save_calls: 6,
+        suggest_calls: 12,
+        loop: true,
+        grounding: "enforce",
+        brief_sweep: true,
+        session_renew_bytes: 0,
+      },
+    })
+    expect(parsed.agent?.task_calls.measure).toBe(16)
+    expect(parsed.agent?.grounding).toBe("enforce")
+    expect(claimAnswer.parse({ ...claimed, model }).agent).toBeUndefined()
+    expect(
+      claimAnswer.parse({ ...claimed, model, agent: { loop: "yes" } }).agent
+    ).toBeNull()
+  })
+
+  test("a brief reads the structured brief and keeps working without it", () => {
+    const brief = {
+      request: {
+        mode: "revise",
+        source: "prompt",
+        prompt: "add a panel",
+        panel_id: null,
+        from: null,
+        to: null,
+        time_zone: null,
+        as_of: null,
+        continue_note: null,
+        thread_context: null,
+        continues: false,
+        attempt: 1,
+        investigation: false,
+        pointer: {
+          anchor: null,
+          block_id: null,
+          observation_id: null,
+          thread_ask: false,
+        },
+      },
+      current: {
+        dashboard_id: "d1",
+        number: 2,
+        spec: { title: "t" },
+        unverified: { panels: null, variables: null },
+        conversion: null,
+      },
+      build: null,
+      datasources: [
+        {
+          uid: "prom",
+          type: "prometheus",
+          name: "Prometheus",
+          source: "file",
+          healthy: true,
+          checked_at: "2026-03-01T09:00:00Z",
+          health_state: "healthy",
+          everyone: true,
+        },
+      ],
+      withheld: false,
+      guide: { text: "guide", schema: { type: "object" } },
+      draft: null,
+    }
+    const parsed = briefAnswer.parse({
+      system: "s",
+      message: "m",
+      reason: "",
+      build: null,
+      brief,
+    })
+    expect(parsed.brief?.current?.number).toBe(2)
+    expect(parsed.brief?.datasources[0]?.everyone).toBe(true)
+    expect(
+      briefAnswer.parse({ system: "s", message: "m", brief: { request: 1 } })
+        .brief
+    ).toBeNull()
   })
 
   test("the run key reads the call side fields when the server sends them", () => {

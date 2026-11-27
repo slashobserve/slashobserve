@@ -33,6 +33,7 @@ type BriefAnswer struct {
 	Message string         `json:"message"`
 	Reason  string         `json:"reason"`
 	Build   *BuildProgress `json:"build"`
+	Brief   *RunBrief      `json:"brief"`
 }
 
 type RunFinish struct {

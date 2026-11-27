@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/auditsource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -275,7 +276,7 @@ func briefTask(req revisions.Request, mode tools.Mode) brief.Task {
 	return brief.Task{
 		Mode: mode, Source: req.Source, Prompt: strings.TrimSpace(req.Prompt), PanelID: req.PanelID,
 		From: req.From, To: req.To, ContinueNote: req.ContinueNote, ThreadContext: req.ThreadContext, Continues: req.Continues, Attempt: req.Attempt,
-		TimeZone: req.TimeZone, AsOf: req.AsOf,
+		Investigation: req.Investigation, TimeZone: req.TimeZone, AsOf: req.AsOf,
 		Pointer: brief.Pointer{Anchor: req.Anchor, BlockID: req.BlockID, ObservationID: observationOf(req), ThreadAsk: req.ThreadAsk},
 	}
 }
@@ -301,11 +302,12 @@ func (s *Service) Brief(ctx context.Context, req revisions.Request, reason strin
 		return tools.BriefAnswer{}, err
 	}
 	health := s.statuses.Health(datasource.WithAccess(ctx, access))
+	everyone := s.everyoneReads(datasource.WithAccess(ctx, access))
 	var answer tools.BriefAnswer
 	ended := false
 	err = s.with(ctx, req, func(ctx context.Context, sess *session) error {
 		var err error
-		answer, err = sess.brief(ctx, why, health)
+		answer, err = sess.brief(ctx, why, health, everyone)
 		ended = sess.ended
 		return err
 	})
@@ -315,7 +317,18 @@ func (s *Service) Brief(ctx context.Context, req revisions.Request, reason strin
 	return answer, err
 }
 
-func (sess *session) brief(ctx context.Context, why brief.Reason, health []datasource.Status) (tools.BriefAnswer, error) {
+func (s *Service) everyoneReads(ctx context.Context) func(uid string) bool {
+	if s.datasources == nil {
+		return nil
+	}
+	shared := map[string]bool{}
+	for _, in := range s.datasources.Visible(ctx) {
+		shared[in.UID] = in.UID != auditsource.UID && in.Audience != datasource.AudienceAdmins
+	}
+	return func(uid string) bool { return shared[uid] }
+}
+
+func (sess *session) brief(ctx context.Context, why brief.Reason, health []datasource.Status, everyone func(string) bool) (tools.BriefAnswer, error) {
 	mode := sess.state.Guard.Mode
 	task := briefTask(sess.req, mode)
 	task.Withheld = tools.Withheld(sess.access)
@@ -344,12 +357,14 @@ func (sess *session) brief(ctx context.Context, why brief.Reason, health []datas
 	if build != nil {
 		sess.state.Build = buildProgress(*build)
 	}
-	message, err := brief.Render(health, task, brief.View{Current: current, Build: build}, why, sess.state.Digest.Text())
+	view := brief.View{Current: current, Build: build}
+	message, err := brief.Render(health, task, view, why, sess.state.Digest.Text())
 	if err != nil {
 		sess.s.failure(ctx, "run session could not render the brief", "run_session_brief_failed", err, sess.req)
 		return tools.BriefAnswer{}, fmt.Errorf("render the brief: %w", err)
 	}
-	return tools.BriefAnswer{System: message.System, Message: message.User, Reason: string(why), Build: sess.state.Build}, nil
+	structured := brief.Structured(health, everyone, task, view, sess.req.Draft)
+	return tools.BriefAnswer{System: message.System, Message: message.User, Reason: string(why), Build: sess.state.Build, Brief: &structured}, nil
 }
 
 func (sess *session) settleBuildOnLatest(ctx context.Context) (current *brief.Revision, build *dashboards.Build, restarted bool, err error) {

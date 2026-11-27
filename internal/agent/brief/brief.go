@@ -30,6 +30,7 @@ type Task struct {
 	ThreadContext string
 	Continues     bool
 	Attempt       int
+	Investigation bool
 	TimeZone      string
 	AsOf          *time.Time
 	Withheld      bool

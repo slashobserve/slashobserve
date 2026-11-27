@@ -21,7 +21,7 @@ func admitWrite(s *State, name, input string) Admission {
 
 func TestWriteIsAdmittedAfterTheReadWindowClosed(t *testing.T) {
 	s := New(tools.ModeCreate)
-	s.Window.Calls = maxCallsBeforeSave
+	s.Window.Calls = MaxCallsBeforeSave
 	s.Building = true
 	s.BeginTurn(false)
 	if read := s.Admit(0, writeCall("get_panels", `{}`)); read.Verdict != Refuse {
