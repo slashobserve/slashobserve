@@ -243,7 +243,9 @@ It calls Grafana's HTTP API with `curl` inside the task's `main` container, beca
 `--ak grafana_url=<address>` calls Grafana from the host instead, for a Grafana whose port is published there.
 The credentials come from the task environment: a token in `GRAFANA_SERVICE_ACCOUNT_TOKEN`, `GRAFANA_API_KEY` or `GRAFANA_TOKEN`, else a user and password in `GRAFANA_USER` (or `GRAFANA_USERNAME`, `GRAFANA_ADMIN_USER`) and `GRAFANA_PASSWORD` (or `GRAFANA_ADMIN_PASSWORD`).
 Without them the adapter uses `--ak grafana_user` and `--ak grafana_password`, which have no default, and without those it sends no credentials.
-Which of these the benchmark's Grafana needs was not checked against a running task.
+o11y-bench v1.1 needs none of them: its Grafana lets anonymous users in as Admin with basic auth off, its task environment carries no Grafana credentials, and the `main` image installs `curl`, so the adapter calls Grafana through `curl` with no `Authorization` header.
+Replay trials read the datasources and dashboards and imported them this way; the write of a dashboard task takes the same path but needs a real model, so it has not run yet.
+Leave `grafana_user` and `grafana_password` unset for it.
 The token or password reaches `curl` through the environment of the command, never its arguments, and is never written to the trial's folder.
 The datasources file lists each Grafana datasource's uid and name under `grafanaUids` of the store of the same type, so the imports match them.
 Each dashboard is then imported into the throwaway server through `POST /api/v1/imports`, and `agent/grafana-imports.json` records the result.
@@ -612,7 +614,13 @@ Gathered in the order a person meets them, the first trial of each benchmark mus
 
 o11y-bench:
 
-1. Which Grafana credentials the task's Grafana needs: a token or a user and password from the task environment, or `--ak grafana_user` and `--ak grafana_password` (see [Reading Grafana](#reading-grafana)).
+Replay trials on o11y-bench v1.1 with a server built from `agent-rca-accuracy` have run every adapter step for one task of each of the six categories and for the ten-task subset at `--n-concurrent 4`: the store URLs and scenario time, Postgres and the server, the datasources, the Grafana reads through `curl` without credentials, the dashboard imports, `as_of`, the preflight sweep of an investigation (22 reads in 3 to 5 seconds), the task routing, the polling, the trajectory, `run.json` and the removal of the containers.
+A replay trial takes about 35 seconds in Harbor, and the four concurrent trials of the subset peaked at about 4 GB of memory in all.
+What still needs a real model:
+
+1. That the dashboard write-back saves to Grafana and passes its read-back check, since the replay model writes nothing (see [Dashboard tasks](#dashboard-tasks)).
+2. That the judge runs: the verifier installs its packages with `uv` inside the `main` container and calls Anthropic, so the container needs to reach PyPI and the Anthropic API.
+3. What one trial costs and how long it takes, before a full job.
 
 ORCA-bench:
 
