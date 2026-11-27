@@ -515,16 +515,16 @@ When they can still comment on the dashboard but can no longer edit it, or the r
 
 ### Tools in a run
 
-The server has 114 tools: MCP clients get 113, every one except `save_finding`, which only a run offers.
-A run offers 89 of them in a new-dashboard or revision request, 88 in an investigation and 58 in a suggestion.
-With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a second tool that only a run offers, in an investigation only: the server has 115 tools, MCP clients outside a run still get 113 and an investigation offers 89.
+The server has 115 tools: MCP clients get 114, every one except `save_finding`, which only a run offers.
+A run offers 90 of them in a new-dashboard or revision request, 89 in an investigation and 59 in a suggestion.
+With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a second tool that only a run offers, in an investigation only: the server has 116 tools, MCP clients outside a run still get 114 and an investigation offers 90.
 Those are an Admin's counts: inside a run each tool needs the same role as over MCP, except `save_finding`, and a run session does not list a tool above the requester's role.
 
 - Reads are offered in every run.
 - Writes are offered in every run except a suggestion, whose only result is one proposed panel in the editor.
 - An investigation never gets the Spec writers `create_dashboard`, `update_dashboard`, `update_panels` and `import_grafana_dashboard`.
 - `list_mcp_sources`, `find_mcp_tools` and `call_mcp_tool` are offered in an investigation and in a question asked in a chat, never when a dashboard is built or revised or a panel is suggested.
-  A question asked from the home page starts as a new-dashboard run, so it offers 92 tools: the 89 and these three.
+  A question asked from the home page starts as a new-dashboard run, so it offers 93 tools: the 90 and these three.
 
 The tools fall in five groups:
 

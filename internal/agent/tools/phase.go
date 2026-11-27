@@ -27,7 +27,7 @@ func phaseOf(t Tool) string {
 		return PhaseLedger
 	case t.Name == nameLintQuery:
 		return PhaseLint
-	case t.Name == nameQueryRange || t.Name == nameQueryInstant:
+	case t.Name == nameQueryRange || t.Name == nameQueryInstant || t.Name == nameMeasure:
 		return PhaseQuery
 	case t.ReadOnly:
 		return PhaseDiscover

@@ -109,6 +109,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"question":       json.RawMessage(`"error logs from checkout"`),
 		"prompt":         json.RawMessage(`"add a latency panel"`),
 		"query":          json.RawMessage(`"up"`),
+		"stat":           json.RawMessage(`"max"`),
 		"q":              json.RawMessage(`"checkout"`),
 		"table":          json.RawMessage(`"t"`),
 		"label":          json.RawMessage(`"job"`),

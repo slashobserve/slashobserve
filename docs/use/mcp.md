@@ -590,6 +590,7 @@ The server uses the role of the key's service account, or of the person for an O
 | `log_patterns` | Viewer |
 | `logs_for_trace` | Viewer |
 | `make_dashboard` | Viewer |
+| `measure_window` | Viewer |
 | `merge_proposal` | Viewer |
 | `move_dashboard` | Viewer |
 | `move_observation` | Viewer |
@@ -1122,6 +1123,20 @@ It is read-only, and it runs through the same path and under the same limits as 
 - It returns the summary of `query_range` and `open_url`, the address of the query in Explore or of the panel in its dashboard.
 - A chart with more than 2 MiB of data is not drawn: the host gets the summary and a note to ask for a shorter range or fewer series.
 - A server built without the chart view, and a client that does not show MCP Apps, get the summary only.
+
+#### `measure_window`
+
+Measures one figure of a PromQL expression over a whole window on a Prometheus datasource.
+The datasource computes it from every sample or step, so a peak between the points of a range query is not missed.
+
+- Pass `datasource`, `query`, `stat` and optionally `from`, `to` and `step`.
+- `stat` is `max`, `min`, `avg` or `last` for a value, and `first_time` or `last_time` with `where` for when a condition first or last held, such as `== 0` or `> 100`.
+- A plain selector such as `queue_depth{service="orders"}` is measured over every stored sample.
+  Any other expression is evaluated every `step`, 1 minute by default and 15 seconds for a time.
+- The result holds `query`, the PromQL that ran, `sampled`, and one entry per series in `values` (at most 20): `value` at full precision, or `at` and `seconds_after_from` for a time.
+- `max` and `min` of a single series also carry `at`, when the value was first reached, when a 15 second step finds it.
+- An empty result says so in `note`: no series matched, which does not show the value was zero.
+- Another datasource type answers `invalid_request`.
 
 #### `query_instant`
 
