@@ -198,7 +198,9 @@ func TestAReleasedClaimWritesNothingOnceTheRunIsClaimedAgain(t *testing.T) {
 	rev := submit(t, svc, seedDashboard(t, d, 1), "released")
 	assignTo(t, d, rev.ID, "grant", grantA)
 	first, _ := claimAs(t, svc, grantClaimant(grantA, userID))
-	svc.Release(ctx, first.Row)
+	if err := svc.Release(ctx, first.Row); err != nil {
+		t.Fatalf("release: %v", err)
+	}
 	if queued := storedRun(t, svc, rev.ID); queued.State != string(revisions.StateQueued) || queued.ClaimedBy.Valid || queued.Attempts != 0 {
 		t.Fatalf("released run = state %s, claimed by %q, attempts %d, want queued, claimed by nobody, attempts 0", queued.State, queued.ClaimedBy.String, queued.Attempts)
 	}

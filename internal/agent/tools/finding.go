@@ -196,11 +196,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil {
 		return Result{}, fmt.Errorf("run dashboard id: %w", err)
 	}
-	from, to := run.From, run.To
-	if from.IsZero() || to.IsZero() {
-		to = Now(ctx)
-		from = to.Add(-defaultWindow)
-	}
+	from, to := runWindow(ctx, run)
 	extras, res, ok := checkedExtras(in, run)
 	if !ok {
 		return res, nil
@@ -241,6 +237,14 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 		out.Note = scoreNote
 	}
 	return success(stepSavedAnswer, out), nil
+}
+
+func runWindow(ctx context.Context, run Run) (time.Time, time.Time) {
+	if run.From.IsZero() || run.To.IsZero() {
+		to := Now(ctx)
+		return to.Add(-defaultWindow), to
+	}
+	return run.From, run.To
 }
 
 func renderedFinding(ctx context.Context, in findingInput) findingInput {
