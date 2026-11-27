@@ -183,9 +183,9 @@ func (s *Service) refusal(ctx context.Context, row dbsqlc.AgentRequest, build bu
 }
 
 func (s *Service) refusalNow(ctx context.Context, id pgtype.UUID, by auth.Principal, a Action, reason string) error {
-	row, err := s.db.Queries().GetAgentRequestByID(ctx, id)
+	row, err := s.GetByID(ctx, id)
 	if err != nil {
-		return fmt.Errorf("get agent request: %w", err)
+		return err
 	}
 	states, err := s.buildStates(ctx, []pgtype.UUID{id})
 	if err != nil {
