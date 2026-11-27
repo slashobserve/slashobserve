@@ -120,7 +120,7 @@ func (g *gauge) hold(ctx context.Context) error {
 			break
 		}
 	}
-	return g.slowReader.wait(ctx)
+	return g.wait(ctx)
 }
 
 func (g *gauge) Services(ctx context.Context, _, _ string) (string, []string, error) {
