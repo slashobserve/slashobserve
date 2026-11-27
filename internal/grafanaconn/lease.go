@@ -113,7 +113,7 @@ func (s *Service) holdLease(ctx context.Context, h held, cancel context.CancelCa
 				return
 			case <-ticker.C:
 			}
-			renewCtx, cancelRenew := context.WithTimeout(beatCtx, s.leaseTTL)
+			renewCtx, cancelRenew := context.WithTimeout(beatCtx, s.renewEvery)
 			n, err := s.store.db.Queries().RenewGrafanaSyncLease(renewCtx, dbsqlc.RenewGrafanaSyncLeaseParams{
 				LeaseSeconds: s.leaseTTL.Seconds(), ID: h.row.ID, LeaseID: h.row.LeaseID, FromStates: SyncMachine.From(ActionClaim),
 			})
@@ -253,44 +253,55 @@ func (s *Service) resumePass(ctx context.Context) {
 			}
 			return
 		}
-		s.resume(ctx, row)
+		if !s.resume(ctx, row) {
+			return
+		}
 	}
 }
 
-func (s *Service) resume(ctx context.Context, row dbsqlc.GrafanaSync) {
+func (s *Service) resume(ctx context.Context, row dbsqlc.GrafanaSync) bool {
 	req, err := decodeRequest(row.Request)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "read grafana sync request", logattrs.Failure("grafana_sync_request_unreadable", err, idAttrs(row)...)...)
 		s.failHeld(row, describe(err))
-		return
+		return true
 	}
 	by, err := s.principals.Principal(ctx, auth.PrincipalKind(row.StartedByKind.String), row.StartedByID.String())
 	switch {
 	case errors.Is(err, auth.ErrPrincipalGone) || (err == nil && by.Role != auth.RoleAdmin):
 		s.failHeld(row, starterGoneMessage)
-		return
+		return true
 	case err != nil:
 		s.logResumeFailure(ctx, "read grafana sync starter", "grafana_sync_starter_failed", err, row)
-		return
+		s.releaseUnstarted(row)
+		return false
 	}
 	ctx = datasource.WithAccess(ctx, datasource.Access{By: by})
 	if err := s.checkMapping(ctx, req.Mapping); err != nil {
 		s.failHeld(row, describe(err))
-		return
+		return true
 	}
 	_, client, err := s.client(ctx, row.ConnectionID)
 	switch {
 	case errors.Is(err, ErrNoSecretKey), errors.Is(err, ErrUnreadableToken):
 		s.failHeld(row, describe(err))
-		return
+		return true
 	case errors.Is(err, ErrNotFound):
-		return
+		return true
 	case err != nil:
 		s.logResumeFailure(ctx, "open grafana connection to resume a sync", "grafana_sync_connection_failed", err, row)
-		return
+		s.releaseUnstarted(row)
+		return false
 	}
 	s.logMove(ctx, ActionClaim, SyncRunning, row.ConnectionID, row.ID, slog.Int("lease_losses", int(row.LeaseLosses)))
 	s.drive(held{row: row, by: by, req: req}, client)
+	return true
+}
+
+func (s *Service) releaseUnstarted(row dbsqlc.GrafanaSync) {
+	if s.moveHeld(row, ActionRelease, SyncRunning, "") {
+		s.logMove(context.Background(), ActionRelease, SyncRunning, row.ConnectionID, row.ID)
+	}
 }
 
 func (s *Service) logResumeFailure(ctx context.Context, message, code string, err error, row dbsqlc.GrafanaSync) {
