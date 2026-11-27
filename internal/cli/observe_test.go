@@ -392,7 +392,7 @@ func TestPrintRequestExplainsQueueAndStoppedBuilds(t *testing.T) {
 		{"failed with a saved build", agentRequest{ID: stoppedID, Status: "failed", State: "failed", Build: build, BuildSavedAt: &saved, AllowedActions: []string{"retry", "pin", "archive"}}, "Run it again: observe retry " + stoppedID, "continue"},
 		{"failed and continued", agentRequest{ID: stoppedID, Status: "failed", State: "failed", Build: build, ContinuedBy: &continuedBy, AllowedActions: []string{"pin", "archive"}}, "Continued by " + continuedBy, "Save it in the browser"},
 		{"running with a build", agentRequest{ID: stoppedID, Status: "running", State: "running", Build: build, AllowedActions: []string{"cancel", "pin", "archive"}}, "State", "Save it in the browser"},
-		{"canceled with a build", agentRequest{ID: stoppedID, Status: "failed", State: "canceled", Build: build, AllowedActions: []string{"keep_build", "continue", "retry", "pin", "archive"}}, "State          canceled", "observe retry"},
+		{"canceled with a build", agentRequest{ID: stoppedID, Status: "failed", State: "canceled", Build: build, AllowedActions: []string{"keep_build", "continue", "retry", "pin", "archive"}}, "State          Canceled", "observe retry"},
 		{"succeeded and retryable", agentRequest{ID: stoppedID, Status: "succeeded", State: "succeeded", AllowedActions: []string{"retry", "pin", "archive"}}, "", "Run it again"},
 		{"an older server sends no actions", agentRequest{ID: stoppedID, Status: "failed", Build: build}, "", "Save it in the browser"},
 	}

@@ -341,6 +341,21 @@ func (q *Queries) MarkMCPSourceChecked(ctx context.Context, arg MarkMCPSourceChe
 	return err
 }
 
+const noteMCPSourceReachability = `-- name: NoteMCPSourceReachability :exec
+UPDATE mcp_sources SET checked_at = clock_timestamp(), failure = $1
+WHERE id = $2 AND checked_at IS NOT NULL AND failure IS DISTINCT FROM $1
+`
+
+type NoteMCPSourceReachabilityParams struct {
+	Failure pgtype.Text
+	ID      pgtype.UUID
+}
+
+func (q *Queries) NoteMCPSourceReachability(ctx context.Context, arg NoteMCPSourceReachabilityParams) error {
+	_, err := q.db.Exec(ctx, noteMCPSourceReachability, arg.Failure, arg.ID)
+	return err
+}
+
 const putMCPSourceTool = `-- name: PutMCPSourceTool :exec
 INSERT INTO mcp_source_tools (source_id, name, state, refusal, description, input_schema, read_only, hash, seen_description, seen_input_schema, seen_read_only, seen_hash, approved_by, approved_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)

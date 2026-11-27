@@ -88,8 +88,9 @@ func TestANewAttemptKeepsTheSweepOfTheLastOne(t *testing.T) {
 	req.Investigation = true
 	id := mustUUID(t, req.ID)
 	r.d.Exec(t, `INSERT INTO run_sessions (agent_request_id, attempt, state) VALUES ($1, $2, $3)`, id, req.Attempt, `{"guard":{},"triage":{"block":"<triage>\nfrom the last attempt\n</triage>","calls":3,"duration_ms":900}}`)
-	r.d.Exec(t, `UPDATE agent_requests SET attempts = attempts + 1 WHERE id = $1`, id)
+	r.d.Exec(t, `UPDATE agent_requests SET attempts = attempts + 1, claim_epoch = claim_epoch + 1 WHERE id = $1`, id)
 	req.Attempt++
+	req.ClaimEpoch++
 	got, err := r.svc.Brief(context.Background(), req, "")
 	if err != nil {
 		t.Fatal(err)
@@ -123,8 +124,9 @@ func TestTheSweepSeedsTheLedgerOfTheFirstBriefAndANewAttemptSeedsItAgain(t *test
 		}
 	}
 	id := mustUUID(t, req.ID)
-	r.d.Exec(t, `UPDATE agent_requests SET attempts = attempts + 1 WHERE id = $1`, id)
+	r.d.Exec(t, `UPDATE agent_requests SET attempts = attempts + 1, claim_epoch = claim_epoch + 1 WHERE id = $1`, id)
 	req.Attempt++
+	req.ClaimEpoch++
 	got, err = r.svc.Brief(context.Background(), req, "")
 	if err != nil {
 		t.Fatal(err)

@@ -365,7 +365,8 @@ func run() error {
 	}
 	logger := newLogger(cfg)
 	slog.SetDefault(logger)
-	logger.Info("starting slashobserve-server", slog.String("version", version), slog.String("commit", commit))
+	phases := server.StartPhases(logger, slog.String("version", version), slog.String("commit", commit))
+	defer phases.Enter(server.PhaseStopped)
 
 	registry, err := provision.Build(logger, cfg.Datasources)
 	if err != nil {
@@ -375,6 +376,7 @@ func run() error {
 	logDatasources(cfg, logger)
 
 	serverMetrics := metrics.New()
+	serverMetrics.ServerPhase(server.PhaseNames(), func() string { return string(phases.Current()) })
 
 	llmProvider, err := newLLMProvider(cfg, logger, serverMetrics)
 	if err != nil {
@@ -400,6 +402,7 @@ func run() error {
 	defer database.Close()
 	serverMetrics.Pool(database.Stat)
 
+	phases.Enter(server.PhaseMigrating)
 	appliedMigrations, err := database.Migrate(ctx)
 	if err != nil {
 		return migrationExit(err)
@@ -407,6 +410,7 @@ func run() error {
 	if err := checkDatabase(ctx, database.Queries(), cfg.Datasources, logger); err != nil {
 		return err
 	}
+	phases.Enter(server.PhaseProvisioning)
 
 	serverID := instanceID()
 	auditMetrics := serverMetrics.Audit()
@@ -640,7 +644,7 @@ func run() error {
 	handler, err := server.New(server.Options{
 		Logger:          logger,
 		TrustedProxies:  cfg.TrustedProxies,
-		Draining:        ctx.Done(),
+		Phase:           phases.Current,
 		PublicURL:       cfg.PublicURL,
 		Auth:            authService,
 		Datasources:     registry,
@@ -712,7 +716,7 @@ func run() error {
 	if err != nil {
 		return described("http_setup_failed", err)
 	}
-	return serveRecorded(ctx, logger, cfg.HTTPAddr, serverID, handler, broker.Close)
+	return serveRecorded(ctx, logger, phases, cfg.HTTPAddr, serverID, handler, broker.Close)
 }
 
 func savedFindingURL(publicURL *url.URL) func(findings.Finding) string {
@@ -1103,7 +1107,7 @@ func newLogger(cfg config.Config) *slog.Logger {
 	return slog.New(slog.NewJSONHandler(os.Stderr, opts))
 }
 
-func serve(ctx context.Context, logger *slog.Logger, listener net.Listener, handler http.Handler, onShutdown ...func()) error {
+func serve(ctx context.Context, logger *slog.Logger, phases *server.Phases, listener net.Listener, handler http.Handler, onShutdown ...func()) error {
 	requests, cutRequests := context.WithCancel(context.Background())
 	defer cutRequests()
 	// WriteTimeout is deliberately unset: a write deadline would cut SSE streams.
@@ -1118,9 +1122,9 @@ func serve(ctx context.Context, logger *slog.Logger, listener net.Listener, hand
 	for _, f := range onShutdown {
 		srv.RegisterOnShutdown(f)
 	}
+	phases.Enter(server.PhaseReady, slog.String("addr", listener.Addr().String()))
 	serveErr := make(chan error, 1)
 	go func() {
-		logger.Info("listening", slog.String("addr", listener.Addr().String()))
 		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serveErr <- err
 		}
@@ -1132,7 +1136,7 @@ func serve(ctx context.Context, logger *slog.Logger, listener net.Listener, hand
 	case <-ctx.Done():
 	}
 
-	logger.Info("shutting down", slog.Duration("timeout", shutdownTimeout))
+	phases.Enter(server.PhaseStopping, slog.Duration("timeout", shutdownTimeout))
 	return shutdown(srv, cutRequests, drainPeriod, requestsCutAfter, shutdownTimeout)
 }
 

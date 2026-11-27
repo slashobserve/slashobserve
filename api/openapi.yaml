@@ -1957,15 +1957,16 @@ components:
         state:
           type: string
           enum: [unchecked, unreachable, ready]
-          description: "`unchecked` until discovery runs, `unreachable` when the last discovery failed, `ready` otherwise."
+          description: "`unchecked` until discovery runs, `unreachable` when the last discovery failed or an agent's call could not reach the server since, `ready` otherwise."
         failure:
           type: string
           nullable: true
-          description: Why the last discovery failed, as a code such as `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
+          description: Why the last discovery failed, or why an agent's call could not reach the server since, as a code such as `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`. The next call the server answers clears it.
         checked_at:
           type: string
           format: date-time
           nullable: true
+          description: When the last discovery ran, or when an agent's call last moved the source between `ready` and `unreachable`.
         tools:
           $ref: "#/components/schemas/MCPSourceToolCounts"
         created_at:
@@ -3020,7 +3021,7 @@ components:
     DashboardVersionSaved:
       type: object
       additionalProperties: false
-      required: [dashboard, version]
+      required: [dashboard, version, outcome]
       properties:
         dashboard:
           $ref: "#/components/schemas/DashboardSummary"
@@ -3028,6 +3029,12 @@ components:
           $ref: "#/components/schemas/Version"
         merged_from:
           $ref: "#/components/schemas/MergedFrom"
+        outcome:
+          type: string
+          enum: [replayed, merged, created]
+          description: >-
+            What the save did: `created` made the new version from the request, `merged` made it by merging a stale save onto the latest version,
+            and `replayed` made no version because the request repeats one that exists (the answer also has `Idempotent-Replay: true`).
     MergedFrom:
       type: object
       additionalProperties: false
@@ -3185,7 +3192,7 @@ components:
     Proposal:
       type: object
       additionalProperties: false
-      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, close_reason, merged_version, behind, latest_version, allowed_actions, spec, changes, diff, conflicts]
+      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, close_reason, merged_version, behind, latest_version, allowed_actions, spec, changes, diff, conflicts, mergeability]
       description: A proposed change to a dashboard with its head revision's document and what it changes.
       properties:
         id:
@@ -3292,6 +3299,16 @@ components:
             $ref: "#/components/schemas/MergeConflict"
           description: >-
             While the proposal is open and behind, the units that both it and the newer versions changed, which a merge needs a choice for; empty otherwise.
+        mergeability:
+          type: string
+          enum: [current, behind_clean, behind_conflicting, blocked]
+          nullable: true
+          description: >-
+            What a merge would meet now, computed on every read from `behind` and `conflicts`; null once the proposal is merged or discarded.
+            `current` builds on the latest version, `behind_clean` merges onto newer versions without a choice,
+            `behind_conflicting` needs a choice for each conflict, and `blocked` has a conflict whose reason is `invalid`,
+            which no choice resolves: a merge answers 409 `version_conflict` until the author saves a new revision.
+            `allowed_actions` still lists `merge` in every one of them. See docs/reference/states.md.
     ProposalChange:
       type: object
       additionalProperties: false
@@ -3321,9 +3338,13 @@ components:
     ProposalCreated:
       type: object
       additionalProperties: false
-      required: [proposal_id, revision, opened]
+      required: [proposal_id, revision, opened, outcome]
       description: The answer to a save that became a proposal.
       properties:
+        outcome:
+          type: string
+          enum: [proposed]
+          description: Always `proposed`, the save outcome that made no version.
         proposal_id:
           type: string
           format: uuid
@@ -6854,6 +6875,20 @@ components:
         message:
           type: string
           description: A fixed sentence chosen by the outcome, such as the folder and dashboard counts or why Grafana could not be read.
+    GrafanaConnectionTestState:
+      type: object
+      additionalProperties: false
+      required: [state, failure_kind]
+      properties:
+        state:
+          type: string
+          enum: [untested, failing, ok]
+          description: "`untested` while `last_test` is null, `failing` when the last test could not read Grafana, `ok` otherwise."
+        failure_kind:
+          type: string
+          nullable: true
+          enum: [transient, credentials, configuration, unsupported, unknown]
+          description: Who can fix a `failing` test, and null in every other state. `transient` means Grafana did not answer or answered 429 or 5xx, so testing again may pass; `credentials` means it refused the token; `configuration` means the URL, the outbound allowlist or what answers at the address is wrong; `unsupported` means an answer this server cannot take; `unknown` covers the rest, and every failure stored before the cause was kept.
     GrafanaImportSummary:
       type: object
       additionalProperties: false
@@ -6974,7 +7009,7 @@ components:
     GrafanaConnection:
       type: object
       additionalProperties: false
-      required: [id, name, url, created_by, created_at, updated_at, last_test, last_sync]
+      required: [id, name, url, created_by, created_at, updated_at, last_test, test, last_sync]
       properties:
         id:
           type: string
@@ -7000,6 +7035,10 @@ components:
           description: Null until the connection is tested, and again after its URL or token changes.
           allOf:
             - $ref: "#/components/schemas/GrafanaConnectionTest"
+        test:
+          description: The state of the connection's test, derived from `last_test`, so a reader does not parse `last_test.message`.
+          allOf:
+            - $ref: "#/components/schemas/GrafanaConnectionTestState"
         last_sync:
           nullable: true
           description: The summary of the last finished import, or null before the first one.
@@ -7183,8 +7222,8 @@ components:
         error_code:
           type: string
           nullable: true
-          enum: [status, unreachable, blocked_address, domain_not_allowed, too_large, skipped_by_admin]
-          description: Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit; `skipped_by_admin` is `skipped`, because an Admin chose to pass the event over.
+          enum: [status, unreachable, blocked_address, domain_not_allowed, too_large, skipped_by_admin, expired]
+          description: Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit; `skipped_by_admin` is `skipped`, because an Admin chose to pass the event over; `expired` is `skipped`, because the event was more than 24 hours old when its turn came, and nothing was sent.
     WebhookSkipResult:
       type: object
       additionalProperties: false
@@ -7478,7 +7517,7 @@ components:
     PublicLink:
       type: object
       additionalProperties: false
-      required: [id, prefix, label, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, state]
+      required: [id, prefix, label, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, unusable_reason, state]
       properties:
         id:
           type: string
@@ -7525,6 +7564,14 @@ components:
         usable:
           type: boolean
           description: False when the link is expired or the dashboard's latest version reads the viewer's identity.
+        unusable_reason:
+          type: string
+          enum: [expired, user_scoped]
+          nullable: true
+          description: >-
+            Why the link does not open, set whenever `usable` is false and null otherwise:
+            `expired` when its expiry time has passed, `user_scoped` when the dashboard's latest version reads the viewer's identity.
+            An expired link reports `expired` whatever the dashboard reads.
         state:
           type: string
           enum: [expired, active]

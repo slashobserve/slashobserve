@@ -20,6 +20,7 @@ A service-account key needs a folder grant that lets it create.
    Paste the dashboard JSON into **Grafana dashboard** and choose **Preview**, or choose or drop a file there.
    Home opens the **Import from Grafana** page at `/import` with your dashboard loaded; see [Home](home.md).
    On that page you can also drop a file, or paste JSON anywhere outside a text field.
+   While an import is saving, the page ignores a new file or pasted JSON, so its result always shows.
 2. Under **Datasources**, match each Grafana datasource to one of yours.
    SlashObserve matches the ones it can; [Match datasources](#match-datasources) says how.
    A row that is not matched has a **Choose a datasource** menu, and the import stays off until you pick one.
@@ -183,6 +184,7 @@ Importing the same uid again makes a separate dashboard whose record has an empt
 
 When you can see the dashboard that holds the uid, the preview's `existing` field names it.
 The import page then says "Already imported as `<title>` (version `<n>`)".
+The line stays when an import or an update fails, beside the reason.
 When you can edit it, the page also offers **Update `<title>`**.
 Updating saves the file as the dashboard's next version and refreshes its import record, so edits made since stay in the version history.
 **Import as new dashboard** still makes a second copy.

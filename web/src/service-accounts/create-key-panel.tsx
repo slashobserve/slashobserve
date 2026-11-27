@@ -1,8 +1,8 @@
 import {
   useEffect,
   useId,
+  useReducer,
   useRef,
-  useState,
   type FormEvent,
   type RefObject,
 } from "react"
@@ -28,12 +28,15 @@ import { SidePanel } from "@/shell/side-panel"
 
 import { accountChanges } from "./account-changes"
 import {
+  accountWithoutKey,
+  emptyKeyPanel,
+  reduceKeyPanel,
+} from "./create-key-state"
+import {
   accountNameError,
-  defaultExpiry,
   expiresAtFor,
   expiryOptions,
   keyNameError,
-  type ExpiryValue,
 } from "./key-status"
 import {
   problemText,
@@ -41,7 +44,6 @@ import {
   useCreateKey,
   useCreateServiceAccount,
   useUpdateServiceAccount,
-  type ServiceAccount,
 } from "./queries"
 
 type Props = {
@@ -75,24 +77,18 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
   const ids = useId()
   const newAccountInput = useRef<HTMLInputElement>(null)
 
-  const [phase, setPhase] = useState<"form" | "created">("form")
-  const [keyName, setKeyName] = useState("")
-  const [accountChoice, setAccountChoice] = useState<string | null>(null)
-  const [createdAccount, setCreatedAccount] = useState<ServiceAccount | null>(
-    null
-  )
-  const [newAccountName, setNewAccountName] = useState("")
-  const [roleChoice, setRoleChoice] = useState<Role | null>(null)
-  const [takesRunsChoice, setTakesRunsChoice] = useState<boolean | null>(null)
-  const [issuedFor, setIssuedFor] = useState<{
-    accountName: string
-    role: Role
-  } | null>(null)
-  const [expiry, setExpiry] = useState<ExpiryValue>(defaultExpiry)
-  const [submitted, setSubmitted] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [problem, setProblem] = useState<string | null>(null)
-  const [token, setToken] = useState<string | null>(null)
+  const [state, dispatch] = useReducer(reduceKeyPanel, emptyKeyPanel)
+  const {
+    step,
+    keyName,
+    accountChoice,
+    newAccountName,
+    roleChoice,
+    takesRunsChoice,
+    expiry,
+    submitted,
+    createdAccount,
+  } = state
 
   const loaded = accountsQuery.data ?? []
   const accounts = (
@@ -109,12 +105,11 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
   ]
   const creating = choice === newAccountChoice
   const loadingAccounts = choice === null
-  const locked = phase === "created"
-  const pending =
-    submitting ||
-    createAccount.isPending ||
-    updateAccount.isPending ||
-    createKey.isPending
+  const locked = step.phase === "issued"
+  const pending = step.phase === "creating"
+  const keyless = accountWithoutKey(state)
+  const problem =
+    step.phase === "form" || step.phase === "partly_done" ? step.problem : null
   const chosenAccount = accounts.find((account) => account.id === choice)
   const accountRole = creating
     ? newAccountRole
@@ -127,8 +122,8 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
   const takesRunsLocked = !creating && chosenAccount?.provisioned === true
 
   useEffect(() => {
-    if (phase === "created") copyButton.current?.focus()
-  }, [phase, copyButton])
+    if (step.phase === "issued") copyButton.current?.focus()
+  }, [step.phase, copyButton])
 
   const keyNameProblem = keyNameError(keyName)
   const accountNameProblem = creating ? accountNameError(newAccountName) : null
@@ -139,18 +134,18 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
 
   async function submit(event: FormEvent) {
     event.preventDefault()
-    setSubmitted(true)
     if (pending || locked || loadingAccounts) return
     if (keyNameProblem !== null) {
+      dispatch({ type: "submit_refused" })
       nameInput.current?.focus()
       return
     }
     if (accountNameProblem !== null) {
+      dispatch({ type: "submit_refused" })
       newAccountInput.current?.focus()
       return
     }
-    setProblem(null)
-    setSubmitting(true)
+    dispatch({ type: "submit_started" })
     let accountId = choice
     let accountName = chosenAccount?.name ?? ""
     if (creating) {
@@ -161,20 +156,22 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
         })
         accountId = account.id
         accountName = account.name
-        setCreatedAccount(account)
-        setAccountChoice(account.id)
+        dispatch({ type: "account_created", account })
         if (takesRuns) {
           const updated = await updateAccount.mutateAsync({
             id: account.id,
             takes_runs: true,
           })
-          setCreatedAccount(updated)
+          dispatch({ type: "account_updated", account: updated })
         }
       } catch (error) {
-        setProblem(
-          problemText(error, { accountName: newAccountName, what: "account" })
-        )
-        setSubmitting(false)
+        dispatch({
+          type: "failed",
+          problem: problemText(error, {
+            accountName: newAccountName,
+            what: "account",
+          }),
+        })
         return
       }
     } else if (chosenAccount !== undefined) {
@@ -184,24 +181,28 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
           await updateAccount.mutateAsync({ id: chosenAccount.id, ...changes })
         }
       } catch (error) {
-        setProblem(problemText(error, { what: "account" }))
-        setSubmitting(false)
+        dispatch({
+          type: "failed",
+          problem: problemText(error, { what: "account" }),
+        })
         return
       }
     }
     createKey.mutate(
       { accountId, name: keyName.trim(), expires_at: expiresAtFor(expiry) },
       {
-        onSuccess: (response) => {
-          setIssuedFor({ accountName, role })
-          setToken(response.token)
-          setPhase("created")
-          setSubmitting(false)
-        },
-        onError: (error) => {
-          setProblem(problemText(error, { what: "key" }))
-          setSubmitting(false)
-        },
+        onSuccess: (response) =>
+          dispatch({
+            type: "key_issued",
+            token: response.token,
+            accountName,
+            role,
+          }),
+        onError: (error) =>
+          dispatch({
+            type: "failed",
+            problem: problemText(error, { what: "key" }),
+          }),
       }
     )
   }
@@ -243,7 +244,7 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
                   className="size-3.5 motion-safe:animate-spin"
                 />
               ) : null}
-              Create key
+              {keyless === null ? "Create key" : "Issue the key again"}
             </Button>
           </>
         )
@@ -271,7 +272,9 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
                 ? `${keyNameHintId} ${keyNameErrorId}`
                 : keyNameHintId
             }
-            onChange={(event) => setKeyName(event.target.value)}
+            onChange={(event) =>
+              dispatch({ type: "key_named", name: event.target.value })
+            }
           />
           <p id={keyNameHintId} className="text-xs text-muted-foreground">
             Where it will be used, so you can tell keys apart.
@@ -289,10 +292,9 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
             value={choice}
             disabled={locked || pending || loadingAccounts}
             onValueChange={(next) => {
-              if (next === null) return
-              setAccountChoice(next)
-              setRoleChoice(null)
-              setTakesRunsChoice(null)
+              if (next !== null) {
+                dispatch({ type: "account_chosen", choice: next })
+              }
             }}
           >
             <SelectTrigger
@@ -336,7 +338,9 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
                   ? `${accountNameHintId} ${accountNameErrorId}`
                   : accountNameHintId
               }
-              onChange={(event) => setNewAccountName(event.target.value)}
+              onChange={(event) =>
+                dispatch({ type: "account_named", name: event.target.value })
+              }
             />
             <p id={accountNameHintId} className="text-xs text-muted-foreground">
               Lowercase letters, digits and dashes, for example ci-bot.
@@ -354,7 +358,9 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
             className="w-full"
             value={role}
             disabled={locked || pending || loadingAccounts}
-            onValueChange={setRoleChoice}
+            onValueChange={(next) =>
+              dispatch({ type: "role_chosen", role: next })
+            }
           />
           <p className="text-xs text-muted-foreground">
             {roleDescriptions[role]}
@@ -369,7 +375,9 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
               checked={takesRuns}
               disabled={locked || pending || loadingAccounts || takesRunsLocked}
               aria-describedby={`${ids}-takes-runs-hint`}
-              onCheckedChange={setTakesRunsChoice}
+              onCheckedChange={(next) =>
+                dispatch({ type: "takes_runs_chosen", takesRuns: next })
+              }
             />
           </div>
           <p
@@ -389,7 +397,9 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
             value={expiry}
             disabled={locked || pending}
             onValueChange={(next) => {
-              if (next !== null) setExpiry(next)
+              if (next !== null) {
+                dispatch({ type: "expiry_chosen", expiry: next })
+              }
             }}
           >
             <SelectTrigger id={`${ids}-expires`} className="w-full">
@@ -405,29 +415,27 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
           </Select>
         </div>
       </form>
-      {token !== null ? (
+      {step.phase === "issued" ? (
         <div className="flex flex-col gap-1.5">
-          {issuedFor !== null ? (
-            <p className="text-[13px]">
-              <span className="font-medium wrap-anywhere">
-                {issuedFor.accountName}
-              </span>
-              <span className="text-muted-foreground">
-                {" - Role: "}
-                {roleLabels[issuedFor.role]}
-              </span>
-            </p>
-          ) : null}
+          <p className="text-[13px]">
+            <span className="font-medium wrap-anywhere">
+              {step.accountName}
+            </span>
+            <span className="text-muted-foreground">
+              {" - Role: "}
+              {roleLabels[step.role]}
+            </span>
+          </p>
           <span id={newKeyLabelId} className="text-[13px] font-medium">
             Your new key
           </span>
           <div className="flex items-center gap-2 rounded-[8px] border border-foreground py-2.5 pr-2.5 pl-3">
             <code className="min-w-0 flex-1 overflow-x-auto font-mono text-xs whitespace-nowrap">
-              {token}
+              {step.token}
             </code>
             <CopyButton
               ref={copyButton}
-              text={token}
+              text={step.token}
               label="Copy key"
               variant="outline"
               size="sm"
@@ -440,13 +448,18 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
             this panel:
           </p>
           <pre className="rounded-[8px] border px-3 py-2.5 font-mono text-xs break-all whitespace-pre-wrap">
-            export OBSERVE_TOKEN={token}
+            export OBSERVE_TOKEN={step.token}
           </pre>
         </div>
       ) : null}
       {problem !== null ? (
         <Alert variant="destructive">
-          <AlertDescription>{problem}</AlertDescription>
+          <AlertDescription>
+            {problem}
+            {keyless === null
+              ? null
+              : ` The service account ${keyless.name} was created, but it has no key yet.`}
+          </AlertDescription>
         </Alert>
       ) : null}
     </SidePanel>

@@ -55,7 +55,7 @@ func TestABusyRunDoesNotStarveOtherRunsOrItsOwnLeaseReport(t *testing.T) {
 	r.read(other, 0)
 	busyID := mustUUID(t, busy.ID)
 	err := d.Queries().InsertRunToken(context.Background(), dbsqlc.InsertRunTokenParams{
-		TokenHash: busyTokenHash[:], AgentRequestID: busyID, Attempt: httpapi.Int32(busy.Attempt),
+		TokenHash: busyTokenHash[:], AgentRequestID: busyID, Attempt: httpapi.Int32(busy.Attempt), ClaimEpoch: httpapi.Int32(busy.ClaimEpoch),
 		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(time.Hour), Valid: true},
 	})
 	if err != nil {
