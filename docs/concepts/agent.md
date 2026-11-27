@@ -60,7 +60,8 @@ It then works in this order: discover, draft, lint, run, save, and repair if the
 Details of the authoring guide:
 
 - It is a core plus one section per datasource type: Prometheus, ClickHouse, Loki, Tempo, Jaeger, and one shared by Elasticsearch and OpenSearch.
-- The system text carries only the sections of the configured types.
+- The system text carries only the sections of the configured types, for an investigation as for a build.
+- An investigation's system text is a short core plus the playbook of its [task type](investigate.md#task-types): a few numbered steps naming the tools to use and the shape of the answer, then the rules that only that kind of question needs; a question no rule sorts gets the core and every playbook.
 - An Admin's runs also get a section on the built-in audit datasource, which no one else can read.
 - The JSON Schema is not in that text.
   The model reads it on demand with `get_spec_guide`, which inside a run returns only the schema.

@@ -63,6 +63,7 @@ The agent investigates with the same read tools it uses to build dashboards, and
 It does not get the dashboard save tools in an investigation, because an investigation never changes a dashboard.
 Investigations therefore do not wait for other requests on the same dashboard.
 
+Each task type also gets its own short prompt section, a playbook with the steps and the answer shape for that kind of question, and the rules below reach only the types they belong to; a question no rule sorts gets them all.
 How the agent reads and answers:
 
 - The verdict follows the comparison the question asked for, and a short spike inside the window is a separate observation.

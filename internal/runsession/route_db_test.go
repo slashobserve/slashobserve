@@ -42,6 +42,18 @@ func TestAnInvestigateRunIsRoutedOnceWithoutItsQuestionInTheStep(t *testing.T) {
 	}
 }
 
+func TestTheBriefOfARoutedRunCarriesItsPlaybook(t *testing.T) {
+	r := newRig(t)
+	req := r.investigate()
+	got, err := r.svc.Brief(context.Background(), req, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got.System, "\n## Investigating an incident\n") || strings.Contains(got.System, "\n## Measuring a value\n") {
+		t.Fatal("the brief of an incident question lacks its playbook or carries another")
+	}
+}
+
 func TestListMoreToolsWidensTheRunForEveryLaterCall(t *testing.T) {
 	r := newRig(t)
 	req := r.investigate()

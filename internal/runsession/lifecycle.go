@@ -321,6 +321,7 @@ func (sess *session) brief(ctx context.Context, why brief.Reason, health []datas
 	task.Withheld = tools.Withheld(sess.access)
 	task.Facts = sess.state.Grounding != nil
 	task.Triage = sess.triageBlock()
+	task.Route = sess.state.Task
 	if sess.state.Loop {
 		task.Loop, task.Hypotheses = true, brief.Hypotheses(sess.state.Ledger)
 	}
