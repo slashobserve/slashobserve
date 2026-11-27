@@ -1,0 +1,461 @@
+{
+  "uncited": [
+    {
+      "name": "prose figures",
+      "text": "p99 rose to 523 ms at 10:05 UTC, up from 287ms (+82%).",
+      "question": "",
+      "want": [
+        "523 ms",
+        "287ms",
+        "82%"
+      ]
+    },
+    {
+      "name": "counts and suffixes",
+      "text": "About 4.1% of requests failed (1,284 of 31.2K).",
+      "question": "",
+      "want": [
+        "4.1%",
+        "1,284",
+        "31.2K"
+      ]
+    },
+    {
+      "name": "seconds",
+      "text": "Payment calls timed out after 2.4 s and 1.5 seconds.",
+      "question": "",
+      "want": [
+        "2.4 s",
+        "1.5 seconds"
+      ]
+    },
+    {
+      "name": "bytes and multiples",
+      "text": "Memory reached 512 MiB, 3x the usual 1.2M rows.",
+      "question": "",
+      "want": [
+        "512 MiB",
+        "3x",
+        "1.2M"
+      ]
+    },
+    {
+      "name": "small counts",
+      "text": "3 pods restarted and 2 of 7 services saw 5xx errors.",
+      "question": "",
+      "want": []
+    },
+    {
+      "name": "dates and windows",
+      "text": "Since 2026-11-20T10:05:00Z and Nov 20, 2026 at 9:30 am, over the last 15 minutes and 5m windows.",
+      "question": "",
+      "want": []
+    },
+    {
+      "name": "code and links",
+      "text": "See [run 42](/o/0192) and `rate(x[5m]) > 0.25`, or https://example.com/a/123.",
+      "question": "",
+      "want": []
+    },
+    {
+      "name": "list numbering",
+      "text": "1. First item\n2. Second item with 640 errors",
+      "question": "",
+      "want": [
+        "640"
+      ]
+    },
+    {
+      "name": "versions and names",
+      "text": "Version v1.2.3 of checkout-7f9c on pod-12 using http2 and p99.",
+      "question": "",
+      "want": []
+    },
+    {
+      "name": "signed figures",
+      "text": "Errors fell -12% to 0.75.",
+      "question": "",
+      "want": [
+        "12%",
+        "0.75"
+      ]
+    },
+    {
+      "name": "month names",
+      "text": "Orders declined 37% and errors decreased 45, marginally 80 above, across 12 separate pods, since Dec 3 and 4 Sept. 2026.",
+      "question": "",
+      "want": [
+        "37%",
+        "45",
+        "80",
+        "12"
+      ]
+    },
+    {
+      "name": "a latency",
+      "text": "p99 rose to 523 ms.",
+      "question": "",
+      "want": [
+        "523 ms"
+      ]
+    },
+    {
+      "name": "a count and a percent",
+      "text": "1,284 requests failed, 4.1% of all.",
+      "question": "",
+      "want": [
+        "1,284",
+        "4.1%"
+      ]
+    },
+    {
+      "name": "a cited fact",
+      "text": "p99 rose to {{f3:ms}} from {{f4}}.",
+      "question": "",
+      "want": []
+    },
+    {
+      "name": "a rounded guess beside a fact",
+      "text": "p99 rose to {{f3}}, about 0.5 s.",
+      "question": "",
+      "want": [
+        "0.5 s"
+      ]
+    },
+    {
+      "name": "times and dates",
+      "text": "Since 2026-11-20T10:05:00Z, Nov 20 at 9:30 am and 10:05 UTC.",
+      "question": "",
+      "want": []
+    },
+    {
+      "name": "window and step durations",
+      "text": "Over the last 6 hours, at a 30s step, within 90 seconds, every 15 s, with a 60 s window.",
+      "question": "",
+      "want": []
+    },
+    {
+      "name": "a latency in seconds",
+      "text": "Calls took 30 s at peak.",
+      "question": "",
+      "want": [
+        "30 s"
+      ]
+    },
+    {
+      "name": "versions",
+      "text": "Version 2.4 and release 18 and v1.2.3 and 1.27.0.",
+      "question": "",
+      "want": []
+    },
+    {
+      "name": "ports",
+      "text": "It listens on port 8080 and on cart:7070.",
+      "question": "",
+      "want": []
+    },
+    {
+      "name": "status codes",
+      "text": "It returned HTTP 503 and status 500, 502 or 504, and code 429.",
+      "question": "",
+      "want": []
+    },
+    {
+      "name": "plural status codes",
+      "text": "The proxy returned 503s.",
+      "question": "",
+      "want": []
+    },
+    {
+      "name": "a count that looks like a status",
+      "text": "There were 503 errors.",
+      "question": "",
+      "want": [
+        "503"
+      ]
+    },
+    {
+      "name": "percentile names",
+      "text": "p99 and p99.9 and the 95th percentile and quantile 0.99.",
+      "question": "",
+      "want": []
+    },
+    {
+      "name": "list numbering and small counts",
+      "text": "1. First\n2. Second, on 3 pods across 7 services.",
+      "question": "",
+      "want": []
+    },
+    {
+      "name": "top N",
+      "text": "The top 20 routes and the first 50 lines.",
+      "question": "",
+      "want": []
+    },
+    {
+      "name": "a year",
+      "text": "Seen since 2025 and in 2026.",
+      "question": "",
+      "want": []
+    },
+    {
+      "name": "a number from the question",
+      "text": "Of requests over 500 ms, 12 percent were slow at 250 ms.",
+      "question": "how many requests took over 500 ms, and how many over 250 ms?",
+      "want": [
+        "12 percent"
+      ]
+    },
+    {
+      "name": "code and links again",
+      "text": "See `rate(x[5m]) > 0.25` and [run 42](/o/0192) and https://example.com/a/123.",
+      "question": "",
+      "want": []
+    },
+    {
+      "name": "trace and span ids",
+      "text": "Trace 4bf92f3577b34da6a3ce929d0e0e4736 and span 00f067aa0ba902b7 and 4bf92f35.",
+      "question": "",
+      "want": []
+    },
+    {
+      "name": "identifiers",
+      "text": "Pod checkout-7f9c8d6b5-x2x on node ip-10-0-1-12 ran http2.",
+      "question": "",
+      "want": []
+    },
+    {
+      "name": "units of every kind",
+      "text": "It took 12 µs, 13 μs, 14us, 15 msec, 16 milliseconds, 17 secs, 18 KiB, 19 kB, 20 GB, 21×, 22 percent and 23 k.",
+      "question": "",
+      "want": [
+        "12 µs",
+        "13 μs",
+        "14us",
+        "15 msec",
+        "16 milliseconds",
+        "17 secs",
+        "18 KiB",
+        "19 kB",
+        "20 GB",
+        "21×",
+        "22 percent",
+        "23"
+      ]
+    },
+    {
+      "name": "CRLF lines and fences",
+      "text": "Before\r\n3. third 640 errors\r\n```\n900 ms inside\n```\nafter 700 ms, ~~~ 800 ms",
+      "question": "",
+      "want": [
+        "640",
+        "700 ms"
+      ]
+    },
+    {
+      "name": "unicode around figures",
+      "text": "Spitze 523 ms über 287ms, 4,5 %, ‑12% und №40.",
+      "question": "",
+      "want": [
+        "523 ms",
+        "287ms",
+        "5 %",
+        "12%",
+        "40"
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "text": "0.52 s",
+      "step": 0.01
+    },
+    {
+      "text": "523 ms",
+      "step": 1
+    },
+    {
+      "text": "31.2K",
+      "step": 0.1
+    },
+    {
+      "text": "1,500 errors",
+      "step": 100
+    },
+    {
+      "text": "40%",
+      "step": 1
+    }
+  ],
+  "rounded": [
+    {
+      "in": 0.52341,
+      "want": 0.523
+    },
+    {
+      "in": 31234,
+      "want": 31200
+    },
+    {
+      "in": -4.567,
+      "want": 4.57
+    },
+    {
+      "in": 0,
+      "want": 0
+    },
+    {
+      "in": 812.4,
+      "want": 812
+    },
+    {
+      "in": 1285,
+      "want": 1280
+    },
+    {
+      "in": 0.125,
+      "want": 0.125
+    },
+    {
+      "in": 1e-7,
+      "want": 1e-7
+    },
+    {
+      "in": 123456789,
+      "want": 123000000
+    }
+  ],
+  "trace_ids": {
+    "known": [
+      "4bf92f3577b34da6a3ce929d0e0e4736",
+      "00f067aa0ba902b7"
+    ],
+    "cases": [
+      {
+        "text": "Trace 4bf92f3577b34da6a3ce929d0e0e4736 and span 00F067AA0BA902B7.",
+        "want": []
+      },
+      {
+        "text": "Trace `4bf92f3577b34da6a3ce929d0e0e4736`.",
+        "want": []
+      },
+      {
+        "text": "Trace 4bf92f35 failed.",
+        "want": [
+          {
+            "kind": "trace_id",
+            "text": "4bf92f35",
+            "fix": "an id cut short: write the whole id 4bf92f3577b34da6a3ce929d0e0e4736, or cite its fact"
+          }
+        ]
+      },
+      {
+        "text": "Trace 4bf92f3577b34da6… failed.",
+        "want": [
+          {
+            "kind": "trace_id",
+            "text": "4bf92f3577b34da6",
+            "fix": "an id cut short: write the whole id 4bf92f3577b34da6a3ce929d0e0e4736, or cite its fact"
+          }
+        ]
+      },
+      {
+        "text": "Trace 0af7651916cd43dd8448eb211c80319c failed.",
+        "want": [
+          {
+            "kind": "trace_id",
+            "text": "0af7651916cd43dd8448eb211c80319c",
+            "fix": "not an id this run read: read the trace, cite an id a result gave, or remove it"
+          }
+        ]
+      },
+      {
+        "text": "Commit 9fceb02d and pod checkout-7f9c8d6b5-x2x and request 3f2a9b1c-5d4e-4f6a-8b7c-9d0e1f2a3b4c.",
+        "want": []
+      },
+      {
+        "text": "Open [the trace](/trace/0af7651916cd43dd8448eb211c80319c).",
+        "want": []
+      }
+    ]
+  },
+  "source_names": [
+    {
+      "name": "kubectl table",
+      "text": "NAME                 READY   STATUS\ncheckout-7d9f8b-x2   0/1     CrashLoopBackOff",
+      "want": [
+        "NAME",
+        "READY",
+        "STATUS",
+        "checkout-7d9f8b-x2",
+        "CrashLoopBackOff"
+      ]
+    },
+    {
+      "name": "flag file JSON",
+      "text": "{\"flags\":{\"paymentFailure\":{\"state\":\"ENABLED\",\"defaultVariant\":\"off\"}}}",
+      "want": [
+        "flags",
+        "paymentFailure",
+        "state",
+        "ENABLED",
+        "defaultVariant",
+        "off"
+      ]
+    },
+    {
+      "name": "env and dotted names",
+      "text": "OTEL_SERVICE_NAME=cart kube-system/coredns my.config.v2",
+      "want": [
+        "OTEL_SERVICE_NAME",
+        "cart",
+        "kube-system",
+        "coredns",
+        "my.config.v2"
+      ]
+    },
+    {
+      "name": "edges trimmed",
+      "text": "-deny-all-ingress- .svc. _x_",
+      "want": [
+        "deny-all-ingress",
+        "svc"
+      ]
+    },
+    {
+      "name": "numbers, times and ids are not names",
+      "text": "523 ms at 2026-11-20T10:05:00Z, 0.95, 4bf92f3577b34da6",
+      "want": []
+    },
+    {
+      "name": "too short and too long left out",
+      "text": "a ab abc aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "want": [
+        "abc",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ]
+    },
+    {
+      "name": "repeats kept once",
+      "text": "cart cart Cart",
+      "want": [
+        "cart",
+        "Cart"
+      ]
+    },
+    {
+      "name": "no letters",
+      "text": "12 34 -- //",
+      "want": []
+    },
+    {
+      "name": "unicode neighbours",
+      "text": "😀cartservice→payment ödeme",
+      "want": [
+        "cartservice",
+        "payment",
+        "deme"
+      ]
+    }
+  ]
+}

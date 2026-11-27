@@ -20,6 +20,9 @@ The server starts it whenever a model provider is configured; the image ships it
   Its tests compare against the Go goldens in `spec/examples/agent/prompts/`.
 - `src/brief/`: ports `internal/agent/brief` (`render`, the digest, `resumeReason`, the seed, context and anchor notes, the `<hypotheses>` block) over `get_run_brief`'s `brief` and the agent's own state (route, loop, facts, ledger, triage block, digest); `gofmt.ts` reproduces Go's `encoding/json` escaping, `%q` quoting, `strings.Fields` and time layouts, so the text stays byte-identical; not yet called by the run loop.
   Its tests compare against the Go goldens in `spec/examples/agent/brief/` and the anchor cases in `spec/examples/anchor/`.
+  `gofmt.ts` also holds Go's `strconv.FormatFloat` (exact, ties to even), `ParseFloat`, `strings.TrimSpace` and `time.Duration.String`.
+- `src/grounding/`: ports `internal/agent/grounding` (modes `off` and `enforce`; `report` is dropped) and the grounding glue of `internal/runsession/grounding.go`: `noteResult` issues facts into a fact tool's result and records a read (`readsData` or a result with discovery, `call_mcp_tool` text as names only), `checkSave` reviews a `save_finding` input into the send-back text, the `unverified` items and each cause's signals, score, band and queries, and `savedFinding` renders `{{fN}}` and adds those fields to the input it sends; the record is plain JSON for `agent_state`; not yet called by the run loop.
+  Its tests read the Go cases in `spec/examples/agent/grounding/` (`figures`, `render`, `scenarios`, and `sessions`, which `internal/runsession` writes with `-update`).
 
 ## Rules
 

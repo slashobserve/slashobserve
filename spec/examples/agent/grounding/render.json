@@ -1,0 +1,739 @@
+{
+  "ledger": [
+    {
+      "id": "f1",
+      "text": "0.5234123",
+      "value": 0.5234123,
+      "kind": "number",
+      "of": "measure_window max values[] value",
+      "query": "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))"
+    },
+    {
+      "id": "f2",
+      "text": "1312.75",
+      "value": 1312.75,
+      "kind": "duration",
+      "unit": "ms",
+      "of": "trace_slow_path routes[].example duration_ms"
+    },
+    {
+      "id": "f3",
+      "text": "0.4167",
+      "value": 0.4167,
+      "kind": "ratio",
+      "of": "trace_error_origins groups[] share"
+    },
+    {
+      "id": "f4",
+      "text": "1523",
+      "value": 1523,
+      "kind": "count",
+      "of": "trace_stats spans"
+    },
+    {
+      "id": "f5",
+      "text": "4bf92f3577b34da6a3ce929d0e0e4736",
+      "kind": "trace_id",
+      "of": "get_trace trace_id"
+    },
+    {
+      "id": "f6",
+      "text": "0",
+      "kind": "number",
+      "of": "query_range series[] min"
+    },
+    {
+      "id": "f7",
+      "text": "1250",
+      "value": 1250,
+      "kind": "count",
+      "of": "log_facets fields[].values[] count",
+      "sampled": true
+    },
+    {
+      "id": "f8",
+      "text": "524288",
+      "value": 524288,
+      "kind": "count",
+      "unit": "bytes",
+      "of": "log_facets fields[].values[] count"
+    },
+    {
+      "id": "f9",
+      "text": "1251",
+      "value": 1251,
+      "kind": "count",
+      "of": "log_facets fields[].values[] count",
+      "sampled": true
+    },
+    {
+      "id": "f10",
+      "text": "1249",
+      "value": 1249,
+      "kind": "count",
+      "of": "log_facets fields[].values[] count",
+      "sampled": true
+    },
+    {
+      "id": "f11",
+      "text": "15004",
+      "value": 15004,
+      "kind": "number",
+      "of": "query_range series[] max",
+      "query": "max_over_time({job=\"a\"} | json | unwrap duration_ms [6h])"
+    },
+    {
+      "id": "f12",
+      "text": "3",
+      "value": 3,
+      "kind": "number",
+      "of": "query_range series[] max",
+      "query": "sum(rate(http_requests_total[5m]))"
+    },
+    {
+      "id": "f13",
+      "text": "3",
+      "value": 3,
+      "kind": "number",
+      "of": "query_range series[] max",
+      "query": "latency_ms / latency_seconds"
+    },
+    {
+      "id": "f14",
+      "text": "-0.25",
+      "value": -0.25,
+      "kind": "number",
+      "of": "query_range series[] last"
+    }
+  ],
+  "render": [
+    {
+      "text": "p99 was {{f1}}.",
+      "want": {
+        "text": "p99 was 0.5234123.",
+        "problems": []
+      }
+    },
+    {
+      "text": "p99 was {{f1:ms}}.",
+      "want": {
+        "text": "p99 was 523.4123 ms.",
+        "problems": []
+      }
+    },
+    {
+      "text": "p99 was {{f1:s}}.",
+      "want": {
+        "text": "p99 was 0.5234123 s.",
+        "problems": []
+      }
+    },
+    {
+      "text": "p99 was {{f1:ms:3}}.",
+      "want": {
+        "text": "p99 was 523 ms.",
+        "problems": []
+      }
+    },
+    {
+      "text": "p99 was {{ f1 : 4 }}.",
+      "want": {
+        "text": "p99 was 0.5234.",
+        "problems": []
+      }
+    },
+    {
+      "text": "p99 was {{f2}}.",
+      "want": {
+        "text": "p99 was 1312.75 ms.",
+        "problems": []
+      }
+    },
+    {
+      "text": "p99 was {{f2:s}}.",
+      "want": {
+        "text": "p99 was 1.31275 s.",
+        "problems": []
+      }
+    },
+    {
+      "text": "p99 was {{f2:s:3}}.",
+      "want": {
+        "text": "p99 was 1.31 s.",
+        "problems": []
+      }
+    },
+    {
+      "text": "p99 was {{f2:bare}}.",
+      "want": {
+        "text": "p99 was 1312.75.",
+        "problems": []
+      }
+    },
+    {
+      "text": "p99 was {{f3:%}}.",
+      "want": {
+        "text": "p99 was 41.67%.",
+        "problems": []
+      }
+    },
+    {
+      "text": "p99 was {{f3:%:3}}.",
+      "want": {
+        "text": "p99 was 41.7%.",
+        "problems": []
+      }
+    },
+    {
+      "text": "p99 was {{f4}}.",
+      "want": {
+        "text": "p99 was 1523.",
+        "problems": []
+      }
+    },
+    {
+      "text": "p99 was {{f5}}.",
+      "want": {
+        "text": "p99 was 4bf92f3577b34da6a3ce929d0e0e4736.",
+        "problems": []
+      }
+    },
+    {
+      "text": "p99 was {{f6:2}}.",
+      "want": {
+        "text": "p99 was 0.",
+        "problems": []
+      }
+    },
+    {
+      "text": "p99 was {{f2:min}}.",
+      "want": {
+        "text": "p99 was 0.0218791666667 min.",
+        "problems": []
+      }
+    },
+    {
+      "text": "p99 was {{f2:us}}.",
+      "want": {
+        "text": "p99 was 1312750 µs.",
+        "problems": []
+      }
+    },
+    {
+      "text": "{{f9}}",
+      "want": {
+        "text": "at least 1251",
+        "problems": []
+      }
+    },
+    {
+      "text": "{{f4:2}}",
+      "want": {
+        "text": "1523",
+        "problems": [
+          {
+            "kind": "fact",
+            "text": "{{f4:2}}",
+            "fix": "{{f4:2}} would show 1500, 1.5% away from 1523; give more significant figures"
+          }
+        ]
+      }
+    },
+    {
+      "text": "{{f4:ms}}",
+      "want": {
+        "text": "1523",
+        "problems": [
+          {
+            "kind": "fact",
+            "text": "{{f4:ms}}",
+            "fix": "f4 is a count, so it cannot be shown in ms"
+          }
+        ]
+      }
+    },
+    {
+      "text": "{{f2:%}}",
+      "want": {
+        "text": "1312.75 ms",
+        "problems": [
+          {
+            "kind": "fact",
+            "text": "{{f2:%}}",
+            "fix": "f2 is a duration in ms, so it cannot be shown as a percent"
+          }
+        ]
+      }
+    },
+    {
+      "text": "{{f5:3}}",
+      "want": {
+        "text": "4bf92f3577b34da6a3ce929d0e0e4736",
+        "problems": [
+          {
+            "kind": "fact",
+            "text": "{{f5:3}}",
+            "fix": "f5 is a trace id, which takes no options; cite it as {{f5}}"
+          }
+        ]
+      }
+    },
+    {
+      "text": "{{f1:km}}",
+      "want": {
+        "text": "0.5234123",
+        "problems": [
+          {
+            "kind": "fact",
+            "text": "{{f1:km}}",
+            "fix": "\"km\" is not an option for f1; use ms, s, us, min, %, bare or 1 to 9 significant figures"
+          }
+        ]
+      }
+    },
+    {
+      "text": "{{f99}} and {{f1:1}}",
+      "want": {
+        "text": "[figure not read] and 0.5234123",
+        "problems": [
+          {
+            "kind": "fact",
+            "text": "{{f99}}",
+            "fix": "f99 is not a fact this run read, or it is no longer held: read the value again and cite the id the result gives"
+          },
+          {
+            "kind": "fact",
+            "text": "{{f1:1}}",
+            "fix": "{{f1:1}} would show 0.5, 4.5% away from 0.5234123; give more significant figures"
+          }
+        ]
+      }
+    },
+    {
+      "text": "`{{.status}}` in line_format",
+      "want": {
+        "text": "`{{.status}}` in line_format",
+        "problems": []
+      }
+    },
+    {
+      "text": "{{fx}} and {{ f }} and {f1} and {{F1}}",
+      "want": {
+        "text": "{{fx}} and {{ f }} and {f1} and {{F1}}",
+        "problems": []
+      }
+    },
+    {
+      "text": "sum(rate(x{job=\"a\"}[5m]))",
+      "want": {
+        "text": "sum(rate(x{job=\"a\"}[5m]))",
+        "problems": []
+      }
+    },
+    {
+      "text": "The error pattern appeared {{f7}} times.",
+      "want": {
+        "text": "The error pattern appeared at least 1250 times.",
+        "problems": []
+      }
+    },
+    {
+      "text": "{{f7:bare}} {{f7:3}} {{f9:3}} {{f10:3}} {{f7:%}} {{f8}} {{f8:ms}}",
+      "want": {
+        "text": "at least 1250 at least 1250 at least 1250 at least 1249 at least 1250 524288 bytes 524288 bytes",
+        "problems": [
+          {
+            "kind": "fact",
+            "text": "{{f10:3}}",
+            "fix": "{{f10:3}} would show at least 1250, above the 1249 counted in a sample; give more significant figures"
+          },
+          {
+            "kind": "fact",
+            "text": "{{f7:%}}",
+            "fix": "f7 is a count, so it cannot be shown as a percent"
+          },
+          {
+            "kind": "fact",
+            "text": "{{f8:ms}}",
+            "fix": "f8 is a count in bytes, so it cannot be shown in ms"
+          }
+        ]
+      }
+    },
+    {
+      "text": "{{f11:s}} and {{f11:ms}} but {{f12:ms}} and {{f13:ms}}",
+      "want": {
+        "text": "15.004 s and 15004 ms but 3 and 3",
+        "problems": [
+          {
+            "kind": "fact",
+            "text": "{{f12:ms}}",
+            "fix": "f12 is a number whose unit the read did not name, so it cannot be converted to ms; cite it as {{f12}} and write the unit its query measures after it"
+          },
+          {
+            "kind": "fact",
+            "text": "{{f13:ms}}",
+            "fix": "f13 is a number whose unit the read did not name, so it cannot be converted to ms; cite it as {{f13}} and write the unit its query measures after it"
+          }
+        ]
+      }
+    },
+    {
+      "text": "{{f14:%}} and {{f14:1}} and {{f14:2}}",
+      "want": {
+        "text": "-25% and -0.25 and -0.25",
+        "problems": [
+          {
+            "kind": "fact",
+            "text": "{{f14:1}}",
+            "fix": "{{f14:1}} would show -0.2, 20.0% away from -0.25; give more significant figures"
+          }
+        ]
+      }
+    }
+  ],
+  "answers": {
+    "ledger": [
+      {
+        "id": "f1",
+        "text": "0.5234",
+        "value": 0.5234,
+        "kind": "number",
+        "of": "measure_window max values[] value",
+        "labels": {
+          "service": "checkout"
+        },
+        "from": "2026-11-20T09:00:00Z",
+        "to": "2026-11-20T11:00:00Z",
+        "query": "max_over_time(p99[2h:30s])",
+        "asked": "p99"
+      },
+      {
+        "id": "f2",
+        "text": "0.61",
+        "value": 0.61,
+        "kind": "number",
+        "of": "measure_window max values[] value",
+        "labels": {
+          "service": "checkout"
+        },
+        "from": "2026-11-20T09:00:00Z",
+        "to": "2026-11-20T11:00:00Z",
+        "query": "max_over_time(p99[2h:15s])",
+        "asked": "p99"
+      },
+      {
+        "id": "f3",
+        "text": "0.5235",
+        "value": 0.5235,
+        "kind": "number",
+        "of": "measure_window max values[] value",
+        "labels": {
+          "service": "checkout"
+        },
+        "from": "2026-11-20T09:00:00Z",
+        "to": "2026-11-20T11:00:00Z",
+        "query": "max_over_time(p99[2h:10s])",
+        "asked": "p99"
+      },
+      {
+        "id": "f4",
+        "text": "0.287",
+        "value": 0.287,
+        "kind": "number",
+        "of": "measure_window max values[] value",
+        "labels": {
+          "service": "payment"
+        },
+        "from": "2026-11-20T09:00:00Z",
+        "to": "2026-11-20T11:00:00Z",
+        "asked": "p99"
+      },
+      {
+        "id": "f5",
+        "text": "1312.75",
+        "value": 1312.75,
+        "kind": "duration",
+        "unit": "ms",
+        "of": "trace_slow_path routes[].example duration_ms",
+        "labels": {
+          "route": "GET /cart",
+          "trace_id": "4BF92F3577B34DA6A3CE929D0E0E4736"
+        }
+      },
+      {
+        "id": "f6",
+        "text": "1290",
+        "value": 1290,
+        "kind": "duration",
+        "unit": "ms",
+        "of": "get_trace duration_ms",
+        "labels": {
+          "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+        }
+      },
+      {
+        "id": "f7",
+        "text": "4bf92f3577b34da6a3ce929d0e0e4736",
+        "kind": "trace_id",
+        "of": "trace_slow_path routes[].example trace_id"
+      }
+    ],
+    "answer_problems": [
+      {
+        "name": "one fact per quantity",
+        "answers": [
+          {
+            "quantity": "peak p99",
+            "fact": "f1"
+          },
+          {
+            "quantity": "payment p99",
+            "fact": "f4"
+          },
+          {
+            "quantity": "example trace",
+            "fact": "f7"
+          }
+        ],
+        "want": []
+      },
+      {
+        "name": "two facts with one value",
+        "answers": [
+          {
+            "quantity": "peak p99",
+            "fact": "f1"
+          },
+          {
+            "quantity": "Peak P99",
+            "fact": "f3"
+          }
+        ],
+        "want": []
+      },
+      {
+        "name": "two facts with different values",
+        "answers": [
+          {
+            "quantity": "peak p99",
+            "fact": "f1"
+          },
+          {
+            "quantity": "peak  p99.",
+            "fact": "f2"
+          }
+        ],
+        "want": [
+          {
+            "kind": "fact",
+            "text": "answers: peak  p99. = f1 or f2",
+            "fix": "one quantity takes one fact: make the read that settles which value is right and list only that fact"
+          }
+        ]
+      },
+      {
+        "name": "an unknown fact",
+        "answers": [
+          {
+            "quantity": "error rate",
+            "fact": "f40"
+          }
+        ],
+        "want": [
+          {
+            "kind": "fact",
+            "text": "answers: error rate = f40",
+            "fix": "f40 is not a fact this run read: name the fact id a result gave for this quantity"
+          }
+        ]
+      },
+      {
+        "name": "a padded id",
+        "answers": [
+          {
+            "quantity": "peak p99",
+            "fact": " f1 "
+          },
+          {
+            "quantity": "peak p99",
+            "fact": "f2"
+          }
+        ],
+        "want": [
+          {
+            "kind": "fact",
+            "text": "answers: peak p99 = f1 or f2",
+            "fix": "one quantity takes one fact: make the read that settles which value is right and list only that fact"
+          }
+        ]
+      }
+    ],
+    "conflicts": [
+      {
+        "text": "The peak was {{f1:ms}}, against {{f4:ms}} for payment.",
+        "want": []
+      },
+      {
+        "text": "The peak was {{f1:ms}} or {{f3:ms}}.",
+        "want": []
+      },
+      {
+        "text": "The peak was {{f1:ms}}; at a finer step it was {{f2:ms}}.",
+        "want": [
+          {
+            "kind": "fact",
+            "text": "{{f1}} and {{f2}}",
+            "fix": "both are measure_window max values[] value for the same labels and window, 0.5234 and 0.61: make one more read that settles it and cite only that fact"
+          }
+        ]
+      },
+      {
+        "text": "The example trace {{f7}} took {{f5}}, and {{f6}} in the trace view.",
+        "want": [
+          {
+            "kind": "fact",
+            "text": "{{f5}} and {{f6}}",
+            "fix": "both are get_trace duration_ms for the same labels and window, 1312.75 and 1290: make one more read that settles it and cite only that fact"
+          }
+        ]
+      }
+    ],
+    "unstated": [
+      {
+        "text": "Peak p99 was {{f1:ms}} in trace {{f7}}.",
+        "want": []
+      },
+      {
+        "text": "Peak p99 was 523.4 ms in trace 4BF92F3577B34DA6A3CE929D0E0E4736.",
+        "want": []
+      },
+      {
+        "text": "Peak p99 was 0.5 s in trace 4bf92f3577b34da6a3ce929d0e0e4736.",
+        "want": [
+          {
+            "kind": "fact",
+            "text": "answers: peak p99 = f1",
+            "fix": "the markdown never gives this answer: cite {{f1}} where it answers \"peak p99\""
+          }
+        ]
+      },
+      {
+        "text": "Peak p99 was high, as trace 4bf92f35 shows.",
+        "want": [
+          {
+            "kind": "fact",
+            "text": "answers: peak p99 = f1",
+            "fix": "the markdown never gives this answer: cite {{f1}} where it answers \"peak p99\""
+          },
+          {
+            "kind": "fact",
+            "text": "answers: example trace = f7",
+            "fix": "the markdown never gives this answer: cite {{f7}} where it answers \"example trace\""
+          }
+        ]
+      }
+    ],
+    "unstated_answers": [
+      {
+        "quantity": "peak p99",
+        "fact": "f1"
+      },
+      {
+        "quantity": "example trace",
+        "fact": "f7"
+      }
+    ],
+    "send_back": [
+      {
+        "quantity": "peak p99",
+        "fact": "f1"
+      },
+      {
+        "quantity": "peak p99",
+        "fact": "f2"
+      }
+    ],
+    "send_back_want": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- cited fact \"answers: peak p99 = f1 or f2\": one quantity takes one fact: make the read that settles which value is right and list only that fact"
+  },
+  "missing_answers": {
+    "question": "is checkout fine over the last 15 minutes",
+    "cases": [
+      {
+        "input": {
+          "markdown": "p99 was 523 ms."
+        },
+        "want": {
+          "kind": "answers",
+          "text": "p99 was 523 ms.",
+          "fix": "the markdown states a figure but answers is empty: list each quantity the question asks for in answers with the one fact that answers it"
+        }
+      },
+      {
+        "input": {
+          "markdown": "p99 was {{f3}}."
+        },
+        "want": {
+          "kind": "answers",
+          "text": "p99 was {{f3}}.",
+          "fix": "the markdown states a figure but answers is empty: list each quantity the question asks for in answers with the one fact that answers it"
+        }
+      },
+      {
+        "input": {
+          "markdown": "Fine.",
+          "impact": "2,950 orders failed"
+        },
+        "want": {
+          "kind": "answers",
+          "text": "Fine.",
+          "fix": "the markdown states a figure but answers is empty: list each quantity the question asks for in answers with the one fact that answers it"
+        }
+      },
+      {
+        "input": {
+          "markdown": "  Checkout p99 was 523 ms.\nSecond line"
+        },
+        "want": {
+          "kind": "answers",
+          "text": "Checkout p99 was 523 ms.",
+          "fix": "the markdown states a figure but answers is empty: list each quantity the question asks for in answers with the one fact that answers it"
+        }
+      },
+      {
+        "input": {
+          "markdown": "p99 was {{f3}}.",
+          "answers": [
+            {
+              "quantity": "p99",
+              "fact": "f3"
+            }
+          ]
+        },
+        "want": null
+      },
+      {
+        "input": {
+          "markdown": "Checkout is healthy."
+        },
+        "want": null
+      },
+      {
+        "input": {
+          "markdown": "The last 15 minutes look fine."
+        },
+        "want": null
+      },
+      {
+        "input": "not json",
+        "want": null
+      },
+      {
+        "input": {
+          "markdown": 5
+        },
+        "want": null
+      }
+    ]
+  }
+}

@@ -1,0 +1,2596 @@
+[
+  {
+    "name": "a run's reads of latency, counts, log lines and traces",
+    "steps": [
+      {
+        "read": {
+          "content": "{\"kind\":\"range\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"step_ms\":60000,\"series\":[{\"labels\":{\"service_name\":\"checkout\",\"http_status_code\":\"500\"},\"min\":0.00121,\"max\":0.52341,\"mean\":0.28712,\"last\":0.4912},{\"labels\":{\"service_name\":\"payment\"},\"min\":0.0103,\"max\":0.0874,\"last\":0.0632}]}",
+          "ranges": [
+            {
+              "from": "2026-11-20T09:00:00Z",
+              "to": "2026-11-20T11:00:00Z"
+            }
+          ]
+        }
+      },
+      {
+        "read": {
+          "content": "{\"series\":[{\"labels\":{\"service_name\":\"checkout\"},\"last\":1284},{\"labels\":{\"job\":\"frontend\"},\"last\":31200}]}",
+          "ranges": [
+            {
+              "from": "2026-11-20T09:00:00Z",
+              "to": "2026-11-20T11:00:00Z"
+            }
+          ]
+        }
+      },
+      {
+        "read": {
+          "content": "{\"table\":{\"columns\":[\"time\",\"line\"],\"rows\":[[\"2026-11-20T10:05:12Z\",\"payment request failed after 2.4s: upstream timeout\"],[\"2026-11-20T10:05:13Z\",\"cache miss {region=\\\"eu-west-1\\\"} retrying in 250ms\"]]}}"
+        }
+      },
+      {
+        "read": {
+          "content": "{\"count\":4512,\"p50_ms\":143.2,\"p99_ms\":812.4}",
+          "names": [
+            "frontend-proxy",
+            "flagd"
+          ]
+        }
+      }
+    ],
+    "reviews": [
+      {
+        "name": "a real finding passes on read, rounded and derived values",
+        "input": {
+          "title": "Checkout latency",
+          "markdown": "Checkout p99 latency rose to 523 ms at 10:05 UTC, up from 287 ms (+82%), a rise of 236 ms.\n\nAbout 4.1% of requests failed (1,284 of 31.2K), and payment calls timed out after 2.4 s, with retries every 0.25 s.\n\nTrace p99 was 812 ms and p50 143 ms over 4.5K traces, so the slow tail is 5.7x the median. 3 pods restarted.\n\nSee [the dashboard](/o/abc123) and `rate(http_requests_total[5m])`.",
+          "impact": "1,284 checkouts failed over 2 hours, about 4% of traffic.",
+          "root_cause": {
+            "component": "checkout service",
+            "kind": "dependency",
+            "summary": "s"
+          },
+          "onset": "2026-11-20T10:05:00Z"
+        },
+        "want": [],
+        "send_back": ""
+      },
+      {
+        "name": "figures, names and times the run never read are listed",
+        "input": {
+          "title": "Checkout latency",
+          "markdown": "Checkout p99 reached 9.3 s and 2,950 orders failed.",
+          "impact": "6,400 customers saw errors.",
+          "root_cause": {
+            "component": "cartservice",
+            "kind": "dependency",
+            "summary": "s"
+          },
+          "onset": "2026-11-19T22:00:00Z"
+        },
+        "want": [
+          {
+            "kind": "figure",
+            "text": "9.3 s",
+            "fix": "read it, correct it, or remove it"
+          },
+          {
+            "kind": "figure",
+            "text": "2,950",
+            "fix": "read it, correct it, or remove it"
+          },
+          {
+            "kind": "figure",
+            "text": "6,400",
+            "fix": "read it, correct it, or remove it"
+          },
+          {
+            "kind": "component",
+            "text": "cartservice",
+            "fix": "read it, correct it, or remove it"
+          },
+          {
+            "kind": "onset",
+            "text": "2026-11-19T22:00:00Z",
+            "fix": "read it, correct it, or remove it"
+          }
+        ],
+        "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- figure \"9.3 s\": read it, correct it, or remove it\n- figure \"2,950\": read it, correct it, or remove it\n- figure \"6,400\": read it, correct it, or remove it\n- component, not a name this run saw, \"cartservice\": read it, correct it, or remove it\n- onset, outside every time range this run queried, \"2026-11-19T22:00:00Z\": read it, correct it, or remove it"
+      },
+      {
+        "name": "a discovered component and an onset just before a range",
+        "input": {
+          "title": "Checkout latency",
+          "markdown": "Nothing numeric.",
+          "root_cause": {
+            "component": "flagd",
+            "kind": "config_or_flag",
+            "summary": "s"
+          },
+          "onset": "2026-11-20T08:59:30Z"
+        },
+        "want": [],
+        "send_back": ""
+      },
+      {
+        "name": "an onset outside the slack",
+        "input": {
+          "markdown": "Nothing numeric.",
+          "onset": "2026-11-20T08:58:30Z"
+        },
+        "want": [
+          {
+            "kind": "onset",
+            "text": "2026-11-20T08:58:30Z",
+            "fix": "read it, correct it, or remove it"
+          }
+        ],
+        "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- onset, outside every time range this run queried, \"2026-11-20T08:58:30Z\": read it, correct it, or remove it"
+      },
+      {
+        "name": "a field of the wrong type reviews nothing",
+        "input": {
+          "markdown": "Checkout p99 reached 9.3 s.",
+          "title": 7
+        },
+        "want": [],
+        "send_back": ""
+      }
+    ],
+    "record": {
+      "reads": [
+        [
+          500,
+          0.491,
+          0.523,
+          0.287,
+          0.00121,
+          0.0632,
+          0.0874,
+          0.0103,
+          60000
+        ],
+        [
+          1280,
+          31200
+        ],
+        [
+          2.4,
+          250
+        ],
+        [
+          4510,
+          143,
+          812
+        ]
+      ],
+      "names": [
+        "payment",
+        "checkout",
+        "frontend",
+        "eu-west-1"
+      ],
+      "discovered": [
+        "frontend-proxy",
+        "flagd"
+      ],
+      "sourced": [],
+      "ranges": [
+        {
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z"
+        }
+      ],
+      "instants": [
+        "2026-11-20T09:00:00Z",
+        "2026-11-20T11:00:00Z",
+        "2026-11-20T10:05:12Z",
+        "2026-11-20T10:05:13Z"
+      ],
+      "ids": [],
+      "facts": [],
+      "next_fact": 0
+    }
+  },
+  {
+    "name": "a percentage passes only as a ratio or change of read values",
+    "steps": [
+      {
+        "read": {
+          "content": "{\"errors\":1284,\"requests\":31200,\"before\":0.287,\"after\":0.523}"
+        }
+      }
+    ],
+    "reviews": [
+      {
+        "input": {
+          "markdown": "4.1% of requests failed"
+        },
+        "want": [],
+        "send_back": ""
+      },
+      {
+        "input": {
+          "markdown": "latency rose 82%"
+        },
+        "want": [],
+        "send_back": ""
+      },
+      {
+        "input": {
+          "markdown": "latency is 45% lower"
+        },
+        "want": [],
+        "send_back": ""
+      },
+      {
+        "input": {
+          "markdown": "7.5% of requests failed"
+        },
+        "want": [
+          {
+            "kind": "figure",
+            "text": "7.5%",
+            "fix": "read it, correct it, or remove it"
+          }
+        ],
+        "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- figure \"7.5%\": read it, correct it, or remove it"
+      },
+      {
+        "input": {
+          "markdown": "latency rose 140 percent"
+        },
+        "want": [
+          {
+            "kind": "figure",
+            "text": "140 percent",
+            "fix": "read it, correct it, or remove it"
+          }
+        ],
+        "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- figure \"140 percent\": read it, correct it, or remove it"
+      },
+      {
+        "input": {
+          "markdown": "the share is 0.041 of all"
+        },
+        "want": [],
+        "send_back": ""
+      }
+    ]
+  },
+  {
+    "name": "a tenth of the figure at most: 0.62 against 100%",
+    "steps": [
+      {
+        "read": {
+          "content": "{\"v\":0.62}"
+        }
+      }
+    ],
+    "reviews": [
+      {
+        "input": {
+          "markdown": "100% of requests"
+        },
+        "want": [
+          {
+            "kind": "figure",
+            "text": "100%",
+            "fix": "read it, correct it, or remove it"
+          }
+        ],
+        "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- figure \"100%\": read it, correct it, or remove it"
+      }
+    ]
+  },
+  {
+    "name": "a tenth of the figure at most: 500 against 1,000",
+    "steps": [
+      {
+        "read": {
+          "content": "{\"v\":500}"
+        }
+      }
+    ],
+    "reviews": [
+      {
+        "input": {
+          "markdown": "1,000 errors"
+        },
+        "want": [
+          {
+            "kind": "figure",
+            "text": "1,000",
+            "fix": "read it, correct it, or remove it"
+          }
+        ],
+        "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- figure \"1,000\": read it, correct it, or remove it"
+      }
+    ]
+  },
+  {
+    "name": "a tenth of the figure at most: 1000 against 1,000",
+    "steps": [
+      {
+        "read": {
+          "content": "{\"v\":1000}"
+        }
+      }
+    ],
+    "reviews": [
+      {
+        "input": {
+          "markdown": "1,000 errors"
+        },
+        "want": [],
+        "send_back": ""
+      }
+    ]
+  },
+  {
+    "name": "a tenth of the figure at most: 940 against 1,000",
+    "steps": [
+      {
+        "read": {
+          "content": "{\"v\":940}"
+        }
+      }
+    ],
+    "reviews": [
+      {
+        "input": {
+          "markdown": "1,000 errors"
+        },
+        "want": [],
+        "send_back": ""
+      }
+    ]
+  },
+  {
+    "name": "a percent is not the difference of 300 and 382",
+    "steps": [
+      {
+        "read": {
+          "content": "[300, 382]"
+        }
+      }
+    ],
+    "reviews": [
+      {
+        "input": {
+          "markdown": "orders rose 82%"
+        },
+        "want": [
+          {
+            "kind": "figure",
+            "text": "82%",
+            "fix": "read it, correct it, or remove it"
+          }
+        ],
+        "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- figure \"82%\": read it, correct it, or remove it"
+      },
+      {
+        "input": {
+          "markdown": "there were 82 more orders"
+        },
+        "want": [],
+        "send_back": ""
+      }
+    ]
+  },
+  {
+    "name": "a percent is not the sum of 30 and 52",
+    "steps": [
+      {
+        "read": {
+          "content": "[30, 52]"
+        }
+      }
+    ],
+    "reviews": [
+      {
+        "input": {
+          "markdown": "orders rose 82%"
+        },
+        "want": [
+          {
+            "kind": "figure",
+            "text": "82%",
+            "fix": "read it, correct it, or remove it"
+          }
+        ],
+        "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- figure \"82%\": read it, correct it, or remove it"
+      }
+    ]
+  },
+  {
+    "name": "a percent is the change from 100 to 182",
+    "steps": [
+      {
+        "read": {
+          "content": "[100, 182]"
+        }
+      }
+    ],
+    "reviews": [
+      {
+        "input": {
+          "markdown": "orders rose 82%"
+        },
+        "want": [],
+        "send_back": ""
+      }
+    ]
+  },
+  {
+    "name": "two percent is the difference of two fractions",
+    "steps": [
+      {
+        "read": {
+          "content": "[0.4, 0.42]"
+        }
+      }
+    ],
+    "reviews": [
+      {
+        "input": {
+          "markdown": "the share grew by 2 percent"
+        },
+        "want": [],
+        "send_back": ""
+      }
+    ]
+  },
+  {
+    "name": "derived figures come from one read",
+    "steps": [
+      {
+        "read": {
+          "content": "[300]"
+        }
+      },
+      {
+        "read": {
+          "content": "[382]"
+        }
+      }
+    ],
+    "reviews": [
+      {
+        "input": {
+          "markdown": "there were 82 more orders"
+        },
+        "want": [
+          {
+            "kind": "figure",
+            "text": "82",
+            "fix": "read it, correct it, or remove it"
+          }
+        ],
+        "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- figure \"82\": read it, correct it, or remove it"
+      }
+    ]
+  },
+  {
+    "name": "times and numeric keys are not values",
+    "steps": [
+      {
+        "read": {
+          "content": "{\"before\":[{\"time\":\"2026-11-20T10:05:12Z\",\"time_ns\":\"1763633112000000000\",\"body\":\"took 523ms\"}]}"
+        }
+      },
+      {
+        "read": {
+          "content": "{\"columns\":[{\"name\":\"Timestamp\",\"type\":\"time\"},{\"name\":\"p99\",\"type\":\"number\"}],\"rows\":[[1763633112000,4.5]],\"total_rows\":1}"
+        }
+      },
+      {
+        "read": {
+          "content": "{\"buckets\":{\"0.25\":12,\"0.5\":40}}"
+        }
+      },
+      {
+        "read": {
+          "content": "[\"NaN\", \"inf\", \"1_000\", \"0x1p4\", \"1e400\", \" 7.25 \", \"+3\", \".5\"]"
+        }
+      },
+      {
+        "read": {
+          "content": "{\"z\":3,\"a\":{\"service\":\"ad\",\"x\":2},\"é\":9,\"Z\":1} trailing"
+        }
+      },
+      {
+        "read": {
+          "content": "not json at all 4.5"
+        }
+      }
+    ],
+    "record": {
+      "reads": [
+        [
+          523
+        ],
+        [
+          4.5
+        ],
+        [
+          12,
+          40
+        ],
+        [
+          1000,
+          16,
+          7.25,
+          3,
+          0.5
+        ],
+        [
+          1,
+          2,
+          3,
+          9
+        ]
+      ],
+      "names": [
+        "ad"
+      ],
+      "discovered": [],
+      "sourced": [],
+      "ranges": [],
+      "instants": [
+        "2026-11-20T10:05:12Z"
+      ],
+      "ids": [],
+      "facts": [],
+      "next_fact": 0
+    }
+  },
+  {
+    "name": "an onset passes on a time a result showed",
+    "steps": [
+      {
+        "read": {
+          "content": "{\"anchor\":\"x\",\"before\":[{\"time\":\"2026-11-20T10:05:12Z\",\"body\":\"timeout\"}]}"
+        }
+      }
+    ],
+    "reviews": [
+      {
+        "input": {
+          "markdown": "Nothing numeric.",
+          "onset": "2026-11-20T10:05:00Z"
+        },
+        "want": [],
+        "send_back": ""
+      },
+      {
+        "input": {
+          "markdown": "Nothing numeric.",
+          "onset": "2026-11-20T12:00:00Z"
+        },
+        "want": [
+          {
+            "kind": "onset",
+            "text": "2026-11-20T12:00:00Z",
+            "fix": "read it, correct it, or remove it"
+          }
+        ],
+        "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- onset, outside every time range this run queried, \"2026-11-20T12:00:00Z\": read it, correct it, or remove it"
+      },
+      {
+        "input": {
+          "markdown": "Nothing numeric.",
+          "onset": "2026-11-20T11:06:11+01:00"
+        },
+        "want": [],
+        "send_back": ""
+      }
+    ],
+    "record": {
+      "reads": [],
+      "names": [],
+      "discovered": [],
+      "sourced": [],
+      "ranges": [],
+      "instants": [
+        "2026-11-20T10:05:12Z"
+      ],
+      "ids": [],
+      "facts": [],
+      "next_fact": 0
+    }
+  },
+  {
+    "name": "only label values, services and discovery are names",
+    "steps": [
+      {
+        "read": {
+          "content": "{\"resultType\":\"range\",\"status\":\"error\",\"note\":\"service\",\"series\":[{\"labels\":{\"service_name\":\"payment\",\"pod\":\"checkout-7f9c\"},\"last\":3}],\"services\":[{\"name\":\"cart\",\"spans\":4}],\"slowest\":[{\"name\":\"GET /api\",\"service\":\"ad\"}]}"
+        }
+      },
+      {
+        "read": {
+          "content": "",
+          "names": [
+            "frontend-proxy"
+          ]
+        }
+      },
+      {
+        "read": {
+          "content": "{\"line\":\"retry {pod=\\\"cart-1\\\", ns = \\\"shop\\\"} 7 times\",\"attributes\":{\"k8s.node\":\"node-a\",\"count\":\"12\"}}"
+        }
+      }
+    ],
+    "reviews": [
+      {
+        "input": {
+          "markdown": "Nothing numeric.",
+          "root_cause": {
+            "component": "payment-error-handler",
+            "kind": "dependency",
+            "summary": "s"
+          }
+        },
+        "want": [
+          {
+            "kind": "component",
+            "text": "payment-error-handler",
+            "fix": "read it, correct it, or remove it"
+          }
+        ],
+        "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- component, not a name this run saw, \"payment-error-handler\": read it, correct it, or remove it"
+      },
+      {
+        "input": {
+          "markdown": "Nothing numeric.",
+          "root_cause": {
+            "component": "payment service",
+            "kind": "dependency",
+            "summary": "s"
+          }
+        },
+        "want": [],
+        "send_back": ""
+      },
+      {
+        "input": {
+          "markdown": "Nothing numeric.",
+          "root_cause": {
+            "component": "checkout",
+            "kind": "dependency",
+            "summary": "s"
+          }
+        },
+        "want": [],
+        "send_back": ""
+      },
+      {
+        "input": {
+          "markdown": "Nothing numeric.",
+          "root_cause": {
+            "component": "frontend proxy",
+            "kind": "dependency",
+            "summary": "s"
+          }
+        },
+        "want": [],
+        "send_back": ""
+      },
+      {
+        "input": {
+          "markdown": "Nothing numeric.",
+          "root_cause": {
+            "component": "pay",
+            "kind": "dependency",
+            "summary": "s"
+          }
+        },
+        "want": [
+          {
+            "kind": "component",
+            "text": "pay",
+            "fix": "read it, correct it, or remove it"
+          }
+        ],
+        "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- component, not a name this run saw, \"pay\": read it, correct it, or remove it"
+      },
+      {
+        "input": {
+          "markdown": "Nothing numeric.",
+          "root_cause": {
+            "component": "cartservice",
+            "kind": "dependency",
+            "summary": "s"
+          }
+        },
+        "want": [
+          {
+            "kind": "component",
+            "text": "cartservice",
+            "fix": "read it, correct it, or remove it"
+          }
+        ],
+        "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- component, not a name this run saw, \"cartservice\": read it, correct it, or remove it"
+      },
+      {
+        "input": {
+          "markdown": "Nothing numeric.",
+          "root_cause": {
+            "component": "the service",
+            "kind": "dependency",
+            "summary": "s"
+          }
+        },
+        "want": [
+          {
+            "kind": "component",
+            "text": "the service",
+            "fix": "read it, correct it, or remove it"
+          }
+        ],
+        "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- component, not a name this run saw, \"the service\": read it, correct it, or remove it"
+      }
+    ],
+    "record": {
+      "reads": [
+        [
+          3,
+          4
+        ],
+        [
+          12,
+          7
+        ]
+      ],
+      "names": [
+        "checkout-7f9c",
+        "payment",
+        "cart",
+        "ad",
+        "node-a",
+        "cart-1",
+        "shop"
+      ],
+      "discovered": [
+        "frontend-proxy"
+      ],
+      "sourced": [],
+      "ranges": [],
+      "instants": [],
+      "ids": [],
+      "facts": [],
+      "next_fact": 0
+    }
+  },
+  {
+    "name": "a measurement gets a fact per value with its window, labels and query",
+    "steps": [
+      {
+        "issue": {
+          "tool": "measure_window",
+          "input": "",
+          "content": "{\"stat\":\"max\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"sampled\":\"30s\",\"query\":\"max_over_time(x[2h:30s])\",\"empty\":false,\"values\":[{\"labels\":{\"service\":\"checkout\"},\"value\":0.5234123,\"at\":\"2026-11-20T10:05:00Z\"}]}",
+          "want": "{\"stat\":\"max\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"sampled\":\"30s\",\"query\":\"max_over_time(x[2h:30s])\",\"empty\":false,\"values\":[{\"labels\":{\"service\":\"checkout\"},\"value\":0.5234123,\"at\":\"2026-11-20T10:05:00Z\",\"facts\":{\"value\":\"f1\"}}]}"
+        }
+      }
+    ],
+    "record": {
+      "reads": [],
+      "names": [],
+      "discovered": [],
+      "sourced": [],
+      "ranges": [],
+      "instants": [],
+      "ids": [],
+      "facts": [
+        {
+          "id": "f1",
+          "text": "0.5234123",
+          "value": 0.5234123,
+          "kind": "number",
+          "of": "measure_window max values[] value",
+          "labels": {
+            "service": "checkout"
+          },
+          "at": "2026-11-20T10:05:00Z",
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z",
+          "query": "max_over_time(x[2h:30s])"
+        }
+      ],
+      "next_fact": 1
+    }
+  },
+  {
+    "name": "the same value read again keeps its fact id",
+    "steps": [
+      {
+        "issue": {
+          "tool": "measure_aggregate",
+          "input": "",
+          "content": "{\"op\":\"total\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"query\":\"sum(increase(x[2h]))\",\"values\":[{\"value\":1284}]}",
+          "want": "{\"op\":\"total\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"query\":\"sum(increase(x[2h]))\",\"values\":[{\"value\":1284,\"facts\":{\"value\":\"f1\"}}]}"
+        }
+      },
+      {
+        "issue": {
+          "tool": "measure_aggregate",
+          "input": "",
+          "content": "{\"op\":\"total\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"query\":\"sum(increase(x[2h]))\",\"values\":[{\"value\":1284}]}",
+          "want": "{\"op\":\"total\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"query\":\"sum(increase(x[2h]))\",\"values\":[{\"value\":1284,\"facts\":{\"value\":\"f1\"}}]}"
+        }
+      },
+      {
+        "issue": {
+          "tool": "measure_aggregate",
+          "input": "",
+          "content": "{\"op\":\"total\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"query\":\"sum(increase(x[2h]))\",\"values\":[{\"value\":1290}]}",
+          "want": "{\"op\":\"total\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"query\":\"sum(increase(x[2h]))\",\"values\":[{\"value\":1290,\"facts\":{\"value\":\"f2\"}}]}"
+        }
+      },
+      {
+        "issue": {
+          "tool": "measure_aggregate",
+          "input": "{\"query\":\"errors\"}",
+          "content": "{\"op\":\"ratio\",\"numerator_query\":\"sum(errors)\",\"denominator_query\":\"sum(requests)\",\"values\":[{\"value\":0.04,\"numerator\":12,\"denominator\":300}]}",
+          "ranges": [
+            {
+              "from": "2026-11-20T09:00:00.5Z",
+              "to": "2026-11-20T11:00:00Z"
+            }
+          ],
+          "want": "{\"op\":\"ratio\",\"numerator_query\":\"sum(errors)\",\"denominator_query\":\"sum(requests)\",\"values\":[{\"value\":0.04,\"numerator\":12,\"denominator\":300,\"facts\":{\"value\":\"f3\",\"numerator\":\"f4\",\"denominator\":\"f5\"}}]}"
+        }
+      }
+    ],
+    "record": {
+      "reads": [],
+      "names": [],
+      "discovered": [],
+      "sourced": [],
+      "ranges": [],
+      "instants": [],
+      "ids": [],
+      "facts": [
+        {
+          "id": "f1",
+          "text": "1284",
+          "value": 1284,
+          "kind": "number",
+          "of": "measure_aggregate total values[] value",
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z",
+          "query": "sum(increase(x[2h]))"
+        },
+        {
+          "id": "f2",
+          "text": "1290",
+          "value": 1290,
+          "kind": "number",
+          "of": "measure_aggregate total values[] value",
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z",
+          "query": "sum(increase(x[2h]))"
+        },
+        {
+          "id": "f3",
+          "text": "0.04",
+          "value": 0.04,
+          "kind": "number",
+          "of": "measure_aggregate ratio values[] value",
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z",
+          "query": "errors",
+          "asked": "errors"
+        },
+        {
+          "id": "f4",
+          "text": "12",
+          "value": 12,
+          "kind": "number",
+          "of": "measure_aggregate ratio values[] numerator",
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z",
+          "query": "sum(errors)",
+          "asked": "errors"
+        },
+        {
+          "id": "f5",
+          "text": "300",
+          "value": 300,
+          "kind": "number",
+          "of": "measure_aggregate ratio values[] denominator",
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z",
+          "query": "sum(requests)",
+          "asked": "errors"
+        }
+      ],
+      "next_fact": 5
+    }
+  },
+  {
+    "name": "trace tools give counts, durations and full trace ids",
+    "steps": [
+      {
+        "issue": {
+          "tool": "trace_slow_path",
+          "input": "{}",
+          "content": "{\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"threshold\":\"route p50\",\"listed_traces\":40,\"complete\":true,\"sample\":false,\"routes\":[{\"route\":\"GET /cart\",\"threshold_ms\":120,\"slow_traces\":7,\"examined\":40,\"top_self_time\":[{\"service\":\"cart\",\"operation\":\"redis GET\",\"self_time_ms\":812.4,\"share\":0.61,\"traces\":7}],\"services\":[{\"service\":\"cart\",\"traces\":7}],\"example\":{\"trace_id\":\"4BF92F3577B34DA6A3CE929D0E0E4736\",\"duration_ms\":1312.75}}],\"note\":\"\"}",
+          "want": "{\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"threshold\":\"route p50\",\"listed_traces\":40,\"complete\":true,\"sample\":false,\"routes\":[{\"route\":\"GET /cart\",\"threshold_ms\":120,\"slow_traces\":7,\"examined\":40,\"top_self_time\":[{\"service\":\"cart\",\"operation\":\"redis GET\",\"self_time_ms\":812.4,\"share\":0.61,\"traces\":7,\"facts\":{\"self_time_ms\":\"f5\",\"share\":\"f6\",\"traces\":\"f7\"}}],\"services\":[{\"service\":\"cart\",\"traces\":7,\"facts\":{\"traces\":\"f8\"}}],\"example\":{\"trace_id\":\"4BF92F3577B34DA6A3CE929D0E0E4736\",\"duration_ms\":1312.75,\"facts\":{\"trace_id\":\"f9\",\"duration_ms\":\"f10\"}},\"facts\":{\"threshold_ms\":\"f2\",\"slow_traces\":\"f3\",\"examined\":\"f4\"}}],\"note\":\"\",\"facts\":{\"listed_traces\":\"f1\"}}"
+        }
+      },
+      {
+        "issue": {
+          "tool": "trace_error_origins",
+          "input": "{}",
+          "content": "{\"failing_traces\":40,\"examined\":200,\"unattributed\":0,\"routes\":[{\"route\":\"POST /pay\",\"failing_traces\":40,\"examined\":200}],\"groups\":[{\"service\":\"cart\",\"operation\":\"charge\",\"status_message\":\"<timeout> & retry\",\"traces\":38,\"share\":0.95,\"example_trace_id\":\"00f067aa0ba902b7\",\"relayed_by\":[{\"service\":\"checkout\",\"traces\":30}]}]}",
+          "want": "{\"failing_traces\":40,\"examined\":200,\"unattributed\":0,\"routes\":[{\"route\":\"POST /pay\",\"failing_traces\":40,\"examined\":200,\"facts\":{\"failing_traces\":\"f14\",\"examined\":\"f15\"}}],\"groups\":[{\"service\":\"cart\",\"operation\":\"charge\",\"status_message\":\"\\u003ctimeout\\u003e \\u0026 retry\",\"traces\":38,\"share\":0.95,\"example_trace_id\":\"00f067aa0ba902b7\",\"relayed_by\":[{\"service\":\"checkout\",\"traces\":30,\"facts\":{\"traces\":\"f19\"}}],\"facts\":{\"traces\":\"f16\",\"share\":\"f17\",\"example_trace_id\":\"f18\"}}],\"facts\":{\"failing_traces\":\"f11\",\"examined\":\"f12\",\"unattributed\":\"f13\"}}"
+        }
+      },
+      {
+        "issue": {
+          "tool": "get_trace",
+          "input": "{}",
+          "content": "{\"trace_id\":\"4bf92f3577b34da6a3ce929d0e0e4736\",\"spans\":12,\"duration_ms\":1290,\"services\":[{\"name\":\"cart\",\"spans\":4,\"errors\":1}],\"slowest\":[{\"name\":\"GET\",\"service\":\"cart\",\"duration_ms\":900.5,\"self_time_ms\":12}]}",
+          "want": "{\"trace_id\":\"4bf92f3577b34da6a3ce929d0e0e4736\",\"spans\":12,\"duration_ms\":1290,\"services\":[{\"name\":\"cart\",\"spans\":4,\"errors\":1,\"facts\":{\"spans\":\"f23\",\"errors\":\"f24\"}}],\"slowest\":[{\"name\":\"GET\",\"service\":\"cart\",\"duration_ms\":900.5,\"self_time_ms\":12,\"facts\":{\"duration_ms\":\"f25\",\"self_time_ms\":\"f26\"}}],\"facts\":{\"trace_id\":\"f20\",\"spans\":\"f21\",\"duration_ms\":\"f22\"}}"
+        }
+      }
+    ],
+    "record": {
+      "reads": [],
+      "names": [],
+      "discovered": [],
+      "sourced": [],
+      "ranges": [],
+      "instants": [],
+      "ids": [],
+      "facts": [
+        {
+          "id": "f1",
+          "text": "40",
+          "value": 40,
+          "kind": "count",
+          "of": "trace_slow_path listed_traces",
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z"
+        },
+        {
+          "id": "f2",
+          "text": "120",
+          "value": 120,
+          "kind": "duration",
+          "unit": "ms",
+          "of": "trace_slow_path routes[] threshold_ms",
+          "labels": {
+            "route": "GET /cart"
+          },
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z"
+        },
+        {
+          "id": "f3",
+          "text": "7",
+          "value": 7,
+          "kind": "count",
+          "of": "trace_slow_path routes[] slow_traces",
+          "labels": {
+            "route": "GET /cart"
+          },
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z"
+        },
+        {
+          "id": "f4",
+          "text": "40",
+          "value": 40,
+          "kind": "count",
+          "of": "trace_slow_path routes[] examined",
+          "labels": {
+            "route": "GET /cart"
+          },
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z"
+        },
+        {
+          "id": "f5",
+          "text": "812.4",
+          "value": 812.4,
+          "kind": "duration",
+          "unit": "ms",
+          "of": "trace_slow_path routes[].top_self_time[] self_time_ms",
+          "labels": {
+            "operation": "redis GET",
+            "route": "GET /cart",
+            "service": "cart"
+          },
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z"
+        },
+        {
+          "id": "f6",
+          "text": "0.61",
+          "value": 0.61,
+          "kind": "ratio",
+          "of": "trace_slow_path routes[].top_self_time[] share",
+          "labels": {
+            "operation": "redis GET",
+            "route": "GET /cart",
+            "service": "cart"
+          },
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z"
+        },
+        {
+          "id": "f7",
+          "text": "7",
+          "value": 7,
+          "kind": "count",
+          "of": "trace_slow_path routes[].top_self_time[] traces",
+          "labels": {
+            "operation": "redis GET",
+            "route": "GET /cart",
+            "service": "cart"
+          },
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z"
+        },
+        {
+          "id": "f8",
+          "text": "7",
+          "value": 7,
+          "kind": "count",
+          "of": "trace_slow_path routes[].services[] traces",
+          "labels": {
+            "route": "GET /cart",
+            "service": "cart"
+          },
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z"
+        },
+        {
+          "id": "f9",
+          "text": "4bf92f3577b34da6a3ce929d0e0e4736",
+          "kind": "trace_id",
+          "of": "trace_slow_path routes[].example trace_id",
+          "labels": {
+            "route": "GET /cart"
+          },
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z"
+        },
+        {
+          "id": "f10",
+          "text": "1312.75",
+          "value": 1312.75,
+          "kind": "duration",
+          "unit": "ms",
+          "of": "trace_slow_path routes[].example duration_ms",
+          "labels": {
+            "route": "GET /cart",
+            "trace_id": "4BF92F3577B34DA6A3CE929D0E0E4736"
+          },
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z"
+        },
+        {
+          "id": "f11",
+          "text": "40",
+          "value": 40,
+          "kind": "count",
+          "of": "trace_error_origins failing_traces"
+        },
+        {
+          "id": "f12",
+          "text": "200",
+          "value": 200,
+          "kind": "count",
+          "of": "trace_error_origins examined"
+        },
+        {
+          "id": "f13",
+          "text": "0",
+          "kind": "count",
+          "of": "trace_error_origins unattributed"
+        },
+        {
+          "id": "f14",
+          "text": "40",
+          "value": 40,
+          "kind": "count",
+          "of": "trace_error_origins routes[] failing_traces",
+          "labels": {
+            "route": "POST /pay"
+          }
+        },
+        {
+          "id": "f15",
+          "text": "200",
+          "value": 200,
+          "kind": "count",
+          "of": "trace_error_origins routes[] examined",
+          "labels": {
+            "route": "POST /pay"
+          }
+        },
+        {
+          "id": "f16",
+          "text": "38",
+          "value": 38,
+          "kind": "count",
+          "of": "trace_error_origins groups[] traces",
+          "labels": {
+            "operation": "charge",
+            "service": "cart",
+            "status_message": "\u003ctimeout\u003e \u0026 retry"
+          }
+        },
+        {
+          "id": "f17",
+          "text": "0.95",
+          "value": 0.95,
+          "kind": "ratio",
+          "of": "trace_error_origins groups[] share",
+          "labels": {
+            "operation": "charge",
+            "service": "cart",
+            "status_message": "\u003ctimeout\u003e \u0026 retry"
+          }
+        },
+        {
+          "id": "f18",
+          "text": "00f067aa0ba902b7",
+          "kind": "trace_id",
+          "of": "trace_error_origins groups[] example_trace_id",
+          "labels": {
+            "operation": "charge",
+            "service": "cart",
+            "status_message": "\u003ctimeout\u003e \u0026 retry"
+          }
+        },
+        {
+          "id": "f19",
+          "text": "30",
+          "value": 30,
+          "kind": "count",
+          "of": "trace_error_origins groups[].relayed_by[] traces",
+          "labels": {
+            "operation": "charge",
+            "service": "checkout",
+            "status_message": "\u003ctimeout\u003e \u0026 retry"
+          }
+        },
+        {
+          "id": "f20",
+          "text": "4bf92f3577b34da6a3ce929d0e0e4736",
+          "kind": "trace_id",
+          "of": "get_trace trace_id"
+        },
+        {
+          "id": "f21",
+          "text": "12",
+          "value": 12,
+          "kind": "count",
+          "of": "get_trace spans",
+          "labels": {
+            "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+          }
+        },
+        {
+          "id": "f22",
+          "text": "1290",
+          "value": 1290,
+          "kind": "duration",
+          "unit": "ms",
+          "of": "get_trace duration_ms",
+          "labels": {
+            "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+          }
+        },
+        {
+          "id": "f23",
+          "text": "4",
+          "value": 4,
+          "kind": "count",
+          "of": "get_trace services[] spans",
+          "labels": {
+            "name": "cart",
+            "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+          }
+        },
+        {
+          "id": "f24",
+          "text": "1",
+          "value": 1,
+          "kind": "count",
+          "of": "get_trace services[] errors",
+          "labels": {
+            "name": "cart",
+            "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+          }
+        },
+        {
+          "id": "f25",
+          "text": "900.5",
+          "value": 900.5,
+          "kind": "duration",
+          "unit": "ms",
+          "of": "get_trace slowest[] duration_ms",
+          "labels": {
+            "name": "GET",
+            "service": "cart",
+            "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+          }
+        },
+        {
+          "id": "f26",
+          "text": "12",
+          "value": 12,
+          "kind": "duration",
+          "unit": "ms",
+          "of": "get_trace slowest[] self_time_ms",
+          "labels": {
+            "name": "GET",
+            "service": "cart",
+            "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+          }
+        }
+      ],
+      "next_fact": 26
+    }
+  },
+  {
+    "name": "a group value becomes a label under the group key",
+    "steps": [
+      {
+        "issue": {
+          "tool": "trace_stats",
+          "input": "{\"query\":\"{status=error}\"}",
+          "content": "{\"step_ms\":60000,\"spans\":10,\"errors\":2,\"buckets\":[{\"start\":\"x\",\"spans\":4,\"p99_ms\":3}],\"group_by\":\"service.name\",\"groups\":[{\"value\":\"cart\",\"spans\":10,\"errors\":2,\"p50_ms\":1.5,\"p95_ms\":null,\"p99_ms\":9.25}],\"window\":{\"p50_ms\":1,\"p95_ms\":2.50,\"p99_ms\":1e2}}",
+          "want": "{\"step_ms\":60000,\"spans\":10,\"errors\":2,\"buckets\":[{\"start\":\"x\",\"spans\":4,\"p99_ms\":3}],\"group_by\":\"service.name\",\"groups\":[{\"value\":\"cart\",\"spans\":10,\"errors\":2,\"p50_ms\":1.5,\"p95_ms\":null,\"p99_ms\":9.25,\"facts\":{\"spans\":\"f3\",\"errors\":\"f4\",\"p50_ms\":\"f5\",\"p99_ms\":\"f6\"}}],\"window\":{\"p50_ms\":1,\"p95_ms\":2.50,\"p99_ms\":1e2,\"facts\":{\"p50_ms\":\"f7\",\"p95_ms\":\"f8\",\"p99_ms\":\"f9\"}},\"facts\":{\"spans\":\"f1\",\"errors\":\"f2\"}}"
+        }
+      }
+    ],
+    "record": {
+      "reads": [],
+      "names": [],
+      "discovered": [],
+      "sourced": [],
+      "ranges": [],
+      "instants": [],
+      "ids": [],
+      "facts": [
+        {
+          "id": "f1",
+          "text": "10",
+          "value": 10,
+          "kind": "count",
+          "of": "trace_stats spans",
+          "query": "{status=error}",
+          "asked": "{status=error}"
+        },
+        {
+          "id": "f2",
+          "text": "2",
+          "value": 2,
+          "kind": "count",
+          "of": "trace_stats errors",
+          "query": "{status=error}",
+          "asked": "{status=error}"
+        },
+        {
+          "id": "f3",
+          "text": "10",
+          "value": 10,
+          "kind": "count",
+          "of": "trace_stats groups[] spans",
+          "labels": {
+            "service.name": "cart"
+          },
+          "query": "{status=error}",
+          "asked": "{status=error}"
+        },
+        {
+          "id": "f4",
+          "text": "2",
+          "value": 2,
+          "kind": "count",
+          "of": "trace_stats groups[] errors",
+          "labels": {
+            "service.name": "cart"
+          },
+          "query": "{status=error}",
+          "asked": "{status=error}"
+        },
+        {
+          "id": "f5",
+          "text": "1.5",
+          "value": 1.5,
+          "kind": "duration",
+          "unit": "ms",
+          "of": "trace_stats groups[] p50_ms",
+          "labels": {
+            "service.name": "cart"
+          },
+          "query": "{status=error}",
+          "asked": "{status=error}"
+        },
+        {
+          "id": "f6",
+          "text": "9.25",
+          "value": 9.25,
+          "kind": "duration",
+          "unit": "ms",
+          "of": "trace_stats groups[] p99_ms",
+          "labels": {
+            "service.name": "cart"
+          },
+          "query": "{status=error}",
+          "asked": "{status=error}"
+        },
+        {
+          "id": "f7",
+          "text": "1",
+          "value": 1,
+          "kind": "duration",
+          "unit": "ms",
+          "of": "trace_stats window p50_ms",
+          "query": "{status=error}",
+          "asked": "{status=error}"
+        },
+        {
+          "id": "f8",
+          "text": "2.50",
+          "value": 2.5,
+          "kind": "duration",
+          "unit": "ms",
+          "of": "trace_stats window p95_ms",
+          "query": "{status=error}",
+          "asked": "{status=error}"
+        },
+        {
+          "id": "f9",
+          "text": "1e2",
+          "value": 100,
+          "kind": "duration",
+          "unit": "ms",
+          "of": "trace_stats window p99_ms",
+          "query": "{status=error}",
+          "asked": "{status=error}"
+        }
+      ],
+      "next_fact": 9
+    }
+  },
+  {
+    "name": "query_range series give their extremes and the executed query",
+    "steps": [
+      {
+        "issue": {
+          "tool": "query_range",
+          "input": "{\"query\":\"rate(x[5m])\"}",
+          "content": "{\"kind\":\"range\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"executed\":[{\"ref\":\"A\",\"text\":\"rate(x{job=\\\"a\\\"}[5m])\"}],\"series\":[{\"name\":\"x\",\"labels\":{\"job\":\"a\"},\"points\":5,\"non_null\":5,\"min\":1,\"max\":4.5,\"last\":2}]}",
+          "want": "{\"kind\":\"range\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"executed\":[{\"ref\":\"A\",\"text\":\"rate(x{job=\\\"a\\\"}[5m])\"}],\"series\":[{\"name\":\"x\",\"labels\":{\"job\":\"a\"},\"points\":5,\"non_null\":5,\"min\":1,\"max\":4.5,\"last\":2,\"facts\":{\"min\":\"f1\",\"max\":\"f2\",\"last\":\"f3\"}}]}"
+        }
+      },
+      {
+        "issue": {
+          "tool": "query_instant",
+          "input": "{\"query\":\"up\"}",
+          "content": "{\"series\":[{\"labels\":{\"job\":\"a\",\"long\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"last\":0},{\"labels\":{},\"last\":\"7\"}],\"facts\":{\"x\":\"f9\"}}",
+          "want": "{\"series\":[{\"labels\":{\"job\":\"a\",\"long\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"last\":0,\"facts\":{\"last\":\"f4\"}},{\"labels\":{},\"last\":\"7\"}],\"facts\":{\"x\":\"f9\"}}"
+        }
+      }
+    ],
+    "record": {
+      "reads": [],
+      "names": [],
+      "discovered": [],
+      "sourced": [],
+      "ranges": [],
+      "instants": [],
+      "ids": [],
+      "facts": [
+        {
+          "id": "f1",
+          "text": "1",
+          "value": 1,
+          "kind": "number",
+          "of": "query_range series[] min",
+          "labels": {
+            "job": "a",
+            "name": "x"
+          },
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z",
+          "query": "rate(x{job=\"a\"}[5m])",
+          "asked": "rate(x[5m])"
+        },
+        {
+          "id": "f2",
+          "text": "4.5",
+          "value": 4.5,
+          "kind": "number",
+          "of": "query_range series[] max",
+          "labels": {
+            "job": "a",
+            "name": "x"
+          },
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z",
+          "query": "rate(x{job=\"a\"}[5m])",
+          "asked": "rate(x[5m])"
+        },
+        {
+          "id": "f3",
+          "text": "2",
+          "value": 2,
+          "kind": "number",
+          "of": "query_range series[] last",
+          "labels": {
+            "job": "a",
+            "name": "x"
+          },
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z",
+          "query": "rate(x{job=\"a\"}[5m])",
+          "asked": "rate(x[5m])"
+        },
+        {
+          "id": "f4",
+          "text": "0",
+          "kind": "number",
+          "of": "query_instant series[] last",
+          "labels": {
+            "job": "a"
+          },
+          "query": "up",
+          "asked": "up"
+        }
+      ],
+      "next_fact": 4
+    }
+  },
+  {
+    "name": "other tools and errors are left alone",
+    "steps": [
+      {
+        "issue": {
+          "tool": "list_metrics",
+          "input": "",
+          "content": "{\"metrics\":[\"x\"],\"total\":640}",
+          "want": "{\"metrics\":[\"x\"],\"total\":640}"
+        }
+      },
+      {
+        "issue": {
+          "tool": "measure_window",
+          "input": "",
+          "content": "not json",
+          "want": "not json"
+        }
+      },
+      {
+        "issue": {
+          "tool": "query_range",
+          "input": "",
+          "content": "{\"empty\":true}",
+          "want": "{\"empty\":true}"
+        }
+      },
+      {
+        "issue": {
+          "tool": "query_range",
+          "input": "",
+          "content": "[{\"min\":1}]",
+          "want": "[{\"min\":1}]"
+        }
+      }
+    ],
+    "record": {
+      "reads": [],
+      "names": [],
+      "discovered": [],
+      "sourced": [],
+      "ranges": [],
+      "instants": [],
+      "ids": [],
+      "facts": [],
+      "next_fact": 0
+    }
+  },
+  {
+    "name": "every read records the trace and span ids it showed",
+    "steps": [
+      {
+        "read": {
+          "content": "{\"rows\":[[\"4bf92f3577b34da6a3ce929d0e0e4736\",\"00f067aa0ba902b7\",\"not-an-id\",\"4BF92F3577B34DA6A3CE929D0E0E4736\"]]}"
+        }
+      }
+    ],
+    "record": {
+      "reads": [],
+      "names": [],
+      "discovered": [],
+      "sourced": [],
+      "ranges": [],
+      "instants": [],
+      "ids": [
+        "4bf92f3577b34da6a3ce929d0e0e4736",
+        "00f067aa0ba902b7"
+      ],
+      "facts": [],
+      "next_fact": 0
+    }
+  },
+  {
+    "name": "log facets give a count per value, sampled when the field is not exact",
+    "steps": [
+      {
+        "issue": {
+          "tool": "log_facets",
+          "input": "{\"query\":\"{service_name=~\\\".+\\\"}\"}",
+          "content": "{\"sampled\":true,\"lines_sampled\":2000,\"fields\":[{\"name\":\"service_name\",\"kind\":\"label\",\"exact\":true,\"unit\":\"bytes\",\"cardinality\":2,\"values\":[{\"value\":\"cart\",\"count\":524288},{\"value\":\"ad\",\"count\":1024}],\"truncated\":false},{\"name\":\"level\",\"kind\":\"field\",\"exact\":false,\"cardinality\":2,\"values\":[{\"value\":\"error\",\"count\":37}],\"truncated\":false},{\"name\":\"status\",\"kind\":\"column\",\"exact\":true,\"values\":[{\"value\":\"503\",\"count\":412}],\"truncated\":false},{\"name\":\"odd\",\"exact\":\"true\",\"values\":[{\"value\":\"x\",\"count\":3}]}],\"truncated\":false}",
+          "want": "{\"sampled\":true,\"lines_sampled\":2000,\"fields\":[{\"name\":\"service_name\",\"kind\":\"label\",\"exact\":true,\"unit\":\"bytes\",\"cardinality\":2,\"values\":[{\"value\":\"cart\",\"count\":524288,\"facts\":{\"count\":\"f2\"}},{\"value\":\"ad\",\"count\":1024,\"facts\":{\"count\":\"f3\"}}],\"truncated\":false},{\"name\":\"level\",\"kind\":\"field\",\"exact\":false,\"cardinality\":2,\"values\":[{\"value\":\"error\",\"count\":37,\"facts\":{\"count\":\"f4\"}}],\"truncated\":false},{\"name\":\"status\",\"kind\":\"column\",\"exact\":true,\"values\":[{\"value\":\"503\",\"count\":412,\"facts\":{\"count\":\"f5\"}}],\"truncated\":false},{\"name\":\"odd\",\"exact\":\"true\",\"values\":[{\"value\":\"x\",\"count\":3,\"facts\":{\"count\":\"f6\"}}]}],\"truncated\":false,\"facts\":{\"lines_sampled\":\"f1\"}}"
+        }
+      }
+    ],
+    "renders": [
+      {
+        "text": "Cart logged {{f5}} errors, {{f3}} in bytes.",
+        "want": {
+          "text": "Cart logged 412 errors, 1024 bytes in bytes.",
+          "problems": []
+        }
+      }
+    ],
+    "record": {
+      "reads": [],
+      "names": [],
+      "discovered": [],
+      "sourced": [],
+      "ranges": [],
+      "instants": [],
+      "ids": [],
+      "facts": [
+        {
+          "id": "f1",
+          "text": "2000",
+          "value": 2000,
+          "kind": "count",
+          "of": "log_facets lines_sampled",
+          "query": "{service_name=~\".+\"}",
+          "asked": "{service_name=~\".+\"}"
+        },
+        {
+          "id": "f2",
+          "text": "524288",
+          "value": 524288,
+          "kind": "count",
+          "unit": "bytes",
+          "of": "log_facets fields[].values[] count",
+          "labels": {
+            "name": "service_name",
+            "value": "cart"
+          },
+          "query": "{service_name=~\".+\"}",
+          "asked": "{service_name=~\".+\"}"
+        },
+        {
+          "id": "f3",
+          "text": "1024",
+          "value": 1024,
+          "kind": "count",
+          "unit": "bytes",
+          "of": "log_facets fields[].values[] count",
+          "labels": {
+            "name": "service_name",
+            "value": "ad"
+          },
+          "query": "{service_name=~\".+\"}",
+          "asked": "{service_name=~\".+\"}"
+        },
+        {
+          "id": "f4",
+          "text": "37",
+          "value": 37,
+          "kind": "count",
+          "of": "log_facets fields[].values[] count",
+          "labels": {
+            "name": "level",
+            "value": "error"
+          },
+          "query": "{service_name=~\".+\"}",
+          "asked": "{service_name=~\".+\"}",
+          "sampled": true
+        },
+        {
+          "id": "f5",
+          "text": "412",
+          "value": 412,
+          "kind": "count",
+          "of": "log_facets fields[].values[] count",
+          "labels": {
+            "name": "status",
+            "value": "503"
+          },
+          "query": "{service_name=~\".+\"}",
+          "asked": "{service_name=~\".+\"}"
+        },
+        {
+          "id": "f6",
+          "text": "3",
+          "value": 3,
+          "kind": "count",
+          "of": "log_facets fields[].values[] count",
+          "labels": {
+            "name": "odd",
+            "value": "x"
+          },
+          "query": "{service_name=~\".+\"}",
+          "asked": "{service_name=~\".+\"}"
+        }
+      ],
+      "next_fact": 6
+    }
+  },
+  {
+    "name": "log patterns on loki are exact",
+    "steps": [
+      {
+        "issue": {
+          "tool": "log_patterns",
+          "input": "{\"query\":\"{service_name=\\\"cart\\\"}\"}",
+          "content": "{\"source\":\"loki\",\"lines_sampled\":2000,\"lines_matched\":2000,\"trend_step_ms\":120000,\"patterns\":[{\"pattern\":\"connection refused <_>\",\"count\":1200,\"sample\":\"connection refused 10.0.0.1\",\"first\":\"2026-11-20T10:05:00Z\",\"last\":\"2026-11-20T10:59:00Z\",\"level\":\"error\",\"trend\":[0,600,600]},{\"pattern\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx <_>\",\"count\":800,\"sample\":\"s\",\"first\":\"2026-11-20T10:05:00Z\",\"last\":\"2026-11-20T10:59:00Z\",\"level\":\"\",\"trend\":[0,800]}],\"truncated\":false}",
+          "want": "{\"source\":\"loki\",\"lines_sampled\":2000,\"lines_matched\":2000,\"trend_step_ms\":120000,\"patterns\":[{\"pattern\":\"connection refused \\u003c_\\u003e\",\"count\":1200,\"sample\":\"connection refused 10.0.0.1\",\"first\":\"2026-11-20T10:05:00Z\",\"last\":\"2026-11-20T10:59:00Z\",\"level\":\"error\",\"trend\":[0,600,600],\"facts\":{\"count\":\"f2\"}},{\"pattern\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \\u003c_\\u003e\",\"count\":800,\"sample\":\"s\",\"first\":\"2026-11-20T10:05:00Z\",\"last\":\"2026-11-20T10:59:00Z\",\"level\":\"\",\"trend\":[0,800],\"facts\":{\"count\":\"f3\"}}],\"truncated\":false,\"facts\":{\"lines_matched\":\"f1\"}}"
+        }
+      }
+    ],
+    "record": {
+      "reads": [],
+      "names": [],
+      "discovered": [],
+      "sourced": [],
+      "ranges": [],
+      "instants": [],
+      "ids": [],
+      "facts": [
+        {
+          "id": "f1",
+          "text": "2000",
+          "value": 2000,
+          "kind": "count",
+          "of": "log_patterns lines_matched",
+          "query": "{service_name=\"cart\"}",
+          "asked": "{service_name=\"cart\"}"
+        },
+        {
+          "id": "f2",
+          "text": "1200",
+          "value": 1200,
+          "kind": "count",
+          "of": "log_patterns patterns[] count",
+          "labels": {
+            "level": "error",
+            "pattern": "connection refused \u003c_\u003e"
+          },
+          "query": "{service_name=\"cart\"}",
+          "asked": "{service_name=\"cart\"}"
+        },
+        {
+          "id": "f3",
+          "text": "800",
+          "value": 800,
+          "kind": "count",
+          "of": "log_patterns patterns[] count",
+          "labels": {
+            "pattern": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          "query": "{service_name=\"cart\"}",
+          "asked": "{service_name=\"cart\"}"
+        }
+      ],
+      "next_fact": 3
+    }
+  },
+  {
+    "name": "log patterns clustered by the server are sampled",
+    "steps": [
+      {
+        "issue": {
+          "tool": "log_patterns",
+          "input": "{\"query\":\"{service_name=\\\"cart\\\"}\"}",
+          "content": "{\"source\":\"server\",\"lines_sampled\":2000,\"lines_matched\":2000,\"trend_step_ms\":120000,\"patterns\":[{\"pattern\":\"connection refused <_>\",\"count\":1200,\"sample\":\"connection refused 10.0.0.1\",\"first\":\"2026-11-20T10:05:00Z\",\"last\":\"2026-11-20T10:59:00Z\",\"level\":\"error\",\"trend\":[0,600,600]}],\"truncated\":false}",
+          "want": "{\"source\":\"server\",\"lines_sampled\":2000,\"lines_matched\":2000,\"trend_step_ms\":120000,\"patterns\":[{\"pattern\":\"connection refused \\u003c_\\u003e\",\"count\":1200,\"sample\":\"connection refused 10.0.0.1\",\"first\":\"2026-11-20T10:05:00Z\",\"last\":\"2026-11-20T10:59:00Z\",\"level\":\"error\",\"trend\":[0,600,600],\"facts\":{\"count\":\"f2\"}}],\"truncated\":false,\"facts\":{\"lines_matched\":\"f1\"}}"
+        }
+      }
+    ],
+    "renders": [
+      {
+        "text": "{{f2}} lines, {{f2:3}} lines, {{f1}} matched",
+        "want": {
+          "text": "at least 1200 lines, at least 1200 lines, at least 2000 matched",
+          "problems": []
+        }
+      }
+    ],
+    "record": {
+      "reads": [],
+      "names": [],
+      "discovered": [],
+      "sourced": [],
+      "ranges": [],
+      "instants": [],
+      "ids": [],
+      "facts": [
+        {
+          "id": "f1",
+          "text": "2000",
+          "value": 2000,
+          "kind": "count",
+          "of": "log_patterns lines_matched",
+          "query": "{service_name=\"cart\"}",
+          "asked": "{service_name=\"cart\"}",
+          "sampled": true
+        },
+        {
+          "id": "f2",
+          "text": "1200",
+          "value": 1200,
+          "kind": "count",
+          "of": "log_patterns patterns[] count",
+          "labels": {
+            "level": "error",
+            "pattern": "connection refused \u003c_\u003e"
+          },
+          "query": "{service_name=\"cart\"}",
+          "asked": "{service_name=\"cart\"}",
+          "sampled": true
+        }
+      ],
+      "next_fact": 2
+    }
+  },
+  {
+    "name": "a measurement on loki is the logs signal",
+    "steps": [
+      {
+        "issue": {
+          "tool": "measure_aggregate",
+          "input": "{}",
+          "content": "{\"op\":\"total\",\"store\":\"loki\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"query\":\"sum(count_over_time({service_name=\\\"cart\\\"} |= \\\"error\\\" [7200s]))\",\"empty\":false,\"values\":[{\"value\":412}]}",
+          "want": "{\"op\":\"total\",\"store\":\"loki\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"query\":\"sum(count_over_time({service_name=\\\"cart\\\"} |= \\\"error\\\" [7200s]))\",\"empty\":false,\"values\":[{\"value\":412,\"facts\":{\"value\":\"f1\"}}]}"
+        }
+      },
+      {
+        "issue": {
+          "tool": "measure_aggregate",
+          "input": "{}",
+          "content": "{\"op\":\"total\",\"store\":\"prometheus\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"query\":\"sum(increase(errors_total[7200s]))\",\"empty\":false,\"values\":[{\"value\":980}]}",
+          "want": "{\"op\":\"total\",\"store\":\"prometheus\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"query\":\"sum(increase(errors_total[7200s]))\",\"empty\":false,\"values\":[{\"value\":980,\"facts\":{\"value\":\"f2\"}}]}"
+        }
+      }
+    ],
+    "signals": [
+      {
+        "input": {
+          "markdown": "m",
+          "causes": [
+            {
+              "component": {
+                "kind": "service",
+                "name": "cart"
+              },
+              "kind": "dependency",
+              "mechanism": "m",
+              "evidence": {
+                "facts": [
+                  "f1"
+                ]
+              }
+            },
+            {
+              "component": {
+                "kind": "service",
+                "name": "cart"
+              },
+              "kind": "dependency",
+              "mechanism": "m",
+              "evidence": {
+                "facts": [
+                  "f2"
+                ]
+              }
+            }
+          ]
+        },
+        "want": {
+          "signals": [
+            {
+              "kinds": [
+                "logs"
+              ],
+              "component": false,
+              "onset_read": false,
+              "onset_fact": false,
+              "trigger_read": false,
+              "ruled_out": false
+            },
+            {
+              "kinds": [
+                "metrics"
+              ],
+              "component": false,
+              "onset_read": false,
+              "onset_fact": false,
+              "trigger_read": false,
+              "ruled_out": false
+            }
+          ],
+          "scored": [
+            {
+              "score": 0.25,
+              "band": "low",
+              "queries": [
+                "sum(count_over_time({service_name=\"cart\"} |= \"error\" [7200s]))"
+              ]
+            },
+            {
+              "score": 0.25,
+              "band": "low",
+              "queries": [
+                "sum(increase(errors_total[7200s]))"
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "record": {
+      "reads": [],
+      "names": [],
+      "discovered": [],
+      "sourced": [],
+      "ranges": [],
+      "instants": [],
+      "ids": [],
+      "facts": [
+        {
+          "id": "f1",
+          "text": "412",
+          "value": 412,
+          "kind": "number",
+          "of": "measure_aggregate total values[] value",
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z",
+          "query": "sum(count_over_time({service_name=\"cart\"} |= \"error\" [7200s]))",
+          "signal": "logs"
+        },
+        {
+          "id": "f2",
+          "text": "980",
+          "value": 980,
+          "kind": "number",
+          "of": "measure_aggregate total values[] value",
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z",
+          "query": "sum(increase(errors_total[7200s]))"
+        }
+      ],
+      "next_fact": 2
+    }
+  },
+  {
+    "name": "cause signals come from the ledger, the names and the ranges the run read",
+    "steps": [
+      {
+        "read": {
+          "content": "{\"series\":[{\"labels\":{\"service\":\"cart\",\"feature_flag\":\"cartFailure\"},\"values\":[[1,\"2\"]]}]}",
+          "names": [
+            "checkout"
+          ],
+          "ranges": [
+            {
+              "from": "2026-11-20T09:00:00Z",
+              "to": "2026-11-20T11:00:00Z"
+            }
+          ]
+        }
+      },
+      {
+        "issue": {
+          "tool": "measure_window",
+          "input": "",
+          "content": "{\"stat\":\"max\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"query\":\"rate(errors[5m])\",\"values\":[{\"labels\":{\"service\":\"cart\"},\"value\":0.52,\"at\":\"2026-11-20T10:05:00Z\"}]}",
+          "want": "{\"stat\":\"max\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"query\":\"rate(errors[5m])\",\"values\":[{\"labels\":{\"service\":\"cart\"},\"value\":0.52,\"at\":\"2026-11-20T10:05:00Z\",\"facts\":{\"value\":\"f1\"}}]}"
+        }
+      },
+      {
+        "issue": {
+          "tool": "trace_error_origins",
+          "input": "",
+          "content": "{\"failing_traces\":40,\"groups\":[{\"service\":\"cart\",\"traces\":38,\"share\":0.95,\"example_trace_id\":\"4bf92f3577b34da6a3ce929d0e0e4736\"}]}",
+          "want": "{\"failing_traces\":40,\"groups\":[{\"service\":\"cart\",\"traces\":38,\"share\":0.95,\"example_trace_id\":\"4bf92f3577b34da6a3ce929d0e0e4736\",\"facts\":{\"traces\":\"f3\",\"share\":\"f4\",\"example_trace_id\":\"f5\"}}],\"facts\":{\"failing_traces\":\"f2\"}}"
+        }
+      },
+      {
+        "issue": {
+          "tool": "log_patterns",
+          "input": "{}",
+          "content": "{\"source\":\"loki\",\"lines_sampled\":0,\"lines_matched\":1200,\"patterns\":[{\"pattern\":\"connection refused <_>\",\"count\":1200,\"level\":\"error\"}]}",
+          "want": "{\"source\":\"loki\",\"lines_sampled\":0,\"lines_matched\":1200,\"patterns\":[{\"pattern\":\"connection refused \\u003c_\\u003e\",\"count\":1200,\"level\":\"error\",\"facts\":{\"count\":\"f7\"}}],\"facts\":{\"lines_matched\":\"f6\"}}"
+        }
+      }
+    ],
+    "reviews": [
+      {
+        "name": "a legacy root cause is not checked twice",
+        "input": {
+          "markdown": "Cart errors peaked at {{f1}}.",
+          "onset": "2026-11-20T10:05:00Z",
+          "root_cause": {
+            "component": "cart",
+            "kind": "deploy",
+            "summary": "A deploy broke cart."
+          }
+        },
+        "want": [],
+        "send_back": ""
+      },
+      {
+        "name": "every cause is checked like the root cause",
+        "input": {
+          "markdown": "m",
+          "causes": [
+            {
+              "component": {
+                "kind": "service",
+                "name": "cart"
+              },
+              "kind": "deploy",
+              "mechanism": "m",
+              "onset": "2026-11-20T10:03:00Z",
+              "evidence": {
+                "facts": [
+                  "f1"
+                ]
+              }
+            },
+            {
+              "component": {
+                "kind": "service",
+                "name": "inventory"
+              },
+              "kind": "config_or_flag",
+              "mechanism": "Broken by {{f77}}.",
+              "onset": "2026-11-22T10:00:00Z",
+              "trigger": {
+                "kind": "config_value",
+                "key": "MAX_POOL"
+              },
+              "evidence": {
+                "facts": [
+                  "f9"
+                ],
+                "trace_ids": [
+                  "aaaaaaaaaaaaaaaa"
+                ]
+              }
+            }
+          ]
+        },
+        "want": [
+          {
+            "kind": "fact",
+            "text": "{{f77}}",
+            "fix": "f77 is not a fact this run read, or it is no longer held: read the value again and cite the id the result gives"
+          },
+          {
+            "kind": "component",
+            "text": "inventory",
+            "fix": "read it, correct it, or remove it"
+          },
+          {
+            "kind": "trigger",
+            "text": "MAX_POOL",
+            "fix": "read where it is set, or name it exactly as a result spelled it, or leave the trigger out"
+          },
+          {
+            "kind": "onset",
+            "text": "2026-11-22T10:00:00Z",
+            "fix": "read it, correct it, or remove it"
+          },
+          {
+            "kind": "fact",
+            "text": "causes[1].evidence.facts: f9",
+            "fix": "not a fact id a result of this run gave: cite one that was, or remove it"
+          },
+          {
+            "kind": "trace_id",
+            "text": "aaaaaaaaaaaaaaaa",
+            "fix": "not an id this run read: read the trace, cite an id a result gave, or remove it"
+          }
+        ],
+        "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- cited fact \"{{f77}}\": f77 is not a fact this run read, or it is no longer held: read the value again and cite the id the result gives\n- component, not a name this run saw, \"inventory\": read it, correct it, or remove it\n- trigger key, not a name this run saw, \"MAX_POOL\": read where it is set, or name it exactly as a result spelled it, or leave the trigger out\n- onset, outside every time range this run queried, \"2026-11-22T10:00:00Z\": read it, correct it, or remove it\n- cited fact \"causes[1].evidence.facts: f9\": not a fact id a result of this run gave: cite one that was, or remove it\n- trace id \"aaaaaaaaaaaaaaaa\": not an id this run read: read the trace, cite an id a result gave, or remove it"
+      }
+    ],
+    "signals": [
+      {
+        "name": "two causes, one backed",
+        "input": {
+          "markdown": "m",
+          "ruled_out": [
+            "The database: latency held at {{f1}}."
+          ],
+          "causes": [
+            {
+              "component": {
+                "kind": "service",
+                "name": "cart"
+              },
+              "kind": "config_or_flag",
+              "mechanism": "m",
+              "onset": "2026-11-20T10:03:00Z",
+              "trigger": {
+                "kind": "feature_flag",
+                "key": "cartFailure",
+                "value": "on"
+              },
+              "evidence": {
+                "facts": [
+                  "f1",
+                  "f9"
+                ],
+                "trace_ids": [
+                  "4BF92F3577B34DA6A3CE929D0E0E4736"
+                ]
+              }
+            },
+            {
+              "component": {
+                "kind": "service",
+                "name": "payments"
+              },
+              "kind": "unknown",
+              "mechanism": "m",
+              "onset": "2026-11-21T10:00:00Z",
+              "evidence": {}
+            }
+          ]
+        },
+        "want": {
+          "signals": [
+            {
+              "kinds": [
+                "metrics",
+                "traces"
+              ],
+              "component": true,
+              "onset_read": true,
+              "onset_fact": true,
+              "trigger_read": true,
+              "ruled_out": true
+            },
+            {
+              "kinds": [],
+              "component": false,
+              "onset_read": false,
+              "onset_fact": false,
+              "trigger_read": false,
+              "ruled_out": true
+            }
+          ],
+          "scored": [
+            {
+              "score": 0.9,
+              "band": "high",
+              "queries": [
+                "rate(errors[5m])"
+              ]
+            },
+            {
+              "score": 0.05,
+              "band": "low",
+              "queries": []
+            }
+          ]
+        }
+      },
+      {
+        "name": "a legacy root cause is scored with the facts the finding cites",
+        "input": {
+          "markdown": "Cart errors peaked at {{f1}}.",
+          "onset": "2026-11-20T10:05:00Z",
+          "root_cause": {
+            "component": "cart",
+            "kind": "deploy",
+            "summary": "A deploy broke cart."
+          }
+        },
+        "want": {
+          "signals": [
+            {
+              "kinds": [
+                "metrics"
+              ],
+              "component": true,
+              "onset_read": true,
+              "onset_fact": true,
+              "trigger_read": false,
+              "ruled_out": false
+            }
+          ],
+          "scored": null
+        }
+      },
+      {
+        "name": "log facts add the logs signal",
+        "input": {
+          "markdown": "m",
+          "causes": [
+            {
+              "component": {
+                "kind": "service",
+                "name": "cart"
+              },
+              "kind": "dependency",
+              "mechanism": "m",
+              "evidence": {
+                "facts": [
+                  "f1",
+                  "f7",
+                  " f1 "
+                ]
+              }
+            }
+          ]
+        },
+        "want": {
+          "signals": [
+            {
+              "kinds": [
+                "metrics",
+                "logs"
+              ],
+              "component": true,
+              "onset_read": false,
+              "onset_fact": false,
+              "trigger_read": false,
+              "ruled_out": false
+            }
+          ],
+          "scored": [
+            {
+              "score": 0.5,
+              "band": "medium",
+              "queries": [
+                "rate(errors[5m])"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "name": "a knock_on_of that is not an integer scores nothing",
+        "input": {
+          "markdown": "m",
+          "causes": [
+            {
+              "component": {
+                "kind": "service",
+                "name": "cart"
+              },
+              "kind": "dependency",
+              "mechanism": "m",
+              "knock_on_of": 0.5
+            }
+          ]
+        },
+        "want": null
+      }
+    ],
+    "record": {
+      "reads": [
+        [
+          1,
+          2
+        ]
+      ],
+      "names": [
+        "cartFailure",
+        "cart"
+      ],
+      "discovered": [
+        "checkout"
+      ],
+      "sourced": [],
+      "ranges": [
+        {
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z"
+        }
+      ],
+      "instants": [],
+      "ids": [],
+      "facts": [
+        {
+          "id": "f1",
+          "text": "0.52",
+          "value": 0.52,
+          "kind": "number",
+          "of": "measure_window max values[] value",
+          "labels": {
+            "service": "cart"
+          },
+          "at": "2026-11-20T10:05:00Z",
+          "from": "2026-11-20T09:00:00Z",
+          "to": "2026-11-20T11:00:00Z",
+          "query": "rate(errors[5m])"
+        },
+        {
+          "id": "f2",
+          "text": "40",
+          "value": 40,
+          "kind": "count",
+          "of": "trace_error_origins failing_traces"
+        },
+        {
+          "id": "f3",
+          "text": "38",
+          "value": 38,
+          "kind": "count",
+          "of": "trace_error_origins groups[] traces",
+          "labels": {
+            "service": "cart"
+          }
+        },
+        {
+          "id": "f4",
+          "text": "0.95",
+          "value": 0.95,
+          "kind": "ratio",
+          "of": "trace_error_origins groups[] share",
+          "labels": {
+            "service": "cart"
+          }
+        },
+        {
+          "id": "f5",
+          "text": "4bf92f3577b34da6a3ce929d0e0e4736",
+          "kind": "trace_id",
+          "of": "trace_error_origins groups[] example_trace_id",
+          "labels": {
+            "service": "cart"
+          }
+        },
+        {
+          "id": "f6",
+          "text": "1200",
+          "value": 1200,
+          "kind": "count",
+          "of": "log_patterns lines_matched"
+        },
+        {
+          "id": "f7",
+          "text": "1200",
+          "value": 1200,
+          "kind": "count",
+          "of": "log_patterns patterns[] count",
+          "labels": {
+            "level": "error",
+            "pattern": "connection refused \u003c_\u003e"
+          }
+        }
+      ],
+      "next_fact": 7
+    }
+  },
+  {
+    "name": "the review lists broken citations in every text field",
+    "steps": [
+      {
+        "issue": {
+          "tool": "measure_window",
+          "input": "",
+          "content": "{\"stat\":\"max\",\"values\":[{\"value\":0.5234}]}",
+          "want": "{\"stat\":\"max\",\"values\":[{\"value\":0.5234,\"facts\":{\"value\":\"f1\"}}]}"
+        }
+      }
+    ],
+    "reviews": [
+      {
+        "input": {
+          "title": "Checkout latency",
+          "markdown": "p99 peaked at {{f1}}, then {{f7}}.",
+          "impact": "Up to {{f8}} slower.",
+          "root_cause": {
+            "component": "checkout",
+            "kind": "dependency",
+            "summary": "{{f1:1}} at peak"
+          },
+          "ruled_out": [
+            "not {{f2}}"
+          ],
+          "next_steps": [
+            "read {{f3:ms}}"
+          ]
+        },
+        "want": [
+          {
+            "kind": "fact",
+            "text": "{{f7}}",
+            "fix": "f7 is not a fact this run read, or it is no longer held: read the value again and cite the id the result gives"
+          },
+          {
+            "kind": "fact",
+            "text": "{{f8}}",
+            "fix": "f8 is not a fact this run read, or it is no longer held: read the value again and cite the id the result gives"
+          },
+          {
+            "kind": "fact",
+            "text": "{{f1:1}}",
+            "fix": "{{f1:1}} would show 0.5, 4.5% away from 0.5234; give more significant figures"
+          },
+          {
+            "kind": "fact",
+            "text": "{{f2}}",
+            "fix": "f2 is not a fact this run read, or it is no longer held: read the value again and cite the id the result gives"
+          },
+          {
+            "kind": "fact",
+            "text": "{{f3:ms}}",
+            "fix": "f3 is not a fact this run read, or it is no longer held: read the value again and cite the id the result gives"
+          },
+          {
+            "kind": "component",
+            "text": "checkout",
+            "fix": "read it, correct it, or remove it"
+          }
+        ],
+        "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- cited fact \"{{f7}}\": f7 is not a fact this run read, or it is no longer held: read the value again and cite the id the result gives\n- cited fact \"{{f8}}\": f8 is not a fact this run read, or it is no longer held: read the value again and cite the id the result gives\n- cited fact \"{{f1:1}}\": {{f1:1}} would show 0.5, 4.5% away from 0.5234; give more significant figures\n- cited fact \"{{f2}}\": f2 is not a fact this run read, or it is no longer held: read the value again and cite the id the result gives\n- cited fact \"{{f3:ms}}\": f3 is not a fact this run read, or it is no longer held: read the value again and cite the id the result gives\n- component, not a name this run saw, \"checkout\": read it, correct it, or remove it"
+      },
+      {
+        "name": "answers that conflict and go unstated",
+        "input": {
+          "markdown": "p99 was {{f1:ms}} and {{f1:s}}.",
+          "answers": [
+            {
+              "quantity": "p99",
+              "fact": "f1"
+            },
+            {
+              "quantity": "p50",
+              "fact": "f1"
+            },
+            {
+              "quantity": "p95",
+              "fact": "f4"
+            }
+          ]
+        },
+        "want": [
+          {
+            "kind": "fact",
+            "text": "{{f1:ms}}",
+            "fix": "f1 is a number whose unit the read did not name, so it cannot be converted to ms; cite it as {{f1}} and write the unit its query measures after it"
+          },
+          {
+            "kind": "fact",
+            "text": "{{f1:s}}",
+            "fix": "f1 is a number whose unit the read did not name, so it cannot be converted to s; cite it as {{f1}} and write the unit its query measures after it"
+          },
+          {
+            "kind": "fact",
+            "text": "answers: p95 = f4",
+            "fix": "f4 is not a fact this run read: name the fact id a result gave for this quantity"
+          }
+        ],
+        "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- cited fact \"{{f1:ms}}\": f1 is a number whose unit the read did not name, so it cannot be converted to ms; cite it as {{f1}} and write the unit its query measures after it\n- cited fact \"{{f1:s}}\": f1 is a number whose unit the read did not name, so it cannot be converted to s; cite it as {{f1}} and write the unit its query measures after it\n- cited fact \"answers: p95 = f4\": f4 is not a fact this run read: name the fact id a result gave for this quantity"
+      }
+    ],
+    "renders": [
+      {
+        "text": "{{f1:ms:3}} and {{f2}}",
+        "want": {
+          "text": "0.5234 and [figure not read]",
+          "problems": [
+            {
+              "kind": "fact",
+              "text": "{{f1:ms:3}}",
+              "fix": "f1 is a number whose unit the read did not name, so it cannot be converted to ms; cite it as {{f1}} and write the unit its query measures after it"
+            },
+            {
+              "kind": "fact",
+              "text": "{{f2}}",
+              "fix": "f2 is not a fact this run read, or it is no longer held: read the value again and cite the id the result gives"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "MCP source text gives names only",
+    "steps": [
+      {
+        "read": {
+          "content": "{\"series\":[{\"labels\":{\"service\":\"cart\"}}]}",
+          "names": [
+            "checkout"
+          ]
+        }
+      },
+      {
+        "sourced": {
+          "content": "{\"notice\":\"Text from an MCP source.\",\"source\":\"cluster\",\"tool\":\"kubectl_get\",\"text\":\"alpha beta gamma\"}"
+        }
+      },
+      {
+        "sourced": {
+          "content": "{\"notice\":\"Text from an MCP source.\",\"source\":\"cluster\",\"tool\":\"kubectl_get\",\"text\":\"alpha\"}"
+        }
+      },
+      {
+        "sourced": {
+          "content": "{\"notice\":\"n\",\"text\":\"checkout p99 was 9.3 s for 2,950 orders at 2026-11-20T10:05:00Z, trace 4bf92f3577b34da6a3ce929d0e0e4736\"}"
+        }
+      },
+      {
+        "sourced": {
+          "content": "{\"notice\":\"n\",\"text\":\"{\\\"kind\\\":\\\"NetworkPolicy\\\",\\\"metadata\\\":{\\\"name\\\":\\\"deny-all-ingress\\\",\\\"namespace\\\":\\\"shop\\\"}}\"}"
+        }
+      },
+      {
+        "sourced": {
+          "content": "{\"notice\":\"n\",\"text\":\"\\\"adFailure\\\": {\\\"state\\\": \\\"ENABLED\\\", \\\"defaultVariant\\\": \\\"on\\\"}\"}"
+        }
+      },
+      {
+        "sourced": {
+          "content": "{\"text\":5}"
+        }
+      },
+      {
+        "sourced": {
+          "content": "not json"
+        }
+      }
+    ],
+    "reviews": [
+      {
+        "input": {
+          "markdown": "Checkout p99 was 9.3 s for 2,950 orders.",
+          "onset": "2026-11-20T10:05:00Z",
+          "root_cause": {
+            "component": "checkout",
+            "kind": "dependency",
+            "summary": "s"
+          }
+        },
+        "want": [
+          {
+            "kind": "figure",
+            "text": "9.3 s",
+            "fix": "read it, correct it, or remove it"
+          },
+          {
+            "kind": "figure",
+            "text": "2,950",
+            "fix": "read it, correct it, or remove it"
+          },
+          {
+            "kind": "onset",
+            "text": "2026-11-20T10:05:00Z",
+            "fix": "read it, correct it, or remove it"
+          }
+        ],
+        "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- figure \"9.3 s\": read it, correct it, or remove it\n- figure \"2,950\": read it, correct it, or remove it\n- onset, outside every time range this run queried, \"2026-11-20T10:05:00Z\": read it, correct it, or remove it"
+      },
+      {
+        "input": {
+          "markdown": "m",
+          "causes": [
+            {
+              "component": {
+                "kind": "config",
+                "name": "deny-all-ingress",
+                "namespace": "shop"
+              },
+              "kind": "config_or_flag",
+              "mechanism": "m",
+              "trigger": {
+                "kind": "feature_flag",
+                "key": "adFailure",
+                "value": "on"
+              },
+              "evidence": {}
+            }
+          ]
+        },
+        "want": [],
+        "send_back": ""
+      }
+    ],
+    "signals": [
+      {
+        "input": {
+          "markdown": "m",
+          "causes": [
+            {
+              "component": {
+                "kind": "config",
+                "name": "deny-all-ingress",
+                "namespace": "shop"
+              },
+              "kind": "config_or_flag",
+              "mechanism": "m",
+              "trigger": {
+                "kind": "feature_flag",
+                "key": "adFailure",
+                "value": "on"
+              },
+              "evidence": {}
+            }
+          ]
+        },
+        "want": {
+          "signals": [
+            {
+              "kinds": [],
+              "component": true,
+              "onset_read": false,
+              "onset_fact": false,
+              "trigger_read": true,
+              "ruled_out": false
+            }
+          ],
+          "scored": [
+            {
+              "score": 0.3,
+              "band": "low",
+              "queries": []
+            }
+          ]
+        }
+      }
+    ],
+    "record": {
+      "reads": [],
+      "names": [
+        "cart"
+      ],
+      "discovered": [
+        "checkout"
+      ],
+      "sourced": [
+        "beta",
+        "gamma",
+        "alpha",
+        "checkout",
+        "p99",
+        "was",
+        "for",
+        "orders",
+        "trace",
+        "kind",
+        "NetworkPolicy",
+        "metadata",
+        "name",
+        "deny-all-ingress",
+        "namespace",
+        "shop",
+        "adFailure",
+        "state",
+        "ENABLED",
+        "defaultVariant"
+      ],
+      "ranges": [],
+      "instants": [],
+      "ids": [],
+      "facts": [],
+      "next_fact": 0
+    }
+  }
+]
