@@ -230,6 +230,13 @@ func simpleModel(datasourceUID, pluginID string) map[string]any {
 type principals struct {
 	mu   sync.Mutex
 	byID map[string]auth.Principal
+	err  error
+}
+
+func (p *principals) failWith(err error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.err = err
 }
 
 func (p *principals) set(pr auth.Principal) {
@@ -241,6 +248,9 @@ func (p *principals) set(pr auth.Principal) {
 func (p *principals) Principal(_ context.Context, _ auth.PrincipalKind, id string) (auth.Principal, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if p.err != nil {
+		return auth.Principal{}, p.err
+	}
 	pr, ok := p.byID[id]
 	if !ok {
 		return auth.Principal{}, auth.ErrPrincipalGone
