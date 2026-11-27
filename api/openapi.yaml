@@ -934,7 +934,7 @@ components:
     ConnectedAgent:
       type: object
       additionalProperties: false
-      required: [id, client, person, created_at, last_used_at, expires_at, state, mode, presence, last_seen_at]
+      required: [id, client, person, created_at, last_used_at, expires_at, state, revoked_reason, mode, presence, last_seen_at]
       properties:
         id:
           type: string
@@ -982,8 +982,13 @@ components:
           description: When the connection ends and the person must approve it again.
         state:
           type: string
-          enum: [revoked, active]
-          description: Always `active` in the list, which leaves out revoked and expired connections. See `docs/reference/states.md`.
+          enum: [revoked, active, expired, aged_out]
+          description: Always `active` unless the list was asked for ended connections with `include_ended=true`; then `revoked`, `expired` (the refresh token went unused for 30 days) or `aged_out` (the 90 day limit) says why one ended. See `docs/reference/states.md`.
+        revoked_reason:
+          type: string
+          nullable: true
+          enum: [person, admin, client, replaced, refresh_reuse, code_reuse]
+          description: How a `revoked` connection was ended, by its person, an admin, the client itself, a newer connection of the same client, or the reuse of a refresh token or an authorization code; null in every other state.
         mode:
           type: string
           enum: [direct, propose]

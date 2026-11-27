@@ -163,8 +163,10 @@ This state is computed from stored fields on every read; nothing stores it.
 
 | State | When |
 | --- | --- |
-| `revoked` | The person or an admin revoked it; it leaves the list. |
+| `revoked` | It was ended before its time, and `revoked_reason` says how: by its person, an admin or the client, by a newer connection of the same client, or because a code or refresh token was used twice. |
 | `active` | It may call /mcp as its person until expires_at. |
+| `expired` | Its refresh token went unused for 30 days; the person approves the client again. |
+| `aged_out` | It reached the 90 day limit of a connection; the person approves the client again. |
 
 ## Public link
 

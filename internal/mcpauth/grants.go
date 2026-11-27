@@ -15,7 +15,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/grantmode"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
-	"github.com/slashobserve/slashobserve/internal/lifecycle"
 	"github.com/slashobserve/slashobserve/internal/presence"
 )
 
@@ -47,18 +46,12 @@ type grantJSON struct {
 	CreatedAt  string          `json:"created_at"`
 	LastUsedAt *string         `json:"last_used_at"`
 	ExpiresAt  string          `json:"expires_at"`
-	State      string          `json:"state"`
+	State         string          `json:"state"`
+	RevokedReason *string         `json:"revoked_reason"`
 	Mode       string          `json:"mode"`
 	Presence   string          `json:"presence"`
 	LastSeenAt *string         `json:"last_seen_at"`
 }
-
-const GrantStateActive = "active"
-
-var GrantStates = lifecycle.Derived{Name: "connected agent", States: []lifecycle.DerivedState{
-	{Name: "revoked", When: "The person or an admin revoked it; it leaves the list."},
-	{Name: GrantStateActive, When: "It may call /mcp as its person until expires_at."},
-}}
 
 type grantListJSON struct {
 	Grants     []grantJSON `json:"grants"`
@@ -67,6 +60,7 @@ type grantListJSON struct {
 
 type grantPage struct {
 	limit    int
+	ended    bool
 	before   pgtype.Timestamptz
 	beforeID pgtype.UUID
 }
@@ -89,9 +83,12 @@ func newGrantJSON(row dbsqlc.ListOAuthGrantsRow) grantJSON {
 		Person:    grantPersonJSON{ID: row.UserID.String(), Name: row.UserName, Email: row.UserEmail},
 		CreatedAt: httpapi.FormatTime(row.CreatedAt.Time),
 		ExpiresAt: httpapi.FormatTime(row.ExpiresAt.Time),
-		State:     GrantStateActive,
+		State:     grantStateOf(grantFacts{revoked: row.RevokedAt.Valid, created: row.CreatedAt.Time, expires: row.ExpiresAt.Time, now: row.CheckedAt.Time}),
 		Mode:      row.Mode,
 		Presence:  string(presence.Of(row.WorkerSeenAt.Time, row.WorkerSeenAt.Valid, row.WorkerWorking, row.CheckedAt.Time)),
+	}
+	if row.RevokedReason.Valid {
+		out.RevokedReason = &row.RevokedReason.String
 	}
 	if row.WorkerSeenAt.Valid {
 		seen := httpapi.FormatTime(row.WorkerSeenAt.Time)
@@ -104,6 +101,17 @@ func newGrantJSON(row dbsqlc.ListOAuthGrantsRow) grantJSON {
 	return out
 }
 
+func includeEnded(c *gin.Context) (bool, bool) {
+	switch c.DefaultQuery("include_ended", "false") {
+	case "false":
+		return false, true
+	case "true":
+		return true, true
+	}
+	httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "include_ended must be true or false")
+	return false, false
+}
+
 func (s *Server) listGrants(c *gin.Context, action string, fetch grantFetcher) {
 	limit, ok := httpapi.LimitParam(c, defaultGrantLimit, maxGrantLimit)
 	if !ok {
@@ -114,7 +122,11 @@ func (s *Server) listGrants(c *gin.Context, action string, fetch grantFetcher) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "cursor is not valid")
 		return
 	}
-	page := grantPage{limit: limit + 1}
+	ended, ok := includeEnded(c)
+	if !ok {
+		return
+	}
+	page := grantPage{limit: limit + 1, ended: ended}
 	if after != nil {
 		page.before = pgtype.Timestamptz{Time: after.Time, Valid: true}
 		page.beforeID = after.ID
@@ -146,6 +158,7 @@ func (s *Server) listMyGrants(c *gin.Context) {
 	s.listGrants(c, "list connected agents", func(ctx context.Context, page grantPage) ([]dbsqlc.ListOAuthGrantsRow, error) {
 		rows, err := s.db.Queries().ListUserOAuthGrants(ctx, dbsqlc.ListUserOAuthGrantsParams{
 			UserID:        userID,
+			IncludeEnded:  page.ended,
 			BeforeCreated: page.before,
 			BeforeID:      page.beforeID,
 			Lim:           httpapi.Int32(page.limit),
@@ -161,6 +174,7 @@ func (s *Server) listMyGrants(c *gin.Context) {
 func (s *Server) listAllGrants(c *gin.Context) {
 	s.listGrants(c, "list all connected agents", func(ctx context.Context, page grantPage) ([]dbsqlc.ListOAuthGrantsRow, error) {
 		return s.db.Queries().ListOAuthGrants(ctx, dbsqlc.ListOAuthGrantsParams{
+			IncludeEnded:  page.ended,
 			BeforeCreated: page.before,
 			BeforeID:      page.beforeID,
 			Lim:           httpapi.Int32(page.limit),

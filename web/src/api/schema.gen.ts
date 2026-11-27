@@ -4273,7 +4273,7 @@ export interface paths {
         };
         /**
          * List the MCP clients the signed-in person has connected.
-         * @description Newest first, live connections only: a disconnected or expired one is not listed. `client.name` is the name the client registered under and is not verified, and null when it registered none. `redirect_host` and `local` describe the client's first registered redirect URI. `last_used_at` is null until the client first uses an access token. Only signed-in people may call it: a service-account key gets 403 `forbidden`.
+         * @description Newest first, live connections only: a disconnected or expired one is not listed unless `include_ended=true` asks for it. `client.name` is the name the client registered under and is not verified, and null when it registered none. `redirect_host` and `local` describe the client's first registered redirect URI. `last_used_at` is null until the client first uses an access token. Only signed-in people may call it: a service-account key gets 403 `forbidden`.
          */
         get: operations["listMyGrants"];
         put?: never;
@@ -4779,10 +4779,15 @@ export interface components {
              */
             expires_at: string;
             /**
-             * @description Always `active` in the list, which leaves out revoked and expired connections. See `docs/reference/states.md`.
+             * @description Always `active` unless the list was asked for ended connections with `include_ended=true`; then `revoked`, `expired` (the refresh token went unused for 30 days) or `aged_out` (the 90 day limit) says why one ended. See `docs/reference/states.md`.
              * @enum {string}
              */
-            state: "revoked" | "active";
+            state: "revoked" | "active" | "expired" | "aged_out";
+            /**
+             * @description How a `revoked` connection was ended, by its person, an admin, the client itself, a newer connection of the same client, or the reuse of a refresh token or an authorization code; null in every other state.
+             * @enum {string|null}
+             */
+            revoked_reason: "person" | "admin" | "client" | "replaced" | "refresh_reuse" | "code_reuse" | null;
             /**
              * @description How the agent's changes land. direct is the default; with propose its dashboard writes become proposals that someone who can edit merges. The connection's person sets it with `PATCH /api/v1/me/grants/{id}`.
              * @enum {string}
@@ -20152,6 +20157,8 @@ export interface operations {
             query?: {
                 limit?: number;
                 cursor?: string;
+                /** @description With true the list also holds connections that were revoked, expired or aged out in the last 30 days, each with its `state` and `revoked_reason`. */
+                include_ended?: boolean;
             };
             header?: never;
             path?: never;
@@ -20235,6 +20242,8 @@ export interface operations {
             query?: {
                 limit?: number;
                 cursor?: string;
+                /** @description With true the list also holds connections that were revoked, expired or aged out in the last 30 days, each with its `state` and `revoked_reason`. */
+                include_ended?: boolean;
             };
             header?: never;
             path?: never;
