@@ -13,6 +13,8 @@ The server starts it whenever a model provider is configured; the image ships it
 - `src/session/replay/`: ports `internal/llm/replay`.
 - `src/route/`: ports `internal/agent/route` (`classify`) and the task-tool narrowing of `internal/agent/tools/tasktools.go` (`toolsForTask`), with the per-task call limits read from `claim_run`'s `agent.task_calls` (`callsForTask`); not yet called by the run loop.
   Its tests read the Go tests' cases in `spec/examples/agent/route/`.
+- `src/prompts/`: ports the run system text assembly of `internal/agent/prompts/run.go` (`investigateFor`, `buildSystem`), importing the `.md` files from `internal/agent/prompts/` and the example Spec with Bun text imports, which the Dockerfile's agent stage copies; the authoring guide comes from `get_run_brief`'s `brief.guide.text`; not yet called by the run loop.
+  Its tests compare against the Go goldens in `spec/examples/agent/prompts/`.
 
 ## Rules
 

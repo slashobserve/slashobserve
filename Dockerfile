@@ -12,6 +12,9 @@ WORKDIR /src/observe-agent
 COPY observe-agent/package.json observe-agent/bun.lock observe-agent/bunfig.toml ./
 RUN bun install --frozen-lockfile
 COPY observe-agent/ ./
+COPY internal/agent/prompts/*.md /src/internal/agent/prompts/
+COPY internal/agent/prompts/playbook/ /src/internal/agent/prompts/playbook/
+COPY spec/examples/checkout-service-health.json /src/spec/examples/
 RUN case "$TARGETARCH" in amd64) bun_arch=x64 ;; arm64) bun_arch=arm64 ;; *) echo "unsupported TARGETARCH: $TARGETARCH" >&2; exit 1 ;; esac && \
     bun build --compile --minify --target="bun-linux-${bun_arch}" --define "OBSERVE_AGENT_VERSION=\"${VERSION}\"" src/main.ts --outfile /out/observe-agent
 

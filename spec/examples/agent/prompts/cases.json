@@ -1,0 +1,922 @@
+{
+  "investigate": [
+    {
+      "task": "",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-none.md",
+      "bytes": 26439,
+      "sha256": "ea0b8d2d4a727255810768e33ff3aec746c042cd25cc3895966a9fa0aadbd15c"
+    },
+    {
+      "task": "",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-none.md",
+      "bytes": 28092,
+      "sha256": "f406b2462458b52315559dcb03c3adeb298dd90a5d22a4c2e8ec0ffdecd4a3ae"
+    },
+    {
+      "task": "",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-none.md",
+      "bytes": 26989,
+      "sha256": "87a0d617f4c78e7b10cea065254f85f8a992a59b945df395fc3a16f047933208"
+    },
+    {
+      "task": "",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-none.md",
+      "bytes": 28642,
+      "sha256": "2b0945f7d2095416d6215409d5f67ae34947ec44dc2cc59278854a7ee699ea3e"
+    },
+    {
+      "task": "measure",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-none.md",
+      "bytes": 18745,
+      "sha256": "4fd9f1479eca2ce00f49fc8a5d05d65b19e0927597b18753ef4fd986b0e2cfbd"
+    },
+    {
+      "task": "measure",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-none.md",
+      "bytes": 20398,
+      "sha256": "ba2e257ddb584c5db6d1063584715e395ed7e49b9210b473bed917224085c327"
+    },
+    {
+      "task": "measure",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-none.md",
+      "bytes": 19295,
+      "sha256": "0aeff37dc1afd559d91c7679062f98614553afb147de6f431861a40ad1f61327"
+    },
+    {
+      "task": "measure",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-none.md",
+      "bytes": 20948,
+      "sha256": "8dec4b333742d6d15397df7a2b3805bf37291c99bc016cccdcfef9452528cf00"
+    },
+    {
+      "task": "logs",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-none.md",
+      "bytes": 17636,
+      "sha256": "cc4b7ac7134b27f994a403413689de859c181dcdff193893ad178e39701f88c2"
+    },
+    {
+      "task": "logs",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-none.md",
+      "bytes": 19289,
+      "sha256": "723aa678a638914a54cb9973e8873c94aeae9c9b976d859ad937f3ae9dd8b2a2"
+    },
+    {
+      "task": "logs",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-none.md",
+      "bytes": 18186,
+      "sha256": "35181b1d7445bc895b8e6c702c7d0506e110681ff35f4a7e7f17e21d759d053b"
+    },
+    {
+      "task": "logs",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-none.md",
+      "bytes": 19839,
+      "sha256": "98db2c5d6abaa747a71272e16e8f8c7fcc12e1155ee15f29a03181f79c83f454"
+    },
+    {
+      "task": "traces",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-none.md",
+      "bytes": 17944,
+      "sha256": "9cabf948607ffabdf4a212578b7cf80eb4c73ac7d3ac622c7fd4c86da8ec9c24"
+    },
+    {
+      "task": "traces",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-none.md",
+      "bytes": 19597,
+      "sha256": "2762c530ca9e7c81b650a260075464a645a257f78248ea667c43982f6da8b8d5"
+    },
+    {
+      "task": "traces",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-none.md",
+      "bytes": 18494,
+      "sha256": "c8f18cf51cf1c2396790a0c668e89050df68fc864a28a13fb97e8f002a52dc48"
+    },
+    {
+      "task": "traces",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-none.md",
+      "bytes": 20147,
+      "sha256": "1892da2e958454dd941f1bb9f6138f1cc9fed9ca4dc6d710ff37938060a58a9b"
+    },
+    {
+      "task": "incident",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-none.md",
+      "bytes": 19034,
+      "sha256": "8cc6d08efe9f4d4782480225e7bcaaefb60ae52a4a0004f649bacce2a3f0ba5f"
+    },
+    {
+      "task": "incident",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-none.md",
+      "bytes": 20687,
+      "sha256": "5472e8f0e4117acb8209136437e4536e17bd0eb7ddc976f43ed55abdf30a1be8"
+    },
+    {
+      "task": "incident",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-none.md",
+      "bytes": 19584,
+      "sha256": "64e5a76a1dce3816f806b152302ba2bdb7c41d1f081d0fc744f502f568726ce5"
+    },
+    {
+      "task": "incident",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-none.md",
+      "bytes": 21237,
+      "sha256": "7656ce2fefda482d8c052c28b3903b03ede2ba86722a16b49bf962fa705a2e14"
+    },
+    {
+      "task": "inventory",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-none.md",
+      "bytes": 17097,
+      "sha256": "a5f9f4f8d837f5e4b67140b08673b91913563c1a91fc98ca9d557c5292ca422c"
+    },
+    {
+      "task": "inventory",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-none.md",
+      "bytes": 18750,
+      "sha256": "2bbd460346378322c9a7b50a77547c4d911280b59517487c0f65e986b2393a4f"
+    },
+    {
+      "task": "inventory",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-none.md",
+      "bytes": 17647,
+      "sha256": "50a09c888f8bb34067bed6cc7cd736e10c16744eff88fbffcd1f7d86db860eac"
+    },
+    {
+      "task": "inventory",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-none.md",
+      "bytes": 19300,
+      "sha256": "c8ba4464f9b368989ad2676f3deb1e91a04c78faaf1610c3df8b5198e913e20d"
+    },
+    {
+      "task": "explain",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-none.md",
+      "bytes": 17898,
+      "sha256": "bc1d5d9b52828843640cefb3d824c39f45710666878e4d91c168bead90b91cc8"
+    },
+    {
+      "task": "explain",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-none.md",
+      "bytes": 19551,
+      "sha256": "8e93d4e2a38a2d52740e6c47a2219dc2ffdcd92116cee95464ac369f03903c79"
+    },
+    {
+      "task": "explain",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-none.md",
+      "bytes": 18448,
+      "sha256": "b406562108ecc34d9dd64b4c31b91251d68c52e2daadf5cbffe4bdc56d78e80d"
+    },
+    {
+      "task": "explain",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-none.md",
+      "bytes": 20101,
+      "sha256": "78c66f27f8560b388962c6b574b813c4554d9e01abafd7eb11de84d71ef41091"
+    },
+    {
+      "task": "",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 27664,
+      "sha256": "f4c641cb390ca6a4aa3140a3b4ebf61c68fee6bc324eeeee1ef0cae0a2a6560c"
+    },
+    {
+      "task": "",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 29317,
+      "sha256": "2b708b0b991eaee62baadb79a8062f5684b581e79a89e3595d14afc9c1cede38"
+    },
+    {
+      "task": "",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 28214,
+      "sha256": "eba2661a7709d8f118b57fb78730ef57764e694faebafc5c3baab6ef92f8a31f"
+    },
+    {
+      "task": "",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 29867,
+      "sha256": "2e4e31cd28585803aee26a5fadf38a30eeba6e52c500e81791447c31b4b9b8e5"
+    },
+    {
+      "task": "measure",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 19970,
+      "sha256": "54a583c07507756584ad44be74764a484b48d10932c49b45f668f3345b99daf5"
+    },
+    {
+      "task": "measure",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 21623,
+      "sha256": "32e46a18649d8c3e4d4d531ccc332d3f5beb189ac3be27df16f469d39a5343d4"
+    },
+    {
+      "task": "measure",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 20520,
+      "sha256": "fb94ce8c6b126d5b9abd57b71dcda102c934a39203989edb75b80a5415032a98"
+    },
+    {
+      "task": "measure",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 22173,
+      "sha256": "82e24d56838c696538bf0c00344a2ed9daf1e6431943e89136451572305a365b"
+    },
+    {
+      "task": "logs",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 18861,
+      "sha256": "66c8ef8d711155c9a2b853c1016977b78009cdac15aba98452c0a4cb59f4ad1e"
+    },
+    {
+      "task": "logs",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 20514,
+      "sha256": "821ad84ea6ed7fffa7a46576794ba3a469ff392b0fffcaed4b57064427fcb1dd"
+    },
+    {
+      "task": "logs",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 19411,
+      "sha256": "6a09a10822b51a22dafaba73a201ff145d0498d6364b6590920e359979c480b9"
+    },
+    {
+      "task": "logs",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 21064,
+      "sha256": "b1787dbd9e066d2edb6871d7c4669bf50248ac80cff53861134bd89f4de4034d"
+    },
+    {
+      "task": "traces",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 19169,
+      "sha256": "fec776f9cd80c6e1ed0d72bf22cfec73ee2b5f6222683e4fa5b4cb4d3da4cd84"
+    },
+    {
+      "task": "traces",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 20822,
+      "sha256": "a5a7726c6bc4ae1e32886eb4a4a58e3e8eca607e9a4e309be45237726567f6e6"
+    },
+    {
+      "task": "traces",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 19719,
+      "sha256": "70d02dacd71b816d28737ecf6ffd60362d67c958c7ecff8406d327ce2babdae3"
+    },
+    {
+      "task": "traces",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 21372,
+      "sha256": "14264e79402c9f16139be674bdef67c946cdad791d2942b392274cd575e0f5d3"
+    },
+    {
+      "task": "incident",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 20259,
+      "sha256": "91fc92269dee9b583beb1f68d81099cd27346d13331c57121ec7e10eb20dce5c"
+    },
+    {
+      "task": "incident",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 21912,
+      "sha256": "356be2459013e327b530d56b04228928edfb6d790e78ee8d81c27a4c6d053986"
+    },
+    {
+      "task": "incident",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 20809,
+      "sha256": "1b9724e0947a52ac341e6bf5e0d0e986bb036b79dcf79c3d9de1a1ec82eee9b3"
+    },
+    {
+      "task": "incident",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 22462,
+      "sha256": "b79e2bdb9c614503ef3356b8ff2b3b896b25fb326a8c22987f286a1c6deb5082"
+    },
+    {
+      "task": "inventory",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 18322,
+      "sha256": "5067592b8f41cc36534d392614a9c596b432a1b9e01da83f0c5e18e6b6ebb1da"
+    },
+    {
+      "task": "inventory",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 19975,
+      "sha256": "e910b53c467365ed5866475fafbc3ab5284ea014bb4b2e2a828eba7b8252fc3e"
+    },
+    {
+      "task": "inventory",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 18872,
+      "sha256": "728393da102cf8602622368f01ad6ca77de4fb16a68a3efaba89bad8a711ffb7"
+    },
+    {
+      "task": "inventory",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 20525,
+      "sha256": "a48f0f25621c540dc6e8d7e274d269be30ba1044ce5d7e3b82fdea2c235e2bc7"
+    },
+    {
+      "task": "explain",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 19123,
+      "sha256": "037cad737f3d9298f9b2aa677891698e7cd095b4ce45305c0450f566a93797bc"
+    },
+    {
+      "task": "explain",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 20776,
+      "sha256": "c0b4931e5e080b519d87a4ec22a076621c0538b41fbdc5e384b340083a53a9d3"
+    },
+    {
+      "task": "explain",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-prometheus.md",
+      "bytes": 19673,
+      "sha256": "1fe2f4912fbc5b4d61cac4b58ed3fbca0866433b71fece692eb271f496656890"
+    },
+    {
+      "task": "explain",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-prometheus.md",
+      "bytes": 21326,
+      "sha256": "e3796df4eb7d508b43b28f8b59f20b37e6bf18342fdbaedae840512b36c38e31"
+    },
+    {
+      "task": "",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 31209,
+      "sha256": "c34838383803cf2a794e2d5d6a19ac961e1d5be06cd2e26f5c436711d0411213"
+    },
+    {
+      "task": "",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 32862,
+      "sha256": "1ecfad069089b6adf4a0ef202e98c3ac156f2611ced35d1f41323e60a0cedd60"
+    },
+    {
+      "task": "",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 31759,
+      "sha256": "4809f32935e826d02678a40f3aa637de7d124621fb87bb350e204f4c99fee237"
+    },
+    {
+      "task": "",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 33412,
+      "sha256": "8e913d13bad13a798079de183de8ddf8d36b0b298677d974c481db624290cea2"
+    },
+    {
+      "task": "measure",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 23515,
+      "sha256": "6c36f227109abcca236e285a9674e39b25d054ec89931144fb2db7a564db559b"
+    },
+    {
+      "task": "measure",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 25168,
+      "sha256": "b799b83a05c0af37540d303998dae35319168becd2aef96d2cf22ac5a523b997"
+    },
+    {
+      "task": "measure",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 24065,
+      "sha256": "42dca3bd876c9cbbfe043c1a0b1e15a6ead7884cfce38f48c120a0fb2d907090"
+    },
+    {
+      "task": "measure",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 25718,
+      "sha256": "ad3d4f886cb5b3a051560ef30565e50e7f8f3dda526ccc13b0627d4f64ce08f3"
+    },
+    {
+      "task": "logs",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 22406,
+      "sha256": "9047dc4ee1b392e0f8b7ed629a114896d8c34fcb88574e5c2bdb5707048b2a4a"
+    },
+    {
+      "task": "logs",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 24059,
+      "sha256": "bd62a83b1a9416cded62d3c1fd14295cfdad89d0d5b273d17e132a39fbefb7ee"
+    },
+    {
+      "task": "logs",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 22956,
+      "sha256": "969d72b5eb5eb83d03680355426d1bf93dcb0dd826a86c96478c2ed5e8477c01"
+    },
+    {
+      "task": "logs",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 24609,
+      "sha256": "d30be9d7277b0c0f1cb797a08fbfd798adde290b80b1651f7189ae0105474734"
+    },
+    {
+      "task": "traces",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 22714,
+      "sha256": "69076c96bf435c594e9ac27c4cd52767b0e6738fc315f3faaf9bb4e0dbcdd5e3"
+    },
+    {
+      "task": "traces",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 24367,
+      "sha256": "d3383d62de0b414b80299634e2df1f98e5b35825accef2f710b187a67acb93ee"
+    },
+    {
+      "task": "traces",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 23264,
+      "sha256": "213de28c933ce9aa6dfe75bfd0c98de2eaf9fffff7ae679de76a08bbc5d749cb"
+    },
+    {
+      "task": "traces",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 24917,
+      "sha256": "546dd52f6cda41021692e2ba1ac88a674d10e418c136cff094e7dd5ddedd6330"
+    },
+    {
+      "task": "incident",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 23804,
+      "sha256": "f51a6f832b08bf8bbf51a3c3f932faf76100b0ddd8a5caa88bb37d820af86331"
+    },
+    {
+      "task": "incident",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 25457,
+      "sha256": "60112da6b10c00d5d8ba934782a4d448b17e495d9d6762dad0736767aee5f463"
+    },
+    {
+      "task": "incident",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 24354,
+      "sha256": "eabcdbde2a87e40b64aa9eda7f80e699f23539cd5c05a893f2e2b221f08c6f7a"
+    },
+    {
+      "task": "incident",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 26007,
+      "sha256": "c5cf811c4852b5d3dc1f537e0dbd662660c8902e45ca35d4e4a7876763676730"
+    },
+    {
+      "task": "inventory",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 21867,
+      "sha256": "1d5a18bad3079644d82ad65de6856c8a9798cedf640af6e8b73941af65ca5242"
+    },
+    {
+      "task": "inventory",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 23520,
+      "sha256": "b58af925e5d890839a42826be98e46dfd2a416828fdd9489d9d75db89b84a6de"
+    },
+    {
+      "task": "inventory",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 22417,
+      "sha256": "7116e999a21aabea41e56476b15db422dd22d79e04e9fda17a86280055519d71"
+    },
+    {
+      "task": "inventory",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 24070,
+      "sha256": "6ba87b9fd73aee2263c1f57b32031bf2a9694eb6fd70de8d0b987e18161991c7"
+    },
+    {
+      "task": "explain",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 22668,
+      "sha256": "c62bad9865f8195534fbe4553c83c3adc4877d1e4e9b13a145171e5bc21c86a1"
+    },
+    {
+      "task": "explain",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 24321,
+      "sha256": "252c2373c1f05f447f7fbd7f660aabc34c598c8ca5bd91dac9a59ed1f6dd1f7c"
+    },
+    {
+      "task": "explain",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 23218,
+      "sha256": "7e333cbee1c5bf1414b34f0bfee8edbfb3f30f1fc21571ab494a91367716a8e6"
+    },
+    {
+      "task": "explain",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 24871,
+      "sha256": "0376d1785637f600cc25d7109c492ae2975f1c06dae22676c4afa7d172ff3124"
+    },
+    {
+      "task": "",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-all.md",
+      "bytes": 36230,
+      "sha256": "c658a9b4fd4a1a834462c0f30023072c715e7ba2e76c632336348a0d48b3ec08"
+    },
+    {
+      "task": "",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-all.md",
+      "bytes": 37883,
+      "sha256": "1ed2e6ea3538dccfe2bbbc992a94e3523f23683d7e8de5ad48c632989d6a64b6"
+    },
+    {
+      "task": "",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-all.md",
+      "bytes": 36780,
+      "sha256": "20727e96533b8564817e8a59ce464469314643f24862bad79452dd8f547fa55a"
+    },
+    {
+      "task": "",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-all.md",
+      "bytes": 38433,
+      "sha256": "dc04e56f678d11f9ac827dc1cf21945190773ac24b335f634090a9c81cf8dc5a"
+    },
+    {
+      "task": "measure",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-all.md",
+      "bytes": 28536,
+      "sha256": "904958ff569bcae6e64b923e1a462750e115424c083d34cc99f26cfdd65b1490"
+    },
+    {
+      "task": "measure",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-all.md",
+      "bytes": 30189,
+      "sha256": "86a88dc87962d4ef74ff12be11a9c3edd2f9c10f31870b58a44c4b09095fd54f"
+    },
+    {
+      "task": "measure",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-all.md",
+      "bytes": 29086,
+      "sha256": "c089cb8b75bd1306506e9737c06e6f941a80c5c6e59501f564d7008443422ccc"
+    },
+    {
+      "task": "measure",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-all.md",
+      "bytes": 30739,
+      "sha256": "d0907aa022897b1d391be2eae52cd1106afd9d6dacfb46fda836e19cefb3705b"
+    },
+    {
+      "task": "logs",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-all.md",
+      "bytes": 27427,
+      "sha256": "acef392f0c0f5fa4f28a0e5237bbcebaab9c277f6b64e5287493f157503413fe"
+    },
+    {
+      "task": "logs",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-all.md",
+      "bytes": 29080,
+      "sha256": "bc192cd9777407117ae2f3523a274d2051dcd8f00af4be4eca280f32d1388fef"
+    },
+    {
+      "task": "logs",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-all.md",
+      "bytes": 27977,
+      "sha256": "85fc8e0a2a501b27a1805065efecd4203ae9921c4cec27d598472c09adcecb8b"
+    },
+    {
+      "task": "logs",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-all.md",
+      "bytes": 29630,
+      "sha256": "86c2d647372953b79f8ce9ea18f2a83c0eead9912a6ae4640cbf86ccc78b9ae9"
+    },
+    {
+      "task": "traces",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-all.md",
+      "bytes": 27735,
+      "sha256": "50011c59aff3ea7833e5a73ce1939871aebcb287bc995c757aa587eecfa7d566"
+    },
+    {
+      "task": "traces",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-all.md",
+      "bytes": 29388,
+      "sha256": "c0fb3c7fe9a79363ce1a858164b0817b87b676aaf1ea9d241ccd6e48b00817b7"
+    },
+    {
+      "task": "traces",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-all.md",
+      "bytes": 28285,
+      "sha256": "40f3eabeb9f975e483a0f936625b2c888e395f3fc72a26a2daf4a8c691042c73"
+    },
+    {
+      "task": "traces",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-all.md",
+      "bytes": 29938,
+      "sha256": "2e727b6bd712d50074f11e32e8d7a1fac067056aa979a16c584d0e2c045a254f"
+    },
+    {
+      "task": "incident",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-all.md",
+      "bytes": 28825,
+      "sha256": "afbd6bc188fa6fc64315894139243ac72bf11a1f8fedd4c0b1187cf19f52613a"
+    },
+    {
+      "task": "incident",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-all.md",
+      "bytes": 30478,
+      "sha256": "a812c929e6005e2885f36617c6207f55ae471bc7f7ba8526cfe05d5c3ea5b4e9"
+    },
+    {
+      "task": "incident",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-all.md",
+      "bytes": 29375,
+      "sha256": "e135376916a41b12eb4514f744df1053afe4297021607ced41b85b5136ba0460"
+    },
+    {
+      "task": "incident",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-all.md",
+      "bytes": 31028,
+      "sha256": "3d080eee17c8fdb90b461f660955d0a2e8f268926a6784774dbbe33c832541fe"
+    },
+    {
+      "task": "inventory",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-all.md",
+      "bytes": 26888,
+      "sha256": "12229ce6434af4d154d17d3c73bafe14d3bf9c1ff77d993952bf5499f0ff050c"
+    },
+    {
+      "task": "inventory",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-all.md",
+      "bytes": 28541,
+      "sha256": "d1718668472872543f0793fc1b3c9a63b9020286b187a5f2d0ee61511652c585"
+    },
+    {
+      "task": "inventory",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-all.md",
+      "bytes": 27438,
+      "sha256": "c8431baab01a4b1cea649914c33f517f4e2194b30c75a3f2b5723a3a4a9328dd"
+    },
+    {
+      "task": "inventory",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-all.md",
+      "bytes": 29091,
+      "sha256": "c7f67886792d34b60af01b0ff6a592b3c56840531d564e8a3e894e735f2f2ec7"
+    },
+    {
+      "task": "explain",
+      "facts": false,
+      "ledger": false,
+      "guide": "guide-all.md",
+      "bytes": 27689,
+      "sha256": "89cd08bd491da059846a5eedb9080d7b0f4de2672a577f8b983ccf752eac3b00"
+    },
+    {
+      "task": "explain",
+      "facts": false,
+      "ledger": true,
+      "guide": "guide-all.md",
+      "bytes": 29342,
+      "sha256": "0c710c272e4482884325f4510bf0bad4631f00e74fa874bec8b9081fd2e841b4"
+    },
+    {
+      "task": "explain",
+      "facts": true,
+      "ledger": false,
+      "guide": "guide-all.md",
+      "bytes": 28239,
+      "sha256": "5504b36ae4e7aabec100500d0cd09e3940b3b0c965f71fa6763dd3840cb6a857"
+    },
+    {
+      "task": "explain",
+      "facts": true,
+      "ledger": true,
+      "guide": "guide-all.md",
+      "bytes": 29892,
+      "sha256": "c5f5ec2039560e1d6b8c8c08964ad7ebf3cb645d2b1f2973f278b2871377ce2c"
+    }
+  ],
+  "build": [
+    {
+      "guide": "guide-none.md",
+      "bytes": 22938,
+      "sha256": "e3f1d2ba9373df54e4021179fdfa40ac5703e54bcacd3b06610266178508fdb2"
+    },
+    {
+      "guide": "guide-prometheus.md",
+      "bytes": 24163,
+      "sha256": "f4315d70e1db9b3550c2f76c29d97603b8612645937d6a3c1d7f429aea20c6d3"
+    },
+    {
+      "guide": "guide-builtin-logs-traces.md",
+      "bytes": 27708,
+      "sha256": "c979dc62b2020b6011b7d6ce2db5f80f26117f9d96a3e9ee1332f4448dd95449"
+    },
+    {
+      "guide": "guide-all.md",
+      "bytes": 32729,
+      "sha256": "8ce5b37d90d1df9325087a5804f468ae9124f96081158e06a2f05901aa9db087"
+    }
+  ]
+}
