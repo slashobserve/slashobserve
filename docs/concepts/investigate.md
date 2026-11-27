@@ -104,15 +104,15 @@ The type is decided once, when the run's session starts, and kept with it.
 A new-dashboard request, a revision and a suggestion are not sorted.
 
 A sorted run offers only its type's tools, the built-in agent and a connected agent with a run token alike.
-Every type gets `list_services`, `list_labels`, `list_label_values`, `save_finding`, `note_hypotheses` when the setting turns it on, the three MCP source tools and `list_more_tools`, plus `get_panels` when a dashboard is the subject and `get_observation` when an observation is:
+Every type gets `list_services`, `list_metrics`, `list_labels`, `list_label_values`, `save_finding`, `note_hypotheses` when the setting turns it on, the three MCP source tools and `list_more_tools`, plus `get_panels` when a dashboard is the subject and `get_observation` when an observation is:
 
 | Task type | Its own tools |
 | --- | --- |
-| `measure` | `list_metrics`, `measure_window`, `measure_aggregate`, `query_range`, `query_instant` |
+| `measure` | `measure_window`, `measure_aggregate`, `query_range`, `query_instant` |
 | `logs` | `query_range`, `measure_aggregate`, `log_patterns`, `log_facets`, `log_context`, `sample_rows` |
 | `traces` | `trace_stats`, `trace_error_origins`, `trace_slow_path`, `get_trace`, `compare_traces`, `logs_for_trace` |
-| `incident` | `list_metrics`, `list_annotations`, `measure_window`, `query_range`, `trace_error_origins`, `trace_slow_path`, `log_patterns`, `get_trace` |
-| `inventory` | `list_datasources`, `list_metrics`, `list_dashboards`, `list_observations`, `search_workspace` |
+| `incident` | `list_annotations`, `measure_window`, `query_range`, `trace_stats`, `trace_error_origins`, `trace_slow_path`, `log_patterns`, `get_trace` |
+| `inventory` | `list_datasources`, `list_dashboards`, `list_observations`, `search_workspace` |
 | `explain` | `get_dashboard`, `get_panels`, `get_observation`, `list_dashboards`, `search_workspace`, `get_spec_guide`, `query_range` |
 
 A call to any other tool is answered `unknown_tool` with a line that names the run's tools.
@@ -140,7 +140,9 @@ It reads:
 The server groups what moved into numbered candidates, `c1`, `c2` and so on, in onset order, each with the change events of the 30 minutes before its onset.
 A service whose errors start later than another's and that relays that service's errors in the traces is listed as its knock-on, not as a candidate of its own, and errors present before the window at a similar level are listed as background.
 The block also says what was skipped and why, such as a store that failed or the read budget running out.
-It is at most 6 KiB; the lines cut first are the skipped steps, then the background, log patterns, per-service rates, service lists, evidence lines, signal lines and last the latest candidates.
+A service whose error read failed gets no error figure, and when no candidate was found the block names the signals whose reads were skipped instead of saying nothing moved.
+The sweep runs at most 4 reads at once across all its steps.
+It is at most 6 KiB; the lines cut first are the skipped steps, then the background, log patterns, per-service rates, service lists, evidence lines, signal lines, the skipped rate reads and last the latest candidates.
 
 The block is a starting point, not evidence: the agent is told to test each candidate with its own reads, and every figure in the finding still comes from a read of the run.
 The sweep runs once per run: the block and its duration are kept with the run session, so a shortened conversation, a restart or another server reuses it, and the run's steps show one line with the number of reads and the time it took.
@@ -150,8 +152,8 @@ The block is sent to the LLM provider like any tool result and never written to 
 
 With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` set to `true`, the default, the built-in agent also gets `note_hypotheses`, and an investigation that opens an observation is told in its prompt to use it.
 A plain question gets the tool but no prompt section and no `<hypotheses>` block.
-It writes down 2 to 4 candidate causes after its first look and sends the whole list again with each batch of reads.
-When the preflight brief lists candidates in an incident investigation, or one the server did not sort into a task type, the ledger starts with one open hypothesis per candidate, up to 5, with the candidate's id (`c1`, `c2`, ...), the service, what moved and the onset, and the agent sees it in a `<hypotheses>` block from its first message; it may add hypotheses of its own.
+It writes down its candidate causes after its first look, 2 to 4 when the brief seeded none, and sends the whole list again with each batch of reads; the ledger holds at most 6 hypotheses, seeded candidates included.
+When the preflight brief lists candidates in an incident investigation, or one the server did not sort into a task type, the ledger starts with one open hypothesis per candidate, up to 5, with the candidate's id (`c1`, `c2`, ...), the service, what moved and the onset, and the agent sees it in a `<hypotheses>` block from its first message; it may add hypotheses of its own up to the limit of 6.
 Each hypothesis has a short id, one sentence, a status of `open`, `supported` or `ruled_out`, up to 3 evidence lines and, for an open one, the next check.
 A hypothesis is ruled out or supported only with an evidence line that says what was read and what it showed.
 A supported or ruled-out hypothesis may also carry a closing that says how it was settled:

@@ -8,8 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/sync/errgroup"
-
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
@@ -58,6 +56,7 @@ type sweep struct {
 	r   Reader
 	lim Limits
 	in  Input
+	sem chan struct{}
 
 	mu       sync.Mutex
 	calls    int
@@ -77,7 +76,7 @@ func (s Sweeper) Sweep(ctx context.Context, in Input) Outcome {
 	}
 	ctx, cancel := context.WithTimeout(ctx, lim.Time)
 	defer cancel()
-	sw := &sweep{r: s.Reader, lim: lim, in: in, fields: map[string]string{}}
+	sw := &sweep{r: s.Reader, lim: lim, in: in, sem: make(chan struct{}, lim.Concurrency), fields: map[string]string{}}
 	sw.serviceMap(ctx)
 	sw.measure(ctx)
 	sw.context(ctx)
@@ -113,12 +112,23 @@ func (sw *sweep) take() bool {
 }
 
 func (sw *sweep) call(ctx context.Context, step, uid string, read func(context.Context) error) bool {
+	return sw.callFor(ctx, nil, step, uid, read)
+}
+
+func (sw *sweep) callFor(ctx context.Context, signals []string, step, uid string, read func(context.Context) error) bool {
 	if ctx.Err() != nil {
-		sw.skip(step, uid, "the sweep's time limit was reached first")
+		sw.skipFor(signals, step, uid, "the sweep's time limit was reached first")
+		return false
+	}
+	select {
+	case sw.sem <- struct{}{}:
+		defer func() { <-sw.sem }()
+	case <-ctx.Done():
+		sw.skipFor(signals, step, uid, "the sweep's time limit was reached first")
 		return false
 	}
 	if !sw.take() {
-		sw.skip(step, uid, "the sweep's call budget was spent first")
+		sw.skipFor(signals, step, uid, "the sweep's call budget was spent first")
 		return false
 	}
 	err := read(ctx)
@@ -126,17 +136,21 @@ func (sw *sweep) call(ctx context.Context, step, uid string, read func(context.C
 	case err == nil:
 		return true
 	case ctx.Err() != nil && errors.Is(err, context.DeadlineExceeded):
-		sw.skip(step, uid, "the sweep's time limit ran out during the read")
+		sw.skipFor(signals, step, uid, "the sweep's time limit ran out during the read")
 	default:
-		sw.skip(step, uid, "the read failed: "+clipText(err.Error()))
+		sw.skipFor(signals, step, uid, "the read failed: "+clipText(err.Error()))
 	}
 	return false
 }
 
 func (sw *sweep) skip(step, uid, reason string) {
+	sw.skipFor(nil, step, uid, reason)
+}
+
+func (sw *sweep) skipFor(signals []string, step, uid, reason string) {
 	sw.mu.Lock()
 	defer sw.mu.Unlock()
-	sw.skipped = append(sw.skipped, Skip{Step: step, Source: uid, Reason: reason})
+	sw.skipped = append(sw.skipped, Skip{Step: step, Source: uid, Reason: reason, Signals: signals})
 }
 
 func (sw *sweep) signal(text string) {
@@ -146,15 +160,11 @@ func (sw *sweep) signal(text string) {
 }
 
 func (sw *sweep) parallel(ctx context.Context, tasks []func(context.Context)) {
-	var group errgroup.Group
-	group.SetLimit(sw.lim.Concurrency)
+	var wg sync.WaitGroup
 	for _, task := range tasks {
-		group.Go(func() error {
-			task(ctx)
-			return nil
-		})
+		wg.Go(func() { task(ctx) })
 	}
-	_ = group.Wait()
+	wg.Wait()
 }
 
 func (sw *sweep) serviceMap(ctx context.Context) {
