@@ -22,7 +22,9 @@ Harbor starts the task, and `slashobserve_bench.agent:SlashObserveAgent` does th
 5. It polls the run until it is `succeeded`, `failed` or `canceled`, or until `wall_timeout_sec` from the start of step 2 passes, which cancels the run, waits up to 30 seconds for it to stop and records a timeout.
 6. It writes the result into the trial's `agent/` folder and removes both containers.
 
-The answer is the finding's Markdown text.
+The answer is the finding's Markdown text, led by one line per structured field when the finding has them.
+A finding from a server built from `agent-rca-accuracy` or later leads with one line per cause, with its confidence band, whether it is stated or unconfirmed, the cause it is a knock-on of, its component, mechanism and trigger; an older server's finding leads with its root cause line.
+The bands mean something only with finding grounding on.
 o11y-bench grades the last agent message of `agent/trajectory.json`, so the last step of the trajectory is that text with no tool calls.
 Full trace ids in the answer are the agent's job, not the adapter's.
 

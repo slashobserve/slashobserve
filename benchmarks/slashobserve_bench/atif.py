@@ -46,10 +46,30 @@ class Usage:
         return self.input_tokens + self.cache_read_tokens + self.cache_write_tokens
 
 
+def _component(value: Any) -> str:
+    if not isinstance(value, dict):
+        return str(value or "")
+    return f'{value.get("namespace")}/{value.get("name")}' if value.get("namespace") else str(value.get("name") or "")
+
+
+def cause_line(number: int, cause: dict[str, Any]) -> str:
+    state = "stated" if cause.get("stated", True) is not False else "unconfirmed"
+    band = f'{cause["band"]} confidence, ' if cause.get("band") else ""
+    relation = f' knock-on of cause {cause["knock_on_of"] + 1},' if cause.get("relation") == "knock_on" and isinstance(cause.get("knock_on_of"), int) else ""
+    line = f'Cause {number} ({band}{state}):{relation} {_component(cause.get("component"))} ({cause.get("kind")}) - {cause.get("mechanism")}'
+    trigger = cause.get("trigger")
+    if isinstance(trigger, dict) and trigger.get("key"):
+        line += f' Trigger: {trigger["key"]}' + (f'={trigger["value"]}' if trigger.get("value") else "")
+    return line
+
+
 def structured_lines(finding: dict[str, Any]) -> list[str]:
     lines = []
+    causes = finding.get("causes")
     cause = finding.get("root_cause")
-    if cause:
+    if isinstance(causes, list) and causes:
+        lines.extend(cause_line(number, item) for number, item in enumerate(causes, 1) if isinstance(item, dict))
+    elif cause:
         lines.append(f'Root cause: {cause["component"]} ({cause["kind"]}) - {cause["summary"]}')
     if finding.get("no_incident"):
         lines.append("No incident found.")

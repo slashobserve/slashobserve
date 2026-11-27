@@ -94,6 +94,31 @@ def test_answer_is_the_markdown_alone_when_no_field_is_set(finished_request):
     assert atif.answer_text({**finished_request, "finding": finding}) == finding["markdown"]
 
 
+def test_answer_has_one_line_per_cause_with_its_band_and_whether_it_is_stated(finished_request):
+    def entry(name, mechanism, **fields):
+        base = {"component": {"kind": "service", "name": name, "namespace": None}, "kind": "config_or_flag", "mechanism": mechanism, "trigger": None, "relation": "independent", "knock_on_of": None, "band": "high", "stated": True}
+        return {**base, **fields}
+
+    causes = [
+        entry("ad", "The flag made ad fail.", trigger={"kind": "feature_flag", "key": "adFailure", "value": "on"}),
+        entry("checkout", "Checkout failed on calls to ad.", kind="dependency", relation="knock_on", knock_on_of=0, band="medium", component={"kind": "deployment", "name": "checkout", "namespace": "shop"}),
+        entry("payment", "Payment may be slow.", band="low", stated=False),
+        entry("cart", "Unscored.", band=None),
+    ]
+    finding = {**finished_request["finding"], "root_cause": {"component": "ad", "kind": "config_or_flag", "summary": "x"}, "causes": causes, "no_incident": False}
+    assert atif.structured_lines(finding) == [
+        "Cause 1 (high confidence, stated): ad (config_or_flag) - The flag made ad fail. Trigger: adFailure=on",
+        "Cause 2 (medium confidence, stated): knock-on of cause 1, shop/checkout (dependency) - Checkout failed on calls to ad.",
+        "Cause 3 (low confidence, unconfirmed): payment (config_or_flag) - Payment may be slow.",
+        "Cause 4 (stated): cart (config_or_flag) - Unscored.",
+    ]
+
+
+def test_an_older_finding_without_causes_keeps_the_root_cause_line(finished_request):
+    finding = {**finished_request["finding"], "root_cause": {"component": "checkout", "kind": "deploy", "summary": "Version 42."}, "causes": []}
+    assert atif.structured_lines(finding)[0] == "Root cause: checkout (deploy) - Version 42."
+
+
 def test_a_finding_with_no_incident_says_so_before_the_markdown(finished_request):
     finding = {**finished_request["finding"], "no_incident": True}
     assert atif.answer_text({**finished_request, "finding": finding}).startswith("No incident found.\n\n")
