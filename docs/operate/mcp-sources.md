@@ -125,6 +125,7 @@ An agent's call moves it too: a call the server cannot reach turns the source `u
 A call that is refused before it is sent (a tool that is not approved, arguments that do not fit, a source at its call limit) changes nothing.
 
 A failed discovery answers `200` with the failure code in `failure`: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
+When two discoveries of one source run at once, the one that finishes second stores nothing and answers `200` with `superseded` true and the source as the first one left it, so an older list of tools never replaces a newer one.
 Changing the address or the secret resets the check.
 Changing the address also deletes the stored tools, so approvals never carry over to another server.
 A change that sends an empty `description` removes it.

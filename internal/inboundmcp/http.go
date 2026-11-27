@@ -225,7 +225,7 @@ func (h *Handler) discover(c *gin.Context) {
 		h.fail(c, "discover MCP source tools", err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"source": newSourceJSON(found.Source), "tally": found.Tally})
+	c.JSON(http.StatusOK, gin.H{"source": newSourceJSON(found.Source), "tally": found.Tally, "superseded": found.Superseded})
 }
 
 func (h *Handler) tools(c *gin.Context) {

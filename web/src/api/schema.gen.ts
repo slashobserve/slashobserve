@@ -1638,7 +1638,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the server for its tools and compare them with what was approved.
-         * @description Only Admins can call this endpoint. The server connects over MCP streamable HTTP through the outbound allowlist and lists its tools. A tool the server marks destructive (`destructiveHint: true`), or whose description or input schema is too large, is stored as `refused` with the reason. Any other new tool is stored as `offered` with `read_only` saying whether the server marks it read-only; nothing is approved automatically. An approved tool whose name, description, input schema or read-only mark changed becomes `changed` and is not served until an Admin approves it again. An approved tool the server no longer lists becomes `gone`. A failed discovery answers 200 with `source.state` `unreachable` and `source.failure` naming why: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
+         * @description Only Admins can call this endpoint. The server connects over MCP streamable HTTP through the outbound allowlist and lists its tools. A tool the server marks destructive (`destructiveHint: true`), or whose description or input schema is too large, is stored as `refused` with the reason. Any other new tool is stored as `offered` with `read_only` saying whether the server marks it read-only; nothing is approved automatically. An approved tool whose name, description, input schema or read-only mark changed becomes `changed` and is not served until an Admin approves it again. An approved tool the server no longer lists becomes `gone`. A failed discovery answers 200 with `source.state` `unreachable` and `source.failure` naming why: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`. Two discoveries of one source may overlap: the one stored second changes nothing and answers 200 with `superseded` true and the source as the other left it.
          */
         post: operations["discoverMCPSourceTools"];
         delete?: never;
@@ -5432,6 +5432,8 @@ export interface components {
                 /** @description Tools left out because their name is not 1 to 128 letters, digits, dots, hyphens or underscores, or is repeated. */
                 ignored: number;
             };
+            /** @description True when another discovery of the same source was stored while this one fetched, so this one changed nothing: `source` is the stored state that discovery left and `tally` is all zero. */
+            superseded: boolean;
         };
         ApproveMCPSourceToolRequest: {
             /** @description The hash of the definition that was read; the approval is refused when the tool no longer has it. */

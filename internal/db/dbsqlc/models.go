@@ -522,6 +522,7 @@ type McpSource struct {
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
 	AllowPrivate bool
+	Discoveries  int64
 }
 
 type McpSourceTool struct {

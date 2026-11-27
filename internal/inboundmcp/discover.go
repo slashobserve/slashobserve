@@ -12,8 +12,9 @@ import (
 )
 
 type Discovery struct {
-	Source Source
-	Tally  Tally
+	Source     Source
+	Tally      Tally
+	Superseded bool
 }
 
 func (s *Service) fetch(ctx context.Context, row dbsqlc.McpSource) ([]Found, string, error) {
@@ -42,6 +43,7 @@ func (s *Service) Discover(ctx context.Context, by auth.Principal, uid string) (
 	}
 	var tally Tally
 	var source Source
+	superseded := false
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		locked, err := q.LockMCPSource(ctx, uid)
 		if err != nil {
@@ -50,16 +52,11 @@ func (s *Service) Discover(ctx context.Context, by auth.Principal, uid string) (
 		if !locked.UpdatedAt.Time.Equal(row.UpdatedAt.Time) {
 			return ErrSourceChanged
 		}
-		if failure == "" {
-			if tally, err = reconcileStored(ctx, q, locked, found); err != nil {
+		superseded = locked.Discoveries != row.Discoveries
+		if !superseded {
+			if err := s.recordFetch(ctx, q, locked, found, failure, &tally); err != nil {
 				return err
 			}
-		}
-		if err := q.MarkMCPSourceChecked(ctx, dbsqlc.MarkMCPSourceCheckedParams{ID: locked.ID, Failure: text(failure)}); err != nil {
-			return err
-		}
-		if err := recordDiscovered(ctx, q, locked, tally, failure); err != nil {
-			return err
 		}
 		checked, err := q.GetMCPSource(ctx, uid)
 		if err != nil {
@@ -78,10 +75,26 @@ func (s *Service) Discover(ctx context.Context, by auth.Principal, uid string) (
 	if err != nil {
 		return Discovery{}, err
 	}
+	if superseded {
+		return Discovery{Source: source, Superseded: true}, nil
+	}
 	if failure != "" {
 		s.logger.InfoContext(ctx, "MCP source discovery failed", slog.String("actor_id", by.ID), slog.String("uid", uid), slog.String("failure", failure))
 	}
 	return Discovery{Source: source, Tally: tally}, nil
+}
+
+func (s *Service) recordFetch(ctx context.Context, q *dbsqlc.Queries, locked dbsqlc.McpSource, found []Found, failure string, tally *Tally) error {
+	if failure == "" {
+		var err error
+		if *tally, err = reconcileStored(ctx, q, locked, found); err != nil {
+			return err
+		}
+	}
+	if err := q.MarkMCPSourceChecked(ctx, dbsqlc.MarkMCPSourceCheckedParams{ID: locked.ID, Failure: text(failure)}); err != nil {
+		return err
+	}
+	return recordDiscovered(ctx, q, locked, *tally, failure)
 }
 
 func reconcileStored(ctx context.Context, q *dbsqlc.Queries, source dbsqlc.McpSource, found []Found) (Tally, error) {

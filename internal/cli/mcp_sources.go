@@ -384,11 +384,16 @@ func (a *app) runMCPSourcesDiscover(cmd *cobra.Command, args []string) error {
 			Gone    int `json:"gone"`
 			Ignored int `json:"ignored"`
 		} `json:"tally"`
+		Superseded bool `json:"superseded"`
 	}](data)
 	if err != nil {
 		return err
 	}
 	out := a.output()
+	if found.Superseded {
+		out.line("Another discovery of this source finished first; its result is stored, so this one changed nothing")
+		return nil
+	}
 	if found.Source.Failure != nil {
 		return fmt.Errorf("discovery failed: %s", text(*found.Source.Failure))
 	}

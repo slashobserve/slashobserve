@@ -2240,7 +2240,7 @@ components:
     MCPSourceDiscovery:
       type: object
       additionalProperties: false
-      required: [source, tally]
+      required: [source, tally, superseded]
       properties:
         source:
           $ref: "#/components/schemas/MCPSource"
@@ -2265,6 +2265,10 @@ components:
             ignored:
               type: integer
               description: Tools left out because their name is not 1 to 128 letters, digits, dots, hyphens or underscores, or is repeated.
+        superseded:
+          type: boolean
+          description: >-
+            True when another discovery of the same source was stored while this one fetched, so this one changed nothing: `source` is the stored state that discovery left and `tally` is all zero.
     ApproveMCPSourceToolRequest:
       type: object
       additionalProperties: false
