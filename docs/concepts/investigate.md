@@ -185,6 +185,10 @@ These are problems with the finding, handled like any other item of the check:
 
 The check runs on a finding saved in any run that can save one, so a question asked on Home or in a revision's chat is checked like an investigation, and a suggestion has none.
 
+With `report` or `enforce`, the investigate system text drops its two rules on giving one value per quantity at the precision the tool returned and on settling two different figures with one more read, because the server now enforces them, and ends instead with a short Facts section that says to cite facts, how the options work and to list `answers`.
+A question asked on Home or in a revision gets the same instructions as one note in its context, and with `off` every prompt is the one it was.
+`get_run_brief` gives a connected agent the same text.
+
 With `report`, the items that did not pass are stored with the finding and nothing else changes.
 With `enforce`, the first save with such items is sent back once with a line per item that says how to fix it: "read it, correct it, or remove it" for a figure or name no read gave, the fact to cite for a rounded figure, the whole id for a cut one, and the settling read for two values of one quantity.
 The agent may read past its call limit to do that, and the send-back is not counted as a rejected save.
