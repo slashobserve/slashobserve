@@ -378,9 +378,10 @@ The file replaces SREGym's `agents.yaml`, so keep SREGym's default `api` judge b
 4. The server's MCP sources file registers `sregym-kubectl`, SREGym's kubectl MCP server at `http://host.docker.internal:<MCP_SERVER_PORT>/kubectl/sse`, with `allowPrivate: true` and `approve: [exec_kubectl_cmd_safely]` only.
    `rollback_command` and `get_previous_rollbackable_cmd` stay unapproved, so the agent never sees them.
    `SLASHOBSERVE_OUTBOUND_DOMAINS` is `host.docker.internal`, so the server may call nothing else.
-   The server speaks SSE to an MCP source only from branch `agent-rca-accuracy` on, so the image must be built from that branch.
-5. It waits up to `--kubectl-wait-sec` (120) for the server's discovery to approve the tool.
-   When the tool is not approved, it stops before any run, unless `--without-kubectl` lets the run work from telemetry alone.
+   The image must be built from branch `agent-rca-accuracy` or later, because only from there does the server speak SSE to an MCP source and approve, from the `approve` list, a tool its server does not mark read-only.
+   SREGym's kubectl server sets no MCP tool annotations, so an older image never lists the tool or keeps it `refused`.
+5. It waits up to `--kubectl-wait-sec` (120) for the server's discovery to approve the tool, and writes in `notes.txt` whether the tools listing marks it read-only.
+   When the tool is not approved, it stops before any run with an error that says the image is too old, unless `--without-kubectl` lets the run work from telemetry alone.
 6. It starts one `investigate` run with no `as_of`, because the cluster is live.
    The question gives the app name, namespaces and description, then a short playbook of our own: read-only kubectl commands only (get, describe, logs, top and events), what to inspect when telemetry shows only a symptom, and how to fill the finding.
    A long description is cut so that the question stays within the server's 4000 characters.
@@ -388,7 +389,9 @@ The file replaces SREGym's `agents.yaml`, so keep SREGym's default `api` judge b
    A run still going then is cancelled.
 8. It renders the diagnosis from the finding and submits it once with `POST /submit` and the stage `diagnosis`.
 
-`exec_kubectl_cmd_safely` runs any kubectl command, so read-only is an instruction to the agent, not something either server enforces.
+`exec_kubectl_cmd_safely` runs any kubectl command, and the SlashObserve server serves it because the provisioning file approves it by name, not because it is marked read-only.
+Read-only on the cluster is therefore an instruction in the playbook, not something either server enforces.
+That is acceptable only because SREGym throws the benchmark cluster away after each run.
 The port-forwards read through the API server and create nothing in the cluster.
 
 ### The diagnosis
@@ -406,9 +409,10 @@ A run that stops before the investigation (no `diagnosis` stage, the tool not ap
 | `diagnosis.txt` | The text submitted. |
 | `submission.json` | The conductor's answer to the submission, or the error. |
 | `trajectory.json`, `run.json`, `server.log` | As for o11y-bench; SREGym keeps this `trajectory.json`, because it has no converter for this agent. |
-| `notes.txt` | How each store was reached, whether kubectl was approved, and that no mitigation was submitted. |
+| `notes.txt` | How each store was reached, whether kubectl was approved and marked read-only, and that no mitigation was submitted. |
 
 The options are those of ORCA-bench without `code_context`, as `--` flags, plus `--conductor-url`, `--mcp-url`, `--prometheus-url`, `--loki-url`, `--kubectl-wait-sec`, `--without-kubectl` and `--out`.
+`--without-kubectl` is for a telemetry-only baseline, or for a run on an image older than `agent-rca-accuracy`, which cannot approve the tool.
 `--model` defaults to SREGym's `--model`, `--server-image` to `slashobserve-server:local` and `--out` to `AGENT_LOGS_DIR`.
 `--model replay/replay` without `--replay-dir` writes a replay fixture for the problem's question from `fixtures/sregym-answer.json`, so a run proves the plumbing with no model; give SREGym a real `--judge-model`, or its judge leaves the attempt unscored.
 The spend ledger, the cost cap and the key file work as for o11y-bench.
@@ -416,7 +420,7 @@ The spend ledger, the cost cap and the key file work as for o11y-bench.
 ### Requirements
 
 - A SREGym checkout with its kind cluster from `kind/setup_kind_cluster.sh`, which needs 8 vCPU and 16 GB for SREGym-Lite, plus `kubectl`, Docker and `uv` on the same Linux host.
-- A server image built from branch `agent-rca-accuracy`, for example `docker build -t slashobserve-server:rca .` in a checkout of that branch.
+- A server image built from branch `agent-rca-accuracy` or later, for example `docker build -t slashobserve-server:rca .` in a checkout of that branch, because the run needs both SSE to an MCP source and the approval of a tool that is not marked read-only.
 - `SLASHOBSERVE_BENCH_LLM_KEY_FILE` for the model under test, and the judge's key as SREGym asks for it, such as `ANTHROPIC_API_KEY`.
 
 ### Run the subset
@@ -468,8 +472,7 @@ The runs are private, and no result is submitted to the leaderboard.
 The adapter has run only in its unit tests, never against a cluster.
 A real run must confirm:
 
-- That the server can approve `exec_kubectl_cmd_safely`.
-  SREGym's kubectl server sets no MCP tool annotations, and the server refuses a tool that its source does not mark read-only, so with the server as it is the tool stays `refused` and the run stops, or works from telemetry alone with `--without-kubectl`.
+- That `exec_kubectl_cmd_safely` comes back `approved` from the provisioning file on an image built from `agent-rca-accuracy` or later, and that `notes.txt` records it as not marked read-only.
 - That a container reaches the host's port-forwards through `host.docker.internal` mapped to `host-gateway`, which depends on the host's firewall.
 - That `kubectl port-forward` works through SREGym's filtering proxy, which relays upgraded connections.
 - That the Services and ports in `observe` are the ones a run deploys, and that its Prometheus and Loki hold the app's metrics and logs.

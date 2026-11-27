@@ -255,11 +255,37 @@ def test_no_incident_and_no_finding_are_stated_plainly():
 
 
 def test_kubectl_tool_state_reads_the_tools_listing():
-    tools = [{"name": "rollback_command", "state": "refused", "refusal": "x"}, {"name": "exec_kubectl_cmd_safely", "state": "approved", "refusal": None}]
-    assert sregym.kubectl_tool_state(tools) == ("approved", None)
+    tools = [
+        {"name": "rollback_command", "state": "offered", "refusal": None, "read_only": False},
+        {"name": "exec_kubectl_cmd_safely", "state": "approved", "refusal": None, "read_only": False},
+    ]
+    assert sregym.kubectl_tool_state(tools) == sregym.KubectlTool("approved", None, False)
     refused = [{"name": "exec_kubectl_cmd_safely", "state": "refused", "refusal": "The server does not mark this tool as read-only."}]
-    assert sregym.kubectl_tool_state(refused) == ("refused", "The server does not mark this tool as read-only.")
-    assert sregym.kubectl_tool_state([]) == ("missing", None)
+    assert sregym.kubectl_tool_state(refused) == sregym.KubectlTool("refused", "The server does not mark this tool as read-only.", None)
+    assert sregym.kubectl_tool_state([]) == sregym.KubectlTool("missing")
+
+
+@pytest.mark.parametrize(
+    ("read_only", "mark"),
+    [(True, "marked read-only by its server"), (False, "read-only is only the playbook's instruction"), (None, "no read-only mark")],
+)
+def test_approved_kubectl_note_says_whether_the_tool_is_marked_read_only(read_only, mark):
+    tool = sregym.KubectlTool("approved", None, read_only)
+    assert tool.approved
+    assert tool.note().startswith("kubectl: exec_kubectl_cmd_safely approved on the MCP source sregym-kubectl, ")
+    assert mark in tool.note()
+
+
+def test_a_refused_kubectl_tool_says_the_image_is_too_old():
+    reason = sregym.KubectlTool("refused", "The server does not mark this tool as read-only.").reason()
+    assert reason.startswith("exec_kubectl_cmd_safely is refused (The server does not mark this tool as read-only.); the server image is too old")
+    assert "branch agent-rca-accuracy or later" in reason
+
+
+def test_a_missing_kubectl_tool_names_the_image_requirement():
+    reason = sregym.KubectlTool("missing").reason()
+    assert "may be too old or the kubectl MCP server unreachable" in reason
+    assert "branch agent-rca-accuracy or later" in reason
 
 
 @pytest.mark.parametrize(

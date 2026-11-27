@@ -42,6 +42,7 @@ KUBECTL_SOURCE = "sregym-kubectl"
 KUBECTL_TOOL = "exec_kubectl_cmd_safely"
 CONFIG_DIR = "/etc/slashobserve"
 MCP_SOURCES_FILE = "mcp-sources.yaml"
+IMAGE_BRANCH = "agent-rca-accuracy"
 
 CANCEL_GRACE_SEC = 30
 SUBMIT_TIMEOUT_SEC = 330
@@ -342,11 +343,36 @@ def diagnosis_for(request: dict[str, Any]) -> str:
     return render_diagnosis(request.get("finding"))
 
 
-def kubectl_tool_state(tools: Iterable[dict[str, Any]]) -> tuple[str, str | None]:
+@dataclass(frozen=True)
+class KubectlTool:
+    state: str
+    refusal: str | None = None
+    read_only: bool | None = None
+
+    @property
+    def approved(self) -> bool:
+        return self.state == "approved"
+
+    def note(self) -> str:
+        mark = {
+            True: "marked read-only by its server",
+            False: "not marked read-only by its server, so read-only is only the playbook's instruction",
+            None: "with no read-only mark in the tools listing",
+        }[self.read_only]
+        return f"kubectl: {KUBECTL_TOOL} approved on the MCP source {KUBECTL_SOURCE}, {mark}"
+
+    def reason(self) -> str:
+        reason = f"{KUBECTL_TOOL} is {self.state}" + (f" ({self.refusal})" if self.refusal else "")
+        cause = "the server image is too old" if self.state == "refused" else "the server image may be too old or the kubectl MCP server unreachable"
+        return f"{reason}; {cause}: the run needs an image built from branch {IMAGE_BRANCH} or later, which speaks SSE to an MCP source and approves a tool its server does not mark read-only"
+
+
+def kubectl_tool_state(tools: Iterable[dict[str, Any]]) -> KubectlTool:
     for tool in tools:
         if tool.get("name") == KUBECTL_TOOL:
-            return str(tool.get("state")), tool.get("refusal")
-    return "missing", None
+            read_only = tool.get("read_only")
+            return KubectlTool(str(tool.get("state")), tool.get("refusal"), read_only if isinstance(read_only, bool) else None)
+    return KubectlTool("missing")
 
 
 def split_model(model_name: str | None) -> tuple[str, str | None]:
@@ -582,22 +608,21 @@ class Runner:
 
     def _kubectl_ready(self, client: Client) -> bool:
         deadline = time.monotonic() + self.options.kubectl_wait_sec
-        state, refusal = "missing", None
+        tool = KubectlTool("missing")
         while time.monotonic() < deadline:
             try:
-                state, refusal = kubectl_tool_state(client.mcp_tools(KUBECTL_SOURCE))
+                tool = kubectl_tool_state(client.mcp_tools(KUBECTL_SOURCE))
             except ApiError as error:
-                state, refusal = "unavailable", str(error)
-            if state in ("approved", "refused"):
+                tool = KubectlTool("unavailable", str(error))
+            if tool.state in ("approved", "refused"):
                 break
             time.sleep(2)
-        if state == "approved":
-            self._note(f"kubectl: {KUBECTL_TOOL} approved on the MCP source {KUBECTL_SOURCE}")
+        if tool.approved:
+            self._note(tool.note())
             return True
-        reason = f"{KUBECTL_TOOL} is {state}" + (f" ({refusal})" if refusal else "")
         if not self.options.without_kubectl:
-            raise UnsupportedProblem(f"the cluster cannot be read: {reason}; pass --without-kubectl to diagnose from telemetry alone")
-        self._note(f"kubectl: not available, {reason}; the run used telemetry alone")
+            raise UnsupportedProblem(f"the cluster cannot be read: {tool.reason()}; pass --without-kubectl for a telemetry-only baseline")
+        self._note(f"kubectl: not available, {tool.reason()}; the run used telemetry alone")
         return False
 
     def _investigate(self, client: Client, text: str, budget_sec: float) -> dict:
@@ -670,7 +695,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--prometheus-url", help="skip the port-forward and reach Prometheus here")
     run.add_argument("--loki-url", help="skip the port-forward and reach Loki here")
     run.add_argument("--kubectl-wait-sec", type=int)
-    run.add_argument("--without-kubectl", action="store_true", help="diagnose from telemetry alone when the kubectl tool is not approved")
+    run.add_argument("--without-kubectl", action="store_true", help="diagnose from telemetry alone when the kubectl tool is not approved, as a telemetry-only baseline or on a server image older than branch agent-rca-accuracy")
     run.add_argument("--out", help="defaults to SREGym's AGENT_LOGS_DIR")
     return parser
 
