@@ -4783,10 +4783,8 @@ export interface components {
             investigation: boolean;
             /** @description The requester's title, else the first line of the prompt without `@observe`, cut at a word to 60 characters, else the intent word. */
             title: string;
-            /** @enum {string} */
-            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
-            /** @enum {string} */
-            result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation" | "answer";
+            state: components["schemas"]["RunState"];
+            result_kind: components["schemas"]["RunResultKind"];
             failure_code: string | null;
             /** Format: date-time */
             created_at: string;
@@ -6148,8 +6146,7 @@ export interface components {
             revision: {
                 /** Format: uuid */
                 id: string;
-                /** @enum {string} */
-                status: "queued" | "running" | "succeeded" | "failed";
+                status: components["schemas"]["RunStatus"];
             } | null;
             /** @description The spot the thread points at; null for a thread about the whole dashboard, panel or observation. */
             anchor: components["schemas"]["Anchor"] | null;
@@ -6257,8 +6254,7 @@ export interface components {
             run?: {
                 /** Format: uuid */
                 id: string;
-                /** @enum {string} */
-                status: "queued" | "running" | "succeeded" | "failed";
+                status: components["schemas"]["RunStatus"];
                 /**
                  * @description Who takes the run, the built-in agent, a connected agent or a service account.
                  * @enum {string}
@@ -6674,18 +6670,9 @@ export interface components {
             prompt: string;
             /** @description The version the requester was looking at; null for the `observe` request that created the dashboard. The agent revises the latest version. */
             base_version: number | null;
-            /** @enum {string} */
-            status: "queued" | "running" | "succeeded" | "failed";
-            /**
-             * @description Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`.
-             * @enum {string}
-             */
-            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
-            /**
-             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version.
-             * @enum {string}
-             */
-            result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation" | "answer";
+            status: components["schemas"]["RunStatus"];
+            state: components["schemas"]["RunState"];
+            result_kind: components["schemas"]["RunResultKind"];
             attempts: number;
             /** @description What the caller may do with the revision now, in display order and by the same rule as `AgentRequest.allowed_actions`. `retry` is offered to anyone who can see a finished revision and may start that kind of request, not only the requester; every other action is the requester's. */
             allowed_actions: ("cancel" | "keep_build" | "continue" | "retry" | "pin" | "archive")[];
@@ -6757,11 +6744,7 @@ export interface components {
             /** @description The version the proposal is judged inside. */
             base_version: number;
             prompt: string;
-            /**
-             * @description Computed from `state`; kept for clients that read it.
-             * @enum {string}
-             */
-            status: "queued" | "running" | "succeeded" | "failed";
+            status: components["schemas"]["RunStatus"];
             /**
              * @description Where the suggestion is in its life, the same six states every run has. A suggestion cannot be canceled, so it is never `canceling` or `canceled`.
              * @enum {string}
@@ -6805,6 +6788,21 @@ export interface components {
              */
             effort: "low" | "medium" | "high" | "xhigh" | "max" | null;
         };
+        /**
+         * @description Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`.
+         * @enum {string}
+         */
+        RunState: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
+        /**
+         * @description The four-value status of a run, computed from `state`; kept for clients that read it.
+         * @enum {string}
+         */
+        RunStatus: "queued" | "running" | "succeeded" | "failed";
+        /**
+         * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version.
+         * @enum {string}
+         */
+        RunResultKind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation" | "answer";
         AgentStep: {
             /** Format: date-time */
             at: string;
@@ -7021,18 +7019,9 @@ export interface components {
             panel_id: string | null;
             /** Format: uuid */
             comment_id: string | null;
-            /** @enum {string} */
-            status: "queued" | "running" | "succeeded" | "failed";
-            /**
-             * @description Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`.
-             * @enum {string}
-             */
-            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
-            /**
-             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version.
-             * @enum {string}
-             */
-            result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation" | "answer";
+            status: components["schemas"]["RunStatus"];
+            state: components["schemas"]["RunState"];
+            result_kind: components["schemas"]["RunResultKind"];
             attempts: number;
             /** @description The attempt number of the worker that holds or last held the request; equal to `attempts`. */
             attempt: number;
@@ -7200,8 +7189,7 @@ export interface components {
         ChatTurnSummary: {
             /** Format: uuid */
             id: string;
-            /** @enum {string} */
-            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
+            state: components["schemas"]["RunState"];
             prompt: string;
             /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
             investigation: boolean;
@@ -7279,18 +7267,9 @@ export interface components {
              */
             trigger: "person" | "mention" | "schedule" | "webhook" | "slack";
             prompt: string;
-            /** @enum {string} */
-            status: "queued" | "running" | "succeeded" | "failed";
-            /**
-             * @description Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`.
-             * @enum {string}
-             */
-            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
-            /**
-             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version.
-             * @enum {string}
-             */
-            result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation" | "answer";
+            status: components["schemas"]["RunStatus"];
+            state: components["schemas"]["RunState"];
+            result_kind: components["schemas"]["RunResultKind"];
             /** @description What the caller may do with the request now; empty on another principal's request that the caller sees only as an Admin. */
             allowed_actions: ("cancel" | "keep_build" | "continue" | "retry" | "pin" | "archive")[];
             /** Format: uuid */
@@ -7399,11 +7378,7 @@ export interface components {
              * @enum {string}
              */
             code: "request_finished" | "not_continuable" | "invalid_transition";
-            /**
-             * @description The state the request is in.
-             * @enum {string}
-             */
-            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
+            state: components["schemas"]["RunState"];
             /** @description The actions the caller may take now, as in the request's own `allowed_actions`. */
             allowed_actions: string[];
             /**
@@ -8262,8 +8237,7 @@ export interface components {
              * @description The agent request id.
              */
             id: string;
-            /** @enum {string} */
-            status: "queued" | "running" | "succeeded" | "failed";
+            status: components["schemas"]["RunStatus"];
             /** Format: date-time */
             finished_at: string | null;
         };

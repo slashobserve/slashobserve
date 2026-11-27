@@ -1068,11 +1068,9 @@ components:
           type: string
           description: The requester's title, else the first line of the prompt without `@observe`, cut at a word to 60 characters, else the intent word.
         state:
-          type: string
-          enum: [queued, running, canceling, succeeded, failed, canceled]
+          $ref: "#/components/schemas/RunState"
         result_kind:
-          type: string
-          enum: [none, version, partial_version, proposal, suggestion, observation, answer]
+          $ref: "#/components/schemas/RunResultKind"
         failure_code:
           type: string
           nullable: true
@@ -3637,8 +3635,7 @@ components:
               type: string
               format: uuid
             status:
-              type: string
-              enum: [queued, running, succeeded, failed]
+              $ref: "#/components/schemas/RunStatus"
         anchor:
           nullable: true
           allOf:
@@ -3804,8 +3801,7 @@ components:
               type: string
               format: uuid
             status:
-              type: string
-              enum: [queued, running, succeeded, failed]
+              $ref: "#/components/schemas/RunStatus"
             assigned_kind:
               type: string
               enum: [builtin, grant, service_account]
@@ -4582,16 +4578,11 @@ components:
           nullable: true
           description: The version the requester was looking at; null for the `observe` request that created the dashboard. The agent revises the latest version.
         status:
-          type: string
-          enum: [queued, running, succeeded, failed]
+          $ref: "#/components/schemas/RunStatus"
         state:
-          type: string
-          enum: [queued, running, canceling, succeeded, failed, canceled]
-          description: "Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`."
+          $ref: "#/components/schemas/RunState"
         result_kind:
-          type: string
-          enum: [none, version, partial_version, proposal, suggestion, observation, answer]
-          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version."
+          $ref: "#/components/schemas/RunResultKind"
         attempts:
           type: integer
           minimum: 0
@@ -4731,9 +4722,7 @@ components:
         prompt:
           type: string
         status:
-          type: string
-          enum: [queued, running, succeeded, failed]
-          description: Computed from `state`; kept for clients that read it.
+          $ref: "#/components/schemas/RunStatus"
         state:
           type: string
           enum: [queued, running, canceling, succeeded, failed, canceled]
@@ -4805,6 +4794,18 @@ components:
           enum: [low, medium, high, xhigh, max]
           nullable: true
           description: Reasoning effort of the Anthropic provider; null otherwise.
+    RunState:
+      type: string
+      enum: [queued, running, canceling, succeeded, failed, canceled]
+      description: "Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`."
+    RunStatus:
+      type: string
+      enum: [queued, running, succeeded, failed]
+      description: The four-value status of a run, computed from `state`; kept for clients that read it.
+    RunResultKind:
+      type: string
+      enum: [none, version, partial_version, proposal, suggestion, observation, answer]
+      description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version."
     AgentStep:
       type: object
       additionalProperties: false
@@ -5241,16 +5242,11 @@ components:
           format: uuid
           nullable: true
         status:
-          type: string
-          enum: [queued, running, succeeded, failed]
+          $ref: "#/components/schemas/RunStatus"
         state:
-          type: string
-          enum: [queued, running, canceling, succeeded, failed, canceled]
-          description: "Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`."
+          $ref: "#/components/schemas/RunState"
         result_kind:
-          type: string
-          enum: [none, version, partial_version, proposal, suggestion, observation, answer]
-          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version."
+          $ref: "#/components/schemas/RunResultKind"
         attempts:
           type: integer
           minimum: 0
@@ -5499,8 +5495,7 @@ components:
           type: string
           format: uuid
         state:
-          type: string
-          enum: [queued, running, canceling, succeeded, failed, canceled]
+          $ref: "#/components/schemas/RunState"
         prompt:
           type: string
         investigation:
@@ -5662,16 +5657,11 @@ components:
         prompt:
           type: string
         status:
-          type: string
-          enum: [queued, running, succeeded, failed]
+          $ref: "#/components/schemas/RunStatus"
         state:
-          type: string
-          enum: [queued, running, canceling, succeeded, failed, canceled]
-          description: "Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`."
+          $ref: "#/components/schemas/RunState"
         result_kind:
-          type: string
-          enum: [none, version, partial_version, proposal, suggestion, observation, answer]
-          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version."
+          $ref: "#/components/schemas/RunResultKind"
         allowed_actions:
           type: array
           uniqueItems: true
@@ -5843,9 +5833,7 @@ components:
           enum: [request_finished, not_continuable, invalid_transition]
           description: "`request_finished` for a cancel, `not_continuable` for a continue and `invalid_transition` for a retry."
         state:
-          type: string
-          enum: [queued, running, canceling, succeeded, failed, canceled]
-          description: The state the request is in.
+          $ref: "#/components/schemas/RunState"
         allowed_actions:
           type: array
           items:
@@ -7531,8 +7519,7 @@ components:
           format: uuid
           description: The agent request id.
         status:
-          type: string
-          enum: [queued, running, succeeded, failed]
+          $ref: "#/components/schemas/RunStatus"
         finished_at:
           type: string
           format: date-time
