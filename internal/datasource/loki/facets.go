@@ -102,7 +102,7 @@ func (d *Datasource) LogFacets(ctx context.Context, req datasource.FacetRequest)
 		return out, nil
 	}
 	out.Sampled = true
-	out.LinesSampled = lineCount(sample.frames)
+	out.LinesSampled = datasource.FrameRows(sample.frames)
 	out.Fields = append(out.Fields, sample.fields(indexLabels, requestedFields, req.Limit)...)
 	out.Truncated = out.Truncated || len(sample.detected) >= maxDetectedFields
 	return out, nil
@@ -187,7 +187,7 @@ func (d *Datasource) sampleNewest(ctx context.Context, text string, r datasource
 		if !ok {
 			break
 		}
-		wanted := sample - lineCount(frames)
+		wanted := sample - datasource.FrameRows(frames)
 		got, err := d.run(win.Ctx, "/loki/api/v1/query_range", sampleParams(text, windowOf(w), wanted), lim, wanted)
 		if ranOut := win.End(err); err != nil {
 			if !ranOut {
@@ -196,7 +196,7 @@ func (d *Datasource) sampleNewest(ctx context.Context, text string, r datasource
 			break
 		}
 		frames, sampled.From = append(frames, got...), w.From
-		if lineCount(frames) >= sample {
+		if datasource.FrameRows(frames) >= sample {
 			break
 		}
 	}

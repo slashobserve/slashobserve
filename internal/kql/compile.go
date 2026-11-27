@@ -36,29 +36,6 @@ func CompileKnowing(text string, fields Fields, knownField func(string) bool) (C
 	return Compiled{Query: query, Diagnostics: c.warnings, UnknownFields: c.unknown}, nil
 }
 
-func FieldsIn(text string) []string {
-	root, diags := Parse(text)
-	if len(diags) > 0 || root == nil {
-		return nil
-	}
-	var names []string
-	seen := map[string]bool{}
-	walk(root, func(n *Node) {
-		if n.Field != "" && !seen[n.Field] {
-			seen[n.Field] = true
-			names = append(names, n.Field)
-		}
-	})
-	return names
-}
-
-func walk(n *Node, visit func(*Node)) {
-	visit(n)
-	for _, child := range n.Children {
-		walk(child, visit)
-	}
-}
-
 func (c *compiler) clause(n *Node) map[string]any {
 	switch n.Kind {
 	case And:

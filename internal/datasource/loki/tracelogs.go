@@ -25,7 +25,7 @@ func (d *Datasource) TraceLogs(ctx context.Context, req datasource.TraceLogsRequ
 		return []datasource.Frame{}, nil
 	}
 	frames, err := d.traceLines(ctx, req, metadataTraceQuery(selector, req))
-	if err != nil || lineCount(frames) > 0 {
+	if err != nil || datasource.FrameRows(frames) > 0 {
 		return frames, err
 	}
 	return d.traceLines(ctx, req, lineFilterTraceQuery(selector, req))
@@ -71,12 +71,4 @@ func lineFilterTraceQuery(selector string, req datasource.TraceLogsRequest) stri
 func (d *Datasource) traceLines(ctx context.Context, req datasource.TraceLogsRequest, text string) ([]datasource.Frame, error) {
 	lim := d.opts.Limits.Tighten(datasource.Limits{MaxRows: req.Limit})
 	return d.queryText(ctx, text, lim, req.Range, datasource.InstantInterval(req.Range, 0), true)
-}
-
-func lineCount(frames []datasource.Frame) int {
-	n := 0
-	for _, f := range frames {
-		n += f.Rows()
-	}
-	return n
 }

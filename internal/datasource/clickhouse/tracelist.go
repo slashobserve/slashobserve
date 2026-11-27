@@ -19,8 +19,8 @@ var _ datasource.TraceListSource = (*Datasource)(nil)
 
 func ListQuery(req datasource.TraceListRequest) (string, ch.Parameters) {
 	params := ch.Parameters{
-		"from": req.Range.From.UTC().Format(parameterTimeFmt),
-		"to":   req.Range.To.UTC().Format(parameterTimeFmt),
+		"from": parameterTime(req.Range.From),
+		"to":   parameterTime(req.Range.To),
 		"n":    strconv.Itoa(cmpPositive(req.Limit, datasource.TraceListBudget)),
 	}
 	var having []string

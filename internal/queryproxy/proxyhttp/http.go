@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -25,6 +24,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -640,7 +640,10 @@ func (h *Handler) lint(c *gin.Context) {
 		return
 	}
 	var req lintRequest
-	if status, code, msg := decodeLint(c, &req); status != 0 {
+	if !httpapi.DecodeBody(c, &req, maxLintBodyBytes) {
+		return
+	}
+	if status, code, msg := req.validate(); status != 0 {
 		abortError(c, status, code, msg)
 		return
 	}
@@ -697,27 +700,12 @@ func (h *Handler) safeLint(ctx context.Context, inst datasource.Instance, text s
 	return inst.Datasource.Lint(ctx, text)
 }
 
-func decodeLint(c *gin.Context, req *lintRequest) (status int, code, message string) {
-	invalid := string(queryproxy.CodeInvalidRequest)
-	dec := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, maxLintBodyBytes))
-	dec.DisallowUnknownFields()
-	err := dec.Decode(req)
-	if err == nil {
-		if _, err = dec.Token(); !errors.Is(err, io.EOF) {
-			return http.StatusBadRequest, invalid, "request body must be a single JSON object"
-		}
-	} else {
-		var tooLarge *http.MaxBytesError
-		if errors.As(err, &tooLarge) {
-			return http.StatusRequestEntityTooLarge, "too_large", "request body is too large"
-		}
-		return http.StatusBadRequest, invalid, "request body must be valid JSON with known fields"
-	}
-	if req.Query != nil && len(*req.Query) > maxLintQueryBytes {
+func (r lintRequest) validate() (status int, code, message string) {
+	switch {
+	case r.Query != nil && len(*r.Query) > maxLintQueryBytes:
 		return http.StatusBadRequest, string(queryproxy.CodeQueryTooLong), "query must be at most 64 KiB"
-	}
-	if req.Query == nil || len(*req.Query) == 0 {
-		return http.StatusBadRequest, invalid, "query must be from 1 byte to 64 KiB"
+	case r.Query == nil || len(*r.Query) == 0:
+		return http.StatusBadRequest, string(queryproxy.CodeInvalidRequest), "query must be from 1 byte to 64 KiB"
 	}
 	return 0, "", ""
 }
