@@ -80,3 +80,47 @@ it("leaves the stream alone on a first page show", () => {
   act(() => window.dispatchEvent(pageTransition("pageshow", false)))
   expect(FakeEventSource.instances).toHaveLength(1)
 })
+
+it("stops reconnecting when the server says the caller lost access, and catches up when the stream is enabled again", () => {
+  vi.useFakeTimers()
+  try {
+    const onGap = vi.fn()
+    const { rerender } = renderHook(
+      ({ enabled }) =>
+        useActivityStream({ enabled, onEvent: vi.fn(), onGap }),
+      { initialProps: { enabled: true } }
+    )
+    const source = openSources()[0]
+    act(() => source.send("ready"))
+
+    act(() => source.send("closed", '{"reason":"access_lost"}'))
+    act(() => {
+      vi.advanceTimersByTime(60_000)
+    })
+    expect(source.closed).toBe(true)
+    expect(FakeEventSource.instances).toHaveLength(1)
+
+    rerender({ enabled: false })
+    rerender({ enabled: true })
+    act(() => openSources()[0].send("ready"))
+    expect(onGap).toHaveBeenCalledTimes(1)
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it.each(["lifetime", "stopping", "check_failed", "read_failed"])(
+  "leaves the reconnect to the browser, which resumes from the last event, when the server closed the stream for %s",
+  (reason) => {
+    renderHook(() =>
+      useActivityStream({ enabled: true, onEvent: vi.fn(), onGap: vi.fn() })
+    )
+    const source = openSources()[0]
+    act(() => source.send("ready"))
+
+    act(() => source.send("closed", JSON.stringify({ reason })))
+
+    expect(source.closed).toBe(false)
+    expect(FakeEventSource.instances).toHaveLength(1)
+  }
+)
