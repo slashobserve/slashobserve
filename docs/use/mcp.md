@@ -391,6 +391,7 @@ The loop of an agent that takes runs:
 3. Read the `observe` prompt with that `kind`; it is the system text SlashObserve's own agent works from for that kind of run.
    `get_run_brief` returns the same text with the first message SlashObserve's own agent starts each model session with, and is optional.
 4. Open a second MCP connection to the session `url` with the token as the Bearer, and work with the tools it lists.
+   The token stops working when the connection the run is assigned to is revoked or expires.
 5. Call `report_run` at least every 30 seconds with the `run_id`, `attempt` and `claim_epoch`.
    The lease ends 60 seconds after the last call, and `stop: true` in the answer means the run was canceled or has ended.
    `note`, one line of at most 500 characters, shows in the run's steps.

@@ -28,8 +28,7 @@ FROM oauth_grants g
 JOIN oauth_clients c ON c.id = g.client_id
 LEFT JOIN agent_workers w ON w.id = 'grant:' || g.id::text
 WHERE g.user_id = @user_id
-  AND g.revoked_at IS NULL
-  AND g.expires_at > now()
+  AND oauth_grant_live(g)
 ORDER BY g.created_at DESC, g.id DESC
 LIMIT 100;
 

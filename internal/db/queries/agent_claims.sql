@@ -11,7 +11,7 @@ LEFT JOIN oauth_grants g ON r.assigned_kind = 'grant' AND g.id = r.assigned_id
 LEFT JOIN oauth_clients c ON c.id = g.client_id
 LEFT JOIN service_accounts s ON r.assigned_kind = 'service_account' AND s.id = r.assigned_id
 WHERE t.token_hash = @token_hash
-  AND g.revoked_at IS NULL
+  AND (g.id IS NULL OR oauth_grant_live(g))
   AND t.attempt = r.attempts
   AND t.claim_epoch = r.claim_epoch
   AND r.state = 'running'
@@ -44,7 +44,7 @@ ON CONFLICT (id) DO UPDATE SET client = EXCLUDED.client, seen_at = EXCLUDED.seen
 
 -- name: PruneAgentWorkers :execrows
 DELETE FROM agent_workers w
-WHERE (w.principal_kind = 'grant' AND NOT EXISTS (SELECT 1 FROM oauth_grants g WHERE g.id = w.principal_id AND g.revoked_at IS NULL))
+WHERE (w.principal_kind = 'grant' AND NOT EXISTS (SELECT 1 FROM oauth_grants g WHERE g.id = w.principal_id AND oauth_grant_live(g)))
    OR (w.principal_kind = 'service_account' AND NOT EXISTS (SELECT 1 FROM service_accounts s WHERE s.id = w.principal_id));
 
 -- name: ListHeldAgentRequests :many

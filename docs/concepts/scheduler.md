@@ -126,7 +126,7 @@ Details of `oauth_prune`:
 Details of `run_tokens_prune`:
 
 - It deletes expired run tokens.
-- It deletes the records of agent workers whose grant or service account is gone.
+- It deletes the records of agent workers whose service account is gone or whose grant is gone, revoked or expired.
 
 Details of `agent_requests_sweep`:
 

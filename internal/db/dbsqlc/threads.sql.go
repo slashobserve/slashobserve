@@ -12,7 +12,7 @@ import (
 )
 
 const agentGrantIsLive = `-- name: AgentGrantIsLive :one
-SELECT EXISTS (SELECT 1 FROM oauth_grants WHERE id = $1 AND revoked_at IS NULL AND expires_at > now())::boolean AS live
+SELECT EXISTS (SELECT 1 FROM oauth_grants WHERE id = $1 AND oauth_grant_live(oauth_grants))::boolean AS live
 `
 
 func (q *Queries) AgentGrantIsLive(ctx context.Context, id pgtype.UUID) (bool, error) {
@@ -1062,7 +1062,7 @@ const mentionableGrant = `-- name: MentionableGrant :one
 SELECT coalesce(c.name, '')::text AS name
 FROM oauth_grants g
 JOIN oauth_clients c ON c.id = g.client_id
-WHERE g.id = $1 AND g.user_id = $2 AND g.revoked_at IS NULL AND g.expires_at > now()
+WHERE g.id = $1 AND g.user_id = $2 AND oauth_grant_live(g)
 `
 
 type MentionableGrantParams struct {

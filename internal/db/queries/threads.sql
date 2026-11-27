@@ -191,7 +191,7 @@ LIMIT @row_limit;
 SELECT coalesce(c.name, '')::text AS name
 FROM oauth_grants g
 JOIN oauth_clients c ON c.id = g.client_id
-WHERE g.id = @id AND g.user_id = @user_id AND g.revoked_at IS NULL AND g.expires_at > now();
+WHERE g.id = @id AND g.user_id = @user_id AND oauth_grant_live(g);
 
 -- name: MentionableServiceAccount :one
 SELECT name FROM service_accounts WHERE id = @id AND takes_runs;
@@ -249,7 +249,7 @@ WHERE t.id = ANY(@thread_ids::uuid[])
   );
 
 -- name: AgentGrantIsLive :one
-SELECT EXISTS (SELECT 1 FROM oauth_grants WHERE id = @id AND revoked_at IS NULL AND expires_at > now())::boolean AS live;
+SELECT EXISTS (SELECT 1 FROM oauth_grants WHERE id = @id AND oauth_grant_live(oauth_grants))::boolean AS live;
 
 -- name: ListAnsweredRuns :many
 SELECT agent_request_id::uuid FROM findings WHERE agent_request_id = ANY(@run_ids::uuid[]);

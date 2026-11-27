@@ -40,12 +40,12 @@ func (q *Queries) ConsumeOAuthRequest(ctx context.Context, id pgtype.UUID) (Cons
 
 const countOAuthSlots = `-- name: CountOAuthSlots :one
 SELECT ((SELECT count(*) FROM oauth_grants g
-        WHERE g.user_id = $1 AND g.revoked_at IS NULL AND g.expires_at > now())
+        WHERE g.user_id = $1 AND oauth_grant_live(g))
      + (SELECT count(DISTINCT c.client_id) FROM oauth_codes c
         WHERE c.user_id = $1 AND c.used_at IS NULL AND c.expires_at > now()
           AND NOT EXISTS (SELECT 1 FROM oauth_grants g
                           WHERE g.client_id = c.client_id AND g.user_id = c.user_id
-                            AND g.revoked_at IS NULL AND g.expires_at > now())))::bigint AS slots
+                            AND oauth_grant_live(g))))::bigint AS slots
 `
 
 func (q *Queries) CountOAuthSlots(ctx context.Context, userID pgtype.UUID) (int64, error) {
@@ -225,8 +225,7 @@ JOIN oauth_clients c ON c.id = g.client_id
 WHERE t.token_hash = $1
   AND t.kind = 'access'
   AND t.expires_at > now()
-  AND g.revoked_at IS NULL
-  AND g.expires_at > now()
+  AND oauth_grant_live(g)
   AND g.resource = $2
 `
 
@@ -428,7 +427,7 @@ func (q *Queries) GetOAuthTokenGrant(ctx context.Context, tokenHash []byte) (Get
 const hasLiveOAuthGrant = `-- name: HasLiveOAuthGrant :one
 SELECT EXISTS (
   SELECT 1 FROM oauth_grants
-  WHERE client_id = $1 AND user_id = $2 AND revoked_at IS NULL AND expires_at > now()
+  WHERE client_id = $1 AND user_id = $2 AND oauth_grant_live(oauth_grants)
 )
 `
 
@@ -447,7 +446,7 @@ func (q *Queries) HasLiveOAuthGrant(ctx context.Context, arg HasLiveOAuthGrantPa
 const holdsOAuthSlot = `-- name: HoldsOAuthSlot :one
 SELECT (EXISTS (
   SELECT 1 FROM oauth_grants g
-  WHERE g.client_id = $1 AND g.user_id = $2 AND g.revoked_at IS NULL AND g.expires_at > now()
+  WHERE g.client_id = $1 AND g.user_id = $2 AND oauth_grant_live(g)
 ) OR EXISTS (
   SELECT 1 FROM oauth_codes c
   WHERE c.client_id = $1 AND c.user_id = $2 AND c.used_at IS NULL AND c.expires_at > now()
@@ -481,7 +480,7 @@ FROM oauth_grants g
 JOIN oauth_clients c ON c.id = g.client_id
 JOIN users u ON u.id = g.user_id
 LEFT JOIN agent_workers w ON w.id = 'grant:' || g.id::text
-WHERE ($1::boolean OR (g.revoked_at IS NULL AND g.expires_at > now()))
+WHERE ($1::boolean OR oauth_grant_live(g))
   AND ($2::timestamptz IS NULL
        OR (g.created_at, g.id) < ($2::timestamptz, $3::uuid))
 ORDER BY g.created_at DESC, g.id DESC
@@ -572,7 +571,7 @@ JOIN oauth_clients c ON c.id = g.client_id
 JOIN users u ON u.id = g.user_id
 LEFT JOIN agent_workers w ON w.id = 'grant:' || g.id::text
 WHERE g.user_id = $1
-  AND ($2::boolean OR (g.revoked_at IS NULL AND g.expires_at > now()))
+  AND ($2::boolean OR oauth_grant_live(g))
   AND ($3::timestamptz IS NULL
        OR (g.created_at, g.id) < ($3::timestamptz, $4::uuid))
 ORDER BY g.created_at DESC, g.id DESC
@@ -811,7 +810,7 @@ func (q *Queries) RotateOAuthRefresh(ctx context.Context, tokenHash []byte) erro
 const setMyOAuthGrantMode = `-- name: SetMyOAuthGrantMode :one
 WITH g AS (
   UPDATE oauth_grants og SET mode = $1
-  WHERE og.id = $2 AND og.user_id = $3 AND og.revoked_at IS NULL AND og.expires_at > now()
+  WHERE og.id = $2 AND og.user_id = $3 AND oauth_grant_live(og)
   RETURNING og.id, og.client_id, og.user_id, og.resource, og.created_at, og.expires_at, og.last_used_at, og.revoked_at, og.revoked_reason, og.revoked_by, og.mode
 )
 SELECT g.id, g.client_id, c.name AS client_name, c.redirect_uris AS client_redirect_uris,
