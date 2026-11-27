@@ -106,6 +106,7 @@ type newVersion struct {
 	folder         folders.Folder
 	mergedProposal pgtype.UUID
 	before         func(ctx context.Context, q *dbsqlc.Queries) (stayedPut bool, err error)
+	inTx           func(q *dbsqlc.Queries, dash Dashboard, ver Version) error
 }
 
 type store struct {
@@ -128,7 +129,7 @@ func (in newVersion) contentRun() pgtype.UUID {
 }
 
 func (st store) create(ctx context.Context, in newVersion) (Dashboard, Version, error) {
-	return st.createWith(ctx, in, nil)
+	return st.createWith(ctx, in, in.inTx)
 }
 
 func (st store) createWith(ctx context.Context, in newVersion, inTx func(q *dbsqlc.Queries, dash Dashboard, ver Version) error) (Dashboard, Version, error) {

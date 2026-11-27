@@ -712,3 +712,34 @@ func TestAFreshImportWithoutDatasourcesHasAnEmptyList(t *testing.T) {
 		t.Fatalf("datasources = %#v, want an empty non-nil slice", got.Record.Datasources)
 	}
 }
+
+func TestAReimportOfADashboardWithNoImportRecordLeavesNoNewVersion(t *testing.T) {
+	r := newRig(t)
+	made, _, err := r.dashboard.Create(reading(t.Context()), ada, pgtype.UUID{}, specWith("up"), "Hand made")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := uuid(t, made.ID)
+	if _, err := r.imports.Reimport(reading(t.Context()), ada, id, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)}); !errors.Is(err, imports.ErrNotFound) {
+		t.Fatalf("err = %v, want ErrNotFound", err)
+	}
+	latest, err := r.dashboard.LatestVersion(reading(t.Context()), id)
+	if err != nil || latest != 1 {
+		t.Fatalf("latest version after a failed record update = %d, %v, want 1", latest, err)
+	}
+}
+
+func TestAReimportStoresTheRecordOfTheVersionItSaved(t *testing.T) {
+	r := newRig(t)
+	first, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := r.imports.Reimport(reading(t.Context()), ada, uuid(t, first.Dashboard.ID), imports.Request{JSON: grafanaJSON("Shop v2", "prom", 2)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Updated || got.Version.Number != 2 || got.Record.Version != 2 || got.Record.Title != "Shop v2" || got.Record.Report.Counts.Total != 2 {
+		t.Fatalf("updated %t, version %d, record %+v", got.Updated, got.Version.Number, got.Record)
+	}
+}

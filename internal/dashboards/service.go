@@ -95,6 +95,12 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, folderID pgtype
 	return s.create(ctx, by, folderID, rawSpec, summary, pgtype.UUID{})
 }
 
+func (s *Service) CreateSaved(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string, inTx func(ctx context.Context, q *dbsqlc.Queries, dash Dashboard, ver Version) error) (Dashboard, Version, error) {
+	return s.createVersion(ctx, by, folderID, rawSpec, summary, newVersion{inTx: func(q *dbsqlc.Queries, dash Dashboard, ver Version) error {
+		return inTx(ctx, q, dash, ver)
+	}})
+}
+
 func (s *Service) CreateFromAnswer(ctx context.Context, by auth.Principal, rawSpec []byte, summary string, run pgtype.UUID) (Dashboard, Version, error) {
 	return s.createVersion(ctx, by, pgtype.UUID{}, rawSpec, summary, newVersion{answerOf: run})
 }

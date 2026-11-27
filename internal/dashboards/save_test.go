@@ -251,6 +251,58 @@ func TestInTxRunsInTheSavesTransaction(t *testing.T) {
 	}
 }
 
+func TestInTxSavedSeesTheSavedDashboardAndVersionAndRollsBackOnFailure(t *testing.T) {
+	r := newRig(t, false)
+	dash := r.createDashboard(t)
+	boom := errors.New("boom")
+
+	_, err := r.service.Save(reading(t.Context()), testUser, SaveInput{
+		DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "refused",
+		InTxSaved: func(context.Context, *dbsqlc.Queries, Dashboard, Version) error { return boom },
+	})
+	if !errors.Is(err, boom) || r.latestNumber(t, dash) != 1 {
+		t.Fatalf("err = %v, latest %d, want the hook's error and no version", err, r.latestNumber(t, dash))
+	}
+
+	var seenDash Dashboard
+	var seenVer Version
+	res, err := r.service.Save(reading(t.Context()), testUser, SaveInput{
+		DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "kept",
+		InTxSaved: func(_ context.Context, _ *dbsqlc.Queries, d Dashboard, v Version) error {
+			seenDash, seenVer = d, v
+			return nil
+		},
+	})
+	if err != nil || res.Version.Number != 2 || seenVer.Number != 2 || seenDash.ID != dash.String() || seenDash.Title != "t" {
+		t.Fatalf("version %d, hook saw %d and %+v, err %v", res.Version.Number, seenVer.Number, seenDash, err)
+	}
+}
+
+func TestCreateSavedRunsItsHookInTheCreatingTransaction(t *testing.T) {
+	r := newRig(t, false)
+	boom := errors.New("boom")
+	count := func() int {
+		return r.rowCount(t, `SELECT count(*) FROM dashboards WHERE title = 'made'`)
+	}
+
+	_, _, err := r.service.CreateSaved(reading(t.Context()), testUser, pgtype.UUID{}, panelsSpec("made", "rps"), "refused",
+		func(context.Context, *dbsqlc.Queries, Dashboard, Version) error { return boom })
+	if !errors.Is(err, boom) || count() != 0 {
+		t.Fatalf("err = %v, dashboards %d, want the hook's error and no dashboard", err, count())
+	}
+
+	var seenDash Dashboard
+	var seenVer Version
+	dash, ver, err := r.service.CreateSaved(reading(t.Context()), testUser, pgtype.UUID{}, panelsSpec("made", "rps"), "kept",
+		func(_ context.Context, _ *dbsqlc.Queries, d Dashboard, v Version) error {
+			seenDash, seenVer = d, v
+			return nil
+		})
+	if err != nil || count() != 1 || seenDash.ID != dash.ID || seenVer.Number != ver.Number || ver.Number != 1 {
+		t.Fatalf("err = %v, dashboards %d, hook saw %s version %d", err, count(), seenDash.ID, seenVer.Number)
+	}
+}
+
 func TestACallerWhoCanOnlyCommentGetsAProposalOnlyWhenAskedAndWired(t *testing.T) {
 	r := newRig(t, false)
 	dash := r.createDashboard(t)

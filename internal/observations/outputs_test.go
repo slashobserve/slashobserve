@@ -59,6 +59,8 @@ func (f *fakeDashboards) Get(_ context.Context, id pgtype.UUID) (dashboards.Dash
 	return f.shown(id.String(), &d), f.version(&d), nil
 }
 
+func (f *fakeDashboards) Delete(context.Context, auth.Principal, pgtype.UUID) error { return nil }
+
 func (r rig) dashboard(t *testing.T) pgtype.UUID {
 	t.Helper()
 	var raw string

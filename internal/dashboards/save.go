@@ -33,6 +33,7 @@ type SaveInput struct {
 	Choices         []spec.Choice
 	MergedProposal  pgtype.UUID
 	InTx            func(q *dbsqlc.Queries, version int) error
+	InTxSaved       func(ctx context.Context, q *dbsqlc.Queries, dash Dashboard, ver Version) error
 	before          func(ctx context.Context, q *dbsqlc.Queries) (stayedPut bool, err error)
 	keepLayout      bool
 }
@@ -252,9 +253,17 @@ func (s *Service) commit(ctx context.Context, by auth.Principal, in SaveInput, d
 		return Dashboard{}, Version{}, err
 	}
 	var inTx func(q *dbsqlc.Queries, dash Dashboard, ver Version) error
-	if in.InTx != nil {
-		inTx = func(q *dbsqlc.Queries, _ Dashboard, ver Version) error {
-			return in.InTx(q, ver.Number)
+	if in.InTx != nil || in.InTxSaved != nil {
+		inTx = func(q *dbsqlc.Queries, dash Dashboard, ver Version) error {
+			if in.InTx != nil {
+				if err := in.InTx(q, ver.Number); err != nil {
+					return err
+				}
+			}
+			if in.InTxSaved != nil {
+				return in.InTxSaved(ctx, q, dash, ver)
+			}
+			return nil
 		}
 	}
 	return s.store.addVersionWith(ctx, newVersion{
