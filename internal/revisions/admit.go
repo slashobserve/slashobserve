@@ -304,7 +304,7 @@ func (s *Service) finishLogged(ctx context.Context, row dbsqlc.AgentRequest, o o
 		s.logger.ErrorContext(ctx, "finish agent request", logattrs.Failure("agent_request_finish_failed", err, attrs...)...)
 	case !finished:
 		s.logger.WarnContext(ctx, "agent request was finished elsewhere; dropping this result", attrs...)
-	case o.suggestion != nil, o.finding:
+	case o.suggestion != nil, o.finding, o.proposal:
 		s.logger.InfoContext(ctx, "agent request succeeded", append(attrs, slog.Int("attempt", int(row.Attempts)))...)
 	case o.version != nil:
 		s.logger.InfoContext(ctx, "agent request succeeded", append(attrs, slog.Int("version", *o.version), slog.Int("attempt", int(row.Attempts)))...)
