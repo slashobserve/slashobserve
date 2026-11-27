@@ -5733,6 +5733,121 @@ components:
           type: string
           maxLength: 300
           description: One sentence on what failed.
+    FindingCauseComponent:
+      type: object
+      additionalProperties: false
+      required: [kind, name, namespace]
+      properties:
+        kind:
+          type: string
+          enum: [service, pod, deployment, config, flag, datastore, dependency, node, other]
+        name:
+          type: string
+          maxLength: 120
+          description: The name as the telemetry or the system spells it.
+        namespace:
+          type: string
+          nullable: true
+          maxLength: 120
+          description: The namespace or scope the name lives in; null when the agent gave none.
+    FindingCause:
+      type: object
+      additionalProperties: false
+      required: [component, kind, mechanism, trigger, onset, affected, relation, knock_on_of, evidence, estimate, confidence, band, stated]
+      description: One cause of the incident, as the agent listed it and the server scored it.
+      properties:
+        component:
+          $ref: "#/components/schemas/FindingCauseComponent"
+        kind:
+          type: string
+          enum: [deploy, config_or_flag, dependency, resource, data, traffic, infrastructure, unknown]
+        mechanism:
+          type: string
+          maxLength: 300
+          description: One sentence on how the component failed.
+        trigger:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [kind, key, value]
+          description: The change that set the cause off; null when the agent named none.
+          properties:
+            kind:
+              type: string
+              enum: [feature_flag, config_value, deploy, traffic, dependency, unknown]
+            key:
+              type: string
+              maxLength: 200
+              description: The flag key, setting, version or name exactly as the system spells it.
+            value:
+              type: string
+              nullable: true
+              maxLength: 200
+              description: The value it was set to; null when the agent gave none.
+        onset:
+          type: string
+          format: date-time
+          nullable: true
+          description: When this cause began; null when the agent gave none.
+        affected:
+          type: array
+          maxItems: 8
+          items:
+            $ref: "#/components/schemas/FindingCauseComponent"
+          description: The components this cause affects.
+        relation:
+          type: string
+          enum: [independent, knock_on]
+          description: "`knock_on` when the cause only follows another listed cause, which `knock_on_of` names."
+        knock_on_of:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 5
+          description: The index in `causes` of the cause this one follows; null for an independent cause.
+        evidence:
+          type: object
+          additionalProperties: false
+          required: [facts, trace_ids, queries]
+          properties:
+            facts:
+              type: array
+              maxItems: 12
+              items:
+                type: string
+              description: The ids of the run's facts the agent cited for this cause.
+            trace_ids:
+              type: array
+              maxItems: 4
+              items:
+                type: string
+              description: Trace ids the agent cited for this cause.
+            queries:
+              type: array
+              maxItems: 6
+              items:
+                type: string
+                maxLength: 400
+              description: The queries the cited facts came from, when the run kept them.
+        estimate:
+          type: string
+          nullable: true
+          enum: [high, medium, low]
+          description: The agent's own estimate; null when it gave none.
+        confidence:
+          type: number
+          nullable: true
+          minimum: 0
+          maximum: 1
+          description: The server's score from the evidence the run read; null when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `off` or for a finding saved before causes existed.
+        band:
+          type: string
+          nullable: true
+          enum: [high, medium, low]
+          description: The band of `confidence`, 0.7 and above high and 0.4 and above medium; null when it is null.
+        stated:
+          type: boolean
+          description: True when the finding states the cause, a medium or high one or any unscored one; false for an unconfirmed cause.
     FindingUnverified:
       type: object
       additionalProperties: false
@@ -5740,8 +5855,8 @@ components:
       properties:
         kind:
           type: string
-          enum: [figure, component, onset, fact, trace_id]
-          description: A figure from the Markdown or the impact, the root cause component, the onset time, a cited fact or `answers` entry that did not pass (an unknown fact, an option more than 1% away, two values for one quantity, or an answer the Markdown never gives), or a trace or span id that was cut short or that the run never read.
+          enum: [figure, component, onset, fact, trace_id, trigger]
+          description: A figure from the Markdown or the impact, a cause's component or trigger key, an onset time, a cited fact or `answers` entry that did not pass (an unknown fact, an option more than 1% away, two values for one quantity, or an answer the Markdown never gives), or a trace or span id that was cut short or that the run never read.
         text:
           type: string
           maxLength: 120
@@ -5749,7 +5864,7 @@ components:
     ObservationRunFinding:
       type: object
       additionalProperties: false
-      required: [run_id, root_cause, onset, impact, confidence, ruled_out, next_steps, no_incident, unverified]
+      required: [run_id, root_cause, causes, onset, impact, confidence, ruled_out, next_steps, no_incident, unverified]
       description: The structured fields of the finding one run wrote into the observation.
       properties:
         run_id:
@@ -5760,7 +5875,13 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/FindingRootCause"
-          description: What failed, when the agent named it; null otherwise.
+          description: The first stated cause that is not a knock-on, kept for readers of the single cause; null when there is none.
+        causes:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/FindingCause"
+          description: The causes of the incident, stated ones first and most confident first; empty when the agent listed none.
         onset:
           type: string
           format: date-time
@@ -5898,7 +6019,13 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/FindingRootCause"
-          description: What failed, when the agent named it; null otherwise.
+          description: The first stated cause that is not a knock-on, kept for readers of the single cause; null when there is none.
+        causes:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/FindingCause"
+          description: The causes of the incident, stated ones first and most confident first; empty when the agent listed none.
         onset:
           type: string
           format: date-time

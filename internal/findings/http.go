@@ -45,8 +45,71 @@ type RootCauseJSON struct {
 	Summary   string `json:"summary"`
 }
 
+type ComponentJSON struct {
+	Kind      string  `json:"kind"`
+	Name      string  `json:"name"`
+	Namespace *string `json:"namespace"`
+}
+
+type TriggerJSON struct {
+	Kind  string  `json:"kind"`
+	Key   string  `json:"key"`
+	Value *string `json:"value"`
+}
+
+type CauseEvidenceJSON struct {
+	Facts    []string `json:"facts"`
+	TraceIDs []string `json:"trace_ids"`
+	Queries  []string `json:"queries"`
+}
+
+type CauseJSON struct {
+	Component  ComponentJSON     `json:"component"`
+	Kind       string            `json:"kind"`
+	Mechanism  string            `json:"mechanism"`
+	Trigger    *TriggerJSON      `json:"trigger"`
+	Onset      *string           `json:"onset"`
+	Affected   []ComponentJSON   `json:"affected"`
+	Relation   string            `json:"relation"`
+	KnockOnOf  *int              `json:"knock_on_of"`
+	Evidence   CauseEvidenceJSON `json:"evidence"`
+	Estimate   *string           `json:"estimate"`
+	Confidence *float64          `json:"confidence"`
+	Band       *string           `json:"band"`
+	Stated     bool              `json:"stated"`
+}
+
+func componentJSON(c Component) ComponentJSON {
+	return ComponentJSON{Kind: c.Kind, Name: c.Name, Namespace: httpapi.OptionalString(c.Namespace)}
+}
+
+func CausesJSON(causes []Cause) []CauseJSON {
+	out := make([]CauseJSON, len(causes))
+	for i, c := range causes {
+		j := CauseJSON{
+			Component: componentJSON(c.Component), Kind: c.Kind, Mechanism: c.Mechanism,
+			Onset: httpapi.FormatOptionalTime(c.Onset), Affected: []ComponentJSON{}, Relation: c.Relation(), KnockOnOf: c.KnockOnOf,
+			Evidence: CauseEvidenceJSON{
+				Facts:    append([]string{}, c.Evidence.Facts...),
+				TraceIDs: append([]string{}, c.Evidence.TraceIDs...),
+				Queries:  append([]string{}, c.Evidence.Queries...),
+			},
+			Estimate: httpapi.OptionalString(c.Estimate), Confidence: c.Score, Band: httpapi.OptionalString(c.Band), Stated: c.Stated,
+		}
+		if t := c.Trigger; t != nil {
+			j.Trigger = &TriggerJSON{Kind: t.Kind, Key: t.Key, Value: httpapi.OptionalString(t.Value)}
+		}
+		for _, a := range c.Affected {
+			j.Affected = append(j.Affected, componentJSON(a))
+		}
+		out[i] = j
+	}
+	return out
+}
+
 type StructuredJSON struct {
 	RootCause  *RootCauseJSON `json:"root_cause"`
+	Causes     []CauseJSON    `json:"causes"`
 	Onset      *string        `json:"onset"`
 	Impact     *string        `json:"impact"`
 	Confidence *string        `json:"confidence"`
@@ -63,6 +126,7 @@ func StructuredJSONOf(s Structured) StructuredJSON {
 		RuledOut:   append([]string{}, s.RuledOut...),
 		NextSteps:  append([]string{}, s.NextSteps...),
 		NoIncident: s.NoIncident,
+		Causes:     CausesJSON(s.Causes),
 	}
 	if s.RootCause != nil {
 		out.RootCause = &RootCauseJSON{Component: s.RootCause.Component, Kind: s.RootCause.Kind, Summary: s.RootCause.Summary}

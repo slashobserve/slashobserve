@@ -418,6 +418,7 @@ The server enforces the guards of [SlashObserve's own agent](../concepts/agent.m
   The stages, the stage line after each turn and the call limit that grow with progress (`SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`) belong to the built-in agent only; a connected agent never sees a stage line and keeps the fixed limit.
 - The grounding check: with `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, a finding saved in a run is checked against what the run read, for a connected agent as for the built-in one; the measurement and trace reads then carry fact ids in `facts`, `save_finding` cites them as `{{f3}}` and lists `answers`, and the server writes the values into the text before it is stored.
   With `enforce`, `save_finding` is sent back once with the figures and names that were not found, the next call may read past the call limit, and the second save is accepted; the send-back is not a rejected save.
+  Each entry of an investigation's `causes` is then scored from the evidence, and `save_finding` answers with each cause's `confidence`, `band` and `stated`; see [Causes and confidence](../concepts/investigate.md#causes-and-confidence).
 - Churn: a save that changes no panel, or changes a panel for the fifth time, gets a note, and the fourth such save in a row ends the run as `no_progress`.
 - The cost limit: when `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` is set and `report_run` or `finish_run` reports `usage` whose cost reaches it, the answer has `stop: true` and the run ends as `budget_exhausted`.
   Without `usage` the server cannot know the cost and never stops a run for it.
@@ -1670,7 +1671,7 @@ Reads one run of the built-in agent by the id of a `run.*` event from `list_acti
   It stays set after the answer is saved into another observation.
   It is null when the run is `redacted` or when you cannot open that observation.
 - The run's `investigation` field says whether it is an investigation.
-- The run's `finding` also carries the structured fields `root_cause`, `onset`, `impact`, `confidence`, `ruled_out`, `next_steps` and `no_incident`, which the agent's `save_finding` sets; see [Investigate](investigate.md#structured-fields).
+- The run's `finding` also carries the structured fields `causes`, `root_cause`, `onset`, `impact`, `confidence`, `ruled_out`, `next_steps` and `no_incident`, which the agent's `save_finding` sets; see [Investigate](investigate.md#structured-fields).
 - `anchor` and `block_id` are the spot a run points at, shaped as `start_run` takes it.
   They are filled only for the person who asked the run, and are `null` for anyone else and for a run that points at nothing.
   The turns of `get_chat` carry the same two fields under the same rule.

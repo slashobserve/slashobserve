@@ -40,6 +40,7 @@ type findingSummary struct {
 	DashboardID     string `json:"dashboard_id"`
 
 	RootCause  *findingRootCause `json:"root_cause"`
+	Causes     []findingCause    `json:"causes"`
 	Onset      string            `json:"onset"`
 	Impact     string            `json:"impact"`
 	Confidence string            `json:"confidence"`
@@ -55,6 +56,51 @@ type findingUnverified struct {
 	Text string `json:"text"`
 }
 
+type findingCause struct {
+	Component struct {
+		Name      string `json:"name"`
+		Namespace string `json:"namespace"`
+	} `json:"component"`
+	Mechanism string  `json:"mechanism"`
+	KnockOnOf *int    `json:"knock_on_of"`
+	Band      *string `json:"band"`
+	Stated    bool    `json:"stated"`
+}
+
+func (c findingCause) line() string {
+	name := c.Component.Name
+	if c.Component.Namespace != "" {
+		name = c.Component.Namespace + "/" + name
+	}
+	var notes []string
+	if c.KnockOnOf != nil {
+		notes = append(notes, "knock-on")
+	}
+	if c.Band != nil {
+		notes = append(notes, *c.Band)
+	}
+	if len(notes) > 0 {
+		name += " (" + strings.Join(notes, ", ") + ")"
+	}
+	return text(name) + " - " + text(c.Mechanism)
+}
+
+func (f findingSummary) causeLines() []string {
+	var lines []string
+	shown := f.RootCause == nil
+	for _, c := range f.Causes {
+		switch {
+		case !shown && c.Stated && c.KnockOnOf == nil:
+			shown = true
+		case c.Stated:
+			lines = append(lines, "Also caused by: "+c.line())
+		default:
+			lines = append(lines, "Unconfirmed cause: "+c.line())
+		}
+	}
+	return lines
+}
+
 type findingRootCause struct {
 	Component string `json:"component"`
 	Kind      string `json:"kind"`
@@ -66,6 +112,7 @@ func (f findingSummary) header() []string {
 	if c := f.RootCause; c != nil {
 		lines = append(lines, fmt.Sprintf("Root cause: %s (%s) - %s", text(c.Component), text(c.Kind), text(c.Summary)))
 	}
+	lines = append(lines, f.causeLines()...)
 	if f.NoIncident {
 		lines = append(lines, "No incident found.")
 	}

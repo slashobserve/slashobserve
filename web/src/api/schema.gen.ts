@@ -7332,12 +7332,73 @@ export interface components {
             /** @description One sentence on what failed. */
             summary: string;
         };
-        FindingUnverified: {
+        FindingCauseComponent: {
+            /** @enum {string} */
+            kind: "service" | "pod" | "deployment" | "config" | "flag" | "datastore" | "dependency" | "node" | "other";
+            /** @description The name as the telemetry or the system spells it. */
+            name: string;
+            /** @description The namespace or scope the name lives in; null when the agent gave none. */
+            namespace: string | null;
+        };
+        /** @description One cause of the incident, as the agent listed it and the server scored it. */
+        FindingCause: {
+            component: components["schemas"]["FindingCauseComponent"];
+            /** @enum {string} */
+            kind: "deploy" | "config_or_flag" | "dependency" | "resource" | "data" | "traffic" | "infrastructure" | "unknown";
+            /** @description One sentence on how the component failed. */
+            mechanism: string;
+            /** @description The change that set the cause off; null when the agent named none. */
+            trigger: {
+                /** @enum {string} */
+                kind: "feature_flag" | "config_value" | "deploy" | "traffic" | "dependency" | "unknown";
+                /** @description The flag key, setting, version or name exactly as the system spells it. */
+                key: string;
+                /** @description The value it was set to; null when the agent gave none. */
+                value: string | null;
+            } | null;
             /**
-             * @description A figure from the Markdown or the impact, the root cause component, the onset time, a cited fact or `answers` entry that did not pass (an unknown fact, an option more than 1% away, two values for one quantity, or an answer the Markdown never gives), or a trace or span id that was cut short or that the run never read.
+             * Format: date-time
+             * @description When this cause began; null when the agent gave none.
+             */
+            onset: string | null;
+            /** @description The components this cause affects. */
+            affected: components["schemas"]["FindingCauseComponent"][];
+            /**
+             * @description `knock_on` when the cause only follows another listed cause, which `knock_on_of` names.
              * @enum {string}
              */
-            kind: "figure" | "component" | "onset" | "fact" | "trace_id";
+            relation: "independent" | "knock_on";
+            /** @description The index in `causes` of the cause this one follows; null for an independent cause. */
+            knock_on_of: number | null;
+            evidence: {
+                /** @description The ids of the run's facts the agent cited for this cause. */
+                facts: string[];
+                /** @description Trace ids the agent cited for this cause. */
+                trace_ids: string[];
+                /** @description The queries the cited facts came from, when the run kept them. */
+                queries: string[];
+            };
+            /**
+             * @description The agent's own estimate; null when it gave none.
+             * @enum {string|null}
+             */
+            estimate: "high" | "medium" | "low" | null;
+            /** @description The server's score from the evidence the run read; null when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `off` or for a finding saved before causes existed. */
+            confidence: number | null;
+            /**
+             * @description The band of `confidence`, 0.7 and above high and 0.4 and above medium; null when it is null.
+             * @enum {string|null}
+             */
+            band: "high" | "medium" | "low" | null;
+            /** @description True when the finding states the cause, a medium or high one or any unscored one; false for an unconfirmed cause. */
+            stated: boolean;
+        };
+        FindingUnverified: {
+            /**
+             * @description A figure from the Markdown or the impact, a cause's component or trigger key, an onset time, a cited fact or `answers` entry that did not pass (an unknown fact, an option more than 1% away, two values for one quantity, or an answer the Markdown never gives), or a trace or span id that was cut short or that the run never read.
+             * @enum {string}
+             */
+            kind: "figure" | "component" | "onset" | "fact" | "trace_id" | "trigger";
             /** @description The item as the agent wrote it, such as "523 ms". */
             text: string;
         };
@@ -7348,8 +7409,10 @@ export interface components {
              * @description The run whose conclusion block this describes; it is the `created_by.run_id` of that block.
              */
             run_id: string;
-            /** @description What failed, when the agent named it; null otherwise. */
+            /** @description The first stated cause that is not a knock-on, kept for readers of the single cause; null when there is none. */
             root_cause: components["schemas"]["FindingRootCause"] | null;
+            /** @description The causes of the incident, stated ones first and most confident first; empty when the agent listed none. */
+            causes: components["schemas"]["FindingCause"][];
             /**
              * Format: date-time
              * @description When the failure started, as the agent judged it; null when it gave none.
@@ -7413,8 +7476,10 @@ export interface components {
             observe_worthy: boolean;
             /** @description True when the run that wrote the answer read a datasource only Admins can query, such as the audit trail, which only an Admin's private chat or a run whose every reader is an Admin can do, or when the dashboard or observation the answer is about sits in a folder only Admins can read. Such an answer is shared, saved, pinned, applied or made a dashboard only in a folder only Admins can read; anywhere else the server answers 409 `restricted_answer`. */
             restricted: boolean;
-            /** @description What failed, when the agent named it; null otherwise. */
+            /** @description The first stated cause that is not a knock-on, kept for readers of the single cause; null when there is none. */
             root_cause?: components["schemas"]["FindingRootCause"] | null;
+            /** @description The causes of the incident, stated ones first and most confident first; empty when the agent listed none. */
+            causes?: components["schemas"]["FindingCause"][];
             /**
              * Format: date-time
              * @description When the failure started, as the agent judged it; null when it gave none.
