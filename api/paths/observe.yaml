@@ -702,7 +702,7 @@ observe-id-continue:
       Continue and `POST /observe/{id}/build/save` on the same request are exclusive: Continue after a save answers 409 `not_continuable`, and a save after Continue answers 404 `not_found` because the build moved to the new request.
       Only the principal that made the request may call it, with the same access as starting a run; someone else gets 403 `forbidden` on a revision they can see and 404 on a new-dashboard request.
       The new request keeps the stopped request's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one.
-      A revision whose dashboard has a newer version than the build's base answers 409 `version_conflict` with `latest_version`.
+      A revision whose dashboard has a newer version than the build's base (`build_state` `stale`) is continued too: the new run moves the build onto the latest version when it starts, or starts again from that version when the changes collide.
       The new request counts against the same caps as `POST /observe`, and is assigned to the same agent as the stopped one.
       The optional `note` is stored on the new request as `continue_note` and given to the agent in every seed of that run, including its restarts.
       Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
@@ -738,14 +738,13 @@ observe-id-continue:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
         description: >-
-          The request cannot be continued: `not_continuable` with its `state`, the `allowed_actions` the caller has and a `reason`, `assignee_unavailable` when the agent it was assigned to is a revoked, expired or foreign grant or a service account that no longer takes runs, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base.
+          The request cannot be continued: `not_continuable` with its `state`, the `allowed_actions` the caller has and a `reason`, `assignee_unavailable` when the agent it was assigned to is a revoked, expired or foreign grant or a service account that no longer takes runs.
         content:
           application/json:
             schema:
               oneOf:
                 - $ref: "../openapi.yaml#/components/schemas/RunRefusal"
                 - $ref: "../openapi.yaml#/components/schemas/Error"
-                - $ref: "../openapi.yaml#/components/schemas/VersionConflict"
       "429":
         description: Too many agent requests are queued or running (`too_many_requests` for the caller, `agent_busy` for the instance, `too_many_revisions` for the dashboard).
         content:

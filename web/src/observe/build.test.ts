@@ -235,10 +235,6 @@ describe("cancelErrorText", () => {
 
 describe("continueErrorText", () => {
   it.each([
-    [
-      "version_conflict",
-      "Someone saved a newer version after this build started, so it can't be continued. Open the dashboard and ask again.",
-    ],
     ["forbidden", "Only the person who asked can do this."],
     ["not_continuable", "This build can no longer be continued."],
     ["invalid_request", "Note must be short."],

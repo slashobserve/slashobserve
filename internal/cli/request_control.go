@@ -233,14 +233,6 @@ func requestControlError(err error, id string) error {
 		return fmt.Errorf("request %s already finished, so it cannot be canceled", id)
 	case "not_continuable":
 		return fmt.Errorf("request %s has no stopped build to continue: it did not fail, was saved, was already continued or lost its build", id)
-	case "version_conflict":
-		var body struct {
-			Latest int `json:"latest_version"`
-		}
-		if json.Unmarshal(api.raw, &body) == nil && body.Latest > 0 {
-			return fmt.Errorf("request %s cannot be continued: the dashboard has a newer version (%d) than the build started from", id, body.Latest)
-		}
-		return fmt.Errorf("request %s cannot be continued: the dashboard has a newer version than the build started from", id)
 	}
 	return err
 }

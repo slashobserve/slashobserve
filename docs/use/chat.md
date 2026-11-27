@@ -247,7 +247,8 @@ Choose **Save what was built** to keep it:
 - for a new dashboard it becomes version 1 in the folder the request named, or in your My Dashboards;
 - for a follow-up it becomes the next version of the dashboard when nobody has saved a version since the build started.
 
-When someone has, the build cannot be saved and the page says so; open the dashboard and ask again.
+When someone has, the build cannot be saved as it is.
+The card says "Someone saved a newer version after this build started, so it can't be saved as it is. Continue carries it onto the newer version." and offers only **Continue**.
 You need Edit access to the target, and the request stays marked as failed.
 Once the build is saved, the build page opens the dashboard.
 
@@ -276,8 +277,8 @@ The form shows "Use at most 4000 characters." when it is too long.
 Only the person who asked can continue a build, and it needs the same access as starting a run.
 A build can be continued once, and not after you saved it.
 **Save what was built** and **Continue** exclude each other: whichever you choose first wins, and the other says it can no longer be done.
-A follow-up whose dashboard got a newer version since the build started cannot be continued.
-The page says "Someone saved a newer version after this build started, so it can't be continued. Open the dashboard and ask again."
+A follow-up whose dashboard got a newer version since the build started is continued on that newer version.
+The new run first moves the build onto it, and when your build and the newer version changed the same panels, it starts again from the newer version with your note.
 A continued run counts toward the same limits as a new request.
 When the agent lowers the number of panels it planned after you continue, the finished turn says so, for example "Planned 6 panels, built 3."
 

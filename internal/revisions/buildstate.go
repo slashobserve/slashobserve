@@ -34,7 +34,7 @@ var BuildStates = lifecycle.Derived{Name: "build", States: []lifecycle.DerivedSt
 	{Name: string(BuildBuilding), When: "The run has not finished and the agent may still change the build."},
 	{Name: string(BuildStopped), When: "The run failed or was canceled and left a build with at least one panel; its requester can keep or continue it until `build.expires_at`."},
 	{Name: string(BuildStoppedEmpty), When: "The run failed or was canceled and left a build with no panels, which cannot be kept."},
-	{Name: string(BuildStale), When: "A stopped build whose dashboard has a newer version than the one it started from, so keeping it answers `version_conflict`."},
+	{Name: string(BuildStale), When: "A stopped build whose dashboard has a newer version than the one it started from: it can no longer be kept, and Continue moves it onto the newer version."},
 	{Name: string(BuildKept), When: "The requester saved the stopped build as a version (`build_saved_at` is set)."},
 	{Name: string(BuildMoved), When: "Another run continues this one and took the build (`continued_by` names it)."},
 	{Name: string(BuildCommitted), When: "The run finished and its build became the version in `result_version`."},

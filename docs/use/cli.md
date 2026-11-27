@@ -353,7 +353,7 @@ It accepts `--no-wait`, `--timeout` and `--open` like a prompt, and `--note <tex
 The note follows the same rule as a prompt: 1 to 4000 characters and no control characters, see [Text rules](../reference/text-rules.md).
 The server's `400` message is printed as it is.
 Continuing a request that was saved, was already continued or has no build fails with a one-line message naming it.
-Continuing a revision fails when its dashboard has a newer version than the build started from.
+Continuing a revision whose dashboard has a newer version than the build started from carries the build onto that version.
 
 `observe retry <request-id>` starts a finished request again as a new request with the same prompt.
 It waits the way a prompt does and prints the result, and it accepts `--no-wait`, `--open` and `--timeout`.

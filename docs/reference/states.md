@@ -156,7 +156,7 @@ This state is computed from stored fields on every read; nothing stores it.
 | `building` | The run has not finished and the agent may still change the build. |
 | `stopped` | The run failed or was canceled and left a build with at least one panel; its requester can keep or continue it until `build.expires_at`. |
 | `stopped_empty` | The run failed or was canceled and left a build with no panels, which cannot be kept. |
-| `stale` | A stopped build whose dashboard has a newer version than the one it started from, so keeping it answers `version_conflict`. |
+| `stale` | A stopped build whose dashboard has a newer version than the one it started from: it can no longer be kept, and Continue moves it onto the newer version. |
 | `kept` | The requester saved the stopped build as a version (`build_saved_at` is set). |
 | `moved` | Another run continues this one and took the build (`continued_by` names it). |
 | `committed` | The run finished and its build became the version in `result_version`. |

@@ -248,8 +248,6 @@ func TestCancelAndContinueErrorLines(t *testing.T) {
 		{"forbidden without a code", []string{"cancel", stoppedID}, 403, `{"error":"x"}`, "only the requester can cancel or continue " + stoppedID},
 		{"cancel finished", []string{"cancel", stoppedID}, 409, `{"error":"the request already finished","code":"request_finished"}`, "request " + stoppedID + " already finished"},
 		{"not continuable", []string{"continue", stoppedID}, 409, `{"error":"x","code":"not_continuable"}`, "request " + stoppedID + " has no stopped build to continue"},
-		{"version conflict", []string{"continue", stoppedID}, 409, `{"error":"x","code":"version_conflict","latest_version":7}`, "newer version (7)"},
-		{"version conflict without a number", []string{"continue", stoppedID}, 409, `{"error":"x","code":"version_conflict"}`, "cannot be continued: the dashboard has a newer version than"},
 		{"invalid note", []string{"continue", stoppedID, "--note", " "}, 400, `{"error":"note must be 1 to 4000 characters","code":"invalid_request"}`, "note must be 1 to 4000 characters"},
 		{"missing", []string{"cancel", stoppedID}, 404, `{"error":"request not found","code":"not_found"}`, "request not found"},
 	}

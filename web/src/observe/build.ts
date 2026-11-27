@@ -227,8 +227,6 @@ export function cancelErrorText(code: string, message = ""): string {
 
 export function continueErrorText(code: string, message = ""): string {
   switch (code) {
-    case "version_conflict":
-      return "Someone saved a newer version after this build started, so it can't be continued. Open the dashboard and ask again."
     case "forbidden":
       return forbiddenText
     case "not_continuable":
