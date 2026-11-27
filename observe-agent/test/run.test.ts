@@ -1,15 +1,23 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test"
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js"
+import { MockLanguageModelV4 } from "ai/test"
 import { configureLog } from "../src/log"
 import { ToolError } from "../src/protocol"
 import {
   briefUnavailableMessage,
+  moreToolsTool,
   runLoop,
+  saveFindingTool,
   toolsUnavailableMessage,
   widened,
 } from "../src/run"
+import { createAnthropicSession } from "../src/session/anthropic"
 import { estimateOutputTokens } from "../src/session/replay/replay"
-import { CallError, type SessionFactory } from "../src/session/types"
+import {
+  CallError,
+  type SessionFactory,
+  type ToolSpec,
+} from "../src/session/types"
 import {
   FakeClaim,
   claimed,
@@ -19,6 +27,7 @@ import {
   progress,
   reply,
 } from "./harness"
+import { freshEnv, modelTurn, settings } from "./sdk"
 
 configureLog("error")
 
@@ -992,5 +1001,52 @@ describe("tool list", () => {
     expect(widened(calls, [result(false), result(false)])).toBe(true)
     expect(widened(calls, [result(false), result(true)])).toBe(false)
     expect(widened(calls.slice(0, 1), [result(false)])).toBe(false)
+  })
+
+  test("the model call after list_more_tools is sent the widened tools", async () => {
+    const spec = (name: string): ToolSpec => ({
+      name,
+      description: "",
+      inputSchema: {},
+    })
+    const narrow = [spec("list_metrics"), spec(moreToolsTool)]
+    const wide = [...narrow, spec(saveFindingTool)]
+    const claim = new FakeClaim()
+    claim.tools.specs = narrow
+    claim.tools.handler = async (call) => {
+      if (call.name === moreToolsTool) {
+        claim.tools.specs = wide
+        return reply()
+      }
+      return reply({ meta: meta("finding") })
+    }
+    const asked = [moreToolsTool, saveFindingTool]
+    const model = new MockLanguageModelV4({
+      doStream: async () =>
+        modelTurn({
+          calls: [{ id: "c", name: asked.shift() ?? "", input: "{}" }],
+          raw: "tool_use",
+        }),
+    })
+    const overModel: SessionFactory = async (_settings, start, signal) =>
+      createAnthropicSession(settings(), start, signal, {
+        model,
+        env: freshEnv(),
+      })
+    await runLoop(
+      claim,
+      claimed("widen the tools", { kind: "investigate" }),
+      overModel,
+      new AbortController().signal,
+      idle
+    )
+    const sent = model.doStreamCalls.map((call) =>
+      call.tools?.map((tool) => (tool.type === "function" ? tool.name : ""))
+    )
+    expect(sent).toEqual([
+      narrow.map((tool) => tool.name),
+      wide.map((tool) => tool.name),
+    ])
+    expect(claim.finishes[0]?.outcome).toBe("succeeded")
   })
 })

@@ -430,7 +430,6 @@ class RunLoop {
         this.claimed.model,
         {
           system,
-          tools: this.specs,
           prompt: this.claimed.run.prompt,
           userMessage: message,
           buildSaves: this.buildSaves,
@@ -487,6 +486,7 @@ class RunLoop {
       this.reporter.startMessage()
       answer = await session.next(results, {
         signal: this.cancel.signal,
+        tools: this.specs,
         onText: (text) => this.reporter.push(text),
       })
     } catch (error) {
