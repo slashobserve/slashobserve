@@ -104,6 +104,7 @@ sum(rate(slashobserve_proxy_cache_total{result="hit"}[15m])) / sum(rate(slashobs
 | `slashobserve_http_request_duration_seconds` | histogram | `route`, `method`, `status` | Time to answer an HTTP request. |
 | `slashobserve_agent_runs_total` | counter | `kind`, `outcome` | Agent runs that ended. |
 | `slashobserve_agent_queue_wait_seconds` | histogram | `source` | Time an agent request waited before the agent claimed it. |
+| `slashobserve_thread_replies_abandoned_total` | counter | none | Replies of finished agent runs that could not be posted in their comment thread within 24 hours, so the server stopped trying; the run reads `reply.state` `abandoned`. |
 | `slashobserve_model_call_duration_seconds` | histogram | `provider`, `model`, `outcome` | Time of one model call, including its retries. |
 | `slashobserve_model_tokens_total` | counter | `direction` | Tokens the model provider reported. |
 | `slashobserve_proxy_query_duration_seconds` | histogram | `datasource_type`, `outcome` | Time of one datasource call from the query proxy. |
@@ -118,6 +119,7 @@ sum(rate(slashobserve_proxy_cache_total{result="hit"}[15m])) / sum(rate(slashobs
 | `slashobserve_datasource_slots_in_use` | gauge | `datasource` | Queries running against a datasource on this server. |
 | `slashobserve_datasource_slots_limit` | gauge | `datasource` | Queries this server allows against a datasource at once. |
 | `slashobserve_fleet_servers` | gauge | none | Servers that heartbeat into this database in the last 30 seconds, this one included. |
+| `slashobserve_server_phase` | gauge | `phase` | 1 for the phase this server process is in and 0 for every other. |
 | `slashobserve_audit_dropped_total` | counter | `reason` | Audit events not stored, or data keys dropped. |
 | `slashobserve_audit_write_seconds` | histogram | none | Time of one attempt to write a batch of read and refusal events. |
 | `slashobserve_audit_buffer_events` | gauge | none | Read and refusal events waiting in this server's buffer at the last flush. |

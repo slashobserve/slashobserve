@@ -37,6 +37,7 @@ import {
   type StopReason,
   type ToolCall,
   type ToolResult,
+  type ToolSpec,
   type TurnAnswer,
   type TurnIO,
   type TurnUsage,
@@ -122,9 +123,9 @@ function addUsage(a: TurnUsage, b: TurnUsage): TurnUsage {
   }
 }
 
-function buildTools(start: Start): ToolSet {
+function buildTools(specs: readonly ToolSpec[]): ToolSet {
   const tools: ToolSet = {}
-  for (const spec of start.tools) {
+  for (const spec of specs) {
     tools[spec.name] = tool({
       ...(spec.description === "" ? {} : { description: spec.description }),
       inputSchema: jsonSchema(parseToolSchema(spec) as JSONSchema7),
@@ -138,7 +139,6 @@ export class ModelSession implements Session {
   private readonly config: SessionConfig
   private readonly env: RetryEnv
   private readonly instructions: Instructions | undefined
-  private readonly tools: ToolSet
   private readonly buildSaves: number
   private readonly pruner: Pruner
   private history: ModelMessage[]
@@ -155,7 +155,6 @@ export class ModelSession implements Session {
     this.adapter = adapter
     this.config = config
     this.env = env
-    this.tools = buildTools(start)
     this.instructions = adapter.instructions(start.system)
     this.buildSaves = start.buildSaves
     this.pruner = new Pruner(start.pruning)
@@ -191,7 +190,13 @@ export class ModelSession implements Session {
     )
     const deadline =
       requestTimeoutMs > 0 ? this.env.now() + requestTimeoutMs : undefined
-    const scope = { turn: io.signal, call, deadline, onText: io.onText }
+    const scope = {
+      turn: io.signal,
+      call,
+      deadline,
+      onText: io.onText,
+      tools: buildTools(io.tools),
+    }
 
     const configured: Tuning = {
       effort: this.config.effort,
@@ -303,7 +308,7 @@ export class ModelSession implements Session {
         ? {}
         : { instructions: this.instructions }),
       messages,
-      tools: this.tools,
+      tools: scope.tools,
       ...(tuning.maxTokens > 0 ? { maxOutputTokens: tuning.maxTokens } : {}),
       providerOptions: adapter.providerOptions(tuning),
       maxRetries: 0,
@@ -453,4 +458,5 @@ type Scope = {
   call: AbortSignal
   deadline: number | undefined
   onText: (text: string) => void
+  tools: ToolSet
 }

@@ -88,6 +88,12 @@ func (o *output) warn(format string, args ...any) {
 	_, _ = fmt.Fprintf(o.err, format+"\n", args...)
 }
 
+func (o *output) warnOfEdit(warning string) {
+	if warning != "" {
+		o.warn("%s", text(warning))
+	}
+}
+
 func (o *output) confirm(format string, args ...any) {
 	if o.quiet {
 		return

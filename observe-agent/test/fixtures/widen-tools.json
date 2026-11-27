@@ -1,0 +1,13 @@
+{
+  "prompt": "widen the tool list",
+  "turns": [
+    {
+      "text": "looking for more tools",
+      "tool_calls": [{ "name": "list_more_tools" }]
+    },
+    {
+      "text": "building",
+      "tool_calls": [{ "name": "create_dashboard", "input": { "title": "t" } }]
+    }
+  ]
+}

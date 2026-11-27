@@ -36,6 +36,7 @@ describe("createSession", () => {
     )
     const answer = await session.next(undefined, {
       signal: live,
+      tools: [],
       onText: () => {},
     })
     expect(answer.turn.toolCalls.map((c) => c.name)).toEqual([

@@ -191,7 +191,7 @@ func revisionEvent(row dbsqlc.AgentRequest) (events.Event, bool) {
 		Type:        events.TypeRevisionUpdated,
 		DashboardID: row.DashboardID.String(),
 		RevisionID:  row.ID.String(),
-		Status:      row.Status,
+		Status:      string(State(row.State).Status()),
 	}
 	if row.ResultVersion.Valid {
 		ev.Version = int(row.ResultVersion.Int32)

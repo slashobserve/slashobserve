@@ -13,6 +13,8 @@ const folder = {
   general: false,
   personal: false,
   restricted: true,
+  kind: "restricted",
+  allowed_actions: ["create_in", "move_into"],
   dashboard_count: 3,
   grantees: ["Ada", "sre"],
   grantee_count: 2,

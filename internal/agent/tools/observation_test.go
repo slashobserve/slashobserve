@@ -669,6 +669,25 @@ func TestListFoldersShowsWhichFoldersAreOnlyAdminsToAdminsAlone(t *testing.T) {
 	}
 }
 
+func TestListFoldersSaysEachFoldersKind(t *testing.T) {
+	r := newObservationRig(t)
+	locked := foldertest.AdminsOnly(t, r.db, "Payroll").String()
+	listed, ok := r.call(t, adminCaller, nameListFolders, `{}`).Content.(folderListOut)
+	if !ok {
+		t.Fatal("list_folders as an Admin")
+	}
+	kinds := map[string]string{}
+	for _, f := range listed.Folders {
+		kinds[f.ID] = f.Kind
+		if f.General != (f.Kind == string(folders.KindGeneral)) {
+			t.Errorf("%s: general = %v, kind = %s", f.Title, f.General, f.Kind)
+		}
+	}
+	if kinds[locked] != string(folders.KindAdminsOnly) || kinds[r.folder] != string(folders.KindOpen) {
+		t.Errorf("kinds = %v, want Payroll admins_only and Incidents open", kinds)
+	}
+}
+
 func TestArrangeBlocksOrdersAndSizesThePageWithoutVersions(t *testing.T) {
 	r := newObservationRig(t)
 	id := r.start(t, editorCaller)

@@ -15,7 +15,7 @@ activity:
       Events of a deleted dashboard stay in the folder the dashboard was in.
       `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more.
       The fields of `data` by type:
-      `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore);
+      `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create), `restored_from` (only on a restore) and `replaced_version` (only when a file in the provisioning directory replaced a version that the provisioner did not save, or `observe dashboards apply` replaced a version that no apply saved; that version can be restored);
       `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`;
       `dashboard.deleted` carries `title`;
       `annotation.created` carries `title` (the first 80 characters of the text on one line, empty when the text has no characters to show), `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.updated` carries `tags`; `annotation.deleted` carries the same fields as `annotation.created`, never more of the text than the `title`;
@@ -128,6 +128,8 @@ activity-stream:
       An event appears once its transaction and every older transaction have committed, so a burst of changes is delivered in log order, and an event can arrive up to about a second after its change.
       A `: ping` comment arrives every 15 seconds; at each ping the server re-reads the caller's credentials, role and folder access, so a role change or a revoked key takes effect at the next ping, which ends the stream when the credential is gone.
       The server ends the stream after 30 minutes and clients reconnect.
+      Before the server ends the stream it sends one last `event: closed` whose data is `{"reason"}`: `lifetime` after the 30 minutes, `access_lost` when the credential is gone or may no longer read the log, `check_failed` when the credential or the access could not be checked twice in a row, `read_failed` when the server could not read the log, and `stopping` when the server stops.
+      A client stops after `access_lost` and reconnects with `Last-Event-ID` for every other reason, one it does not know included; `closed` has no `id`, so the last `activity` frame stays the place to resume from, and a stream that the client or the network ends carries none.
       A caller may hold 5 streams and the process 500.
     parameters:
       - name: dashboard_id
@@ -178,7 +180,7 @@ activity-stream:
       "403":
         $ref: "../openapi.yaml#/components/responses/Forbidden"
       "429":
-        description: The caller already holds the maximum number of open streams (`too_many_streams`).
+        description: The caller already holds the maximum number of open streams (`too_many_streams` with `reason` `per_caller`).
         content:
           application/json:
             schema:
@@ -186,7 +188,7 @@ activity-stream:
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
       "503":
-        description: The process holds the maximum number of open streams (`too_many_streams`) or is shutting down (`shutting_down`).
+        description: The process holds the maximum number of open streams (`too_many_streams` with `reason` `server_capacity`) or is shutting down (`shutting_down`).
         content:
           application/json:
             schema:

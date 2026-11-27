@@ -336,7 +336,7 @@ func (q *Queries) GetOAuthGrantSubject(ctx context.Context, id pgtype.UUID) (Get
 }
 
 const getOAuthRefresh = `-- name: GetOAuthRefresh :one
-SELECT t.grant_id, t.expires_at, t.rotated_at, g.client_id, g.user_id, g.resource, g.created_at, g.revoked_at, now()::timestamptz AS db_now
+SELECT t.grant_id, t.expires_at, t.rotated_at, g.client_id, g.user_id, g.resource, g.created_at, g.revoked_at, g.revoked_reason, now()::timestamptz AS db_now
 FROM oauth_tokens t
 JOIN oauth_grants g ON g.id = t.grant_id
 WHERE t.token_hash = $1 AND t.kind = 'refresh'
@@ -344,15 +344,16 @@ FOR UPDATE OF t, g
 `
 
 type GetOAuthRefreshRow struct {
-	GrantID   pgtype.UUID
-	ExpiresAt pgtype.Timestamptz
-	RotatedAt pgtype.Timestamptz
-	ClientID  string
-	UserID    pgtype.UUID
-	Resource  string
-	CreatedAt pgtype.Timestamptz
-	RevokedAt pgtype.Timestamptz
-	DbNow     pgtype.Timestamptz
+	GrantID       pgtype.UUID
+	ExpiresAt     pgtype.Timestamptz
+	RotatedAt     pgtype.Timestamptz
+	ClientID      string
+	UserID        pgtype.UUID
+	Resource      string
+	CreatedAt     pgtype.Timestamptz
+	RevokedAt     pgtype.Timestamptz
+	RevokedReason pgtype.Text
+	DbNow         pgtype.Timestamptz
 }
 
 func (q *Queries) GetOAuthRefresh(ctx context.Context, tokenHash []byte) (GetOAuthRefreshRow, error) {
@@ -367,6 +368,7 @@ func (q *Queries) GetOAuthRefresh(ctx context.Context, tokenHash []byte) (GetOAu
 		&i.Resource,
 		&i.CreatedAt,
 		&i.RevokedAt,
+		&i.RevokedReason,
 		&i.DbNow,
 	)
 	return i, err
@@ -468,7 +470,7 @@ const listOAuthGrants = `-- name: ListOAuthGrants :many
 SELECT g.id, g.client_id, c.name AS client_name, c.redirect_uris AS client_redirect_uris,
        g.user_id, u.name AS user_name, u.email AS user_email,
        g.created_at, g.last_used_at, g.expires_at,
-       g.mode,
+       g.mode, g.revoked_at, g.revoked_reason,
        w.seen_at AS worker_seen_at,
        EXISTS (
          SELECT 1 FROM agent_requests r
@@ -479,15 +481,15 @@ FROM oauth_grants g
 JOIN oauth_clients c ON c.id = g.client_id
 JOIN users u ON u.id = g.user_id
 LEFT JOIN agent_workers w ON w.id = 'grant:' || g.id::text
-WHERE g.revoked_at IS NULL
-  AND g.expires_at > now()
-  AND ($1::timestamptz IS NULL
-       OR (g.created_at, g.id) < ($1::timestamptz, $2::uuid))
+WHERE ($1::boolean OR (g.revoked_at IS NULL AND g.expires_at > now()))
+  AND ($2::timestamptz IS NULL
+       OR (g.created_at, g.id) < ($2::timestamptz, $3::uuid))
 ORDER BY g.created_at DESC, g.id DESC
-LIMIT $3
+LIMIT $4
 `
 
 type ListOAuthGrantsParams struct {
+	IncludeEnded  bool
 	BeforeCreated pgtype.Timestamptz
 	BeforeID      pgtype.UUID
 	Lim           int32
@@ -505,13 +507,20 @@ type ListOAuthGrantsRow struct {
 	LastUsedAt         pgtype.Timestamptz
 	ExpiresAt          pgtype.Timestamptz
 	Mode               string
+	RevokedAt          pgtype.Timestamptz
+	RevokedReason      pgtype.Text
 	WorkerSeenAt       pgtype.Timestamptz
 	WorkerWorking      bool
 	CheckedAt          pgtype.Timestamptz
 }
 
 func (q *Queries) ListOAuthGrants(ctx context.Context, arg ListOAuthGrantsParams) ([]ListOAuthGrantsRow, error) {
-	rows, err := q.db.Query(ctx, listOAuthGrants, arg.BeforeCreated, arg.BeforeID, arg.Lim)
+	rows, err := q.db.Query(ctx, listOAuthGrants,
+		arg.IncludeEnded,
+		arg.BeforeCreated,
+		arg.BeforeID,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -531,6 +540,8 @@ func (q *Queries) ListOAuthGrants(ctx context.Context, arg ListOAuthGrantsParams
 			&i.LastUsedAt,
 			&i.ExpiresAt,
 			&i.Mode,
+			&i.RevokedAt,
+			&i.RevokedReason,
 			&i.WorkerSeenAt,
 			&i.WorkerWorking,
 			&i.CheckedAt,
@@ -549,7 +560,7 @@ const listUserOAuthGrants = `-- name: ListUserOAuthGrants :many
 SELECT g.id, g.client_id, c.name AS client_name, c.redirect_uris AS client_redirect_uris,
        g.user_id, u.name AS user_name, u.email AS user_email,
        g.created_at, g.last_used_at, g.expires_at,
-       g.mode,
+       g.mode, g.revoked_at, g.revoked_reason,
        w.seen_at AS worker_seen_at,
        EXISTS (
          SELECT 1 FROM agent_requests r
@@ -561,16 +572,16 @@ JOIN oauth_clients c ON c.id = g.client_id
 JOIN users u ON u.id = g.user_id
 LEFT JOIN agent_workers w ON w.id = 'grant:' || g.id::text
 WHERE g.user_id = $1
-  AND g.revoked_at IS NULL
-  AND g.expires_at > now()
-  AND ($2::timestamptz IS NULL
-       OR (g.created_at, g.id) < ($2::timestamptz, $3::uuid))
+  AND ($2::boolean OR (g.revoked_at IS NULL AND g.expires_at > now()))
+  AND ($3::timestamptz IS NULL
+       OR (g.created_at, g.id) < ($3::timestamptz, $4::uuid))
 ORDER BY g.created_at DESC, g.id DESC
-LIMIT $4
+LIMIT $5
 `
 
 type ListUserOAuthGrantsParams struct {
 	UserID        pgtype.UUID
+	IncludeEnded  bool
 	BeforeCreated pgtype.Timestamptz
 	BeforeID      pgtype.UUID
 	Lim           int32
@@ -588,6 +599,8 @@ type ListUserOAuthGrantsRow struct {
 	LastUsedAt         pgtype.Timestamptz
 	ExpiresAt          pgtype.Timestamptz
 	Mode               string
+	RevokedAt          pgtype.Timestamptz
+	RevokedReason      pgtype.Text
 	WorkerSeenAt       pgtype.Timestamptz
 	WorkerWorking      bool
 	CheckedAt          pgtype.Timestamptz
@@ -596,6 +609,7 @@ type ListUserOAuthGrantsRow struct {
 func (q *Queries) ListUserOAuthGrants(ctx context.Context, arg ListUserOAuthGrantsParams) ([]ListUserOAuthGrantsRow, error) {
 	rows, err := q.db.Query(ctx, listUserOAuthGrants,
 		arg.UserID,
+		arg.IncludeEnded,
 		arg.BeforeCreated,
 		arg.BeforeID,
 		arg.Lim,
@@ -619,6 +633,8 @@ func (q *Queries) ListUserOAuthGrants(ctx context.Context, arg ListUserOAuthGran
 			&i.LastUsedAt,
 			&i.ExpiresAt,
 			&i.Mode,
+			&i.RevokedAt,
+			&i.RevokedReason,
 			&i.WorkerSeenAt,
 			&i.WorkerWorking,
 			&i.CheckedAt,
@@ -801,7 +817,7 @@ WITH g AS (
 SELECT g.id, g.client_id, c.name AS client_name, c.redirect_uris AS client_redirect_uris,
        g.user_id, u.name AS user_name, u.email AS user_email,
        g.created_at, g.last_used_at, g.expires_at,
-       g.mode,
+       g.mode, g.revoked_at, g.revoked_reason,
        w.seen_at AS worker_seen_at,
        EXISTS (
          SELECT 1 FROM agent_requests r
@@ -832,6 +848,8 @@ type SetMyOAuthGrantModeRow struct {
 	LastUsedAt         pgtype.Timestamptz
 	ExpiresAt          pgtype.Timestamptz
 	Mode               string
+	RevokedAt          pgtype.Timestamptz
+	RevokedReason      pgtype.Text
 	WorkerSeenAt       pgtype.Timestamptz
 	WorkerWorking      bool
 	CheckedAt          pgtype.Timestamptz
@@ -852,6 +870,8 @@ func (q *Queries) SetMyOAuthGrantMode(ctx context.Context, arg SetMyOAuthGrantMo
 		&i.LastUsedAt,
 		&i.ExpiresAt,
 		&i.Mode,
+		&i.RevokedAt,
+		&i.RevokedReason,
 		&i.WorkerSeenAt,
 		&i.WorkerWorking,
 		&i.CheckedAt,

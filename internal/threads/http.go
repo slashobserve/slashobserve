@@ -55,8 +55,9 @@ type threadJSON struct {
 }
 
 type threadAgentJSON struct {
-	Kind string  `json:"kind"`
-	ID   *string `json:"id"`
+	Kind  string  `json:"kind"`
+	ID    *string `json:"id"`
+	State string  `json:"state"`
 }
 
 type messageJSON struct {
@@ -551,7 +552,7 @@ func newThreadJSON(t Thread) threadJSON {
 	}
 	out.Anchor, out.BlockID, out.AgentOff = t.Anchor, httpapi.OptionalString(t.BlockID), t.AgentOff
 	if t.Agent != nil {
-		out.Agent = &threadAgentJSON{Kind: string(t.Agent.Kind)}
+		out.Agent = &threadAgentJSON{Kind: string(t.Agent.Kind), State: string(t.AgentState)}
 		if t.Agent.ID.Valid {
 			id := t.Agent.ID.String()
 			out.Agent.ID = &id

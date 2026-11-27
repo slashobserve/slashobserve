@@ -42,11 +42,13 @@ observations-id-rcas:
       "409":
         description: >-
           The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), it changed while it was being published (`observation_changed`), or nothing changed since the latest revision (`rca_unchanged`).
+          `rca_limit`, `observation_changed` and `rca_unchanged` carry the observation's `state` and the caller's `allowed_actions` on it.
           Or a panel froze data from a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
         content:
           application/json:
             schema:
               oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/RCARefusal"
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "422":
@@ -132,7 +134,7 @@ observations-id-rcas-revision:
       cli: [observe o withdraw]
     summary: Withdraw one published revision of an observation's RCA.
     description: >-
-      Needs Edit on the folder, and the same states as publishing.
+      Needs Edit on the folder; a revision offers it as `withdraw` in its `allowed_actions`.
       A revision with a live public link is refused with 409 `rca_shared`, because a public link is a person's decision: a person revokes the links first, with Manage on the folder, and then withdraws it.
       Withdrawing deletes the revision and cannot be undone; the activity log keeps `observation.rca_withdrawn` with the title and the revision.
       No MCP tool deletes anything, so an agent cannot call this.
@@ -148,11 +150,13 @@ observations-id-rcas-revision:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The revision still has public links (`rca_shared`), or the observation's state does not allow it (`invalid_transition`).
+        description: The revision still has public links (`rca_shared`); the answer carries the revision's `state` and the caller's `allowed_actions` on it.
         content:
           application/json:
             schema:
-              $ref: "../openapi.yaml#/components/schemas/Error"
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/RCARefusal"
+                - $ref: "../openapi.yaml#/components/schemas/Error"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
 observations-id-rcas-revision-public-links:

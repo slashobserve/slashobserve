@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import { ApiError } from "@/api/errors"
 
 import {
+  afterClosed,
   backoffDelay,
   goneOutcome,
   isGone,
@@ -33,6 +34,30 @@ describe("backoffDelay", () => {
         expect(delay).toBeLessThanOrEqual(base)
       }
     }
+  })
+})
+
+describe("afterClosed", () => {
+  it("reopens at once when the server ended the stream at its lifetime", () => {
+    expect(afterClosed('{"reason":"lifetime"}')).toBe("reopen")
+  })
+
+  it("stops when the caller lost access", () => {
+    expect(afterClosed('{"reason":"access_lost"}')).toBe("stop")
+  })
+
+  it.each([
+    '{"reason":"stopping"}',
+    '{"reason":"check_failed"}',
+    '{"reason":"slow_subscriber"}',
+    '{"reason":"read_failed"}',
+    '{"reason":"a reason added later"}',
+    '{"reason":7}',
+    "{}",
+    "null",
+    "not json",
+  ])("retries with a delay after %s", (data) => {
+    expect(afterClosed(data)).toBe("retry")
   })
 })
 

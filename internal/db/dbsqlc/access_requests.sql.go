@@ -13,7 +13,7 @@ import (
 
 const accessGranterCandidates = `-- name: AccessGranterCandidates :many
 SELECT u.id, u.role, f.admins_only,
-  (f.admins_only OR EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id))::boolean AS restricted,
+  EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id)::boolean AS listed,
   ARRAY(
     SELECT p.level FROM folder_permissions p
     WHERE p.folder_id = f.id AND (p.user_id = u.id OR p.group_name = ANY(u.groups))
@@ -35,7 +35,7 @@ type AccessGranterCandidatesRow struct {
 	ID         pgtype.UUID
 	Role       string
 	AdminsOnly bool
-	Restricted bool
+	Listed     bool
 	Grants     []string
 	Creator    bool
 }
@@ -53,7 +53,7 @@ func (q *Queries) AccessGranterCandidates(ctx context.Context, folderID pgtype.U
 			&i.ID,
 			&i.Role,
 			&i.AdminsOnly,
-			&i.Restricted,
+			&i.Listed,
 			&i.Grants,
 			&i.Creator,
 		); err != nil {
@@ -73,7 +73,7 @@ SELECT r.id, r.dashboard_id, r.observation_id, coalesce(d.title, o.title)::text 
   coalesce(u.role, sa.role, '')::text AS role,
   f.personal, f.admins_only,
   coalesce(f.owner_id = u.id, false)::boolean AS owner,
-  (f.admins_only OR EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id))::boolean AS restricted,
+  EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id)::boolean AS listed,
   ARRAY(
     SELECT p.level FROM folder_permissions p
     WHERE p.folder_id = f.id AND (p.user_id = u.id OR p.group_name = ANY(coalesce(u.groups, '{}'::text[])))
@@ -109,7 +109,7 @@ type AccessRequestsToSettleRow struct {
 	Personal      bool
 	AdminsOnly    bool
 	Owner         bool
-	Restricted    bool
+	Listed        bool
 	Grants        []string
 	Creator       bool
 }
@@ -135,7 +135,7 @@ func (q *Queries) AccessRequestsToSettle(ctx context.Context, arg AccessRequests
 			&i.Personal,
 			&i.AdminsOnly,
 			&i.Owner,
-			&i.Restricted,
+			&i.Listed,
 			&i.Grants,
 			&i.Creator,
 		); err != nil {
@@ -278,6 +278,87 @@ func (q *Queries) ListOpenAccessRequests(ctx context.Context, arg ListOpenAccess
 			&i.RequesterName,
 			&i.Note,
 			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOwnAccessRequests = `-- name: ListOwnAccessRequests :many
+SELECT r.id, r.dashboard_id, r.observation_id, coalesce(d.title, o.title)::text AS title,
+  coalesce(d.folder_id, o.folder_id)::uuid AS folder_id,
+  r.requester_kind, r.requester_id, r.requester_name, r.note, r.created_at,
+  (r.granted_at IS NOT NULL)::boolean AS granted,
+  EXISTS (
+    SELECT 1 FROM inbox_item_states s
+    WHERE s.seq = r.activity_seq AND s.done AND s.user_id = ANY(r.granters)
+  )::boolean AS dismissed,
+  now()::timestamptz AS read_at
+FROM access_requests r
+LEFT JOIN dashboards d ON d.id = r.dashboard_id
+LEFT JOIN observations o ON o.id = r.observation_id
+WHERE r.requester_kind = $1::text AND r.requester_id = $2::uuid
+  AND coalesce(d.folder_id, o.folder_id) = ANY($3::uuid[])
+ORDER BY r.created_at DESC, r.id DESC
+LIMIT $4
+`
+
+type ListOwnAccessRequestsParams struct {
+	RequesterKind string
+	RequesterID   pgtype.UUID
+	Visible       []pgtype.UUID
+	RowLimit      int32
+}
+
+type ListOwnAccessRequestsRow struct {
+	ID            pgtype.UUID
+	DashboardID   pgtype.UUID
+	ObservationID pgtype.UUID
+	Title         string
+	FolderID      pgtype.UUID
+	RequesterKind string
+	RequesterID   pgtype.UUID
+	RequesterName string
+	Note          string
+	CreatedAt     pgtype.Timestamptz
+	Granted       bool
+	Dismissed     bool
+	ReadAt        pgtype.Timestamptz
+}
+
+func (q *Queries) ListOwnAccessRequests(ctx context.Context, arg ListOwnAccessRequestsParams) ([]ListOwnAccessRequestsRow, error) {
+	rows, err := q.db.Query(ctx, listOwnAccessRequests,
+		arg.RequesterKind,
+		arg.RequesterID,
+		arg.Visible,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOwnAccessRequestsRow
+	for rows.Next() {
+		var i ListOwnAccessRequestsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DashboardID,
+			&i.ObservationID,
+			&i.Title,
+			&i.FolderID,
+			&i.RequesterKind,
+			&i.RequesterID,
+			&i.RequesterName,
+			&i.Note,
+			&i.CreatedAt,
+			&i.Granted,
+			&i.Dismissed,
+			&i.ReadAt,
 		); err != nil {
 			return nil, err
 		}

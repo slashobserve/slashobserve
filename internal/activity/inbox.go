@@ -75,6 +75,7 @@ type InboxItem struct {
 	Event
 	Reason      Reason
 	Unread      bool
+	Done        bool
 	TargetTitle string
 	Excerpt     string
 	Question    string
@@ -179,6 +180,7 @@ func (s *Store) Inbox(ctx context.Context, by auth.Principal, view View, triage 
 			Event:  eventsOf([]dbsqlc.Activity{r.Activity})[0],
 			Reason: Reason(r.Reason),
 			Unread: r.Unread,
+			Done:   r.Done,
 		})
 	}
 	if err := s.describeInbox(ctx, a, page.Items); err != nil {

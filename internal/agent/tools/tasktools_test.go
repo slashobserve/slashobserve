@@ -3,10 +3,12 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/slashobserve/slashobserve/internal/agent/prompts"
 	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/auth"
 )
@@ -24,11 +26,11 @@ func offeredNames(r *Registry, run Run) []string {
 func TestEachTaskTypeOffersItsOwnTools(t *testing.T) {
 	want := map[route.Task]string{
 		route.Measure:   "call_mcp_tool,find_mcp_tools,list_label_values,list_labels,list_mcp_sources,list_metrics,list_more_tools,list_services,measure_aggregate,measure_window,note_hypotheses,query_instant,query_range,save_finding",
-		route.Logs:      "call_mcp_tool,find_mcp_tools,list_label_values,list_labels,list_mcp_sources,list_more_tools,list_services,log_context,log_facets,log_patterns,measure_aggregate,note_hypotheses,query_range,sample_rows,save_finding",
-		route.Traces:    "call_mcp_tool,compare_traces,find_mcp_tools,get_trace,list_label_values,list_labels,list_mcp_sources,list_more_tools,list_services,logs_for_trace,note_hypotheses,save_finding,trace_error_origins,trace_slow_path,trace_stats",
-		route.Incident:  "call_mcp_tool,find_mcp_tools,get_trace,list_annotations,list_label_values,list_labels,list_mcp_sources,list_metrics,list_more_tools,list_services,log_patterns,measure_window,note_hypotheses,query_range,save_finding,trace_error_origins,trace_slow_path",
+		route.Logs:      "call_mcp_tool,find_mcp_tools,list_label_values,list_labels,list_mcp_sources,list_metrics,list_more_tools,list_services,log_context,log_facets,log_patterns,measure_aggregate,note_hypotheses,query_range,sample_rows,save_finding",
+		route.Traces:    "call_mcp_tool,compare_traces,find_mcp_tools,get_trace,list_label_values,list_labels,list_mcp_sources,list_metrics,list_more_tools,list_services,logs_for_trace,note_hypotheses,save_finding,trace_error_origins,trace_slow_path,trace_stats",
+		route.Incident:  "call_mcp_tool,find_mcp_tools,get_trace,list_annotations,list_label_values,list_labels,list_mcp_sources,list_metrics,list_more_tools,list_services,log_patterns,measure_window,note_hypotheses,query_range,save_finding,trace_error_origins,trace_slow_path,trace_stats",
 		route.Inventory: "call_mcp_tool,find_mcp_tools,list_dashboards,list_datasources,list_label_values,list_labels,list_mcp_sources,list_metrics,list_more_tools,list_observations,list_services,note_hypotheses,save_finding,search_workspace",
-		route.Explain:   "call_mcp_tool,find_mcp_tools,get_dashboard,get_observation,get_panels,get_spec_guide,list_dashboards,list_label_values,list_labels,list_mcp_sources,list_more_tools,list_services,note_hypotheses,query_range,save_finding,search_workspace",
+		route.Explain:   "call_mcp_tool,find_mcp_tools,get_dashboard,get_observation,get_panels,get_spec_guide,list_dashboards,list_label_values,list_labels,list_mcp_sources,list_metrics,list_more_tools,list_services,note_hypotheses,query_range,save_finding,search_workspace",
 	}
 	r := New(Deps{LedgerTool: true})
 	for _, task := range route.Tasks {
@@ -37,8 +39,22 @@ func TestEachTaskTypeOffersItsOwnTools(t *testing.T) {
 		if strings.Join(got, ",") != want[task] {
 			t.Errorf("%s offers %s", task, strings.Join(got, ","))
 		}
-		if len(got) < 8 || len(got) > 17 {
+		if len(got) < 8 || len(got) > 18 {
 			t.Errorf("%s offers %d tools", task, len(got))
+		}
+	}
+}
+
+func TestEveryToolATaskPromptNamesIsInThatTasksSet(t *testing.T) {
+	r := New(Deps{LedgerTool: true})
+	words := regexp.MustCompile(`[a-z]+(?:_[a-z]+)+`)
+	for _, task := range route.Tasks {
+		run := Run{Mode: ModeInvestigate, Investigation: true, Task: task, DashboardID: "d", Observations: []string{"o"}}
+		offered := offeredNames(r, run)
+		for _, word := range words.FindAllString(prompts.InvestigateBody(prompts.Variant{Task: task, Ledger: true}), -1) {
+			if _, isTool := r.entries[word]; isTool && !slices.Contains(offered, word) {
+				t.Errorf("the %s prompt names %s, which the task does not offer", task, word)
+			}
 		}
 	}
 }

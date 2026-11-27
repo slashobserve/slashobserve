@@ -288,7 +288,7 @@ folders-id-permissions:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
         description: >-
-          The folder is General (`general_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`, with `items` listing up to 20 of it and `unlisted` counting the rest), or the folder holds a dashboard or an observation with an answer that read Admin-only data and the change would let others read it (`restricted_answer`, naming that content), or `admins_only` would close a folder holding a dashboard or an observation with an unexpired public link (`admins_only_folder`).
+          The folder is General (`general_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`, with `items` listing up to 20 of it and `unlisted` counting the rest), or the folder holds a dashboard or an observation with an answer that read Admin-only data and the change would let others read it (`restricted_answer`, naming that content, with `reason` `permanent`, or `run_in_flight` while an agent run about that content has not ended), or `admins_only` would close a folder holding a dashboard or an observation with an unexpired public link (`admins_only_folder`).
         content:
           application/json:
             schema:

@@ -60,14 +60,24 @@ type Refusal struct {
 	State   string
 	Action  string
 	Allowed []string
+	Code    string
+	Reason  string
+	Cause   error
 }
 
 func (r *Refusal) Error() string {
+	if r.Cause != nil {
+		return r.Cause.Error()
+	}
 	return fmt.Sprintf("%s is not allowed while the %s is %s", r.Action, r.Machine, r.State)
 }
 
 func (r *Refusal) Is(target error) bool {
 	return target == ErrInvalidTransition
+}
+
+func (r *Refusal) Unwrap() error {
+	return r.Cause
 }
 
 func (m Machine[S, A]) Find(from S, a A) (Move[S, A], bool) {

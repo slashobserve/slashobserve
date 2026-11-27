@@ -69,6 +69,7 @@ type revisionJSON struct {
 	FailureCode  *string            `json:"failure_code"`
 	Build        *buildProgressJSON `json:"build"`
 	BuildSavedAt *string            `json:"build_saved_at"`
+	BuildState   BuildState         `json:"build_state"`
 	ContinuesID  *string            `json:"continues_id"`
 	ContinuedBy  *string            `json:"continued_by"`
 	RetriedBy    *string            `json:"retried_by"`
@@ -341,7 +342,7 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 		PanelID:        httpapi.OptionalString(r.PanelID),
 		Prompt:         r.Prompt,
 		BaseVersion:    r.BaseVersion,
-		Status:         r.Status,
+		Status:         r.State.Status(),
 		State:          r.State,
 		ResultKind:     r.ResultKind,
 		Attempts:       r.Attempts,
@@ -358,6 +359,7 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 		FailureCode:  httpapi.OptionalString(r.FailureCode),
 		Build:        state.progressFor(r.RequestedBy, caller),
 		BuildSavedAt: httpapi.FormatOptionalTime(r.BuildSavedAt),
+		BuildState:   state.derived(),
 		ContinuesID:  httpapi.OptionalString(r.ContinuesID),
 		ContinuedBy:  state.continuedBy,
 		RetriedBy:    state.retriedBy,

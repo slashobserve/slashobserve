@@ -52,6 +52,9 @@ func TestRecheckReturnsTheFreshStatusWithItsCause(t *testing.T) {
 	if got["healthy"] != false || got["detail"] != "The datasource answered HTTP 503" || got["source"] != "file" || got["dashboard_count"] != float64(0) {
 		t.Errorf("body = %v", got)
 	}
+	if got["health_state"] != "failing" || got["failure_kind"] != "transient" {
+		t.Errorf("health_state = %v, failure_kind = %v, want failing and transient", got["health_state"], got["failure_kind"])
+	}
 }
 
 func TestRecheckOfAnUnknownDatasourceIsNotFound(t *testing.T) {
