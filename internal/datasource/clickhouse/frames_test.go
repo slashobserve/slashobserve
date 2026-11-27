@@ -95,3 +95,32 @@ func TestTableFrameAddsNanosecondTimesForADateTime64_9Timestamp(t *testing.T) {
 		})
 	}
 }
+
+func TestSeriesFramesSortEachGroupByTimeKeepingTheGroupOrder(t *testing.T) {
+	at := func(s int) time.Time { return time.Date(2026, 11, 6, 12, 0, s, 0, time.UTC) }
+	rs := &resultSet{
+		columns: []column{{name: "Time", typ: datasource.FieldTime}, {name: "svc", typ: datasource.FieldString}, {name: "n", typ: datasource.FieldNumber}},
+		rows: [][]any{
+			{at(3), "b", int64(30)},
+			{at(2), "a", int64(20)},
+			{at(1), "b", int64(10)},
+			{at(1), "a", int64(1)},
+			{at(2), "b", int64(11)},
+		},
+	}
+
+	frames := rs.seriesFrames()
+
+	if len(frames) != 2 || frames[0].Labels["svc"] != "b" || frames[1].Labels["svc"] != "a" {
+		t.Fatalf("frames = %+v, want groups b then a", frames)
+	}
+	wantTimes := [][]time.Time{{at(1), at(2), at(3)}, {at(1), at(2)}}
+	wantValues := [][]float64{{10, 11, 30}, {1, 20}}
+	for i, f := range frames {
+		for j, v := range f.Fields[0].Values {
+			if !v.(time.Time).Equal(wantTimes[i][j]) || f.Fields[1].Values[j] != datasource.Number(wantValues[i][j]) {
+				t.Fatalf("frame %d row %d = %v, %v; want %v, %v", i, j, v, f.Fields[1].Values[j], wantTimes[i][j], wantValues[i][j])
+			}
+		}
+	}
+}
