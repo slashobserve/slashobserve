@@ -1249,7 +1249,7 @@ It answers the table summary of `query_instant`.
 
 #### `get_trace`
 
-Reads one trace by id from a Tempo, Jaeger or ClickHouse datasource: its services, root span, error spans with the message each set, and slowest spans.
+Reads one trace by id from a Tempo, Jaeger or ClickHouse datasource, or from an Elasticsearch or OpenSearch datasource with `spans: jaeger` ([Read spans that Jaeger stored](../connect/opensearch.md#read-spans-that-jaeger-stored)): its services, root span, error spans with the message each set, and slowest spans.
 A trace over 20,000 spans is cut to its earliest spans and says so.
 The built-in agent has the same tool.
 
@@ -1261,7 +1261,9 @@ It also gives p50, p95 and p99 for the whole range in `window`, and with `group_
 The window and group quantiles are exact: each is the duration at position q times n of every matching span's duration, sorted, which is what ClickHouse `quantilesExact` reads.
 On Tempo the server reads those durations from a trace search of at most 20,000 spans; when the search returns fewer spans than match, `quantiles` says `sample` and `quantile_spans` says how many spans the figures rest on.
 Tempo's per-bucket quantiles are interpolated from its log-scale duration buckets, so they are approximate, and the response says so in `note`.
-The `query` is a TraceQL filter on Tempo or a SQL condition over `otel_traces` on ClickHouse.
+
+The `query` is a TraceQL filter on Tempo, a SQL condition over `otel_traces` on ClickHouse, or a query in the datasource's own language over the span documents of an Elasticsearch or OpenSearch datasource with `spans: jaeger`, such as `process.serviceName:checkout`.
+On such a datasource the window and group quantiles are exact from up to 20,000 span durations, and the per-bucket quantiles are the cluster's percentile estimates, which `note` says are approximate.
 The built-in agent has the same tool.
 
 #### `trace_error_origins`
@@ -1270,7 +1272,7 @@ Finds where failing requests start over a window.
 It counts each failing trace once, at its deepest erroring span with no error below it, and groups the traces by that span's service, operation and status message.
 Each group has its trace count, its share of the examined traces, one full example trace id and `relayed_by`, the services above the origin whose spans also failed and only passed the error on.
 
-- It takes `datasource` (Tempo, Jaeger or ClickHouse), `service`, `route` (the root span name), `operation`, `by_route`, `from` and `to`; Jaeger needs `service`.
+- It takes `datasource` (Tempo, Jaeger, ClickHouse, or an Elasticsearch or OpenSearch datasource with `spans: jaeger`), `service`, `route` (the root span name), `operation`, `by_route`, `from` and `to`; Jaeger needs `service`.
 - `by_route` splits the groups by route, so each share is of that route's examined traces, and `routes` lists each route's failing and examined traces.
 - The server lists up to 2,000 failing traces, the newest first, and reads up to 200 of them, spread over the window and taken from every route in turn.
   `failing_traces` is how many it listed, `complete` whether that is every failing trace in the window, `examined` how many it read and `sample` whether the figures rest on fewer than all of them.
@@ -1283,7 +1285,7 @@ Finds where slow requests spend their time, for each route on its own.
 A trace is slow when it lasts longer than `threshold_ms`, or by default longer than twice the p50 of its route over the listed traces of the window.
 For each route (the root span name) it gives the threshold, the number of slow traces, the three spans with the most self time across them (service, operation, self time, share of the slow traces' self time and how many traces have the span), every service in the slow traces with its trace count, and the slowest one as an example with its full trace id and exact duration.
 
-- It takes `datasource` (Tempo, Jaeger or ClickHouse), `service`, `route`, `operation`, `threshold_ms`, `from` and `to`; Jaeger needs `service`.
+- It takes `datasource` (Tempo, Jaeger, ClickHouse, or an Elasticsearch or OpenSearch datasource with `spans: jaeger`), `service`, `route`, `operation`, `threshold_ms`, `from` and `to`; Jaeger needs `service`.
 - Self time is a span's duration less the time its children cover.
 - The server lists up to 2,000 traces and reads up to 200 slow ones, spread over the window and taken from every route in turn; `complete` and `sample` say whether the figures cover every slow trace, and at most 10 routes are returned.
 - Tempo lists trace durations in whole milliseconds, so on Tempo the threshold and p50 rest on those, while the example's duration comes from the whole trace.
@@ -1293,7 +1295,7 @@ The built-in agent has the same tool.
 #### `compare_traces`
 
 Explains why some traces are slow or failing.
-It takes up to 50 `selected` trace ids and up to 150 `baseline` ids from a Tempo or ClickHouse datasource.
+It takes up to 50 `selected` trace ids and up to 150 `baseline` ids from a Tempo or ClickHouse datasource, or from an Elasticsearch or OpenSearch datasource with `spans: jaeger`.
 It returns the attribute values whose share of traces differs most between the two sets, at most `limit` of them (default 20, at most 100).
 The built-in agent has the same tool.
 

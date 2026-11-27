@@ -73,6 +73,10 @@ func TestIntegrationSpanDurationsAreExactWhenEverySpanIsRead(t *testing.T) {
 		if err != nil || len(status.Groups) != 2 || status.Groups[0].Value != "Unset" || status.Groups[1].Value != "Error" || status.Groups[1].Spans != checkoutTraces/4 {
 			t.Errorf("by status = %+v %v", status, err)
 		}
+		nested, err := ds.TraceDurations(ctx, datasource.TraceDurationRequest{Query: `{"query":{"nested":{"path":"tags","query":{"bool":{"filter":[{"term":{"tags.key":"http.route"}},{"term":{"tags.value":"/checkout"}}]}}}}}`, Range: statsRange()})
+		if err != nil || nested.Window.Spans != checkoutTraces {
+			t.Errorf("a nested tag filter = %+v %v", nested.Window, err)
+		}
 		route, err := ds.TraceDurations(ctx, datasource.TraceDurationRequest{Query: "operationName:\"POST /checkout\"", GroupBy: "span.http.route", Range: statsRange()})
 		if err != nil || len(route.Groups) != 1 || route.Groups[0].Value != "/checkout" {
 			t.Errorf("by route = %+v %v", route, err)

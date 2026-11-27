@@ -15,7 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
 
-const traceStatsSourcesMessage = "trace stats read Tempo and ClickHouse datasources"
+const traceStatsSourcesMessage = "trace stats read Tempo and ClickHouse datasources, and Elastic or OpenSearch datasources with spans: jaeger"
 
 type traceStatsRequest struct {
 	Query   *string `json:"query"`

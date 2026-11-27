@@ -182,11 +182,15 @@ What it answers:
   With more than one condition the newest 8,000 traces that meet any of them are weighed, so a listing past that says it is not complete.
 - Span counts, failures and a duration histogram per time bucket, as `POST /api/v1/datasources/{uid}/trace-stats` and the `trace_stats` tool describe.
   The filter is a query over the span documents in the datasource's query language, such as `process.serviceName:checkout`, and a Query DSL body may hold only `query`.
-  Nested tags are reached in KQL as `tags:{ key:"http.route" and value:"/cart" }`.
+  KQL and Lucene reach the top-level fields and the `tag` object; a tag in the nested `tags` array takes a Query DSL body with a `nested` query on `tags`, matching `tags.key` and `tags.value`.
   Per-bucket quantiles are the cluster's `percentiles` estimates (t-digest), so they are approximate.
   The p50, p95 and p99 over the whole window and per group are exact: the server reads up to 20,000 matching span durations, newest first, and says they are a sample when the window holds more.
   `group_by` takes `service`, `name`, `status`, `kind`, `statusMessage`, `span.<tag>` and `resource.<tag>`.
+- The attribute pairs of a set of traces, read 4 traces at a time, as `compare_traces` describes.
 - The log lines of a trace are not in a span index: read them from a logs datasource.
+
+`list_datasources` and `GET /api/v1/datasources` show such a datasource with `spans: jaeger`, and the agent's guide tells it to use the trace tools on it rather than write Query DSL by hand.
+The Traces page, the trace search and `observe traces` do not read it yet.
 
 ### Health
 

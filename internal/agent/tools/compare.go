@@ -14,7 +14,7 @@ import (
 
 const (
 	nameCompareTraces   = "compare_traces"
-	compareSourcesText  = "compare_traces reads Tempo and ClickHouse datasources"
+	compareSourcesText  = "compare_traces reads Tempo and ClickHouse datasources, and Elastic or OpenSearch datasources with spans: jaeger"
 	compareDefaultLimit = 20
 	compareMaxLimit     = 100
 
