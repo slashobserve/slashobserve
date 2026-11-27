@@ -19,6 +19,7 @@ const (
 	maxCallsBeforeSave     = 6
 	maxCallsBeforeProposal = 12
 	maxStalledTurns        = 2
+	maxLedgerTurns         = 4
 	maxChangesPerPanel     = 4
 	maxChurnedSavesInRow   = 3
 	maxIssueCodes          = 3
@@ -458,16 +459,8 @@ func (s *State) refuse(c Call, adm Admission, name string) Admission {
 
 func (s *State) EndTurn() (nudge string, stop *Stop) {
 	s.Window.Diagnose = s.Turn.Rejected
-	if s.Turn.Answered > 0 {
-		s.Window.Stalled, s.Window.Noted = 0, 0
-	} else {
-		s.Counts.StalledTurns++
-		if s.Turn.onlyNoted() {
-			s.Window.Noted++
-		}
-		if s.Window.Stalled++; s.Window.Stalled >= maxStalledTurns {
-			return "", &Stop{Failure: revisions.FailureNoProgress, Step: s.stalledReason()}
-		}
+	if s.stalled() {
+		return "", &Stop{Failure: revisions.FailureNoProgress, Step: s.stalledReason()}
 	}
 	if !s.Turn.Progress {
 		if nudge = s.nudge(); nudge != "" {
@@ -502,6 +495,22 @@ func (s *State) EndTurn() (nudge string, stop *Stop) {
 		}
 	}
 	return nudge, nil
+}
+
+func (s *State) stalled() bool {
+	switch {
+	case s.Turn.Answered > 0:
+		s.Window.Stalled, s.Window.Noted, s.Window.LedgerTurns = 0, 0, 0
+	case (s.Turn.SentBack || s.Turn.LedgerChanged) && s.Window.LedgerTurns < maxLedgerTurns:
+		s.Window.LedgerTurns++
+	default:
+		s.Counts.StalledTurns++
+		if s.Turn.onlyNoted() {
+			s.Window.Noted++
+		}
+		s.Window.Stalled++
+	}
+	return s.Window.Stalled >= maxStalledTurns
 }
 
 func (s *State) stalledReason() string {

@@ -438,8 +438,10 @@ func TestTheReminderNeverRefusesAnything(t *testing.T) {
 func TestTurnsOfOnlyLedgerCallsStillStopTheRunWithTheLoopOn(t *testing.T) {
 	d := newDriver(t, true, 12, 30)
 	d.turn([]revisions.Hypothesis{open("a")}, 1)
-	d.turn([]revisions.Hypothesis{open("a"), open("b")}, 0)
-	out := d.turn([]revisions.Hypothesis{open("a"), open("c")}, 0)
+	var out outcome
+	for i := range maxLedgerTurns + maxStalledTurns {
+		out = d.turn([]revisions.Hypothesis{open("a"), open("b" + strconv.Itoa(i))}, 0)
+	}
 	if out.stop == nil || out.stop.Failure != revisions.FailureNoProgress {
 		t.Fatalf("stop = %+v", out.stop)
 	}

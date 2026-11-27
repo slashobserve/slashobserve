@@ -1,6 +1,7 @@
 package guard
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -68,6 +69,38 @@ func TestTurnsOfOnlyLedgerCallsStallTheRun(t *testing.T) {
 	}
 	if want := "Stopped: 2 turns in a row only updated the hypotheses"; stop.Step != want {
 		t.Fatalf("step = %q, want %q", stop.Step, want)
+	}
+}
+
+func TestLedgerTurnsThatChangeTheLedgerOrWereSentBackDoNotStallTheRunAtOnce(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	s.StartLoop(DefaultInvestigationCallsMax)
+	note := jsonCall(toolNoteHypotheses, `{"hypotheses":[]}`)
+	ledger := []revisions.Hypothesis{}
+	turn := func(sentBack bool) *Stop {
+		s.BeginTurn(false)
+		s.Admit(0, note)
+		if _, err := s.Settle(note, tools.Result{IsError: sentBack}, []byte(`{}`)); err != nil {
+			t.Fatal(err)
+		}
+		if !sentBack {
+			next := append(slices.Clone(ledger), revisions.Hypothesis{ID: strconv.Itoa(len(ledger)), Status: revisions.HypothesisOpen})
+			s.NoteLedger(ledger, next)
+			ledger = next
+		}
+		_, stop := s.EndTurn()
+		return stop
+	}
+	for i, sentBack := range []bool{true, false, false, true} {
+		if stop := turn(sentBack); stop != nil {
+			t.Fatalf("ledger turn %d stopped the run: %+v", i+1, stop)
+		}
+	}
+	if stop := turn(false); stop != nil {
+		t.Fatalf("the first counted ledger turn stopped the run: %+v", stop)
+	}
+	if stop := turn(false); stop == nil || stop.Failure != revisions.FailureNoProgress {
+		t.Fatalf("a run that sends only ledger calls never stopped: %+v", stop)
 	}
 }
 

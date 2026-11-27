@@ -171,6 +171,7 @@ Details of the ledger:
 - It holds at most 6 hypotheses and 4 KiB of text; a longer one is refused with the reason, and the agent shortens it.
 - The tool changes nothing in the workspace and is not a read, so the call limit never refuses it.
 - A turn with only a ledger call and no read counts as a stalled turn, like a turn in which every call was refused, and two in a row end the run as `no_progress` with the step `Stopped: 2 turns in a row only updated the hypotheses`.
+  A ledger call that changed the ledger, or that the server sent back for a fix, is the exception: up to four such turns in a row do not count, so the agent can correct a call and close its candidates before it answers.
 - A turn spent only on the ledger still uses a model call, and that call counts toward the model-call limit.
 - The run's steps show one line for each change, such as `3 hypotheses: 1 supported, 1 ruled out, 1 open`, under the label `ledger`.
 - When the conversation is shortened, the server puts the ledger in front of the agent again in a `<hypotheses>` block.
