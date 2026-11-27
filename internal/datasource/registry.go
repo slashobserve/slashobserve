@@ -526,7 +526,7 @@ func verdictOn(err error) verdict {
 			return verdict{text: h.text, failure: h.failure}
 		}
 	}
-	return verdict{text: "The health check failed", failure: FailureTransient}
+	return verdict{text: "The health check failed", failure: FailureUnknown}
 }
 
 func Reason(err error) (message, detail string, kind FailureKind) {

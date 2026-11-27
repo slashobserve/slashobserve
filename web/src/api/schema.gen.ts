@@ -5166,10 +5166,10 @@ export interface components {
              */
             health_state: "unchecked" | "healthy" | "failing" | "rechecking";
             /**
-             * @description What to do about a failed check; present only when `health_state` is `failing` or `rechecking`. `transient`: the datasource did not answer, timed out or hit a limit, or the check failed for a reason the server cannot tie to its settings; the server keeps checking, so try again later. `credentials`: the datasource refused the saved credentials or the server cannot read them; set them again. `configuration`: the datasource's settings, its user's grants or the server's settings must change before a check can pass. `unsupported`: the datasource runs a version the server does not support.
+             * @description What to do about a failed check; present only when `health_state` is `failing` or `rechecking`. `transient`: the datasource did not answer, timed out or hit a limit; the server keeps checking, so try again later. `credentials`: the datasource refused the saved credentials or the server cannot read them; set them again. `configuration`: the datasource's settings, its user's grants or the server's settings must change before a check can pass. `unsupported`: the datasource runs a version the server does not support. `unknown`: the check failed for a reason the server could not classify, so nothing says whether trying again will help; try a few times, then report it.
              * @enum {string}
              */
-            failure_kind?: "transient" | "credentials" | "configuration" | "unsupported";
+            failure_kind?: "transient" | "credentials" | "configuration" | "unsupported" | "unknown";
             /** @description A fixed sentence naming the kind of failure; absent when healthy. */
             message?: string;
             /** @description The cause when the server knows it, such as a refused connection or the HTTP status the datasource answered; never an address, user or secret. */
@@ -5299,7 +5299,7 @@ export interface components {
              * @description What to do about the failed check, with the meanings `GET /datasources` gives them; absent when healthy or when the check was cancelled.
              * @enum {string}
              */
-            failure_kind?: "transient" | "credentials" | "configuration" | "unsupported";
+            failure_kind?: "transient" | "credentials" | "configuration" | "unsupported" | "unknown";
         };
         InvalidDatasourceError: {
             error: string;

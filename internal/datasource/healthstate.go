@@ -25,8 +25,9 @@ const (
 	FailureCredentials   FailureKind = "credentials"
 	FailureConfiguration FailureKind = "configuration"
 	FailureUnsupported   FailureKind = "unsupported"
+	FailureUnknown       FailureKind = "unknown"
 
 	notTheDatasource FailureKind = ""
 )
 
-var FailureKinds = []FailureKind{FailureTransient, FailureCredentials, FailureConfiguration, FailureUnsupported}
+var FailureKinds = []FailureKind{FailureTransient, FailureCredentials, FailureConfiguration, FailureUnsupported, FailureUnknown}

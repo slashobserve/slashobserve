@@ -83,6 +83,8 @@ export function failureAdvice(
       return "A setting needs to change before this works."
     case "unsupported":
       return "Connect a version the server supports."
+    case "unknown":
+      return "The server could not tell why the check failed."
     case undefined:
       return undefined
   }

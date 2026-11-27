@@ -844,7 +844,7 @@ func TestAFailedCheckNamesItsKind(t *testing.T) {
 		{"deadline", context.DeadlineExceeded, datasource.FailureTransient},
 		{"unavailable", datasource.ErrUnavailable, datasource.FailureTransient},
 		{"limit", datasource.ErrLimitExceeded, datasource.FailureTransient},
-		{"unclassified", errors.New("dial tcp: connection refused"), datasource.FailureTransient},
+		{"unclassified", errors.New("dial tcp: connection refused"), datasource.FailureUnknown},
 		{"auth failed", datasource.ErrAuthFailed, datasource.FailureCredentials},
 		{"unreadable credentials", datasource.ErrUnreadable, datasource.FailureCredentials},
 		{"host not allowed", datasource.ErrHostNotAllowed, datasource.FailureConfiguration},
@@ -910,5 +910,20 @@ func TestAHealthyDatasourceHasNoFailureKindInItsJSON(t *testing.T) {
 				t.Errorf("failing status = %s", raw)
 			}
 		}
+	}
+}
+
+type panickingHealth struct{ failingHealth }
+
+func (panickingHealth) CheckHealth(context.Context) error { panic("driver bug") }
+
+func TestAPanickedCheckFailsWithAnUnknownKind(t *testing.T) {
+	registry, err := datasource.NewRegistry(slog.New(&recordingHandler{}), datasource.Instance{UID: "prom", Datasource: panickingHealth{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := registry.Health(everything(t))[0]
+	if got.HealthState != datasource.HealthFailing || got.FailureKind != datasource.FailureUnknown || got.Message != "The health check failed" {
+		t.Fatalf("status = %+v", got)
 	}
 }

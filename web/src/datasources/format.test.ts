@@ -152,6 +152,9 @@ describe("failureAdvice", () => {
     expect(failureAdvice("unsupported")).toBe(
       "Connect a version the server supports."
     )
+    expect(failureAdvice("unknown")).toBe(
+      "The server could not tell why the check failed."
+    )
     expect(failureAdvice(undefined)).toBeUndefined()
   })
 })

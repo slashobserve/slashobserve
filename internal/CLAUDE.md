@@ -343,7 +343,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `GET /api/v1/datasources` never returns a URL, address, user or secret.
   Only the Admin-only `GET /api/v1/datasources/{uid}/config` returns the address and login, and no route returns a stored credential; app datasources are sealed with `sealed.Key` and managed through `datasourceadmin`, HTTP and CLI only.
   The health `message` is a fixed string chosen by error kind, never the error's own text.
-  `healthTexts` (`internal/datasource/registry.go`) is the one table that gives a failed check its `message` and its `failure_kind`, and a new error kind gets a row there; `health_state` is the derived `datasource.HealthStates`, set where a status is made, and a cancelled check (`notTheDatasource`) is `unchecked`, never cached and never logged as unhealthy.
+  `healthTexts` (`internal/datasource/registry.go`) is the one table that gives a failed check its `message` and its `failure_kind`, and a new error kind gets a row there, because an error without a row is `unknown`; `health_state` is the derived `datasource.HealthStates`, set where a status is made, and a cancelled check (`notTheDatasource`) is `unchecked`, never cached and never logged as unhealthy.
   Datasources never gate `/readyz`.
   A datasource's health probe is a cheap read that proves it can answer queries (Loki asks `vector(1)+vector(1)`, never `/ready`, which fails while an ingester joins the ring or under load).
   `Registry.Health` serves a cached failure at once and refreshes it in the background once it is 2 seconds old (`Recheck` probes inline after 2 seconds), and a healthy status lasts 10 seconds.
