@@ -51,6 +51,99 @@ func TestPlanAggregateBuildsTheWholeWindowQuery(t *testing.T) {
 		if problem != "" || plan.query != tc.query || plan.numerator != tc.parts[0] || plan.denominator != tc.parts[1] {
 			t.Errorf("%s:\n got  %q %q %q (%s)\n want %q %q", tc.name, plan.query, plan.numerator, plan.denominator, problem, tc.query, tc.parts)
 		}
+		if _, err := selectorParser.ParseExpr(plan.query); err != nil {
+			t.Errorf("%s: %q is not PromQL: %v", tc.name, plan.query, err)
+		}
+	}
+}
+
+func TestPlanAggregateBuildsTheWholeWindowLogQL(t *testing.T) {
+	window := time.Hour
+	for _, tc := range []struct {
+		name  string
+		in    aggregateInput
+		query string
+	}{
+		{
+			"the lines a log query matches",
+			aggregateInput{Op: opTotal, Query: `{service_name="cart"} |= "error"`},
+			`sum(count_over_time({service_name="cart"} |= "error" [3600s]))`,
+		},
+		{
+			"lines per group",
+			aggregateInput{Op: opTotal, Query: `{service_name=~".+"}`, By: []string{"service_name"}},
+			`sum by (service_name) (count_over_time({service_name=~".+"} [3600s]))`,
+		},
+		{
+			"the sum of a field",
+			aggregateInput{Op: opTotal, Query: `{service_name="cart"} | json`, Unwrap: "bytes(size)"},
+			`sum(sum_over_time({service_name="cart"} | json | unwrap bytes(size) | __error__="" [3600s]))`,
+		},
+		{
+			"a quantile of a field over every line",
+			aggregateInput{Op: opQuantile, Query: `{service_name="cart"} | json`, Unwrap: "ms", Quantile: quantileOf(0.99)},
+			`quantile_over_time(0.99, {service_name="cart"} | json | unwrap ms | __error__="" [3600s]) by ()`,
+		},
+		{
+			"a peak of a field per group",
+			aggregateInput{Op: opMax, Query: `{namespace="shop"} | logfmt`, Unwrap: "duration( took )", By: []string{"service_name"}},
+			`max_over_time({namespace="shop"} | logfmt | unwrap duration(took) | __error__="" [3600s]) by (service_name)`,
+		},
+	} {
+		plan, problem := planAggregate(tc.in, spec.Loki, window)
+		if problem != "" || plan.query != tc.query {
+			t.Errorf("%s:\n got  %q (%s)\n want %q", tc.name, plan.query, problem, tc.query)
+		}
+	}
+}
+
+func TestPlanAggregateGivesALokiRatioThatIsZeroWithoutMatches(t *testing.T) {
+	plan, problem := planAggregate(aggregateInput{Op: opRatio, Query: `{service_name="cart"} |= "error"`, Denominator: `{service_name="cart"}`}, spec.Loki, time.Hour)
+	num, den := `sum(count_over_time({service_name="cart"} |= "error" [3600s]))`, `sum(count_over_time({service_name="cart"} [3600s]))`
+	if problem != "" || plan.query != "("+num+" or 0 * "+den+") / "+den || plan.numerator != num || plan.denominator != den {
+		t.Fatalf("plan = %+v (%s)", plan, problem)
+	}
+}
+
+func TestPlanAggregateRefusesWhatLokiCannotMeasure(t *testing.T) {
+	for name, in := range map[string]aggregateInput{
+		"a metric query":               {Op: opTotal, Query: `count_over_time({a="b"}[5m])`},
+		"an unwrap stage in the query": {Op: opMax, Query: `{a="b"} | unwrap ms`},
+		"a peak without a field":       {Op: opMax, Query: `{a="b"}`},
+		"a quantile without a field":   {Op: opQuantile, Query: `{a="b"}`, Quantile: quantileOf(0.5)},
+		"a field that is not a name":   {Op: opMax, Query: `{a="b"}`, Unwrap: "ms | line_format"},
+		"a ratio of a field":           {Op: opRatio, Query: `{a="b"}`, Denominator: `{a=~".+"}`, Unwrap: "ms"},
+		"a denominator metric query":   {Op: opRatio, Query: `{a="b"}`, Denominator: `rate({a="b"}[1m])`},
+	} {
+		if plan, problem := planAggregate(in, spec.Loki, time.Hour); problem == "" {
+			t.Errorf("%s: planned %q, want a refusal", name, plan.query)
+		}
+	}
+	for name, in := range map[string]aggregateInput{
+		"a peak on Prometheus":    {Op: opMax, Query: "up"},
+		"unwrap on Prometheus":    {Op: opTotal, Query: "up", Unwrap: "ms"},
+		"another datasource type": {Op: opTotal, Query: "up"},
+	} {
+		dsType := spec.Prometheus
+		if name == "another datasource type" {
+			dsType = spec.Tempo
+		}
+		if plan, problem := planAggregate(in, dsType, time.Hour); problem == "" {
+			t.Errorf("%s: planned %q, want a refusal", name, plan.query)
+		}
+	}
+}
+
+func TestAggregateCountsLokiLinesAtTheWindowEnd(t *testing.T) {
+	fake := &measureFake{answer: func(string) []datasource.Frame {
+		return []datasource.Frame{timeNumberFrame(nil, 4)}
+	}}
+	out := aggregated(t, fake.registry(t, "loki"), `{"datasource":"fake","op":"total","query":"{service_name=\"cart\"} |= \"error\"","from":"2026-11-20T09:00:00Z","to":"2026-11-20T10:00:00Z"}`)
+	if len(out.Values) != 1 || *out.Values[0].Value != 4 || fake.queries[0] != `sum(count_over_time({service_name="cart"} |= "error" [3600s]))` {
+		t.Fatalf("out = %+v queries = %q", out, fake.queries)
+	}
+	if !fake.ranges[0].To.Equal(time.Date(2026, 11, 20, 10, 0, 0, 0, time.UTC)) {
+		t.Errorf("evaluated at %s, want the end of the window", fake.ranges[0].To)
 	}
 }
 

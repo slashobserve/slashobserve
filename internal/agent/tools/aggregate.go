@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -23,21 +24,29 @@ const (
 	opTotal    = "total"
 	opRatio    = "ratio"
 	opQuantile = "quantile"
+	opMax      = "max"
+	opMin      = "min"
+	opAvg      = "avg"
 
 	maxAggregateBy = 5
 	bucketSuffix   = "_bucket"
 
-	descAggregate = "Measure one figure over a whole window, pooled from every sample or line in it and evaluated once at the window's end, never pieced together from range points or spot values. Use it for every total, share and quantile you report. op total: the increase of a Prometheus counter. op ratio: the total of query divided by the total of denominator, such as errors over requests; 0 when query has none while denominator has some; multiply by 100 for a percent. op quantile: a Prometheus histogram's quantile from the increase of its buckets over the window. On Prometheus use measure_window for max, min and avg. by groups the result, such as by service_name. Cite the query in the result."
+	descAggregate = "Measure one figure pooled over a whole window, evaluated once at its end, never pieced together from range points or spot values; use it for every total, share and quantile you report. op total: a Prometheus counter's increase, or on Loki the lines a log query matches, or the sum of unwrap. op ratio: the total of query over the total of denominator, such as errors over requests; 0 when query has none; times 100 for a percent. op quantile: a Prometheus histogram's, from the increase of its buckets, or on Loki of unwrap. op max, min and avg: of unwrap on Loki; on Prometheus use measure_window. by groups the result. Cite the query in the result."
 
-	propAggregateOp    = `"op":{"type":"string","enum":["total","ratio","quantile"],"description":"What to measure over the window."}`
-	propAggregateQuery = `"query":{"type":"string","description":"A series selector of a counter, or of a histogram for quantile, with concrete label values, such as http_requests_total{service_name=\"cart\",code=~\"5..\"}."}`
-	propAggregateDen   = `"denominator":{"type":"string","description":"For ratio: the selector to divide by, such as http_requests_total{service_name=\"cart\"}."}`
-	propAggregateQ     = `"quantile":{"type":"number","exclusiveMinimum":0,"maximum":1,"description":"For quantile, such as 0.99."}`
-	propAggregateBy    = `"by":{"type":"array","maxItems":5,"items":{"type":"string","maxLength":64},"description":"Labels to group by; leave out for one figure over everything matched."}`
-	schemaAggregate    = `{"type":"object","properties":{` + propDatasource + `,` + propAggregateOp + `,` + propAggregateQuery + `,` + propAggregateDen + `,` + propAggregateQ + `,` + propAggregateBy + `,` + propFrom + `,` + propTo + `},"required":["datasource","query","op"],"additionalProperties":false}`
+	propAggregateOp     = `"op":{"type":"string","enum":["total","ratio","quantile","max","min","avg"],"description":"What to measure over the window."}`
+	propAggregateQuery  = `"query":{"type":"string","description":"Prometheus: the series selector of a counter, or of a histogram for quantile, such as http_requests_total{code=~\"5..\"}. Loki: a log query, such as {service_name=\"cart\"} | json."}`
+	propAggregateDen    = `"denominator":{"type":"string","description":"For ratio: the selector or log query to divide by."}`
+	propAggregateUnwrap = `"unwrap":{"type":"string","maxLength":80,"description":"Loki: the numeric label or parsed field, such as duration_ms, or duration(f) or bytes(f) for units; lines it fails on are skipped."}`
+	propAggregateQ      = `"quantile":{"type":"number","exclusiveMinimum":0,"maximum":1,"description":"For quantile, such as 0.99."}`
+	propAggregateBy     = `"by":{"type":"array","maxItems":5,"items":{"type":"string","maxLength":64},"description":"Labels to group by, such as service_name."}`
+	schemaAggregate     = `{"type":"object","properties":{` + propDatasource + `,` + propAggregateOp + `,` + propAggregateQuery + `,` + propAggregateDen + `,` + propAggregateQ + `,` + propAggregateUnwrap + `,` + propAggregateBy + `,` + propFrom + `,` + propTo + `},"required":["datasource","query","op"],"additionalProperties":false}`
 )
 
-var aggregateOps = []string{opTotal, opRatio, opQuantile}
+var (
+	aggregateOps = []string{opTotal, opRatio, opQuantile, opMax, opMin, opAvg}
+	unwrapExpr   = regexp.MustCompile(`^(?:(duration|duration_seconds|bytes)\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)|([A-Za-z_][A-Za-z0-9_]*))$`)
+	unwrapStage  = regexp.MustCompile(`\|\s*unwrap\b`)
+)
 
 func init() { registerEntries((*Registry).aggregateEntries) }
 
@@ -53,6 +62,7 @@ type aggregateInput struct {
 	Query       string   `json:"query"`
 	Denominator string   `json:"denominator"`
 	Quantile    *float64 `json:"quantile"`
+	Unwrap      string   `json:"unwrap"`
 	By          []string `json:"by"`
 	From        string   `json:"from"`
 	To          string   `json:"to"`
@@ -174,14 +184,90 @@ func planPromAggregate(in aggregateInput, window time.Duration) (aggregatePlan, 
 	return aggregatePlan{query: ratioOf(total, den), numerator: total, denominator: den}, ""
 }
 
+func lokiLogQuery(field, text string) (string, string) {
+	text = strings.TrimSpace(text)
+	switch {
+	case !spec.LogQLReturnsLines(text):
+		return "", field + " must be a log query that starts with a stream selector, such as {service_name=\"cart\"} |= \"error\", not a metric query: the server adds the range function itself"
+	case unwrapStage.MatchString(text):
+		return "", "name the field in unwrap, not as an unwrap stage in " + field
+	}
+	return text, ""
+}
+
+func unwrapField(text string) (string, string) {
+	m := unwrapExpr.FindStringSubmatch(strings.TrimSpace(text))
+	switch {
+	case m == nil:
+		return "", "unwrap must be a label or field name such as duration_ms, or duration(field) or bytes(field)"
+	case m[1] != "":
+		return m[1] + "(" + m[2] + ")", ""
+	}
+	return m[3], ""
+}
+
+func lokiSum(by []string, inner string) string {
+	if len(by) == 0 {
+		return "sum(" + inner + ")"
+	}
+	return "sum by (" + grouping(by) + ") (" + inner + ")"
+}
+
+func planLokiAggregate(in aggregateInput, window time.Duration) (aggregatePlan, string) {
+	query, problem := lokiLogQuery("query", in.Query)
+	if problem != "" {
+		return aggregatePlan{}, problem
+	}
+	span := " [" + promSeconds(window) + "]"
+	if in.Op == opRatio {
+		denominator, problem := lokiLogQuery("denominator", in.Denominator)
+		if problem != "" {
+			return aggregatePlan{}, problem
+		}
+		num, den := lokiSum(in.By, "count_over_time("+query+span+")"), lokiSum(in.By, "count_over_time("+denominator+span+")")
+		return aggregatePlan{query: ratioOf(num, den), numerator: num, denominator: den}, ""
+	}
+	if in.Unwrap == "" {
+		if in.Op != opTotal {
+			return aggregatePlan{}, "op " + in.Op + " needs unwrap, the numeric field to measure, such as duration_ms"
+		}
+		return aggregatePlan{query: lokiSum(in.By, "count_over_time("+query+span+")")}, ""
+	}
+	field, problem := unwrapField(in.Unwrap)
+	if problem != "" {
+		return aggregatePlan{}, problem
+	}
+	unwrapped := query + " | unwrap " + field + ` | __error__=""` + span
+	switch in.Op {
+	case opTotal:
+		return aggregatePlan{query: lokiSum(in.By, "sum_over_time("+unwrapped+")")}, ""
+	case opQuantile:
+		q := strconv.FormatFloat(*in.Quantile, 'g', -1, 64)
+		return aggregatePlan{query: fmt.Sprintf("quantile_over_time(%s, %s) by (%s)", q, unwrapped, grouping(in.By))}, ""
+	}
+	return aggregatePlan{query: fmt.Sprintf("%s_over_time(%s) by (%s)", in.Op, unwrapped, grouping(in.By))}, ""
+}
+
 func planAggregate(in aggregateInput, dsType spec.DatasourceType, window time.Duration) (aggregatePlan, string) {
 	if problem := checkAggregateFields(in); problem != "" {
 		return aggregatePlan{}, problem
 	}
-	if dsType != spec.Prometheus {
-		return aggregatePlan{}, fmt.Sprintf("measure_aggregate reads Prometheus datasources only; on %s use query_instant with the store's own aggregate", dsType)
+	switch dsType {
+	case spec.Prometheus:
+		switch {
+		case in.Unwrap != "":
+			return aggregatePlan{}, "unwrap is for Loki; on Prometheus name the series in query"
+		case in.Op == opMax || in.Op == opMin || in.Op == opAvg:
+			return aggregatePlan{}, "on Prometheus, max, min and avg over a window come from measure_window"
+		}
+		return planPromAggregate(in, window)
+	case spec.Loki:
+		if in.Op == opRatio && in.Unwrap != "" {
+			return aggregatePlan{}, "unwrap does not go with ratio, which divides line counts"
+		}
+		return planLokiAggregate(in, window)
 	}
-	return planPromAggregate(in, window)
+	return aggregatePlan{}, fmt.Sprintf("measure_aggregate reads Prometheus and Loki datasources; on %s use query_instant with the store's own aggregate", dsType)
 }
 
 func (r *Registry) aggregate(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -224,7 +310,7 @@ func (r *Registry) aggregate(ctx context.Context, input json.RawMessage) (Result
 	}
 	out.Empty = len(out.Values) == 0
 	if out.Empty {
-		out.Note = "No series matched in this window. An empty result does not show the value was zero: check the metric and label names with list_metrics and list_label_values."
+		out.Note = emptyAggregateNote(typeOf(inst))
 	}
 	return success("Measured "+in.Op+" on "+inst.UID+": "+describeAggregated(out), out), nil
 }
@@ -303,4 +389,11 @@ func describeAggregated(out aggregateOut) string {
 		return strconv.FormatFloat(*out.Values[0].Value, 'g', -1, 64)
 	}
 	return "undefined, nothing was counted in the window"
+}
+
+func emptyAggregateNote(dsType spec.DatasourceType) string {
+	if dsType == spec.Loki {
+		return "No line matched in this window. An empty result does not show the count was zero: check the stream labels and their values with list_labels and list_label_values."
+	}
+	return "No series matched in this window. An empty result does not show the value was zero: check the metric and label names with list_metrics and list_label_values."
 }
