@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest"
 
 import {
-  metricsTimeRange,
   modeOf,
   searchAfter,
   validateMetricsEntrySearch,
@@ -40,19 +39,6 @@ describe("validateMetricsSearch", () => {
     expect(validateMetricsEntrySearch({ ds: "prom" }).ds).toBe("prom")
     expect(validateMetricsEntrySearch({ ds: "../x" }).ds).toBeUndefined()
     expect("ds" in validateMetricsSearch({ ds: "prom" })).toBe(false)
-  })
-})
-
-describe("metricsTimeRange", () => {
-  it("defaults to the last hour", () => {
-    expect(metricsTimeRange({})).toEqual({ from: "now-1h", to: "now" })
-  })
-
-  it("uses the range in the search", () => {
-    expect(metricsTimeRange({ from: "now-1d", to: "now-1h" })).toEqual({
-      from: "now-1d",
-      to: "now-1h",
-    })
   })
 })
 

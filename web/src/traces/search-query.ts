@@ -1,9 +1,10 @@
 import type { ExploreParams } from "@/api/keys"
 import { defaultPageSize } from "@/lib/paging"
 import { matcherInsert } from "@/panel-editor/insert-text"
+import { exploreRange } from "@/lib/time"
 
 import type { Selection } from "./scatter"
-import { hasQueryText, tracesTimeRange, type TraceSearch } from "./search"
+import { hasQueryText, type TraceSearch } from "./search"
 import { decodeSort, pageSortParam } from "./trace-rows"
 
 const durationPattern = /^(\d+(?:\.\d+)?)(ns|us|µs|ms|s|m|h)$/
@@ -347,7 +348,7 @@ export function traceSearchParams(
       ? textSearchFor(type, search)
       : clickhouseTraceSearch(traceForm(search)),
     kind: "instant",
-    ...tracesTimeRange(search),
+    ...exploreRange(search),
     pageSize: search.size ?? defaultPageSize,
     page: search.page ?? 1,
     ...(type === "clickhouse" && sortFor(search)),

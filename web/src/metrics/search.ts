@@ -1,4 +1,3 @@
-import type { TimeRangeValue } from "@/dashboards/time-range-picker"
 import {
   firstString,
   validAsk,
@@ -42,10 +41,6 @@ export function validateMetricsEntrySearch(
   raw: Record<string, unknown>
 ): MetricsEntrySearch {
   return { ...validateMetricsSearch(raw), ds: validDatasource(raw.ds) }
-}
-
-export function metricsTimeRange(search: MetricsSearch): TimeRangeValue {
-  return { from: search.from ?? "now-1h", to: search.to ?? "now" }
 }
 
 export function modeOf(search: MetricsSearch): MetricsMode {

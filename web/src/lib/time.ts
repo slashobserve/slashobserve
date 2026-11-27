@@ -226,6 +226,13 @@ export function describeDuration(text: string): string | null {
   return durationText(count, match[2])
 }
 
+export function exploreRange(search: { from?: string; to?: string }): {
+  from: string
+  to: string
+} {
+  return { from: search.from ?? "now-1h", to: search.to ?? "now" }
+}
+
 export type QuickRange = { label: string; from: string; to: string }
 
 export function describeRange(

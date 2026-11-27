@@ -13,7 +13,7 @@ import { defaultPageSize, pageStateOf, type PageSize } from "@/lib/paging"
 import { traceLink } from "@/lib/links"
 import { isModEnter, modChordLabel } from "@/lib/shortcuts"
 import { lowerFirst } from "@/lib/text"
-import { describeRange } from "@/lib/time"
+import { describeRange, exploreRange } from "@/lib/time"
 import { exploreErrorText, exploreQuery, offlineText } from "@/logs/explore"
 import { ExploreFailure } from "@/logs/explore-failure"
 import { PlainTable } from "@/logs/plain-table"
@@ -23,7 +23,7 @@ import { CodeEditor, type CodeEditorHandle } from "@/query-editor/code-editor"
 import { AddToDashboardAction } from "./add-to-dashboard-action"
 import { AddToObservationAction } from "./add-to-observation-action"
 import { liveRefreshMs } from "./live-refresh"
-import { rangeInFuture, tracesTimeRange, type TraceSearch } from "./search"
+import { rangeInFuture, type TraceSearch } from "./search"
 import { traceSqlPanelFor } from "./trace-panel"
 import {
   frameRows,
@@ -180,7 +180,7 @@ export function TraceSqlResults({
   onPageSize: (size: PageSize | undefined) => void
   live: boolean
 }) {
-  const range = tracesTimeRange(search)
+  const range = exploreRange(search)
   const [openedAt] = useState(Date.now)
   const future = rangeInFuture(range, openedAt)
   const page = search.page ?? 1

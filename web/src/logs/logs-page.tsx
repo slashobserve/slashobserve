@@ -24,9 +24,11 @@ import type { LogSelection } from "@/panels/logs/logs-panel"
 
 import { logsDraft } from "@/saved-searches/draft"
 import { OpenSavedSearch } from "@/saved-searches/open-saved-search"
+import { ExploreActions } from "@/saved-searches/explore-actions"
 import { useLeaveAskOnSavedOpen } from "@/saved-searches/saved-open"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
 import { loadProblemText } from "@/service-accounts/queries"
+import { exploreRange } from "@/lib/time"
 
 import { logsPanelFor } from "./add-panel"
 import { AddToDashboardPanel } from "./add-to-dashboard-panel"
@@ -37,12 +39,11 @@ import { FilterPills } from "./filter-pills"
 import { rowCount } from "./frames"
 import { hiddenLevels, levelsParam, parseLevels, pickLevel } from "./levels"
 import { LogsShortcutsDialog } from "./logs-shortcuts-dialog"
-import { LogsPageActions } from "./page-actions"
 import { applyPills, decodePills } from "./pills"
 import { unreadableKql } from "./query-problem"
 import { QueryBar } from "./query-bar"
 import { ResultSkeleton, ResultsSection } from "./results-section"
-import { logsTimeRange, runPatch, searchAfter, type LogsSearch } from "./search"
+import { runPatch, searchAfter, type LogsSearch } from "./search"
 import { useLiveTail } from "./use-live-tail"
 import { useLogsShortcuts } from "./use-logs-shortcuts"
 import { isPlainResult } from "./plain-table"
@@ -143,6 +144,15 @@ export function LogsPage({ uid }: { uid: string }) {
   )
 }
 
+const notRunText = "Run a query first."
+
+function saveHint(savable: ReturnType<typeof logsDraft>): string | undefined {
+  if (!("blocked" in savable)) return undefined
+  return savable.blocked === "no-query"
+    ? notRunText
+    : "Filters are not applied: switch the query to KQL."
+}
+
 function LogsWorkspaceView({
   datasource,
   search,
@@ -155,7 +165,7 @@ function LogsWorkspaceView({
   const notRunId = useId()
   const uid = datasource.uid
   const type = datasource.type
-  const range = logsTimeRange(search)
+  const range = exploreRange(search)
   const q = search.q
   const filters = search.f
   const effectiveQuery = useMemo(
@@ -347,17 +357,21 @@ function LogsWorkspaceView({
 
   return (
     <LogsWorkspaceContext value={workspace}>
-      <LogsPageActions
+      <ExploreActions
+        kind="logs"
         range={range}
         onRangeChange={(next) => {
           setTailing(false)
           setTailShown(false)
           update(next)
         }}
-        tail={{ on: tailing, start: startTail, stop: stopTail }}
-        queryRun={q !== undefined}
-        notRunId={notRunId}
-        savable={savable}
+        tail={{
+          on: tailing,
+          blocked: q === undefined ? notRunText : undefined,
+          toggle: () => (tailing ? stopTail() : startTail()),
+        }}
+        saveBlocked={saveHint(savable)}
+        describedBy={q === undefined ? notRunId : undefined}
         saveTrigger={saveTrigger}
         onSave={() => setSaving(true)}
       />

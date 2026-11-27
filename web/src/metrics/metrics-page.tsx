@@ -21,20 +21,16 @@ import { useLogsShortcuts } from "@/logs/use-logs-shortcuts"
 import { roleAtLeast } from "@/lib/roles"
 import { metricsDraft } from "@/saved-searches/draft"
 import { OpenSavedSearch } from "@/saved-searches/open-saved-search"
+import { ExploreActions } from "@/saved-searches/explore-actions"
 import { useLeaveAskOnSavedOpen } from "@/saved-searches/saved-open"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
 import { loadProblemText } from "@/service-accounts/queries"
+import { exploreRange } from "@/lib/time"
 
-import { MetricsPageActions } from "./page-actions"
 import { QueryBar } from "./query-bar"
 import { ResultsSection } from "./results-section"
 import { MetricsResultActions } from "./result-actions"
-import {
-  metricsTimeRange,
-  modeOf,
-  searchAfter,
-  type MetricsSearch,
-} from "./search"
+import { modeOf, searchAfter, type MetricsSearch } from "./search"
 import { MetricsWorkspaceContext, type MetricsWorkspace } from "./workspace"
 
 const routeId = "/_authed/_shell/explore/metrics/$datasourceUid"
@@ -139,7 +135,7 @@ function MetricsWorkspaceView({
 }) {
   const queryClient = useQueryClient()
   const uid = datasource.uid
-  const range = metricsTimeRange(search)
+  const range = exploreRange(search)
   const mode = modeOf(search)
   const q = search.q
   const [draft, setDraft] = useState(q ?? "")
@@ -156,7 +152,6 @@ function MetricsWorkspaceView({
   })
   useLeaveAskOnSavedOpen(inputMode, setInputMode)
   const saveTrigger = useRef<HTMLButtonElement>(null)
-  const moreTrigger = useRef<HTMLButtonElement>(null)
   const [saveOpen, setSaveOpen] = useState(false)
   const savable = metricsDraft({ uid, search, range })
   const queryFocus = useRef<() => void>(() => {})
@@ -198,12 +193,12 @@ function MetricsWorkspaceView({
 
   return (
     <MetricsWorkspaceContext value={workspace}>
-      <MetricsPageActions
+      <ExploreActions
+        kind="metrics"
         range={range}
         onRangeChange={update}
-        canSave={"draft" in savable}
+        saveBlocked={"draft" in savable ? undefined : "Run a query first."}
         saveTrigger={saveTrigger}
-        moreTrigger={moreTrigger}
         onSave={() => setSaveOpen(true)}
       />
       <div className="flex h-full min-h-0 flex-col gap-3">
@@ -254,11 +249,7 @@ function MetricsWorkspaceView({
           draft={savable.draft}
           open={saveOpen}
           onOpenChange={setSaveOpen}
-          finalFocus={() =>
-            [saveTrigger.current, moreTrigger.current].find(
-              (trigger) => trigger !== null && trigger.offsetParent !== null
-            ) ?? true
-          }
+          finalFocus={() => saveTrigger.current ?? true}
         />
       ) : null}
     </MetricsWorkspaceContext>

@@ -1,4 +1,3 @@
-import type { TimeRangeValue } from "@/dashboards/time-range-picker"
 import {
   defaultPageSize,
   validPage,
@@ -188,8 +187,4 @@ export function validateLogsEntrySearch(
   raw: Record<string, unknown>
 ): LogsEntrySearch {
   return { ...validateLogsSearch(raw), ds: validDatasource(raw.ds) }
-}
-
-export function logsTimeRange(search: LogsSearch): TimeRangeValue {
-  return { from: search.from ?? "now-1h", to: search.to ?? "now" }
 }

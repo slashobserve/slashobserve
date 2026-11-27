@@ -1,9 +1,9 @@
 import type { ExploreParams } from "@/api/keys"
 import type { WireFrame } from "@/dashboards/queries"
 import { defaultPageSize } from "@/lib/paging"
-import { zonedDateTimeMs } from "@/lib/time"
+import { exploreRange, zonedDateTimeMs } from "@/lib/time"
 
-import { normaliseTraceId, tracesTimeRange, type TraceSearch } from "./search"
+import { normaliseTraceId, type TraceSearch } from "./search"
 import { clickhouseTraceSearch, traceForm } from "./search-query"
 import { durationText } from "./trace-rows"
 
@@ -59,7 +59,7 @@ export function traceSqlParams(
   return {
     query,
     kind: "instant",
-    ...tracesTimeRange(search),
+    ...exploreRange(search),
     pageSize: search.size ?? defaultPageSize,
     page: search.page ?? 1,
     asWritten: true,
