@@ -215,6 +215,84 @@ describe("useLiveTail", () => {
     ).toBe("2026-11-07T12:00:29.000000001Z")
   })
 
+  it("stays closed in the back/forward cache when the page is cached before the stream opened, and reopens when it returns", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_url: string, init: { signal: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            init.signal.addEventListener("abort", () =>
+              reject(new DOMException("Aborted", "AbortError"))
+            )
+          })
+      )
+    )
+    mount()
+    act(() => latestSource().connectionLost())
+    await act(async () => {
+      window.dispatchEvent(
+        Object.assign(new Event("pagehide"), { persisted: true })
+      )
+      await vi.advanceTimersByTimeAsync(120_000)
+    })
+    expect(FakeEventSource.instances).toHaveLength(1)
+    act(() => {
+      window.dispatchEvent(
+        Object.assign(new Event("pageshow"), { persisted: true })
+      )
+    })
+    expect(FakeEventSource.instances).toHaveLength(2)
+  })
+
+  it("keeps the server's reason for when the page returns, when it is cached while the reason is still being read", async () => {
+    const refusal = () =>
+      new Response(
+        JSON.stringify({
+          code: "too_many_streams",
+          error: "You already hold 5 tails.",
+        }),
+        { status: 429, headers: { "content-type": "application/json" } }
+      )
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(
+        async (_url: string, init: { signal: AbortSignal }) =>
+          Object.assign(refusal(), {
+            json: () =>
+              new Promise((_resolve, reject) => {
+                init.signal.addEventListener("abort", () =>
+                  reject(new DOMException("Aborted", "AbortError"))
+                )
+              }),
+          })
+      )
+      .mockImplementation(async () => refusal())
+    vi.stubGlobal("fetch", fetchMock)
+    const { result } = mount()
+    act(() => latestSource().connectionLost())
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+      window.dispatchEvent(
+        Object.assign(new Event("pagehide"), { persisted: true })
+      )
+      await vi.advanceTimersByTimeAsync(120_000)
+    })
+    expect(result.current.error).toBeNull()
+    expect(FakeEventSource.instances).toHaveLength(1)
+    act(() => {
+      window.dispatchEvent(
+        Object.assign(new Event("pageshow"), { persisted: true })
+      )
+    })
+    await act(async () => {
+      latestSource().connectionLost()
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(result.current.error?.message).toBe(
+      "You have 5 live tails open. Stop one to start another."
+    )
+  })
+
   describe("when the document is hidden", () => {
     function setHidden(hidden: boolean) {
       Object.defineProperty(document, "hidden", {

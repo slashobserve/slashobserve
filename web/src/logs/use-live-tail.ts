@@ -23,11 +23,13 @@ function oldestKept(now: number): number {
   return now - tailWindowMs
 }
 
+type Connection = "connecting" | "live" | "retrying" | "suspended" | "failed"
+
 type Held = {
   session: number
   buffer: TailBuffer
   error: ApiError | null
-  connected: boolean
+  connection: Connection
 }
 
 function fresh(session: number, seed: readonly WireFrame[]): Held {
@@ -36,7 +38,7 @@ function fresh(session: number, seed: readonly WireFrame[]): Held {
     session,
     buffer: startTail(seed, now, oldestKept(now)),
     error: null,
-    connected: false,
+    connection: "connecting",
   }
 }
 
@@ -66,8 +68,7 @@ export function useLiveTail({
     let probe: AbortController | undefined
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let disposed = false
-    let failed = false
-    let suspended = false
+    let connection: Connection = "connecting"
     let hiddenTimer: ReturnType<typeof setTimeout> | undefined
     let attempt = 0
     let resumeFrom: string | undefined
@@ -76,14 +77,20 @@ export function useLiveTail({
       setHeld((current) =>
         current.session === session ? { ...current, ...change } : current
       )
+    const enter = (next: Connection, change: Partial<Held> = {}) => {
+      connection = next
+      update({ ...change, connection: next })
+    }
+    const closed = () =>
+      disposed || connection === "suspended" || connection === "failed"
     const fail = (error: ApiError) => {
-      failed = true
       source?.close()
       source = undefined
-      update({ error, connected: false })
+      enter("failed", { error })
     }
     const retry = () => {
-      update({ connected: false })
+      if (closed()) return
+      enter("retrying")
       retryTimer = setTimeout(open, backoffDelay(attempt++))
     }
 
@@ -97,11 +104,11 @@ export function useLiveTail({
         })
         if (response.ok) {
           controller.abort()
-          if (!disposed) retry()
+          retry()
           return
         }
         const body: unknown = await response.json().catch(() => null)
-        if (disposed) return
+        if (closed()) return
         const reason = toApiError(response, body)
         fail(
           new ApiError(
@@ -111,13 +118,13 @@ export function useLiveTail({
           )
         )
       } catch {
-        if (!disposed) retry()
+        retry()
       }
     }
 
     function open() {
       retryTimer = undefined
-      if (disposed) return
+      if (closed()) return
       const from = resumeFrom ?? tailStartFrom(newest.current, Date.now())
       const url = tailUrl(uid, query, from, requestZone("browser"))
       const stream = new EventSource(url)
@@ -127,7 +134,7 @@ export function useLiveTail({
         if (source !== stream) return
         ready = true
         attempt = 0
-        update({ connected: true })
+        enter("live")
       })
       stream.addEventListener("lines", (message) => {
         if (source !== stream) return
@@ -161,7 +168,6 @@ export function useLiveTail({
         }
         stream.close()
         source = undefined
-        update({ connected: false })
         if (ready) retry()
         else void explain(url)
       })
@@ -176,14 +182,14 @@ export function useLiveTail({
     }
 
     function suspend() {
-      suspended = true
+      if (connection === "failed") return
+      enter("suspended")
       close()
-      update({ connected: false })
     }
 
     function resume() {
-      if (failed || source !== undefined || retryTimer !== undefined) return
-      suspended = false
+      if (connection !== "suspended") return
+      enter("connecting")
       open()
     }
 
@@ -197,7 +203,7 @@ export function useLiveTail({
       }
       clearTimeout(hiddenTimer)
       hiddenTimer = undefined
-      if (suspended) resume()
+      resume()
     }
 
     document.addEventListener("visibilitychange", onVisibilityChange)
@@ -216,6 +222,7 @@ export function useLiveTail({
   return {
     buffer: held.buffer,
     error: held.error,
-    isFetching: running && held.error === null && !held.connected,
+    isFetching:
+      running && held.connection !== "live" && held.connection !== "failed",
   }
 }
