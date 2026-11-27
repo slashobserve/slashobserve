@@ -102,7 +102,11 @@ class Slots {
 
 async function release(client: ClaimApi, run: OfferedRun): Promise<boolean> {
   try {
-    await client.releaseRun({ run_id: run.id, attempt: run.attempt })
+    await client.releaseRun({
+      run_id: run.id,
+      attempt: run.attempt,
+      claim_epoch: run.claim_epoch,
+    })
     return true
   } catch (error) {
     if (!(error instanceof ToolError)) {

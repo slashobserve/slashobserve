@@ -97,7 +97,7 @@ threads:
       An annotation or a proposal thread starts no run.
       A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider, or a thread agent that was disconnected, which is then cleared), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` or `too_many_runs`.
       A started run is in `message.run`, and `to` in the answer says how the message was delivered.
-      `client_id` is a UUID the caller makes for the message; sending it again answers 200 with the message already posted, `replayed: true` and no new run, and reusing it on another target answers 422 `client_id_reused`.
+      `client_id` is a UUID the caller makes for the message; sending it again answers 200 with the message already posted, `replayed: true`, the same `message.run` or `message.run_refusal` as the first time and no new run, and reusing it on another target answers 422 `client_id_reused`.
       The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream; a change of the thread's agent is audited as `thread.agent_set`.
       A comment sent to a dashboard with `request_revision` has its own path.
       Writing needs Comment on the target; a caller who can see it but not comment gets 403.
@@ -152,7 +152,7 @@ threads:
                 description: The IANA time zone the person reads times in, such as `Asia/Kolkata`; a run this message starts writes its times in it, labelled. Without it, with `UTC`, or with a zone the server does not know, they are UTC; the message is posted either way.
     responses:
       "200":
-        description: The message `client_id` names was already posted; it is returned as it was, with `replayed` true.
+        description: The message `client_id` names was already posted; it is returned as it was, with `replayed` true and the `message.run` or `message.run_refusal` it was first answered with.
         content:
           application/json:
             schema:
@@ -238,7 +238,7 @@ threads-threadid-messages:
                 description: The IANA time zone the person reads times in, such as `Asia/Kolkata`; a run this message starts writes its times in it, labelled. Without it, with `UTC`, or with a zone the server does not know, they are UTC; the message is posted either way.
     responses:
       "200":
-        description: The message `client_id` names was already posted; it is returned as it was, with `replayed` true.
+        description: The message `client_id` names was already posted; it is returned as it was, with `replayed` true and the `message.run` or `message.run_refusal` it was first answered with.
         content:
           application/json:
             schema:

@@ -77,6 +77,9 @@ func TestAServerWithNoIdentityProviderStartsAndTakesItsFileKey(t *testing.T) {
 			ready = ok && res.status == http.StatusOK
 		}
 	}
+	if res, _ := get("/readyz", ""); !strings.Contains(string(res.body), `"phase":"ready"`) {
+		t.Fatalf("/readyz of a serving server = %s, want phase ready", res.body)
+	}
 
 	var me struct {
 		Kind string `json:"kind"`

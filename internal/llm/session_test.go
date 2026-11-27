@@ -115,3 +115,80 @@ func TestCallContextHasADeadlineOnlyForANonZeroTimeout(t *testing.T) {
 		}
 	}
 }
+
+func protocolFault(t *testing.T, err error) *llm.ProtocolError {
+	t.Helper()
+	var fault *llm.ProtocolError
+	if !errors.As(err, &fault) || !errors.Is(err, llm.ErrProtocol) {
+		t.Fatalf("err = %v (%T), want a ProtocolError", err, err)
+	}
+	return fault
+}
+
+func TestATurnGuardWalksTheProtocol(t *testing.T) {
+	g := llm.NewTurnGuard("anthropic")
+	if g.State() != llm.TurnStarted {
+		t.Fatalf("state = %q, want started", g.State())
+	}
+	if err := g.Accept(nil); err != nil {
+		t.Fatalf("the first turn takes no results: %v", err)
+	}
+	g.Answered([]llm.ToolCall{{ID: "a"}, {ID: "b"}})
+	if g.State() != llm.TurnAwaitingResults {
+		t.Fatalf("state = %q, want awaiting_results", g.State())
+	}
+	if err := g.Accept([]llm.ToolResult{{CallID: "a"}, {CallID: "b"}}); err != nil {
+		t.Fatalf("results in call order are accepted: %v", err)
+	}
+	g.Answered(nil)
+	if g.State() != llm.TurnEnded {
+		t.Fatalf("state = %q, want ended", g.State())
+	}
+	g.Reopen()
+	if g.State() != llm.TurnCompacted {
+		t.Fatalf("state = %q, want compacted", g.State())
+	}
+	if err := g.Accept(nil); err != nil {
+		t.Fatalf("a compacted session takes the next turn: %v", err)
+	}
+}
+
+func TestATurnGuardNamesEachFault(t *testing.T) {
+	tests := []struct {
+		name    string
+		calls   []llm.ToolCall
+		results []llm.ToolResult
+		fault   llm.ProtocolFault
+		state   llm.TurnState
+		text    string
+	}{
+		{"a turn after the answer", nil, nil, llm.FaultSessionEnded, llm.TurnEnded, "anthropic session: the previous turn made no tool calls, so the session has ended"},
+		{"a missing result", []llm.ToolCall{{ID: "a"}}, nil, llm.FaultResultCount, llm.TurnAwaitingResults, "anthropic session: got 0 tool results for 1 tool calls"},
+		{"a result for another call", []llm.ToolCall{{ID: "a"}}, []llm.ToolResult{{CallID: "other"}}, llm.FaultResultMismatch, llm.TurnAwaitingResults, `anthropic session: tool result 0 answers "other", want "a"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := llm.NewTurnGuard("anthropic")
+			g.Answered(tt.calls)
+			fault := protocolFault(t, g.Accept(tt.results))
+			if fault.Fault != tt.fault || fault.State != tt.state || fault.Provider != "anthropic" || fault.Error() != tt.text {
+				t.Fatalf("fault = %+v (%q)", fault, fault.Error())
+			}
+			if g.State() != tt.state {
+				t.Fatalf("a refused turn moved the guard to %q", g.State())
+			}
+		})
+	}
+}
+
+func TestReopeningOnlyMovesAnEndedSession(t *testing.T) {
+	g := llm.NewTurnGuard("openai")
+	g.Answered([]llm.ToolCall{{ID: "a"}})
+	g.Reopen()
+	if g.State() != llm.TurnAwaitingResults {
+		t.Fatalf("state = %q, want awaiting_results", g.State())
+	}
+	if fault := protocolFault(t, g.Accept(nil)); fault.Fault != llm.FaultResultCount {
+		t.Fatalf("fault = %q, want tool_result_count", fault.Fault)
+	}
+}

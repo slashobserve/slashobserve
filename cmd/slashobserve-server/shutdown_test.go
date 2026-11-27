@@ -2,11 +2,68 @@ package main
 
 import (
 	"context"
+	"io"
 	"net"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/slashobserve/slashobserve/internal/logtest"
+	"github.com/slashobserve/slashobserve/internal/server"
 )
+
+func TestServeIsReadyUntilTheSignalAndStoppingWhileItDrains(t *testing.T) {
+	t.Parallel()
+	logger, logs := logtest.New()
+	phases := server.StartPhases(logger)
+	phases.Enter(server.PhaseMigrating)
+	phases.Enter(server.PhaseProvisioning)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, signal := context.WithCancel(context.Background())
+	defer signal()
+	reportPhase := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, string(phases.Current())) })
+	served := make(chan error, 1)
+	go func() { served <- serve(ctx, logger, phases, ln, reportPhase) }()
+
+	client := &http.Client{Transport: &http.Transport{DisableKeepAlives: true}}
+	phaseServed := func() string {
+		t.Helper()
+		resp, err := client.Get("http://" + ln.Addr().String() + "/")
+		if err != nil {
+			t.Fatalf("request: %v", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(body)
+	}
+	if got := phaseServed(); got != "ready" {
+		t.Fatalf("a serving server reports %q, want ready", got)
+	}
+
+	signal()
+	draining := phaseServed()
+	for deadline := time.Now().Add(2 * time.Second); draining != "stopping" && time.Now().Before(deadline); draining = phaseServed() {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if draining != "stopping" {
+		t.Fatalf("a draining server reports %q, want stopping", draining)
+	}
+	if err := <-served; err != nil {
+		t.Fatalf("serve: %v", err)
+	}
+	if got := logs.Find(t, "listening"); got["phase"] != "ready" || got["addr"] != ln.Addr().String() {
+		t.Errorf("listening line = %v", got)
+	}
+	if got := logs.Find(t, "shutting down"); got["phase"] != "stopping" {
+		t.Errorf("shutting down line = %v", got)
+	}
+}
 
 func TestShutdownEndsAStreamBeforeItsDeadlineSoItCanFinish(t *testing.T) {
 	requests, cutRequests := context.WithCancel(context.Background())
@@ -56,8 +113,9 @@ func TestShutdownKeepsAnsweringRequestsDuringTheDrainAndThenStops(t *testing.T) 
 	requests, cutRequests := context.WithCancel(context.Background())
 	defer cutRequests()
 	srv := &http.Server{
-		Handler:     http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }),
-		BaseContext: func(net.Listener) context.Context { return requests },
+		Handler:           http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }),
+		BaseContext:       func(net.Listener) context.Context { return requests },
+		ReadHeaderTimeout: time.Second,
 	}
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

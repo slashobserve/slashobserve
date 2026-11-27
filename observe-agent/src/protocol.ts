@@ -91,6 +91,7 @@ export type ModelSettings = z.infer<typeof modelSettings>
 export const offeredRun = z.object({
   id: z.string().min(1),
   attempt: z.number().int().min(1),
+  claim_epoch: z.number().int().min(1).optional(),
   kind: z.string(),
   intent: z.string().default(""),
   prompt: z.string().default(""),
@@ -190,7 +191,10 @@ export const reportInput = z.strictObject({
 })
 export type ReportInput = z.infer<typeof reportInput>
 
-export const releaseInput = z.strictObject(runRef)
+export const releaseInput = z.strictObject({
+  ...runRef,
+  claim_epoch: z.number().int().min(1).optional(),
+})
 export type ReleaseInput = z.infer<typeof releaseInput>
 
 export const finishInput = z.strictObject({

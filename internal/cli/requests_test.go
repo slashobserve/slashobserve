@@ -54,7 +54,7 @@ func TestRequestsListPrintsTheStateWordsOfTheWebAndKeepsJSON(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
-	for id, word := range map[string]string{"1": "Running", "2": "Running", "3": "Running", "4": "Done", "5": "Stopped", "6": "Stopped"} {
+	for id, word := range map[string]string{"1": "Queued", "2": "Running", "3": "Stopping", "4": "Done", "5": "Failed", "6": "Canceled"} {
 		found := false
 		for _, line := range strings.Split(stdout, "\n") {
 			if strings.Contains(line, "00000000-0000-4000-8000-00000000000"+id) && strings.Contains(line, word) {
