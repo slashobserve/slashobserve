@@ -29,6 +29,7 @@ export function redactedRun(patch: Partial<ObserveRequest>): ObserveRequest {
     build: null,
     build_saved_at: null,
     queue_position: null,
+    settled: null,
     cancel_requested_at: null,
     canceled_by: null,
     can_cancel: false,

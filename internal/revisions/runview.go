@@ -19,8 +19,9 @@ import (
 )
 
 type RunDesk struct {
-	service *Service
-	opts    ObserveOptions
+	service        *Service
+	opts           ObserveOptions
+	httpOnlyFields bool
 }
 
 func NewRunDesk(service *Service, opts ObserveOptions) *RunDesk {
@@ -244,7 +245,30 @@ func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller au
 			return agentRequestJSON{}, err
 		}
 	}
+	if r.httpOnlyFields {
+		if out.runProgressJSON, err = r.service.progress(ctx, row); err != nil {
+			return agentRequestJSON{}, err
+		}
+	}
 	return out, nil
+}
+
+func holdsSession(state State) bool {
+	return state == StateRunning || state == StateCanceling
+}
+
+func (s *Service) progress(ctx context.Context, row dbsqlc.AgentRequest) (*runProgressJSON, error) {
+	if !holdsSession(State(row.State)) {
+		return &runProgressJSON{}, nil
+	}
+	settled, err := s.db.Queries().GetRunSessionSettled(ctx, dbsqlc.GetRunSessionSettledParams{AgentRequestID: row.ID, Attempt: row.Attempts})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return &runProgressJSON{}, nil
+	case err != nil:
+		return nil, fmt.Errorf("read what a running agent request already settled: %w", err)
+	}
+	return &runProgressJSON{Settled: httpapi.OptionalString(settled)}, nil
 }
 
 func (s *Service) assignee(ctx context.Context, row dbsqlc.AgentRequest) (*assigneeJSON, error) {

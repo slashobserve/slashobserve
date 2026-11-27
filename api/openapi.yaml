@@ -5090,6 +5090,7 @@ components:
         - build
         - build_saved_at
         - queue_position
+        - settled
         - cancel_requested_at
         - canceled_by
         - can_cancel
@@ -5234,6 +5235,15 @@ components:
           minimum: 1
           nullable: true
           description: 1-based place among queued requests in claim order, null unless queued. The worker skips a request whose dashboard already has a running revision, so the order can shift.
+        settled:
+          type: string
+          nullable: true
+          enum: [saved, proposed, finding, suggested, ended]
+          description: >-
+            What a `running` or `canceling` request has already settled, before its state changes:
+            `saved` (a version), `proposed` (a proposal), `finding` (an answer or finding), `suggested` (a panel suggestion)
+            or `ended` (the agent stopped and the request is about to finish).
+            Null while the agent is still working and for a queued or finished request, whose `result_kind` says what it produced.
         cancel_requested_at:
           type: string
           format: date-time

@@ -6,6 +6,9 @@ ON CONFLICT (agent_request_id, attempt) DO NOTHING;
 -- name: GetRunSessionForUpdate :one
 SELECT state FROM run_sessions WHERE agent_request_id = @agent_request_id AND attempt = @attempt FOR UPDATE;
 
+-- name: GetRunSessionSettled :one
+SELECT COALESCE(state->'settled'->>'kind', '')::text AS kind FROM run_sessions WHERE agent_request_id = @agent_request_id AND attempt = @attempt;
+
 -- name: UpsertRunSession :exec
 INSERT INTO run_sessions (agent_request_id, attempt, state)
 VALUES (@agent_request_id, @attempt, @state)

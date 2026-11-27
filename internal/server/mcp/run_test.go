@@ -504,7 +504,7 @@ func TestRunSessionPassesTheUsageOfTheTurn(t *testing.T) {
 
 func TestRunSessionResultCarriesTheRunKeyAndTheNotesButNotInItsStructuredContent(t *testing.T) {
 	f := newRunFixture(t, tools.ModeRevise)
-	settled := "saved"
+	settled := runsession.SettledKind("saved")
 	f.runs.notes = []string{"read less"}
 	f.runs.meta = runsession.RunMeta{Settled: &settled, Build: &tools.BuildProgress{Saves: 2, Panels: 3, PlannedPanels: 5}}
 	f.handler.call = func(context.Context, string, json.RawMessage) (tools.Result, error) {

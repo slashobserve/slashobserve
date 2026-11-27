@@ -7028,6 +7028,11 @@ export interface components {
             /** @description 1-based place among queued requests in claim order, null unless queued. The worker skips a request whose dashboard already has a running revision, so the order can shift. */
             queue_position: number | null;
             /**
+             * @description What a `running` or `canceling` request has already settled, before its state changes: `saved` (a version), `proposed` (a proposal), `finding` (an answer or finding), `suggested` (a panel suggestion) or `ended` (the agent stopped and the request is about to finish). Null while the agent is still working and for a queued or finished request, whose `result_kind` says what it produced.
+             * @enum {string|null}
+             */
+            settled: "saved" | "proposed" | "finding" | "suggested" | "ended" | null;
+            /**
              * Format: date-time
              * @description When the requester asked to cancel the request; null when they did not. A running request keeps running until its worker sees the flag, then ends `failed` with the `canceled` failure code and keeps its build.
              */
