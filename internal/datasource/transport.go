@@ -30,7 +30,10 @@ func NewHTTPTransport() *http.Transport {
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	t.MaxIdleConns = 0
 	t.MaxIdleConnsPerHost = idleConnsPerHost
-	dialer := &net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second, Control: refuseLinkLocal}
-	t.DialContext = dialer.DialContext
+	t.DialContext = NewDialer().DialContext
 	return t
+}
+
+func NewDialer() *net.Dialer {
+	return &net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second, Control: refuseLinkLocal}
 }
