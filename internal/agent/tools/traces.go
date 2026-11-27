@@ -29,14 +29,18 @@ const (
 	traceRelayLimit       = 5
 
 	approximateQuantilesNote = "Tempo quantiles are interpolated from its log-scale duration buckets, so treat them as approximate. The histogram lists bucket upper bounds, not quantiles."
+	bucketQuantilesNote      = "Per-bucket quantiles are interpolated from Tempo's log-scale duration buckets, so they are approximate, and the histogram lists bucket upper bounds, not quantiles."
+	quantilesExact           = "exact"
+	quantilesSample          = "sample"
+	quantilesApproximate     = "approximate"
 
 	descGetTrace   = "Read one trace by id from a Tempo, Jaeger or ClickHouse datasource: its services, root span, error spans with the message each set and the HTTP response status, their parent and depth with each error that has no error below it marked origin (only on a complete trace), and slowest spans with their self time (duration less the children's). Relays lists server spans with an HTTP status of 500 or more above a failing span: they passed the failure upstream and are not counted in errors. Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so. Spans that link to other traces are counted and their trace ids listed. The origin flag marks where an error chain starts inside this one trace; it does not by itself say which service an incident started in, because a failing dependency is the deepest error of every trace that calls it. To name the service an incident began in, compare per-service error counts or shares over the whole window across many traces, with trace_stats filtered by service or a metrics read. Span durations, and the trace duration of a trace that is not truncated, are exact, in milliseconds with sub-millisecond precision; a Tempo trace listing shows durations rounded to whole milliseconds, so take any duration you state for a trace from here. When the result says the trace was truncated, state no total duration from it."
-	descTraceStats = "Count spans and errors per time bucket and get p50, p95 and p99 durations and a duration histogram over a TraceQL filter on Tempo, or a SQL condition over otel_traces on ClickHouse, such as ServiceName = 'checkout' AND StatusCode = 'Error' (StatusCode is Unset, Ok or Error). Also returns p50, p95 and p99 for the whole range (a window block), and with group_by on Tempo, the same per value of one attribute such as resource.service.name (top 20 by span count). Tempo quantiles are interpolated from log-scale duration buckets, so they are approximate, and the histogram holds bucket upper bounds, not quantiles. Use it to see whether latency or errors moved before reading single traces, or to compare services on one footing."
+	descTraceStats = "Count spans and errors per time bucket and get p50, p95 and p99 durations and a duration histogram over a TraceQL filter on Tempo, or a SQL condition over otel_traces on ClickHouse, such as ServiceName = 'checkout' AND StatusCode = 'Error' (StatusCode is Unset, Ok or Error). Also gives p50, p95 and p99 over the whole range (window) and, with group_by, per value of one attribute (top 20 by span count). Window and group quantiles are exact, from every matching span, on ClickHouse, and on Tempo when every matching span is read (up to 20,000); else quantiles says sample and quantile_spans how many spans, and you state it as a sample. Tempo's per-bucket quantiles and the histogram's bucket bounds are approximate: never report one as a window quantile. Use it for a per-service or per-route quantile over a window, or to see whether latency or errors moved before reading single traces."
 
 	propTraceFrom    = `"from":{"type":"string","description":"Start time such as now-1h or an RFC 3339 time. Default now-24h."}`
 	schemaGetTrace   = `{"type":"object","properties":{` + propDatasource + `,"trace_id":{"type":"string","description":"The trace id as 16 or 32 hex characters."},` + propTraceFrom + `,` + propTo + `},"required":["datasource","trace_id"],"additionalProperties":false}`
 	propTraceFilter  = `"query":{"type":"string","description":"A TraceQL spanset filter such as { resource.service.name = \"checkout\" } on Tempo, {} for every span; a SQL boolean condition over otel_traces on ClickHouse such as ServiceName = 'checkout' AND Duration > 1000000, not a SELECT; empty for every span."}`
-	schemaTraceStats = `{"type":"object","properties":{` + propDatasource + `,` + propTraceFilter + `,` + propFrom + `,` + propTo + `,"buckets":{"type":"integer","minimum":1,"maximum":60,"description":"The most time buckets wanted. Default 60."},"group_by":{"type":"string","maxLength":128,"description":"Tempo only: one TraceQL attribute to group span counts, errors and p50, p95 and p99 by over the whole range, such as resource.service.name, span.http.route or .http.method, or name, status or kind."}},"required":["datasource","query"],"additionalProperties":false}`
+	schemaTraceStats = `{"type":"object","properties":{` + propDatasource + `,` + propTraceFilter + `,` + propFrom + `,` + propTo + `,"buckets":{"type":"integer","minimum":1,"maximum":60,"description":"The most time buckets wanted. Default 60."},"group_by":{"type":"string","maxLength":128,"description":"One attribute to group span counts, errors and p50, p95 and p99 by over the whole range: a TraceQL attribute such as resource.service.name, span.http.route or .http.method, or name, status or kind; on ClickHouse the same names map to its columns."}},"required":["datasource","query"],"additionalProperties":false}`
 )
 
 func init() { registerEntries((*Registry).traceEntries) }
@@ -229,23 +233,6 @@ func relayRefs(spans []traceSpan, aboveFailure map[string]bool) []relayOut {
 	return relays
 }
 
-func ancestorsOf(failed []*traceSpan, byID map[string]*traceSpan) map[string]bool {
-	hasErrorBelow := map[string]bool{}
-	for _, s := range failed {
-		seen := map[string]bool{s.id: true}
-		for parent := s.parent; parent != "" && !seen[parent]; {
-			seen[parent] = true
-			p, ok := byID[parent]
-			if !ok {
-				break
-			}
-			hasErrorBelow[p.id] = true
-			parent = p.parent
-		}
-	}
-	return hasErrorBelow
-}
-
 func errorRefs(failed []*traceSpan, byID map[string]*traceSpan, complete bool) []spanRefOut {
 	hasErrorBelow := ancestorsOf(failed, byID)
 	origin := func(s *traceSpan) bool { return complete && !hasErrorBelow[s.id] }
@@ -263,37 +250,6 @@ func errorRefs(failed []*traceSpan, byID map[string]*traceSpan, complete bool) [
 		refs = append(refs, spanRefOut{SpanID: s.id, ParentSpanID: s.parent, Name: s.name, Service: s.service, Depth: depthOf(*s, byID), Origin: origin(s), HTTPStatus: s.httpStatus, StatusMessage: s.statusMessage})
 	}
 	return refs
-}
-
-func childrenOf(spans []traceSpan) map[string][]traceSpan {
-	children := map[string][]traceSpan{}
-	for _, s := range spans {
-		if s.parent != "" && s.parent != s.id {
-			children[s.parent] = append(children[s.parent], s)
-		}
-	}
-	return children
-}
-
-func selfTime(s traceSpan, children []traceSpan) float64 {
-	end := s.start.Add(time.Duration(s.duration))
-	covered := time.Duration(0)
-	var cursor time.Time
-	for _, c := range sortedByStart(children) {
-		from, to := maxTime(c.start, s.start), minTime(c.start.Add(time.Duration(c.duration)), end)
-		from = maxTime(from, cursor)
-		if to.After(from) {
-			covered += to.Sub(from)
-			cursor = to
-		}
-	}
-	return max(s.duration-float64(covered), 0)
-}
-
-func sortedByStart(spans []traceSpan) []traceSpan {
-	sorted := slices.Clone(spans)
-	slices.SortStableFunc(sorted, func(a, b traceSpan) int { return a.start.Compare(b.start) })
-	return sorted
 }
 
 func spansOf(f datasource.Frame) []traceSpan {
@@ -364,20 +320,6 @@ func linksAt(values []any, i int) []datasource.SpanLink {
 	return links
 }
 
-func depthOf(s traceSpan, byID map[string]*traceSpan) int {
-	depth := 0
-	seen := map[string]bool{s.id: true}
-	for parent := s.parent; parent != "" && !seen[parent]; depth++ {
-		seen[parent] = true
-		p, ok := byID[parent]
-		if !ok {
-			return depth + 1
-		}
-		parent = p.parent
-	}
-	return depth
-}
-
 func valueAt(values []any, i int) any {
 	if i < len(values) {
 		return values[i]
@@ -436,6 +378,8 @@ type traceStatsOut struct {
 	GroupBy   string              `json:"group_by,omitempty"`
 	Groups    []traceGroupOut     `json:"groups,omitempty"`
 	Truncated bool                `json:"groups_truncated,omitempty"`
+	Quantiles string              `json:"quantiles,omitempty"`
+	Measured  int64               `json:"quantile_spans,omitempty"`
 	Note      string              `json:"note,omitempty"`
 }
 
@@ -450,6 +394,7 @@ type traceGroupOut struct {
 	Spans  int64  `json:"spans"`
 	Errors int64  `json:"errors"`
 	traceQuantilesOut
+	Measured *int64 `json:"quantile_spans,omitempty"`
 }
 
 type traceBucketOut struct {
@@ -520,7 +465,76 @@ func (r *Registry) traceStats(ctx context.Context, input json.RawMessage) (Resul
 		return datasourceFailure(stepName, err)
 	}
 	out := newTraceStatsOut(stats)
-	return success(fmt.Sprintf("%s: %s, p95 %s", stepName, plural(int(out.Spans), "span", "spans"), describeP95(stats)), out), nil
+	if durations, ok := inst.Datasource.(datasource.TraceDurationSource); ok {
+		req := datasource.TraceDurationRequest{Query: *in.Query, GroupBy: in.GroupBy, Range: rng, Limits: queryproxy.DraftLimits, User: queryproxy.UserFor(principal), MaxSpans: datasource.TraceDurationSpanBudget}
+		d, err := durations.TraceDurations(ctx, req)
+		datasource.NoteQuery(ctx, inst.UID, *in.Query, rng, len(d.Groups)+1)
+		out.applyDurations(d, err, in.GroupBy, inst.Datasource.Type() == "tempo")
+	}
+	return success(fmt.Sprintf("%s: %s, p95 %s", stepName, plural(int(out.Spans), "span", "spans"), describeP95(out)), out), nil
+}
+
+func (out *traceStatsOut) applyDurations(d datasource.TraceDurations, err error, groupBy string, tempo bool) {
+	if err != nil {
+		if out.Window != nil || len(out.Groups) > 0 {
+			out.Note = strings.TrimSpace("The exact quantiles could not be read, so the window and group quantiles are Tempo's. " + out.Note)
+		}
+		return
+	}
+	exact := d.Exact && d.Window.Spans == out.Spans
+	out.Quantiles, out.Measured, out.Window = quantilesSample, d.Window.Spans, nil
+	if exact {
+		out.Quantiles = quantilesExact
+	}
+	if d.Window.Spans > 0 {
+		q := exactOut(d.Window)
+		out.Window = &q
+	}
+	out.mergeGroups(d, groupBy, exact)
+	note := fmt.Sprintf("Window and group quantiles are exact: they come from all %d matching span durations, each the value at position q times n of the sorted durations.", d.Window.Spans)
+	if !exact {
+		note = fmt.Sprintf("Window and group quantiles rest on %d of the %d matching spans, the newest a trace search returned within its cap, so they are a sample and not exact; say so when you state one.", d.Window.Spans, out.Spans)
+	}
+	if tempo {
+		note += " " + bucketQuantilesNote
+	}
+	out.Note = note
+}
+
+func (out *traceStatsOut) mergeGroups(d datasource.TraceDurations, groupBy string, exact bool) {
+	byValue := make(map[string]datasource.DurationQuantiles, len(d.Groups))
+	for _, g := range d.Groups {
+		byValue[g.Value] = g
+	}
+	measured := func(g datasource.DurationQuantiles) *int64 {
+		if exact {
+			return nil
+		}
+		return &g.Spans
+	}
+	if len(out.Groups) == 0 {
+		for _, g := range d.Groups {
+			out.Groups = append(out.Groups, traceGroupOut{Value: g.Value, Spans: g.Spans, Errors: g.Errors, traceQuantilesOut: exactOut(g), Measured: measured(g)})
+		}
+		if len(out.Groups) > 0 {
+			out.GroupBy, out.Truncated = groupBy, d.GroupsTruncated
+		}
+		return
+	}
+	for i := range out.Groups {
+		g, ok := byValue[out.Groups[i].Value]
+		out.Groups[i].traceQuantilesOut = traceQuantilesOut{}
+		if ok && g.Spans > 0 {
+			out.Groups[i].traceQuantilesOut, out.Groups[i].Measured = exactOut(g), measured(g)
+		}
+	}
+}
+
+func exactOut(q datasource.DurationQuantiles) traceQuantilesOut {
+	if q.Spans == 0 {
+		return traceQuantilesOut{}
+	}
+	return traceQuantilesOut{P50MS: &q.P50, P95MS: &q.P95, P99MS: &q.P99}
 }
 
 func newTraceStatsOut(s datasource.TraceStats) traceStatsOut {
@@ -539,6 +553,7 @@ func newTraceStatsOut(s datasource.TraceStats) traceStatsOut {
 		out.Groups = append(out.Groups, traceGroupOut{Value: g.Value, Spans: g.Spans, Errors: g.Errors, traceQuantilesOut: quantilesOut(g.TraceQuantiles)})
 	}
 	if s.Window != nil || len(s.Groups) > 0 {
+		out.Quantiles = quantilesApproximate
 		out.Note = strings.TrimSpace(approximateQuantilesNote + " " + out.Note)
 	}
 	return out
@@ -548,14 +563,14 @@ func quantilesOut(q datasource.TraceQuantiles) traceQuantilesOut {
 	return traceQuantilesOut{P50MS: q.P50, P95MS: q.P95, P99MS: q.P99}
 }
 
-func describeP95(s datasource.TraceStats) string {
+func describeP95(s traceStatsOut) string {
 	if s.Window != nil {
-		return formatP95(s.Window.P95)
+		return formatP95(s.Window.P95MS)
 	}
 	var worst *float64
 	for _, b := range s.Buckets {
-		if b.P95 != nil && (worst == nil || *b.P95 > *worst) {
-			worst = b.P95
+		if b.P95MS != nil && (worst == nil || *b.P95MS > *worst) {
+			worst = b.P95MS
 		}
 	}
 	if worst == nil {
@@ -569,4 +584,66 @@ func formatP95(p *float64) string {
 		return "n/a"
 	}
 	return strconv.FormatFloat(*p, 'f', 1, 64) + " ms"
+}
+
+func ancestorsOf(failed []*traceSpan, byID map[string]*traceSpan) map[string]bool {
+	hasErrorBelow := map[string]bool{}
+	for _, s := range failed {
+		seen := map[string]bool{s.id: true}
+		for parent := s.parent; parent != "" && !seen[parent]; {
+			seen[parent] = true
+			p, ok := byID[parent]
+			if !ok {
+				break
+			}
+			hasErrorBelow[p.id] = true
+			parent = p.parent
+		}
+	}
+	return hasErrorBelow
+}
+
+func childrenOf(spans []traceSpan) map[string][]traceSpan {
+	children := map[string][]traceSpan{}
+	for _, s := range spans {
+		if s.parent != "" && s.parent != s.id {
+			children[s.parent] = append(children[s.parent], s)
+		}
+	}
+	return children
+}
+
+func selfTime(s traceSpan, children []traceSpan) float64 {
+	end := s.start.Add(time.Duration(s.duration))
+	covered := time.Duration(0)
+	var cursor time.Time
+	for _, c := range sortedByStart(children) {
+		from, to := maxTime(c.start, s.start), minTime(c.start.Add(time.Duration(c.duration)), end)
+		from = maxTime(from, cursor)
+		if to.After(from) {
+			covered += to.Sub(from)
+			cursor = to
+		}
+	}
+	return max(s.duration-float64(covered), 0)
+}
+
+func sortedByStart(spans []traceSpan) []traceSpan {
+	sorted := slices.Clone(spans)
+	slices.SortStableFunc(sorted, func(a, b traceSpan) int { return a.start.Compare(b.start) })
+	return sorted
+}
+
+func depthOf(s traceSpan, byID map[string]*traceSpan) int {
+	depth := 0
+	seen := map[string]bool{s.id: true}
+	for parent := s.parent; parent != "" && !seen[parent]; depth++ {
+		seen[parent] = true
+		p, ok := byID[parent]
+		if !ok {
+			return depth + 1
+		}
+		parent = p.parent
+	}
+	return depth
 }

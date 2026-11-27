@@ -1255,9 +1255,10 @@ The built-in agent has the same tool.
 
 Counts spans and errors per time bucket (at most 60, set with `buckets`).
 It gives p50, p95 and p99 durations per bucket and a duration histogram over a filter.
-On Tempo it also gives p50, p95 and p99 for the whole range in `window`, and with `group_by` (one attribute such as `resource.service.name`, `span.http.route` or `.http.method`, or `name`, `status` or `kind`) the span count, error count and the same quantiles per value, at most 20 values by span count.
-Tempo computes quantiles by interpolating its log-scale duration buckets, so they are approximate, and the response says so in `note`.
-ClickHouse answers per-bucket quantiles only and says so in `note`.
+It also gives p50, p95 and p99 for the whole range in `window`, and with `group_by` (one attribute such as `resource.service.name`, `span.http.route` or `.http.method`, or `name`, `status` or `kind`, which ClickHouse maps to its columns) the span count, error count and the same quantiles per value, at most 20 values by span count.
+The window and group quantiles are exact: each is the duration at position q times n of every matching span's duration, sorted, which is what ClickHouse `quantilesExact` reads.
+On Tempo the server reads those durations from a trace search of at most 20,000 spans; when the search returns fewer spans than match, `quantiles` says `sample` and `quantile_spans` says how many spans the figures rest on.
+Tempo's per-bucket quantiles are interpolated from its log-scale duration buckets, so they are approximate, and the response says so in `note`.
 The `query` is a TraceQL filter on Tempo or a SQL condition over `otel_traces` on ClickHouse.
 The built-in agent has the same tool.
 
