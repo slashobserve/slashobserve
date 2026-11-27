@@ -766,7 +766,7 @@ The trace search finds traces by service, span name, minimum and maximum duratio
 Use it to find the slow or failing requests of a service, then open one in the trace view.
 
 1. Open **Traces** in the sidebar, then a trace source: a Tempo, Jaeger or ClickHouse datasource.
-   The server decides which datasources the page and `observe traces` can search, and reports it as `trace_search` in `GET /api/v1/datasources` and `list_datasources`.
+   The server decides which datasources the page and `observe traces` can search, and reports it as `trace_search` in `GET /api/v1/datasources`.
 2. Fill in **Service**, **Span name**, a duration or **Errors only**, or leave them empty.
 3. Press **Search traces**, or Ctrl+Enter or Cmd+Enter.
    The search also runs as soon as the page opens, with the fields the address carries, or with none.

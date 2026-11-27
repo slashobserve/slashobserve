@@ -189,7 +189,7 @@ What it answers:
 - The attribute pairs of a set of traces, read 4 traces at a time, as `compare_traces` describes.
 - The log lines of a trace are not in a span index: read them from a logs datasource.
 
-`list_datasources` and `GET /api/v1/datasources` show such a datasource with `spans: jaeger` and without `trace_search`, and the agent's guide tells it to use the trace tools on it rather than write Query DSL by hand.
+`list_datasources` and `GET /api/v1/datasources` show such a datasource with `spans: jaeger`, `GET /api/v1/datasources` also shows it without `trace_search`, and the agent's guide tells it to use the trace tools on it rather than write Query DSL by hand.
 The Traces page, the trace search and `observe traces` do not offer it, because they read traces through the explore query, which a span index does not answer yet.
 
 ### Health
