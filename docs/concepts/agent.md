@@ -523,7 +523,7 @@ Those are an Admin's counts: inside a run each tool needs the same role as over 
 - Reads are offered in every run.
 - Writes are offered in every run except a suggestion, whose only result is one proposed panel in the editor.
 - An investigation never gets the Spec writers `create_dashboard`, `update_dashboard`, `update_panels` and `import_grafana_dashboard`.
-- `list_context_sources`, `find_context_tools` and `call_context_tool` are offered in an investigation and in a question asked in a chat, never when a dashboard is built or revised or a panel is suggested.
+- `list_mcp_sources`, `find_mcp_tools` and `call_mcp_tool` are offered in an investigation and in a question asked in a chat, never when a dashboard is built or revised or a panel is suggested.
   A question asked from the home page starts as a new-dashboard run, so it offers 92 tools: the 89 and these three.
 
 The tools fall in five groups:

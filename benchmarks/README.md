@@ -189,7 +189,7 @@ It runs on Harbor 0.20.0 with a patched `Task.checksum`, while o11y-bench pins H
    A finding with `no_incident` writes an empty file, which is how the benchmark spells "no incident".
 7. A run that ends without a finding raises, so Harbor records an exception and skips the verifier; an empty report would pass a quiet control by default.
 
-The code context source is a hook: `--ak code_context=<module>:<function>` names a function that is called with the API client, the trial's Docker network and a local copy of `/app/opentelemetry-demo`, and registers the source.
+The code MCP source is a hook: `--ak code_context=<module>:<function>` names a function that is called with the API client, the trial's Docker network and a local copy of `/app/opentelemetry-demo`, and registers the source.
 Without it the trial runs without code and `agent/notes.txt` says so.
 
 | File in `agent/` | Content |

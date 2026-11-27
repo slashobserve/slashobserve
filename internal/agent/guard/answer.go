@@ -30,7 +30,7 @@ var plainWords = map[string]bool{
 
 var dataReads = map[string]bool{
 	"trace_stats": true, "sample_rows": true, "get_trace": true, "compare_traces": true,
-	"log_context": true, "log_patterns": true, "log_facets": true, "logs_for_trace": true, "call_context_tool": true,
+	"log_context": true, "log_patterns": true, "log_facets": true, "logs_for_trace": true, "call_mcp_tool": true,
 }
 
 const sentBackStep = "The answer was sent back for a fix: "

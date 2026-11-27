@@ -524,7 +524,7 @@ The button is missing on an older version and while a layout or panel is being e
 | `/settings` | Settings; `#<section>` opens a section. |
 | `/audit` | The Audit pages, for Admins. |
 | `/datasources`, `/keys`, `/people` | Datasources, API keys and People, for Admins. The Datasources page lists the MCP sources below the datasources, one row per source with its tools under a chevron, and one **Add source** button in its header adds either kind. |
-| `/datasources/context-sources` | The Datasources page scrolled to the MCP sources table, with its heading focused; `/settings#context-sources` redirects here. |
+| `/datasources/mcp-sources` | The Datasources page scrolled to the MCP sources table, with its heading focused; `/settings#mcp-sources` redirects here. |
 | `/p/<token>` | A dashboard opened through a public link, with no sign-in. |
 | `/rca/<token>` | A published RCA revision opened through its public link, with no sign-in; see [Share a revision](observations.md#share-a-revision). |
 | `/connect/<request id>` | Approve or deny an MCP client that asked to act as you. |

@@ -183,7 +183,7 @@ type Deps struct {
 	Home           *homedash.Service
 	Provider       llm.Provider
 	DraftBudget    DraftBudget
-	ContextSources ContextSources
+	MCPSources     MCPSources
 	PublicURL      *url.URL
 	Logger         *slog.Logger
 
@@ -627,7 +627,7 @@ var runEnding = []error{
 	errHealthNotConfigured,
 	errAnnotationsNotConfigured,
 	errClaimsNotConfigured,
-	errContextSourcesNotConfigured,
+	errMCPSourcesNotConfigured,
 }
 
 func endsRun(ctx context.Context, err error) bool {

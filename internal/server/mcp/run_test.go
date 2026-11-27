@@ -177,8 +177,8 @@ func (f *runFixture) listToolsAs(t *testing.T, token string) map[string]listedTo
 	return out
 }
 
-func TestARunSessionListsTheContextToolsOnlyToAChatQuestionOrAnInvestigation(t *testing.T) {
-	contextTools := []string{"list_context_sources", "call_context_tool"}
+func TestARunSessionListsTheMCPToolsOnlyToAChatQuestionOrAnInvestigation(t *testing.T) {
+	mcpTools := []string{"list_mcp_sources", "call_mcp_tool"}
 	cases := []struct {
 		name          string
 		mode          tools.Mode
@@ -198,7 +198,7 @@ func TestARunSessionListsTheContextToolsOnlyToAChatQuestionOrAnInvestigation(t *
 			f := newRunFixture(t, c.mode)
 			f.runs.chatID, f.runs.investigation = c.chatID, c.investigation
 			listed := f.listToolsAs(t, adminRunToken)
-			for _, name := range contextTools {
+			for _, name := range mcpTools {
 				if _, ok := listed[name]; ok != c.want {
 					t.Errorf("%s listed = %v, want %v", name, ok, c.want)
 				}

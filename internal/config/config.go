@@ -125,7 +125,7 @@ const (
 
 	envServiceAccountsFile = "SLASHOBSERVE_SERVICE_ACCOUNTS_FILE"
 
-	envContextSourcesFile = "SLASHOBSERVE_CONTEXT_SOURCES_FILE"
+	envMCPSourcesFile = "SLASHOBSERVE_MCP_SOURCES_FILE"
 
 	envAPIContractCheck = "SLASHOBSERVE_API_CONTRACT_CHECK"
 
@@ -172,7 +172,7 @@ var serverEnvNames = []string{
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
 	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentRunMaxCostUSD, envAgentSessionRenewKiB, envAgentWorkers, envAgentInvestigationCalls, envAgentInvestigationLoop, envAgentInvestigationMax, envAgentFindingGrounding,
-	envProvisionDir, envMetrics, envSecretKey, envServiceAccountsFile, envContextSourcesFile,
+	envProvisionDir, envMetrics, envSecretKey, envServiceAccountsFile, envMCPSourcesFile,
 }
 
 type GroupRoleSetting struct {
@@ -236,8 +236,8 @@ type Config struct {
 	ServiceAccountsFile string
 	ServiceAccounts     []ServiceAccount
 
-	ContextSourcesFile string
-	ContextSources     []ContextSource
+	MCPSourcesFile string
+	MCPSources     []MCPSource
 
 	APIContractCheck bool
 	LLM              LLM
@@ -313,7 +313,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		cfg.ServiceAccounts = accounts
 	}
 
-	errs = append(errs, loadContextSourcesSetting(lookup, &cfg)...)
+	errs = append(errs, loadMCPSourcesSetting(lookup, &cfg)...)
 
 	cfg.APIContractCheck, err = loadBool(lookup, envAPIContractCheck, false)
 	if err != nil {

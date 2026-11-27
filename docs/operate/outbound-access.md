@@ -21,7 +21,7 @@ A datasource an Admin adds in the app is held to the list in a narrower way, des
 2. In the **Allowed domains** card, type the domain and choose **Allow domain**.
    Use `example.com` for that host only, or `*.example.com` for its subdomains but not `example.com` itself.
 3. To take a domain away again, choose the remove button on its entry, then **Remove domain**.
-   The confirmation names the webhooks, connections, datasources and context sources that use it.
+   The confirmation names the webhooks, connections, datasources and MCP sources that use it.
 
 The web app calls `GET /api/v1/outbound-domains`, `POST /api/v1/outbound-domains` with the body `{"domain": "*.example.com"}`, and `DELETE /api/v1/outbound-domains/{domain}`.
 A service-account key cannot call them, so the CLI and MCP cannot change the list; ask an Admin to add the domain.
@@ -73,20 +73,20 @@ It follows the same rules: `https` on port 443, a public address, and a domain o
 - Webhook requests send a signature header and the event, but no cookies or other credentials.
 - The server never logs the address, a header, the body or the receiver's answer.
 
-## Context sources
+## MCP sources
 
-A [context source](context-sources.md) is an MCP server an Admin registers for the agent.
+A [MCP source](mcp-sources.md) is an MCP server an Admin registers for the agent.
 The server connects to it under the same address rules, except that any port is allowed, and it never follows a redirect.
 Saving a source adds its domain to the list, and a fixed list refuses a source whose domain is not on it with `403 outbound_domain_not_allowed`.
-A source that the [context sources file](context-sources.md#provision-sources-from-a-file) marks `allowPrivate` is the one exception to the `https` and public address rules, as a Grafana connection is: it may be `http` and resolve to a private address, and its domain must still be on the list.
+A source that the [MCP sources file](mcp-sources.md#provision-sources-from-a-file) marks `allowPrivate` is the one exception to the `https` and public address rules, as a Grafana connection is: it may be `http` and resolve to a private address, and its domain must still be on the list.
 
-## Domains added for a connection, datasource or context source
+## Domains added for a connection, datasource or MCP source
 
-Saving a Grafana connection, a datasource added in the app or a context source adds its host to the list with `from_connection: true`.
+Saving a Grafana connection, a datasource added in the app or an MCP source adds its host to the list with `from_connection: true`.
 Settings shows it as "Added for a connection or datasource".
 
-Deleting the connection, datasource or context source, or moving it to another host, removes that entry again.
-The entry stays when a webhook, a connection, a datasource, a context source or an entry added by hand still uses it.
+Deleting the connection, datasource or MCP source, or moving it to another host, removes that entry again.
+The entry stays when a webhook, a connection, a datasource, an MCP source or an entry added by hand still uses it.
 
 An Admin who allows that same domain by hand keeps it.
 The entry stops being tied to the connection, and the call answers `200` instead of `201`.
@@ -215,7 +215,7 @@ The line never holds the address, a header, the body, a variable value or an inp
 - An entry is `example.com`, which matches that host only, or `*.example.com`, which matches its subdomains but not `example.com` itself.
 - A refused entry answers `422 invalid_domain` with the rule it broke, such as `an IP address is not allowed; use a domain name` or `enter the domain without a port`.
 - A 101st domain answers `422 too_many_domains`.
-- Each entry in `GET /api/v1/outbound-domains` carries `used_by`, the webhooks, Grafana connections, datasources and context sources whose address it allows.
+- Each entry in `GET /api/v1/outbound-domains` carries `used_by`, the webhooks, Grafana connections, datasources and MCP sources whose address it allows.
   It is empty for an Editor, because those are Admin only, and Settings names them in the confirmation before it removes the entry.
 - The response also carries `managed_by`, which is `config` when `SLASHOBSERVE_OUTBOUND_DOMAINS` is set.
 - Dashboard feeds, actions and assets are fetched on demand and are not listed, so removing a domain stops them without a warning from the server.

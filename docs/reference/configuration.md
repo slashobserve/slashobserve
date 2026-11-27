@@ -147,19 +147,19 @@ See [Roles](../teams/roles.md).
 Unset means no datasources from a file.
 An Admin can still [add them in the app](../connect/datasources-in-the-app.md).
 
-## Context sources
+## MCP sources
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| `SLASHOBSERVE_CONTEXT_SOURCES_FILE` | unset | Path to a YAML file of [context sources](../operate/context-sources.md#provision-sources-from-a-file) the server keeps in step with its entries. |
+| `SLASHOBSERVE_MCP_SOURCES_FILE` | unset | Path to a YAML file of [MCP sources](../operate/mcp-sources.md#provision-sources-from-a-file) the server keeps in step with its entries. |
 
-Unset means no context sources from a file.
+Unset means no MCP sources from a file.
 An Admin can still add them in the app.
 
-The file holds one `contextSources` list:
+The file holds one `mcpSources` list:
 
 ```yaml
-contextSources:
+mcpSources:
   - uid: docs
     name: Company docs
     description: Runbooks and design notes

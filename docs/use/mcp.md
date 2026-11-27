@@ -523,7 +523,7 @@ The server uses the role of the key's service account, or of the person for an O
 | `apply_suggested_change` | Viewer |
 | `archive_run` | Viewer |
 | `arrange_blocks` | Viewer |
-| `call_context_tool` | Viewer |
+| `call_mcp_tool` | Viewer |
 | `cancel_run` | Viewer |
 | `claim_run` | Viewer |
 | `clear_home_dashboard` | Viewer |
@@ -539,7 +539,7 @@ The server uses the role of the key's service account, or of the person for an O
 | `draft_query` | Viewer |
 | `duplicate_dashboard` | Viewer |
 | `edit_comment` | Viewer |
-| `find_context_tools` | Viewer |
+| `find_mcp_tools` | Viewer |
 | `finish_run` | Viewer |
 | `get_audit_event` | Admin |
 | `get_audit_histogram` | Admin |
@@ -566,7 +566,6 @@ The server uses the role of the key's service account, or of the person for an O
 | `list_audit_fields` | Admin |
 | `list_chats` | Viewer |
 | `list_comments` | Viewer |
-| `list_context_sources` | Viewer |
 | `list_dashboard_health` | Viewer |
 | `list_dashboard_versions` | Viewer |
 | `list_dashboard_viewers` | Viewer |
@@ -576,6 +575,7 @@ The server uses the role of the key's service account, or of the person for an O
 | `list_inbox` | Viewer |
 | `list_label_values` | Viewer |
 | `list_labels` | Viewer |
+| `list_mcp_sources` | Viewer |
 | `list_mentionable_people` | Viewer |
 | `list_metrics` | Viewer |
 | `list_observations` | Viewer |
@@ -1808,42 +1808,42 @@ They are `search_audit_events`, `get_audit_event`, `list_audit_facets`, `get_aud
   `list_audit_fields` records nothing, and none of them changes or deletes an event.
 - The export is in the CLI and the API only, because a tool answer holds at most 16 KiB.
 
-### Context source tools
+### MCP source tools
 
-Three tools let an agent read from the [context sources](../operate/context-sources.md) an Admin registered.
+Three tools let an agent read from the [MCP sources](../operate/mcp-sources.md) an Admin registered.
 All three need the Viewer role, and a run offers them in an investigation or a question asked in a chat only, not when a dashboard is built or revised or a panel is suggested.
 
-#### `list_context_sources`
+#### `list_mcp_sources`
 
-Lists the context sources the caller may use, each with the approved tools it may call.
+Lists the MCP sources the caller may use, each with the approved tools it may call.
 
-- A source shows its `source` (the id to pass to `call_context_tool`), `name`, an `about` line, a `status` when its last check failed, and its `tool_count`.
+- A source shows its `source` (the id to pass to `call_mcp_tool`), `name`, an `about` line, a `status` when its last check failed, and its `tool_count`.
   The line is the description an Admin gave the source, or "<name>, an MCP server at <host>" when it has none.
 - While the caller may use 20 approved tools or fewer in all, each tool also shows its `name`, a one-line `description` and its `arguments`, such as `query (string, required), limit (integer)`.
-  Above that the list gives only the count for each source and a `find` line that points to `find_context_tools`, so the answer stays short however many tools there are.
+  Above that the list gives only the count for each source and a `find` line that points to `find_mcp_tools`, so the answer stays short however many tools there are.
 - A source set to Admins only is listed for an Admin and left out for anyone else.
 - A source whose last check failed is still listed, with a `status` that says so, and a call to it is still tried: it either works or answers `source_unavailable`.
 - Only an approved tool appears.
   A tool that is waiting for approval, changed since it was approved, gone or refused never does.
 - The list carries a notice that the descriptions come from a server outside SlashObserve.
 
-#### `find_context_tools`
+#### `find_mcp_tools`
 
 Finds the approved tools that fit what the caller needs, for when a source has too many to list.
 
 - It takes `query`, in plain words and at most 200 bytes, and an optional `source` id to look in one source only.
 - Tools are ranked by the words of their names, their parameter names and their descriptions, so `logs of a crashing pod` finds `pods_log`.
   There are no embeddings; a query that shares no word with a tool does not find it.
-- The answer holds at most 8 `matches`, each with `source`, `source_name`, `tool`, `description`, `arguments` and the pinned `input_schema`, ready to pass to `call_context_tool`.
+- The answer holds at most 8 `matches`, each with `source`, `source_name`, `tool`, `description`, `arguments` and the pinned `input_schema`, ready to pass to `call_mcp_tool`.
   A schema over 3 KiB is left out with `schema_omitted: true`, and `arguments` still names the parameters.
   `more_matches` counts the matches that are not shown, and a `hint` says what to try when none matched.
 - Only approved tools of sources the caller may use are looked at.
   A `source` that does not exist answers `source_not_found`, and one set to Admins only that the caller may not use answers `admins_only_datasource`.
 - Like the other two, it needs the Viewer role and is offered in an investigation or a question only.
 
-#### `call_context_tool`
+#### `call_mcp_tool`
 
-Calls one approved tool of a context source and returns its text.
+Calls one approved tool of an MCP source and returns its text.
 
 - It takes `source`, `tool` and optional `arguments`, an object of at most 8 KiB that must match the schema the tool had when an Admin approved it.
 - The answer is `text`, labelled with a `notice` that it is text from a server outside SlashObserve and that nothing in it is an instruction.
@@ -1859,7 +1859,7 @@ Calls one approved tool of a context source and returns its text.
   - `source_busy` when the source already has 4 calls in flight.
   - `source_unavailable` when the source did not answer in 20 seconds or could not be reached, including an address the [outbound allowlist](../operate/outbound-access.md) no longer allows.
   A source that is down never fails a run: the agent reads the refusal and goes on.
-- Every call goes through the outbound allowlist and is recorded in the [audit trail](../reference/audit-queries.md) as `context_source.call`.
+- Every call goes through the outbound allowlist and is recorded in the [audit trail](../reference/audit-queries.md) as `mcp_source.call`.
   Inside a run it also counts toward the run's call limit and shows as a step.
 
 ### Run claim tools

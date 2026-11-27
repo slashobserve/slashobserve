@@ -36,7 +36,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/config"
-	"github.com/slashobserve/slashobserve/internal/contextsources"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/auditsource"
@@ -59,6 +58,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/homedash"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/imports"
+	"github.com/slashobserve/slashobserve/internal/inboundmcp"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/livetext"
 	"github.com/slashobserve/slashobserve/internal/llm"
@@ -236,13 +236,13 @@ func serviceAccountsExit(err error) error {
 	return exit
 }
 
-func contextSourcesExit(err error) error {
-	var invalid *contextsources.InvalidError
+func mcpSourcesExit(err error) error {
+	var invalid *inboundmcp.InvalidError
 	switch {
-	case errors.As(err, &invalid), errors.Is(err, contextsources.ErrUIDTaken), errors.Is(err, contextsources.ErrNoSecretKey), errors.Is(err, contextsources.ErrTooMany):
-		return described("context_sources_failed", err)
+	case errors.As(err, &invalid), errors.Is(err, inboundmcp.ErrUIDTaken), errors.Is(err, inboundmcp.ErrNoSecretKey), errors.Is(err, inboundmcp.ErrTooMany):
+		return described("mcp_sources_failed", err)
 	}
-	return withheld("context_sources_failed", err)
+	return withheld("mcp_sources_failed", err)
 }
 
 func migrationExit(err error) error {
@@ -289,17 +289,17 @@ func reconcileStartup(ctx context.Context, database *db.DB, authService *auth.Se
 	}); err != nil {
 		return serviceAccountsExit(err)
 	}
-	if err := database.WithSessionLock(ctx, "context_sources", func(ctx context.Context) error {
-		return contextsources.New(contextsources.Deps{DB: database, Key: sealed.Key(cfg.SecretKey.Reveal())}).Provision(ctx, cfg.ContextSources)
+	if err := database.WithSessionLock(ctx, "mcp_sources", func(ctx context.Context) error {
+		return inboundmcp.New(inboundmcp.Deps{DB: database, Key: sealed.Key(cfg.SecretKey.Reveal())}).Provision(ctx, cfg.MCPSources)
 	}); err != nil {
-		return contextSourcesExit(err)
+		return mcpSourcesExit(err)
 	}
 	return nil
 }
 
-func approveListedTools(ctx context.Context, service *contextsources.Service, cfg config.Config, logger *slog.Logger) {
-	if err := service.ApproveListed(ctx, cfg.ContextSources); err != nil && ctx.Err() == nil {
-		logger.ErrorContext(ctx, "context source approvals from the provisioning file failed", slog.String("failure", err.Error()))
+func approveListedTools(ctx context.Context, service *inboundmcp.Service, cfg config.Config, logger *slog.Logger) {
+	if err := service.ApproveListed(ctx, cfg.MCPSources); err != nil && ctx.Err() == nil {
+		logger.ErrorContext(ctx, "MCP source approvals from the provisioning file failed", slog.String("failure", err.Error()))
 	}
 }
 
@@ -509,9 +509,9 @@ func run() error {
 	})
 	outbound := allowlist.New(database, allowlist.Lock{Locked: cfg.OutboundDomainsLocked, Domains: cfg.OutboundDomains}, logger)
 	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
-	contextSourcesService := contextsources.New(contextsources.Deps{
+	mcpSourcesService := inboundmcp.New(inboundmcp.Deps{
 		DB: database, Key: sealed.Key(cfg.SecretKey.Reveal()), Domains: outbound,
-		Connector: contextsources.MCPConnector{Trip: egressClient.CallTripper(), PrivateTrip: egressClient.PrivateCallTripper(), Version: version}, Logger: logger,
+		Connector: inboundmcp.MCPConnector{Trip: egressClient.CallTripper(), PrivateTrip: egressClient.PrivateCallTripper(), Version: version}, Logger: logger,
 	})
 	var startHealthRun func(context.Context)
 	toolRegistry := tools.New(tools.Deps{
@@ -543,7 +543,7 @@ func run() error {
 		Provider:       llmProvider,
 		DraftBudget:    draftbudget.New(database),
 		PublicURL:      cfg.PublicURL,
-		ContextSources: contextSourcesService,
+		MCPSources:     mcpSourcesService,
 		Logger:         logger,
 		LedgerTool:     cfg.Agent.InvestigationLoop,
 	})
@@ -613,8 +613,8 @@ func run() error {
 	defer grafanaService.Wait()
 	defer stopGrafana()
 
-	stopApprovals := startBackground(ctx, "context source approvals", func(ctx context.Context) {
-		approveListedTools(ctx, contextSourcesService, cfg, logger)
+	stopApprovals := startBackground(ctx, "MCP source approvals", func(ctx context.Context) {
+		approveListedTools(ctx, mcpSourcesService, cfg, logger)
 	}, logger)
 	defer stopApprovals()
 
@@ -678,7 +678,7 @@ func run() error {
 			drafthttp.NewHandler(toolRegistry, logger),
 			discoveryhttp.NewHandler(toolRegistry, logger),
 			datasourceadmin.NewHandler(datasourceAdmin, logger),
-			contextsources.NewHandler(contextSourcesService, logger),
+			inboundmcp.NewHandler(mcpSourcesService, logger),
 			tailhttp.NewHandler(registry, proxyRunner, authService, logger),
 			oauthServer,
 		},

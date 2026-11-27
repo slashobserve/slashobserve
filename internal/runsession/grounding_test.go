@@ -183,10 +183,10 @@ func (s *script) readOf(name, content string, discovered *tools.Discovery) {
 	}, &Turn{ID: name, Calls: 1})
 }
 
-func TestAContextToolResultFeedsTheRecordButTheSourceListDoesNot(t *testing.T) {
+func TestAMCPToolResultFeedsTheRecordButTheSourceListDoesNot(t *testing.T) {
 	s := groundingScript(t, grounding.Report)
-	s.readOf("list_context_sources", `{"sources":[{"name":"code","tools":3,"revision":7700}]}`, nil)
-	s.readOf("call_context_tool", `{"matches":[{"file":"checkout.go","line":4821}]}`, nil)
+	s.readOf("list_mcp_sources", `{"sources":[{"name":"code","tools":3,"revision":7700}]}`, nil)
+	s.readOf("call_mcp_tool", `{"matches":[{"file":"checkout.go","line":4821}]}`, nil)
 
 	got := s.sess.state.Grounding.Check(json.RawMessage(`{"markdown":"The match is at line 4,821, not 7,700."}`))
 	want := []findings.Unverified{{Kind: findings.UnverifiedFigure, Text: "7,700"}}

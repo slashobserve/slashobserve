@@ -81,7 +81,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		Provider:       &scriptedDraft{},
 		Runs:           revisions.NewRunDesk(queue, revisions.ObserveOptions{}),
 		Audit:          trail.NewReader(database.DB, logger),
-		ContextSources: &fakeContextSources{},
+		MCPSources:     &fakeMCPSources{},
 		Logger:         logger,
 	})
 	ctx := auth.WithPrincipal(reading(context.Background()), placeholderUser)
