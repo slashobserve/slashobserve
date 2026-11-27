@@ -159,6 +159,8 @@ This lists only the packages whose purpose the name does not make obvious.
 - Service accounts match no grant, because rows hold users and groups.
   A key sees a restricted folder only as an Admin or as its creator (`created_by_kind`, `created_by_id`).
 - General is never restricted, renamed or deleted.
+- `folders.KindOf` is the one place a folder's `kind` is decided (`folders.Kinds`: general, personal, audit, admins_only, restricted, open, in that order) and `folders.AllowedActions` the one list of what a caller may do with a folder, which the folder reads return and the `general_folder`, `personal_folder` and `admins_only_folder` refusals carry.
+  A query returns only the fact `listed` (the folder has permission rows), and `folders.Restricted` is the one place that turns it and `admins_only` into `restricted`.
 - Every person has one personal folder (`folders.personal`, `owner_id`), made by the `users_personal_folder` trigger and backfilled by its migration; `LevelFor` reads it first: the owner has Edit whatever their role and nobody else sees it, Admins included.
   It has no permission rows, nobody manages it, so it is never renamed, shared or deleted, and service accounts have none.
   Deleting a user deletes their personal folder and its dashboards, findings and saved searches (`users_personal_folder_contents` trigger and `ON DELETE CASCADE`), as it does their saved prompts.

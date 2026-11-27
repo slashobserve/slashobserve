@@ -13,7 +13,7 @@ import (
 
 const accessGranterCandidates = `-- name: AccessGranterCandidates :many
 SELECT u.id, u.role, f.admins_only,
-  (f.admins_only OR EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id))::boolean AS restricted,
+  EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id)::boolean AS listed,
   ARRAY(
     SELECT p.level FROM folder_permissions p
     WHERE p.folder_id = f.id AND (p.user_id = u.id OR p.group_name = ANY(u.groups))
@@ -35,7 +35,7 @@ type AccessGranterCandidatesRow struct {
 	ID         pgtype.UUID
 	Role       string
 	AdminsOnly bool
-	Restricted bool
+	Listed     bool
 	Grants     []string
 	Creator    bool
 }
@@ -53,7 +53,7 @@ func (q *Queries) AccessGranterCandidates(ctx context.Context, folderID pgtype.U
 			&i.ID,
 			&i.Role,
 			&i.AdminsOnly,
-			&i.Restricted,
+			&i.Listed,
 			&i.Grants,
 			&i.Creator,
 		); err != nil {
@@ -73,7 +73,7 @@ SELECT r.id, r.dashboard_id, r.observation_id, coalesce(d.title, o.title)::text 
   coalesce(u.role, sa.role, '')::text AS role,
   f.personal, f.admins_only,
   coalesce(f.owner_id = u.id, false)::boolean AS owner,
-  (f.admins_only OR EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id))::boolean AS restricted,
+  EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id)::boolean AS listed,
   ARRAY(
     SELECT p.level FROM folder_permissions p
     WHERE p.folder_id = f.id AND (p.user_id = u.id OR p.group_name = ANY(coalesce(u.groups, '{}'::text[])))
@@ -109,7 +109,7 @@ type AccessRequestsToSettleRow struct {
 	Personal      bool
 	AdminsOnly    bool
 	Owner         bool
-	Restricted    bool
+	Listed        bool
 	Grants        []string
 	Creator       bool
 }
@@ -135,7 +135,7 @@ func (q *Queries) AccessRequestsToSettle(ctx context.Context, arg AccessRequests
 			&i.Personal,
 			&i.AdminsOnly,
 			&i.Owner,
-			&i.Restricted,
+			&i.Listed,
 			&i.Grants,
 			&i.Creator,
 		); err != nil {

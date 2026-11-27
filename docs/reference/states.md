@@ -176,6 +176,20 @@ This state is computed from stored fields on every read; nothing stores it.
 | `expired` | Its expiry time has passed; the link no longer opens. |
 | `active` | None of the above; usable says whether the dashboard's latest version can be shown publicly. |
 
+## Folder
+
+`GET /folders` and `GET /folders/{id}` return the `kind` of each folder, and its `allowed_actions` say what the caller may do with it.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `general` | It is General: everyone sees it by role, and it is never renamed, restricted or deleted. |
+| `personal` | It is the caller's My Dashboards: only they see it, it takes new work but no moves, and nobody renames, shares or deletes it. |
+| `audit` | It is the Audit folder the server made for the audit starters; `admins_only` and `restricted` say who reads it. |
+| `admins_only` | Only Admins read it, and it lists nobody. |
+| `restricted` | It lists people or groups, and only they, its creator and Admins see it. |
+| `open` | None of the above: everyone sees it, each at the level of their role. |
+
 ## Grafana import
 
 A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /grafana/{id}/imports/{sync_id}`; its moves write server log lines with these names, not activity events, because a Grafana connection is Admin only.

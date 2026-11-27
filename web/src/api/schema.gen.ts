@@ -4505,6 +4505,8 @@ export interface components {
             code: string;
             /** @description Present with `admins_only_folder` when the content reads an Admins-only datasource, so it cannot leave its folder and public links are not available for it; the uid of that datasource. */
             datasource?: string;
+            /** @description Present with `general_folder`, `personal_folder` and `admins_only_folder`: what the caller may do with the folder the refusal is about, as on the folder's own `allowed_actions`. For `personal_folder` that is the caller's My Dashboards, and for `admins_only_folder` a folder only Admins can read. */
+            allowed_actions?: components["schemas"]["FolderAction"][];
             /** @description Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`. The `error` message names the field and says what to change. */
             reason?: string;
             /**
@@ -5004,6 +5006,13 @@ export interface components {
             admins_only: boolean;
             /** @description True for the Audit folder, the one the server made to hold the starter dashboards over the audit trail, whatever it is now called. False for every other folder, and for all of them when the Audit folder was deleted, which the server does not recreate. The field cannot be set. */
             audit: boolean;
+            /**
+             * @description What the folder is, decided in this order: `general`, `personal` (the caller's My Dashboards), `audit` (the Audit folder, whoever reads it), `admins_only`, `restricted` (it lists people or groups), else `open`. `general`, `personal`, `restricted`, `admins_only` and `audit` stay as they were; `docs/reference/states.md` lists the kinds.
+             * @enum {string}
+             */
+            kind: "general" | "personal" | "audit" | "admins_only" | "restricted" | "open";
+            /** @description What the caller may do with this folder now: `create_in` (create a dashboard, an observation or a saved search in it), `move_into` (move one into it), `rename`, `set_permissions` and `delete`. General never offers `rename`, `set_permissions` or `delete`, and a personal folder offers only `create_in`. `delete` still needs the folder to be empty, and a move or a save is still refused when the folder may not hold that content. */
+            allowed_actions: components["schemas"]["FolderAction"][];
             /** @description All dashboards in the folder, including ones the caller cannot see when the caller manages it. */
             dashboard_count: number;
             /** @description The names of up to 5 listed people, then groups. */
@@ -5016,6 +5025,8 @@ export interface components {
             /** @description The caller's level on this folder and on every dashboard in it, the higher of what their role gives and their highest matching entry. Admins have `admin` on every folder except other people's personal folders, and a personal folder's owner has `edit`. */
             level: components["schemas"]["FolderLevel"];
         };
+        /** @enum {string} */
+        FolderAction: "create_in" | "move_into" | "rename" | "set_permissions" | "delete";
         FolderPermissionEntry: {
             /** @enum {string} */
             kind: "user" | "group";

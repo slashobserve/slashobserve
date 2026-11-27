@@ -90,8 +90,8 @@ func TestCanCommentNowReadsTheRequestersCurrentAccess(t *testing.T) {
 	}{
 		{"a Viewer on an open folder", dbsqlc.AccessRequestsToSettleRow{Role: "viewer"}, false},
 		{"raised to Commenter", dbsqlc.AccessRequestsToSettleRow{Role: "commenter"}, true},
-		{"given Comment by an entry", dbsqlc.AccessRequestsToSettleRow{Role: "viewer", Restricted: true, Grants: []string{"comment"}}, true},
-		{"given View by an entry", dbsqlc.AccessRequestsToSettleRow{Role: "viewer", Restricted: true, Grants: []string{"view"}}, false},
+		{"given Comment by an entry", dbsqlc.AccessRequestsToSettleRow{Role: "viewer", Listed: true, Grants: []string{"comment"}}, true},
+		{"given View by an entry", dbsqlc.AccessRequestsToSettleRow{Role: "viewer", Listed: true, Grants: []string{"view"}}, false},
 		{"a deactivated or deleted requester", dbsqlc.AccessRequestsToSettleRow{Role: ""}, false},
 	}
 	for _, tc := range cases {

@@ -570,7 +570,7 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 	case errors.Is(err, folders.ErrNoAccess):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", ErrNotFound.Error())
 	case errors.Is(err, folders.ErrMoveIntoPersonal):
-		httpapi.AbortError(c, http.StatusConflict, "personal_folder", err.Error())
+		folders.AbortPersonalFolder(c, err.Error())
 	case errors.Is(err, folders.ErrForbidden):
 		c.AbortWithStatusJSON(http.StatusForbidden, forbidden.BodyOf(err))
 	case errors.Is(err, ErrUserSessionRequired):

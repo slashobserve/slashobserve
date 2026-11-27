@@ -26,16 +26,25 @@ function folder(id: string, title: string, extra: Partial<Folder> = {}) {
     title,
     general: false,
     personal: false,
+    kind: "open",
+    allowed_actions: ["create_in", "move_into"],
     permissions: { edit: true },
     ...extra,
   } as Folder
 }
 
 const folders = [
-  folder(mine, "My Dashboards", { personal: true }),
+  folder(mine, "My Dashboards", {
+    personal: true,
+    kind: "personal",
+    allowed_actions: ["create_in"],
+  }),
   folder(ops, "Ops"),
   folder(shop, "Shop"),
-  folder(locked, "Locked", { permissions: { edit: false } as never }),
+  folder(locked, "Locked", {
+    allowed_actions: [],
+    permissions: { edit: false } as never,
+  }),
 ]
 
 function dashboard(id: string, title: string, folderId: string) {

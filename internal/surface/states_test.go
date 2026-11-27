@@ -10,6 +10,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/inboundmcp"
@@ -41,6 +42,7 @@ func statesReference() string {
 		auth.KeyStates.Doc("Service-account key", "`GET /service-accounts/{id}/keys` returns the `state` of each key."),
 		mcpauth.GrantStates.Doc("Connected agent", "`GET /me/grants` and `GET /grants` return the `state` of each connected agent."),
 		public.LinkStates.Doc("Public link", "`GET /dashboards/{id}/public-links` returns the `state` of each link."),
+		folders.Kinds.Doc("Folder", "`GET /folders` and `GET /folders/{id}` return the `kind` of each folder, and its `allowed_actions` say what the caller may do with it."),
 		grafanaconn.SyncMachine.Doc("Grafana import", "A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /grafana/{id}/imports/{sync_id}`; its moves write server log lines with these names, not activity events, because a Grafana connection is Admin only."),
 		inboundmcp.ToolMachine.Doc("MCP source tool", "An MCP source tool is one tool of an MCP server an Admin registered, returned by `GET /api/v1/mcp-sources/{uid}/tools`; discovery moves it between `offered`, `changed`, `gone` and `refused`, and an Admin approves or revokes it."),
 		inboundmcp.SourceStates.Doc("MCP source", "`GET /api/v1/mcp-sources` returns the `state` of each MCP source."),
@@ -86,6 +88,14 @@ func enumOf(t *testing.T, doc *openapi3.T, schema, property string) []string {
 	return out
 }
 
+func folderActions() []string {
+	out := make([]string, len(folders.Actions))
+	for i, a := range folders.Actions {
+		out[i] = string(a)
+	}
+	return out
+}
+
 func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 	doc := apitest.Load(t)
 	cases := []struct {
@@ -98,6 +108,9 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 		{"ServiceAccountKey", "state", auth.KeyStates.Names()},
 		{"ConnectedAgent", "state", mcpauth.GrantStates.Names()},
 		{"PublicLink", "state", public.LinkStates.Names()},
+		{"Folder", "kind", folders.Kinds.Names()},
+		{"Folder", "allowed_actions", folderActions()},
+		{"Error", "allowed_actions", folderActions()},
 		{"MCPSource", "state", inboundmcp.SourceStates.Names()},
 	}
 	var offered []string
