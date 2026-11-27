@@ -117,7 +117,7 @@ func (h *Handler) readSide(ctx context.Context, datasourceUID string, source dat
 	if err := req.Range.Validate(); err != nil {
 		return empty, err
 	}
-	release, err := h.acquireUpstreamBounded(ctx, datasourceUID)
+	release, err := h.runner.AcquireUpstreamBounded(ctx, datasourceUID)
 	if err != nil {
 		return empty, err
 	}
@@ -132,19 +132,6 @@ func (h *Handler) readSide(ctx context.Context, datasourceUID string, source dat
 		return empty, err
 	}
 	return contextSide{Frames: encoded, Truncated: datasource.MergeMeta(frames).Truncated}, nil
-}
-
-func (h *Handler) acquireUpstreamBounded(ctx context.Context, datasourceUID string) (release func(), err error) {
-	waitCtx, cancel := context.WithTimeout(ctx, h.lintTimeout)
-	defer cancel()
-	release, err = h.runner.AcquireUpstream(waitCtx, datasourceUID)
-	switch {
-	case err == nil:
-		return release, nil
-	case ctx.Err() != nil:
-		return nil, ctx.Err()
-	}
-	return nil, queryproxy.ErrUpstreamBusy
 }
 
 func (r contextRequest) validate() (status int, code, message string) {

@@ -1252,8 +1252,7 @@ func holdUpstreamSlots(t *testing.T, hn *harness) {
 }
 
 func TestLintTakesAProcessWideUpstreamSlot(t *testing.T) {
-	hn := newHarness(t)
-	hn.h.lintTimeout = 30 * time.Millisecond
+	hn := newHarness(t, queryproxy.WithUpstreamWait(30*time.Millisecond))
 
 	releases := make([]func(), upstreamSlot)
 	for i := range releases {

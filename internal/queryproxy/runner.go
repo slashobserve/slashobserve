@@ -159,6 +159,19 @@ func (r *Runner) AcquireUpstream(ctx context.Context, datasourceUID string) (rel
 	return r.slots.Acquire(ctx, datasourceUID)
 }
 
+func (r *Runner) AcquireUpstreamBounded(ctx context.Context, datasourceUID string) (release func(), err error) {
+	waitCtx, cancel := context.WithTimeout(ctx, r.upstreamWait)
+	defer cancel()
+	release, err = r.AcquireUpstream(waitCtx, datasourceUID)
+	switch {
+	case err == nil:
+		return release, nil
+	case ctx.Err() != nil:
+		return nil, ctx.Err()
+	}
+	return nil, ErrUpstreamBusy
+}
+
 func QueryKind(p *spec.Panel, q spec.Query) Kind {
 	if q.Instant {
 		return KindInstant

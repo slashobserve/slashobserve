@@ -676,18 +676,12 @@ func (h *Handler) datasourceFor(c *gin.Context) (datasource.Instance, bool) {
 }
 
 func (h *Handler) acquireUpstream(c *gin.Context, datasourceUID string) (release func(), ok bool) {
-	ctx, cancel := context.WithTimeout(c.Request.Context(), h.lintTimeout)
-	defer cancel()
-	release, err := h.runner.AcquireUpstream(ctx, datasourceUID)
-	switch {
-	case err == nil:
-		return release, true
-	case c.Request.Context().Err() == nil:
-		tooManyRequests(c)
-	default:
-		h.fail(c, c.Request.Context().Err())
+	release, err := h.runner.AcquireUpstreamBounded(c.Request.Context(), datasourceUID)
+	if err != nil {
+		h.fail(c, err)
+		return nil, false
 	}
-	return nil, false
+	return release, true
 }
 
 func (h *Handler) safeLint(ctx context.Context, inst datasource.Instance, text string) (diagnostics []datasource.Diagnostic, err error) {
@@ -779,7 +773,7 @@ func (h *Handler) fail(c *gin.Context, err error) {
 	}
 	var qe *queryproxy.QueryError
 	if errors.As(err, &qe) {
-		c.AbortWithStatusJSON(status, gin.H{"error": message, "code": code, "ref": qe.Ref})
+		abortJSON(c, status, gin.H{"error": message, "code": code, "ref": qe.Ref})
 		return
 	}
 	abortError(c, status, code, message)
@@ -812,7 +806,6 @@ func (h *Handler) acquireKey(c *gin.Context, key string) (release func(), ok boo
 }
 
 func tooManyRequests(c *gin.Context) {
-	c.Header("Retry-After", "1")
 	abortError(c, http.StatusTooManyRequests, "too_many_requests", "too many in-flight query requests")
 }
 
@@ -821,7 +814,14 @@ func forbidQuery(c *gin.Context) {
 }
 
 func abortError(c *gin.Context, status int, code, message string) {
-	c.AbortWithStatusJSON(status, gin.H{"error": message, "code": code})
+	abortJSON(c, status, gin.H{"error": message, "code": code})
+}
+
+func abortJSON(c *gin.Context, status int, body any) {
+	if status == http.StatusTooManyRequests {
+		c.Header("Retry-After", "1")
+	}
+	c.AbortWithStatusJSON(status, body)
 }
 
 func address(c *gin.Context) (id pgtype.UUID, version int, err error) {

@@ -93,7 +93,7 @@ func (r *Runner) LogPatterns(ctx context.Context, inst datasource.Instance, req 
 }
 
 func (r *Runner) nativePatterns(ctx context.Context, datasourceUID string, source datasource.LogPatternSource, req PatternsRequest) ([]datasource.NativePattern, error) {
-	release, err := r.acquireUpstreamBounded(ctx, datasourceUID)
+	release, err := r.AcquireUpstreamBounded(ctx, datasourceUID)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (r *Runner) nativePatterns(ctx context.Context, datasourceUID string, sourc
 }
 
 func (r *Runner) sampleLines(ctx context.Context, datasourceUID string, source datasource.LineSource, req PatternsRequest) ([]datasource.Frame, error) {
-	release, err := r.acquireUpstreamBounded(ctx, datasourceUID)
+	release, err := r.AcquireUpstreamBounded(ctx, datasourceUID)
 	if err != nil {
 		return nil, err
 	}
