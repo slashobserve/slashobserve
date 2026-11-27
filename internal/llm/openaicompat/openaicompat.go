@@ -282,7 +282,7 @@ func (p *Provider) streamOnce(ctx, callCtx context.Context, params openai.ChatCo
 	for stream.Next() {
 		chunk := stream.Current()
 		if !acc.AddChunk(chunk) {
-			return streamed{}, fmt.Errorf("%w: openai returned a stream chunk that does not belong to the completion", llm.ErrProvider)
+			return streamed{}, llm.NewCallError(name, llm.ProviderError, 0)
 		}
 		for _, choice := range chunk.Choices {
 			if choice.Index == 0 && choice.FinishReason != "" {
@@ -296,8 +296,11 @@ func (p *Provider) streamOnce(ctx, callCtx context.Context, params openai.ChatCo
 	if err := stream.Err(); err != nil {
 		return streamed{}, p.sanitize(ctx, callCtx, watch, err)
 	}
+	if finishReason == "" {
+		return streamed{}, llm.NewCallError(name, llm.ProviderError, 0)
+	}
 	completion := acc.ChatCompletion
-	if finishReason != "" && len(completion.Choices) > 0 {
+	if len(completion.Choices) > 0 {
 		completion.Choices[0].FinishReason = finishReason
 	}
 	return streamed{completion: completion, usage: used}, nil
