@@ -7,6 +7,10 @@ An MCP source is an MCP server that an Admin registers so the agent can read fro
 The SlashObserve server is the client: it connects to the source, lists its tools and keeps what an Admin approved.
 Nothing a source offers reaches the agent until an Admin approves it.
 
+The server speaks the streamable HTTP transport of MCP.
+When a source refuses that and serves the older HTTP with SSE transport at the registered address, the server uses SSE instead, with the same outbound domain rules, secret header and size limit.
+Register an SSE server by the address of its event stream, which usually ends in `/sse`.
+
 This page covers registering a source, approving its tools and what the agent may do with them.
 
 MCP sources were called context sources before this name.
