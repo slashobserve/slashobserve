@@ -27,9 +27,10 @@ type Connection struct {
 }
 
 type TestResult struct {
-	At      time.Time
-	OK      bool
-	Message string
+	At          time.Time
+	OK          bool
+	Message     string
+	FailureKind FailureKind
 }
 
 type stored struct {
@@ -54,7 +55,7 @@ func storedOf(row dbsqlc.GrafanaConnection) (stored, error) {
 		c.CreatedBy = row.CreatedBy.String()
 	}
 	if row.LastTestAt.Valid {
-		c.LastTest = &TestResult{At: row.LastTestAt.Time.UTC(), OK: row.LastTestOk, Message: row.LastTestMessage}
+		c.LastTest = &TestResult{At: row.LastTestAt.Time.UTC(), OK: row.LastTestOk, Message: row.LastTestMessage, FailureKind: FailureKind(row.LastTestFailureKind.String)}
 	}
 	return stored{Connection: c, id: row.ID, sealed: row.TokenCiphertext}, nil
 }
@@ -169,8 +170,10 @@ func (s store) delete(ctx context.Context, id pgtype.UUID, record recorder) erro
 	return nil
 }
 
-func (s store) setTest(ctx context.Context, id pgtype.UUID, ok bool, message string) (stored, error) {
-	row, err := s.db.Queries().SetGrafanaConnectionTest(ctx, dbsqlc.SetGrafanaConnectionTestParams{ID: id, Ok: ok, Message: message})
+func (s store) setTest(ctx context.Context, id pgtype.UUID, outcome testOutcome) (stored, error) {
+	row, err := s.db.Queries().SetGrafanaConnectionTest(ctx, dbsqlc.SetGrafanaConnectionTestParams{
+		ID: id, Ok: outcome.failure == nil, Message: outcome.message(), FailureKind: outcome.kind(),
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return stored{}, ErrNotFound
 	}

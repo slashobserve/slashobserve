@@ -10,9 +10,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/egress"
 )
 
@@ -334,5 +337,106 @@ func TestCleanFormat(t *testing.T) {
 	}
 	if _, err := cleanFormat("discord"); err == nil || !strings.Contains(err.Error(), "generic, slack or teams") {
 		t.Errorf("cleanFormat(discord) = %v, want a message naming the formats", err)
+	}
+}
+
+func TestOnlyAPatchThatRestartsDeliveryTakesTheLeaseFromTheDeliveryInFlight(t *testing.T) {
+	on, off := true, false
+	retrying := dbsqlc.Webhook{Name: "Pipeline", Url: receiverURL, Format: FormatGeneric, EventTypes: []string{activity.TypeFindingCreated}, ConsecutiveFailures: 49}
+	cases := []struct {
+		name  string
+		patch cleanedPatch
+		want  bool
+	}{
+		{"enable", cleanedPatch{enabled: &on}, true},
+		{"a new address", cleanedPatch{address: "https://" + receiverHost + "/moved"}, true},
+		{"the address it already has", cleanedPatch{address: receiverURL}, false},
+		{"disable", cleanedPatch{enabled: &off}, false},
+		{"rename", cleanedPatch{name: "Other"}, false},
+		{"other event types", cleanedPatch{types: []string{activity.TypeRunSucceeded}}, false},
+		{"a new owner", cleanedPatch{takeOwnership: true}, false},
+	}
+	for _, tc := range cases {
+		got := tc.patch.apply(retrying, string(auth.KindUser), pgtype.UUID{}, time.Now())
+		if got.DropsLease != tc.want {
+			t.Errorf("%s: drops the lease %v, want %v", tc.name, got.DropsLease, tc.want)
+		}
+		if restarted := got.ConsecutiveFailures == 0; restarted != tc.want {
+			t.Errorf("%s: failures %d, want a reset only with the lease", tc.name, got.ConsecutiveFailures)
+		}
+	}
+}
+
+func TestAnEventExpiresOnceItIsOlderThanADay(t *testing.T) {
+	now := time.Date(2026, 11, 27, 12, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name string
+		age  time.Duration
+		want bool
+	}{
+		{"just happened", 0, false},
+		{"an hour old", time.Hour, false},
+		{"exactly a day old", 24 * time.Hour, false},
+		{"a moment over a day", 24*time.Hour + time.Millisecond, true},
+		{"a week old", 7 * 24 * time.Hour, true},
+	}
+	for _, tc := range cases {
+		if got := expired(activity.Event{CreatedAt: now.Add(-tc.age)}, now); got != tc.want {
+			t.Errorf("%s: expired %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestAnExpiredRunEndsAtTheFirstEventStillToSend(t *testing.T) {
+	now := time.Date(2026, 11, 27, 12, 0, 0, 0, time.UTC)
+	aged := func(hours ...int) []activity.Event {
+		page := make([]activity.Event, 0, len(hours))
+		for _, h := range hours {
+			page = append(page, activity.Event{CreatedAt: now.Add(-time.Duration(h) * time.Hour)})
+		}
+		return page
+	}
+	cases := []struct {
+		name string
+		page []activity.Event
+		want int
+	}{
+		{"an empty page", nil, 0},
+		{"nothing expired", aged(3, 2, 1), 0},
+		{"everything expired", aged(30, 29, 28), 3},
+		{"expired events before fresh ones", aged(30, 26, 2, 1), 2},
+		{"an expired event behind a fresh one waits its turn", aged(2, 30, 1), 0},
+	}
+	for _, tc := range cases {
+		if got := expiredRun(tc.page, now); got != tc.want {
+			t.Errorf("%s: a run of %d, want %d", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestSkipIsRefusedUnlessTheWebhookIsRetryingAndNoServerHoldsItsLease(t *testing.T) {
+	off := pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	cases := []struct {
+		name   string
+		row    dbsqlc.Webhook
+		leased bool
+		want   error
+	}{
+		{"sending", dbsqlc.Webhook{}, false, ErrNothingToSkip},
+		{"sending while a server delivers", dbsqlc.Webhook{}, true, ErrNothingToSkip},
+		{"retrying", dbsqlc.Webhook{ConsecutiveFailures: 2}, false, nil},
+		{"retrying while a server delivers", dbsqlc.Webhook{ConsecutiveFailures: 2}, true, ErrBusy},
+		{"disabled after failures", dbsqlc.Webhook{ConsecutiveFailures: 2, DisabledAt: off}, false, ErrNothingToSkip},
+		{"disabled while a server delivers", dbsqlc.Webhook{ConsecutiveFailures: 2, DisabledAt: off}, true, ErrNothingToSkip},
+	}
+	for _, tc := range cases {
+		got := skipRefusal(tc.row, tc.leased)
+		if !errors.Is(got, tc.want) {
+			t.Errorf("%s: %v, want %v", tc.name, got, tc.want)
+		}
+		retrying := stateOf(!tc.row.DisabledAt.Valid, int(tc.row.ConsecutiveFailures)) == StateRetrying
+		if nothingToSkip := errors.Is(got, ErrNothingToSkip); nothingToSkip == retrying {
+			t.Errorf("%s: nothing to skip %v for a webhook whose state the API shows as retrying %v", tc.name, nothingToSkip, retrying)
+		}
 	}
 }

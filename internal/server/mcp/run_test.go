@@ -84,7 +84,7 @@ func (r *fakeRuns) Scope(_ context.Context, req revisions.Request) (tools.Run, e
 	if r.scopeErr != nil {
 		return tools.Run{}, r.scopeErr
 	}
-	return tools.Run{Mode: r.mode, RequestID: req.ID, Attempt: req.Attempt, Build: r.mode != tools.ModeInvestigate, Investigation: r.investigation, ChatID: r.chatID, Task: r.task, AllTools: r.allTools}, nil
+	return tools.Run{Mode: r.mode, RequestID: req.ID, ClaimEpoch: req.ClaimEpoch, Build: r.mode != tools.ModeInvestigate, Investigation: r.investigation, ChatID: r.chatID, Task: r.task, AllTools: r.allTools}, nil
 }
 
 func (r *fakeRuns) Call(ctx context.Context, req revisions.Request, call runsession.Call, dispatch func(context.Context) (tools.Result, error)) (runsession.Answer, error) {
@@ -130,7 +130,7 @@ func newAssignedRunFixture(t *testing.T, mode tools.Mode, assignee revisions.Ass
 		t.Fatal(err)
 	}
 	req := revisions.Request{
-		ID: runRequestID, Attempt: 2, RequestedBy: requester,
+		ID: runRequestID, Attempt: 2, ClaimEpoch: 5, RequestedBy: requester,
 		Origin: origin.Origin{Kind: origin.Web, Client: "browser"}, Assignee: assignee,
 	}
 	runs := &fakeRuns{mode: mode}
@@ -370,7 +370,7 @@ func TestRunSessionCallActsForTheRequesterInsideTheRunAndGoesThroughTheRunSessio
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
-	if !gotScoped || gotRun.Mode != tools.ModeRevise || gotRun.RequestID != runRequestID || gotRun.Attempt != 2 || !gotRun.Build {
+	if !gotScoped || gotRun.Mode != tools.ModeRevise || gotRun.RequestID != runRequestID || gotRun.ClaimEpoch != 5 || !gotRun.Build {
 		t.Errorf("run scope = %+v, %v", gotRun, gotScoped)
 	}
 	if gotBy.ID != requester.ID || gotBy.Kind != requester.Kind {

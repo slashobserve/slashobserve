@@ -98,18 +98,19 @@ type Creator struct {
 }
 
 type Link struct {
-	ID           string
-	DashboardID  string
-	Prefix       string
-	Label        string
-	Mode         Mode
-	Selections   map[string][]string
-	ExpiresAt    *time.Time
-	CreatedBy    Creator
-	CreatedAt    time.Time
-	LastViewedAt *time.Time
-	Expired      bool
-	Usable       bool
+	ID             string
+	DashboardID    string
+	Prefix         string
+	Label          string
+	Mode           Mode
+	Selections     map[string][]string
+	ExpiresAt      *time.Time
+	CreatedBy      Creator
+	CreatedAt      time.Time
+	LastViewedAt   *time.Time
+	Expired        bool
+	Usable         bool
+	UnusableReason string
 }
 
 type CreateInput struct {
@@ -353,10 +354,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, dashboardID pgtyp
 		if err != nil {
 			return nil, err
 		}
-		var reason string
-		link.Usable, reason = usable(link, usesUser, now)
-		link.Expired = reason == reasonExpired
-		out = append(out, link)
+		out = append(out, judged(link, usesUser, now))
 	}
 	return out, nil
 }
@@ -430,6 +428,12 @@ func (s *Service) View(ctx context.Context, token string) (View, error) {
 		types[in.UID] = in.Datasource.Type()
 	}
 	return View{Resolved: r, Title: d.Title, Spec: shown, Datasources: referencedDatasources(d, types)}, nil
+}
+
+func judged(link Link, latestUsesUser bool, now time.Time) Link {
+	link.Usable, link.UnusableReason = usable(link, latestUsesUser, now)
+	link.Expired = link.UnusableReason == reasonExpired
+	return link
 }
 
 func usable(link Link, latestUsesUser bool, now time.Time) (bool, string) {

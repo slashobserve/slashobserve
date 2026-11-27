@@ -7,6 +7,7 @@ import {
   conflictText,
   dashboardLinkOf,
   droppedText,
+  mergeHint,
   stateLine,
   unitKey,
 } from "./proposal-view"
@@ -75,6 +76,7 @@ function proposal(over: Partial<Proposal> = {}): Proposal {
     changes: [],
     diff: [],
     conflicts: [],
+    mergeability: "current",
     ...over,
   }
 }
@@ -239,6 +241,29 @@ describe("droppedText", () => {
         "panel:p-errors": "theirs",
       })
     ).toBeNull()
+  })
+})
+
+describe("mergeHint", () => {
+  it("says a blocked proposal cannot be merged, whatever was chosen", () => {
+    expect(mergeHint({ mergeability: "blocked" }, [])).toBe(
+      "Some changes cannot be merged; discard this proposal or ask its author to fix it"
+    )
+    expect(mergeHint({ mergeability: "blocked" }, ["panel:p1"])).toBe(
+      "Some changes cannot be merged; discard this proposal or ask its author to fix it"
+    )
+  })
+
+  it("asks for a side while a conflict has none", () => {
+    expect(
+      mergeHint({ mergeability: "behind_conflicting" }, ["panel:p1"])
+    ).toBe("Choose a side for each conflict first")
+  })
+
+  it("says nothing when the merge can go ahead", () => {
+    expect(mergeHint({ mergeability: "current" }, [])).toBeNull()
+    expect(mergeHint({ mergeability: "behind_clean" }, [])).toBeNull()
+    expect(mergeHint({ mergeability: "behind_conflicting" }, [])).toBeNull()
   })
 })
 

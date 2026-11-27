@@ -53,7 +53,7 @@ type DatasourceUsage interface {
 type Options struct {
 	Logger          *slog.Logger
 	Readiness       []Check
-	Draining        <-chan struct{}
+	Phase           func() Phase
 	PublicURL       *url.URL
 	Auth            Auth
 	Datasources     *datasource.Registry
@@ -79,7 +79,7 @@ func New(opts Options) (http.Handler, error) {
 		engine.Use(observeRequests(opts.Metrics))
 	}
 	engine.Use(logRequests(opts.Logger), recoverPanics(opts.Logger), securityHeaders(servedOverHTTPS(opts.PublicURL)))
-	registerHealthRoutes(engine, opts.Logger, opts.Readiness, opts.Draining)
+	registerHealthRoutes(engine, opts.Logger, opts.Readiness, opts.Phase)
 	recordRequests, err := auditMiddleware(opts.Audit)
 	if err != nil {
 		return nil, err

@@ -158,7 +158,7 @@ func TestConnectionTestRecordsARefusedToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tested.LastTest == nil || tested.LastTest.OK || tested.LastTest.Message != "Grafana refused the token (status 401)." {
+	if tested.LastTest == nil || tested.LastTest.OK || tested.LastTest.Message != "Grafana refused the token (status 401)." || tested.LastTest.FailureKind != grafanaconn.FailureCredentials {
 		t.Fatalf("last test %+v", tested.LastTest)
 	}
 	if strings.Contains(tested.LastTest.Message, grafanaToken) {

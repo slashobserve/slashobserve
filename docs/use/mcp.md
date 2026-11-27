@@ -370,7 +370,8 @@ The loop of an agent that takes runs:
    - `system_prompt`, the prompt to read with the run's `kind`: its `name` (`observe`) and `arguments`.
 
       The `run` holds these fields:
-   - `id`, `attempt`, `kind` (`build` or `investigate`), `intent` (`ask`, `apply` or `suggest`) and `prompt`.
+   - `id`, `attempt`, `claim_epoch`, `kind` (`build` or `investigate`), `intent` (`ask`, `apply` or `suggest`) and `prompt`.
+     `claim_epoch` is a number that grows every time the run is claimed, while `attempt` is reused when a claim is handed back.
    - Its target: `dashboard_id`, `base_version`, `panel_id`, `from` and `to`, each null when the run has none.
    - `continue_note`, and `requested_by`, the person it acts for, with their `kind`, `id` and `name`.
    - `thread_context`, the earlier messages of the thread oldest first, when a message in a comment thread started the run; read it before you answer.
@@ -385,20 +386,21 @@ The loop of an agent that takes runs:
 3. Read the `observe` prompt with that `kind`; it is the system text SlashObserve's own agent works from for that kind of run.
    `get_run_brief` returns the same text with the first message SlashObserve's own agent starts each model session with, and is optional.
 4. Open a second MCP connection to the session `url` with the token as the Bearer, and work with the tools it lists.
-5. Call `report_run` at least every 30 seconds with the `run_id` and `attempt`.
+5. Call `report_run` at least every 30 seconds with the `run_id`, `attempt` and `claim_epoch`.
    The lease ends 60 seconds after the last call, and `stop: true` in the answer means the run was canceled or has ended.
    `note`, one line of at most 500 characters, shows in the run's steps.
    When the server has no run time limit, the session's `expires_at` is a minute out and every `report_run` moves it a minute on, so a run lasts as long as it keeps reporting.
 6. Call `finish_run` with `outcome` `succeeded` or `failed`.
 
 A claim tool called with a run that is not yours at that attempt answers `not_your_run`.
+`claim_epoch` is optional on `report_run`, `finish_run` and `get_run_brief`; send it, because with it a call from a claim that was handed back and taken again also answers `not_your_run`.
 
 The session lists the tools SlashObserve's own agent has for that kind of run, with the same text, and none above the requester's role.
 It lists none of the 22 tools that no run has, such as the claim tools, `start_run` and the comment writes; [the agent](../concepts/agent.md#tools-in-a-run) lists them with their reasons.
 It acts for the person who asked and records every call in the run's steps.
 Its prompt list is empty, because the `observe` prompt is read on the first connection.
 
-The token stops working when the attempt changes, when the run is canceled or ends, when the lease lapses, or when the run passes its time limit.
+The token stops working when the run is claimed again, when the run is canceled or ends, when the lease lapses, or when the run passes its time limit.
 A report that arrives after the time limit ends the run as failed.
 A run that saved a dashboard version, a [proposal](../concepts/proposals.md) or a finding ends as succeeded whatever `finish_run` says, and one that saved nothing ends as failed.
 A run that no outside agent took within 10 minutes fails as `agent_unavailable`.
@@ -448,7 +450,7 @@ Some results also carry a note after the content, which an agent reads like any 
 
 ### Briefs, usage and live text
 
-`get_run_brief` takes `run_id`, `attempt` and an optional `reason` (`restart`, `output_limit`, `pending`, `conflict`, `continue`, `renewed`, `call_timeout`, `no_finding` or `no_answer`) and answers `system`, `message`, `reason` and `build`.
+`get_run_brief` takes `run_id`, `attempt`, an optional `claim_epoch` and an optional `reason` (`restart`, `output_limit`, `pending`, `conflict`, `continue`, `renewed`, `call_timeout`, `no_finding` or `no_answer`) and answers `system`, `message`, `reason` and `build`.
 `message` is the first message of a model session.
 Calling it starts a session: it resets the read guard and pins the parent version the run's saves are checked against.
 The server may replace `reason`, with `conflict` after a rebase and with the resume reason when the run has a build.
@@ -891,6 +893,8 @@ Use it only to rewrite most of a dashboard; for anything smaller, use `update_pa
 - It runs every panel query before it saves, as `create_dashboard` does.
 - If a newer version has been saved since and your save changed none of the panels, variables and settings that version changed, the server merges the two.
   The result then carries `merged_from`, with the `base_version` you read and the `onto_version` it merged onto.
+- The result's `outcome` says whether the save made a version: `created` or `merged` did, `replayed` returned a version that already exists, and `proposed` opened or revised a proposal.
+  `update_panels` answers with it too.
 - If both changed the same panel, variable or setting, it returns the tool error `version_conflict` with `latest_version` and `conflicts`.
   Each conflict has a `kind`, an `id`, a `reason` and a `message`.
   The client reads the latest version and applies its change again.
@@ -1369,6 +1373,7 @@ Returns a proposal with these fields:
 
 - Its `spec` and its `changes`.
 - The `conflicts` a merge would hit while it is open and behind the dashboard.
+- Its `mergeability` while it is open: `current`, `behind_clean`, `behind_conflicting` (send a choice per conflict) or `blocked` (a conflict has the reason `invalid`, so no merge succeeds until the author saves a new revision).
 - The `allowed_actions` of the caller.
 - The field-by-field `diff`.
   The diff is left out, with the step saying so, when it would take the result over 128 KiB.
@@ -1423,6 +1428,7 @@ Opens a thread on a `target`.
   With `block_id` on an observation, it is a spot in that block.
 - `client_id` is a UUID you make for the message.
   Sending the same call again returns the message already posted with `replayed` true, and starts nothing.
+  It carries the same `run` or `run_refusal` as the first answer, so a retry of an ask that was refused still says no run started.
 
 #### `reply_to_comment`
 

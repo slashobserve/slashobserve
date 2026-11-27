@@ -75,14 +75,20 @@ type summaryJSON struct {
 }
 
 type connectionJSON struct {
-	ID        string       `json:"id"`
-	Name      string       `json:"name"`
-	URL       string       `json:"url"`
-	CreatedBy *string      `json:"created_by"`
-	CreatedAt string       `json:"created_at"`
-	UpdatedAt string       `json:"updated_at"`
-	LastTest  *testJSON    `json:"last_test"`
-	LastSync  *summaryJSON `json:"last_sync"`
+	ID        string        `json:"id"`
+	Name      string        `json:"name"`
+	URL       string        `json:"url"`
+	CreatedBy *string       `json:"created_by"`
+	CreatedAt string        `json:"created_at"`
+	UpdatedAt string        `json:"updated_at"`
+	LastTest  *testJSON     `json:"last_test"`
+	Test      testStateJSON `json:"test"`
+	LastSync  *summaryJSON  `json:"last_sync"`
+}
+
+type testStateJSON struct {
+	State       string  `json:"state"`
+	FailureKind *string `json:"failure_kind"`
 }
 
 type resultJSON struct {
@@ -152,6 +158,8 @@ func newConnectionJSON(c Connection, caller auth.Principal) connectionJSON {
 	if c.LastTest != nil {
 		out.LastTest = &testJSON{At: httpapi.FormatTime(c.LastTest.At), OK: c.LastTest.OK, Message: c.LastTest.Message}
 	}
+	state, kind := testStateOf(c.LastTest)
+	out.Test = testStateJSON{State: state, FailureKind: httpapi.OptionalString(string(kind))}
 	if c.LastSync != nil {
 		summary := newSummaryJSON(*c.LastSync, caller)
 		out.LastSync = &summary
