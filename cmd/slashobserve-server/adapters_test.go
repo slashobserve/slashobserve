@@ -54,7 +54,7 @@ func TestRevisionsBuildErrorKeepsTheLatestVersionOfAConflict(t *testing.T) {
 
 func TestRevisionsBuildErrorPassesAnUnknownErrorThrough(t *testing.T) {
 	other := errors.New("database down")
-	if got := revisionsBuildError(other); got != other {
+	if got := revisionsBuildError(other); !errors.Is(got, other) {
 		t.Errorf("mapped to %v, want the same error", got)
 	}
 }
@@ -66,7 +66,7 @@ func TestSaveAnswerErrorHidesAnAnswerFromAnyoneButItsRequester(t *testing.T) {
 		{"wrapped", fmt.Errorf("save: %w", findings.ErrRequesterOnly), revisions.ErrNotRequester},
 	}, saveAnswerError)
 	other := errors.New("database down")
-	if got := saveAnswerError(other); got != other {
+	if got := saveAnswerError(other); !errors.Is(got, other) {
 		t.Errorf("unknown error mapped to %v, want it passed through", got)
 	}
 	if got := saveAnswerError(nil); got != nil {
@@ -88,7 +88,7 @@ func TestShareAnswerErrorMapsEachRefusal(t *testing.T) {
 
 func TestShareAnswerErrorPassesOtherErrorsThrough(t *testing.T) {
 	other := errors.New("database down")
-	if got := shareAnswerError(other); got != other {
+	if got := shareAnswerError(other); !errors.Is(got, other) {
 		t.Errorf("unknown error mapped to %v, want it passed through", got)
 	}
 	notWrongThread := &threads.InvalidInputError{Code: threads.CodeInvalidMention}
@@ -102,7 +102,7 @@ func TestOpenObservationErrorMapsNotFoundOnly(t *testing.T) {
 		{"not found", observations.ErrNotFound, revisions.ErrObservationNotFound},
 	}, openObservationError)
 	other := errors.New("database down")
-	if got := openObservationError(other); got != other {
+	if got := openObservationError(other); !errors.Is(got, other) {
 		t.Errorf("unknown error mapped to %v, want it passed through", got)
 	}
 	if got := openObservationError(nil); got != nil {
