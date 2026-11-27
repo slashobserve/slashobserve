@@ -288,8 +288,18 @@
             "markdown": "Checkout p99 rose to 9.3 s and 2,950 orders failed.",
             "onset": "2026-11-20T10:05:00Z",
             "root_cause": {
+              "band": "low",
               "component": "cartservice",
               "kind": "dependency",
+              "score": 0.05,
+              "signals": {
+                "component": false,
+                "kinds": [],
+                "onset_fact": false,
+                "onset_read": true,
+                "ruled_out": false,
+                "trigger_read": false
+              },
               "summary": "s"
             },
             "title": "Checkout latency",
@@ -339,8 +349,18 @@
             "markdown": "Checkout p99 rose to 523 ms, up from 287 ms.",
             "onset": "2026-11-20T10:05:00Z",
             "root_cause": {
+              "band": "low",
               "component": "checkout",
               "kind": "dependency",
+              "score": 0.15,
+              "signals": {
+                "component": true,
+                "kinds": [],
+                "onset_fact": false,
+                "onset_read": true,
+                "ruled_out": false,
+                "trigger_read": false
+              },
               "summary": "s"
             },
             "title": "Checkout latency",
@@ -402,8 +422,18 @@
             "markdown": "Checkout p99 rose to 523 ms, up from 287 ms.",
             "onset": "2026-11-20T10:05:00Z",
             "root_cause": {
+              "band": "low",
               "component": "checkout",
               "kind": "dependency",
+              "score": 0.15,
+              "signals": {
+                "component": true,
+                "kinds": [],
+                "onset_fact": false,
+                "onset_read": true,
+                "ruled_out": false,
+                "trigger_read": false
+              },
               "summary": "s"
             },
             "title": "Checkout latency",
@@ -545,8 +575,18 @@
           "saved": {
             "markdown": "Traces took [figure not read] over 640 metrics, not 9.3 s, 2,950, 4,321 or 7,700 ms; the match is at line 4,821.",
             "root_cause": {
+              "band": "low",
               "component": "adFailure",
               "kind": "config",
+              "score": 0.1,
+              "signals": {
+                "component": true,
+                "kinds": [],
+                "onset_fact": false,
+                "onset_read": false,
+                "ruled_out": false,
+                "trigger_read": false
+              },
               "summary": "s"
             },
             "unverified": [

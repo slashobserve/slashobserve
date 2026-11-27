@@ -1,7 +1,7 @@
 import { readsData } from "../phase"
 import type { CallMeta } from "../protocol"
 import type { Task } from "../route/route"
-import { scoredCauses, type ScoredCause } from "./causes"
+import { scoredCauses, scoredRootCause, type ScoredCause } from "./causes"
 import { issueFacts } from "./facts"
 import { sendBackProblems, type Unverified, unverifiedOf } from "./problems"
 import {
@@ -91,6 +91,7 @@ export type SaveCheck = {
   sendBack: string
   unverified: Unverified[]
   causes: ScoredCause[] | undefined
+  rootCause?: ScoredCause | undefined
 }
 
 export function checkSave(
@@ -112,6 +113,7 @@ export function checkSave(
     sendBack: sendBack.length > 0 ? sendBackProblems(sendBack) : "",
     unverified: unverifiedOf(problems),
     causes: scoredCauses(r, input),
+    rootCause: scoredRootCause(r, input),
   }
 }
 
@@ -119,6 +121,17 @@ type Fields = Record<string, unknown>
 
 function isFields(v: unknown): v is Fields {
   return typeof v === "object" && v !== null && !Array.isArray(v)
+}
+
+function scoreInto(c: Fields, scored: ScoredCause): void {
+  c["signals"] = scored.signals
+  c["score"] = scored.score
+  c["band"] = scored.band
+  if (scored.queries.length > 0) {
+    c["queries"] = scored.queries
+  } else {
+    delete c["queries"]
+  }
 }
 
 export function savedFinding(
@@ -144,8 +157,13 @@ export function savedFinding(
     }
   }
   const rootCause = out["root_cause"]
-  if (isFields(rootCause) && "summary" in rootCause) {
-    rootCause["summary"] = rendered(rootCause["summary"])
+  if (isFields(rootCause)) {
+    if ("summary" in rootCause) {
+      rootCause["summary"] = rendered(rootCause["summary"])
+    }
+    if (check.rootCause) {
+      scoreInto(rootCause, check.rootCause)
+    }
   }
   for (const key of ["ruled_out", "next_steps"]) {
     const list = out[key]
@@ -164,14 +182,7 @@ export function savedFinding(
       }
       const scored = check.causes?.[i]
       if (scored) {
-        c["signals"] = scored.signals
-        c["score"] = scored.score
-        c["band"] = scored.band
-        if (scored.queries.length > 0) {
-          c["queries"] = scored.queries
-        } else {
-          delete c["queries"]
-        }
+        scoreInto(c, scored)
       }
     })
   }

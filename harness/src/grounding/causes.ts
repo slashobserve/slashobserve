@@ -286,13 +286,14 @@ export type ScoredCause = {
   queries: string[]
 }
 
-export function scoredCauses(
+function scored(
   r: GroundingRecord | undefined,
-  input: unknown
+  input: unknown,
+  given: boolean
 ): ScoredCause[] | undefined {
   const signals = causeSignals(r, input)
   const in_ = causeInputs(input)
-  if (!signals || !in_ || !in_.given) {
+  if (!signals || !in_ || in_.given !== given) {
     return undefined
   }
   const ledger = ledgerOf(r) as Ledger
@@ -306,4 +307,18 @@ export function scoredCauses(
       queries: queriesOf(ledger, c.facts),
     }
   })
+}
+
+export function scoredCauses(
+  r: GroundingRecord | undefined,
+  input: unknown
+): ScoredCause[] | undefined {
+  return scored(r, input, true)
+}
+
+export function scoredRootCause(
+  r: GroundingRecord | undefined,
+  input: unknown
+): ScoredCause | undefined {
+  return scored(r, input, false)?.[0]
 }

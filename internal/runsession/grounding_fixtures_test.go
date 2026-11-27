@@ -132,7 +132,12 @@ func savedOf(t *testing.T, input json.RawMessage, check groundingCheck) map[stri
 			out[key] = render(v)
 		}
 	}
+	causes, _ := out["causes"].([]any)
 	if cause, ok := out["root_cause"].(map[string]any); ok {
+		if len(causes) == 0 && len(check.signals) == 1 {
+			text := func(v any) string { s, _ := v.(string); return s }
+			scoreCause(cause, check, grounding.CitedFacts(text(out["markdown"]), text(out["impact"]), text(cause["summary"])), 0)
+		}
 		if v, ok := cause["summary"]; ok {
 			cause["summary"] = render(v)
 		}
@@ -144,7 +149,6 @@ func savedOf(t *testing.T, input json.RawMessage, check groundingCheck) map[stri
 			}
 		}
 	}
-	causes, _ := out["causes"].([]any)
 	for i, raw := range causes {
 		c, ok := raw.(map[string]any)
 		if !ok {
@@ -156,8 +160,6 @@ func savedOf(t *testing.T, input json.RawMessage, check groundingCheck) map[stri
 		if i >= len(check.signals) {
 			continue
 		}
-		score := findings.Score(check.signals[i])
-		c["signals"], c["score"], c["band"] = signalsMap(check.signals[i]), score, findings.BandOf(score)
 		var facts []string
 		if evidence, ok := c["evidence"].(map[string]any); ok {
 			list, _ := evidence["facts"].([]any)
@@ -167,15 +169,21 @@ func savedOf(t *testing.T, input json.RawMessage, check groundingCheck) map[stri
 				}
 			}
 		}
-		s := findings.Structured{Causes: []findings.Cause{{Evidence: findings.CauseEvidence{Facts: facts}}}}
-		s.WithQueries(check.ledger.QueryOf)
-		if queries := s.Causes[0].Evidence.Queries; len(queries) > 0 {
-			c["queries"] = queries
-		} else {
-			delete(c, "queries")
-		}
+		scoreCause(c, check, facts, i)
 	}
 	return out
+}
+
+func scoreCause(c map[string]any, check groundingCheck, facts []string, i int) {
+	score := findings.Score(check.signals[i])
+	c["signals"], c["score"], c["band"] = signalsMap(check.signals[i]), score, findings.BandOf(score)
+	s := findings.Structured{Causes: []findings.Cause{{Evidence: findings.CauseEvidence{Facts: facts}}}}
+	s.WithQueries(check.ledger.QueryOf)
+	if queries := s.Causes[0].Evidence.Queries; len(queries) > 0 {
+		c["queries"] = queries
+	} else {
+		delete(c, "queries")
+	}
 }
 
 func TestGroundingSessionFixtures(t *testing.T) {
