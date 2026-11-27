@@ -76,8 +76,8 @@ func TestReportStoresTheUnverifiedItemsAndAdmitsTheSave(t *testing.T) {
 	if got.answer != nil {
 		t.Fatalf("report sent the finding back: %s", got.answer.Content)
 	}
-	if !slices.Equal(got.unverified, ungroundedItems) {
-		t.Errorf("unverified = %+v\nwant %+v", got.unverified, ungroundedItems)
+	if !slices.Equal(got.grounding.unverified, ungroundedItems) {
+		t.Errorf("unverified = %+v\nwant %+v", got.grounding.unverified, ungroundedItems)
 	}
 }
 
@@ -109,8 +109,8 @@ func TestEnforceSendsBackOnceAndAcceptsARepairedFinding(t *testing.T) {
 	if second.answer != nil {
 		t.Fatalf("the repaired finding was refused: %s", second.answer.Content)
 	}
-	if len(second.unverified) != 0 {
-		t.Errorf("unverified = %+v, want none", second.unverified)
+	if len(second.grounding.unverified) != 0 {
+		t.Errorf("unverified = %+v, want none", second.grounding.unverified)
 	}
 }
 
@@ -125,8 +125,8 @@ func TestEnforceAcceptsTheSecondSaveAndKeepsItsUnverifiedItems(t *testing.T) {
 	if second.answer != nil {
 		t.Fatalf("the second save was refused: %s", second.answer.Content)
 	}
-	if !slices.Equal(second.unverified, ungroundedItems) {
-		t.Errorf("unverified = %+v\nwant %+v", second.unverified, ungroundedItems)
+	if !slices.Equal(second.grounding.unverified, ungroundedItems) {
+		t.Errorf("unverified = %+v\nwant %+v", second.grounding.unverified, ungroundedItems)
 	}
 	if s.sess.state.Guard.Rejections != 0 || s.sess.ended {
 		t.Errorf("rejections = %d, ended = %t, want neither", s.sess.state.Guard.Rejections, s.sess.ended)
@@ -138,8 +138,11 @@ func TestWithGroundingOffNothingIsRecordedOrChecked(t *testing.T) {
 	s.queryLatency(&Turn{ID: "t1", Calls: 1})
 
 	got := s.admitSave(ungroundedFinding, &Turn{ID: "t2", Calls: 1})
-	if got.answer != nil || got.unverified != nil {
-		t.Fatalf("off changed the save: %+v, %+v", got.answer, got.unverified)
+	if got.answer != nil || got.grounding.unverified != nil {
+		t.Fatalf("off changed the save: %+v, %+v", got.answer, got.grounding.unverified)
+	}
+	if got.grounding.scored || got.grounding.signals != nil {
+		t.Errorf("off scored the causes: %+v", got.grounding)
 	}
 	raw, err := json.Marshal(s.sess.state)
 	if err != nil {

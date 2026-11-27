@@ -245,7 +245,9 @@ func SendBack(items []findings.Unverified) string {
 func describe(kind string) string {
 	switch kind {
 	case findings.UnverifiedComponent:
-		return "root_cause.component, not a name this run saw,"
+		return "component, not a name this run saw,"
+	case findings.UnverifiedTrigger:
+		return "trigger key, not a name this run saw,"
 	case findings.UnverifiedOnset:
 		return "onset, outside every time range this run queried,"
 	case findings.UnverifiedFact:

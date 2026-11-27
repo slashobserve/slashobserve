@@ -13,6 +13,7 @@ const (
 	UnverifiedOnset     = "onset"
 	UnverifiedFact      = "fact"
 	UnverifiedTraceID   = "trace_id"
+	UnverifiedTrigger   = "trigger"
 )
 
 type Unverified struct {

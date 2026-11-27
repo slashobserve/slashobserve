@@ -120,6 +120,45 @@ type findingSavedOut struct {
 	Replayed  bool   `json:"replayed"`
 	Evidence  int    `json:"evidence"`
 	Note      string `json:"note,omitempty"`
+
+	Causes []causeOut `json:"causes,omitempty"`
+}
+
+type causeOut struct {
+	Component  string   `json:"component"`
+	Confidence *float64 `json:"confidence"`
+	Band       *string  `json:"band"`
+	Stated     bool     `json:"stated"`
+}
+
+func causesOut(causes []findings.Cause) []causeOut {
+	out := make([]causeOut, len(causes))
+	for i, c := range causes {
+		out[i] = causeOut{Component: c.Component.Text(), Confidence: c.Score, Stated: c.Stated}
+		if c.Band != "" {
+			out[i].Band = &c.Band
+		}
+	}
+	return out
+}
+
+func withLegacyFacts(ctx context.Context, in findingInput) findingInput {
+	if _, ok := factsOf(ctx); ok && len(in.Causes) == 0 && in.RootCause != nil {
+		in.LegacyFacts = grounding.CitedFacts(in.Markdown, in.Impact, in.RootCause.Summary)
+	}
+	return in
+}
+
+func scoredCauses(ctx context.Context, s *findings.Structured) string {
+	signals, ok := causeSignalsOf(ctx)
+	if !ok || len(s.Causes) == 0 {
+		return ""
+	}
+	notes := s.Score(signals)
+	if ledger, ok := factsOf(ctx); ok {
+		s.WithQueries(ledger.QueryOf)
+	}
+	return findings.ScoreNote(notes)
 }
 
 func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -130,6 +169,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
+	in = withLegacyFacts(ctx, in)
 	in = renderedFinding(ctx, in)
 	run, _ := RunFrom(ctx)
 	principal, _ := auth.FromContext(ctx)
@@ -161,6 +201,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	}
 	save.AgentRequestID, save.DashboardID, save.AskDashboardID = requestID, dashboardID, extras.askOn
 	save.SuggestedChange, save.ObserveWorthy = suggested, in.ObserveWorthy
+	scoreNote := scoredCauses(ctx, &extras.structured)
 	save.Structured = extras.structured
 	save.Unverified = unverifiedOf(ctx)
 	save.AsOf = run.asOf()
@@ -174,9 +215,11 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil {
 		return Result{}, err
 	}
-	out := findingSavedOut{FindingID: f.ID, URL: r.findingURL(f), Replayed: replayed, Evidence: len(f.Evidence)}
+	out := findingSavedOut{FindingID: f.ID, URL: r.findingURL(f), Replayed: replayed, Evidence: len(f.Evidence), Causes: causesOut(f.Structured.Causes)}
 	if extras.droppedStructured {
 		out.Note = noteStructuredDropped
+	} else {
+		out.Note = scoreNote
 	}
 	return success(stepSavedAnswer, out), nil
 }
@@ -195,6 +238,13 @@ func renderedFinding(ctx context.Context, in findingInput) findingInput {
 		cause := *in.RootCause
 		cause.Summary = render(cause.Summary)
 		in.RootCause = &cause
+	}
+	if len(in.Causes) > 0 {
+		causes := slices.Clone(in.Causes)
+		for i := range causes {
+			causes[i].Mechanism = render(causes[i].Mechanism)
+		}
+		in.Causes = causes
 	}
 	in.RuledOut = renderedAll(in.RuledOut, render)
 	in.NextSteps = renderedAll(in.NextSteps, render)

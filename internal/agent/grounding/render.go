@@ -46,6 +46,11 @@ func (l *Ledger) fact(id string) (Fact, bool) {
 	return l.Facts[i], true
 }
 
+func (l *Ledger) QueryOf(id string) string {
+	f, _ := l.fact(id)
+	return f.Query
+}
+
 type citation struct {
 	text    string
 	id      string

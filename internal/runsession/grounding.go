@@ -13,15 +13,27 @@ func groundsFindings(c guard.Call, res tools.Result) bool {
 	return guard.ReadsData(c.Name) || res.Discovered != nil
 }
 
-func (s *State) checkGrounding(c *guard.Call, question string) ([]findings.Unverified, *grounding.Ledger) {
+type groundingCheck struct {
+	unverified []findings.Unverified
+	ledger     *grounding.Ledger
+	signals    []findings.Signals
+	scored     bool
+}
+
+func (s *State) checkGrounding(c *guard.Call, question string) groundingCheck {
 	if s.Grounding == nil || c.Name != toolSaveFinding {
-		return nil, nil
+		return groundingCheck{}
 	}
 	problems := s.Grounding.Review(c.Input, question)
 	if len(problems) > 0 && s.Grounding.Enforced() {
 		c.Ungrounded = grounding.SendBackProblems(problems)
 	}
-	return grounding.Unverified(problems), s.Grounding.Ledger()
+	return groundingCheck{
+		unverified: grounding.Unverified(problems),
+		ledger:     s.Grounding.Ledger(),
+		signals:    s.Grounding.CauseSignals(c.Input),
+		scored:     true,
+	}
 }
 
 func (s *State) noteGrounding(c guard.Call, d dispatched) {

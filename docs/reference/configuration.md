@@ -399,6 +399,10 @@ The record holds up to 2,000 numbers, rounded to 3 significant figures and kept 
 A cited fact always passes, a typed figure within 1% of a fact passes and one further from it than 1% but within the tolerance below does not, a trace or span id passes only whole and read, and figures that are not measurements, such as a number from the question, a version, a port, an HTTP status, a window or step duration or a year, are not checked; otherwise a figure in the Markdown or the impact passes when it is within 2% of a number the run read, or within the precision it was written with but never more than 10% away, or when it is the difference, sum, ratio or percentage change of two numbers from the same read; a percentage is compared as a fraction.
 Times, dates, whole numbers of 10 or less with no unit, code spans and links are not checked, a small number with a unit such as `3 s` is, and `ms` and `s` and `K` and `M` are read as units.
 `root_cause.component` passes when it matches a name the run discovered or saw as a label value or a trace's service, as a whole or by whole words, and `onset` passes when it falls inside a time range the run queried or next to a time a result showed, give or take a minute.
+Each entry of `causes` is checked the same way: its component name, its trigger key, its onset, each fact id of its evidence, which must be one the run's results gave, and each trace id, which must be one it read.
+
+With `report` or `enforce`, the server also scores each cause from 0 to 1 from what it can check, and that score decides whether the finding states the cause; see [Investigate](../concepts/investigate.md#causes-and-confidence).
+With `off`, causes are not scored and every cause is stated.
 
 The measurement and trace reads also number their values as facts (`"facts":{"value":"f3"}` beside the value), and the run keeps the newest 400 facts with their full-precision values, labels, windows and queries; see [Investigate](../concepts/investigate.md#facts).
 

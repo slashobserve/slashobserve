@@ -198,6 +198,34 @@ The check never fails a run, and with `off`, the default, nothing is recorded.
 The stored items are returned as `unverified` on the finding and on each entry of the observation's `findings`, and the observation shows one line under its header, such as `2 figures were not found in what the agent read: 9.3 s, 2,950`.
 `observe investigate` prints the same items with the summary lines before the answer.
 
+### Causes and confidence
+
+An investigation's finding lists every cause the evidence supports, up to 6, most confident first, in `causes`; see [Structured fields](../use/investigate.md#structured-fields) for each cause's fields.
+A cause that only follows another, such as a second service failing on its calls to the first, is listed as a knock-on of that cause, never as a root cause of its own.
+
+With `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, the server scores each cause from 0 to 1 when the finding is saved.
+The agent may give its own `estimate`, but the stored `confidence` is the server's, from what the run read:
+
+| Signal | Adds |
+| --- | --- |
+| A cited fact of the cause's evidence the run holds, or a trace id it read, on one of metrics, logs and traces | 0.25 |
+| Each further one of those three signals with such evidence | 0.15 |
+| The component is a name the run saw | 0.1 |
+| The onset agrees with a cited fact's time, within 5 minutes of it or inside its window | 0.15 |
+| Otherwise, the onset falls inside a time range the run read | 0.05 |
+| The trigger's key is a name the run saw | 0.2 |
+| A `ruled_out` line cites a fact the run holds | 0.05 |
+
+The sum is capped at 1, and a cause with no cited fact the run holds and no trace id it read scores at most 0.3, so it is always low.
+A score of 0.7 or more is `high`, of 0.4 or more is `medium`, and below that is `low`.
+A cause scored `medium` or `high` is stated (`stated: true`); a `low` one is listed as unconfirmed, so a report can leave it out or name it as unexplored.
+So a fact on a metric, a component the run saw and an onset that agrees with the fact make a medium cause, adding a trigger the run read makes it high, and a symptom alone, a fact and a component, stays low.
+The causes are kept in the agent's order within a band, and the bands are sorted high first.
+`save_finding` answers with each cause's score and band, and says so when a cause is unconfirmed or when the agent's estimate is two bands away from the score.
+
+With `off`, causes are not scored: `confidence` and `band` are null and every cause is stated.
+`root_cause` is the first stated cause that is not a knock-on, and null when there is none.
+
 ## Where the answer goes
 
 The answer lives in an observation: a text block that starts with `## <title>`, and one panel block for each evidence panel.
