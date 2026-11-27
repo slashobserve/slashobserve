@@ -195,8 +195,11 @@ describe("SourceList", () => {
       queryClient.setQueryData(datasourceKeys.list(), {
         datasources: [
           source("loki", "Loki"),
-          source("tempo", "Tempo", { type: "tempo" }),
-          source("tempo2", "Tempo two", { type: "tempo" }),
+          source("tempo", "Tempo", { type: "tempo", trace_search: true }),
+          source("tempo2", "Tempo two", {
+            type: "tempo",
+            trace_search: true,
+          }),
           source("prom", "Prometheus", { type: "prometheus" }),
           source("prom2", "Prometheus two", { type: "prometheus" }),
         ],
@@ -263,8 +266,11 @@ describe("SourceList", () => {
       const queryClient = testQueryClient()
       queryClient.setQueryData(datasourceKeys.list(), {
         datasources: [
-          source("tempo", "Tempo", { type: "tempo" }),
-          source("tempo2", "Tempo two", { type: "tempo" }),
+          source("tempo", "Tempo", { type: "tempo", trace_search: true }),
+          source("tempo2", "Tempo two", {
+            type: "tempo",
+            trace_search: true,
+          }),
         ],
       })
       renderWithProviders(<ListedSources kind="traces" />, {

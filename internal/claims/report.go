@@ -21,9 +21,10 @@ import (
 const timeLimitMessage = "the run passed its time limit"
 
 type ReportInput struct {
-	RunID   string `json:"run_id"`
-	Attempt int    `json:"attempt"`
-	Note    string `json:"note"`
+	RunID      string `json:"run_id"`
+	Attempt    int    `json:"attempt"`
+	ClaimEpoch int    `json:"claim_epoch"`
+	Note       string `json:"note"`
 }
 
 type ReportAnswer struct {
@@ -33,7 +34,7 @@ type ReportAnswer struct {
 }
 
 func (s *Service) Report(ctx context.Context, c Claimer, in ReportInput) (ReportAnswer, error) {
-	row, err := s.claimedRun(ctx, c, in.RunID, in.Attempt)
+	row, err := s.claimedRun(ctx, c, in.RunID, in.Attempt, in.ClaimEpoch)
 	if err != nil {
 		return ReportAnswer{}, err
 	}
@@ -74,13 +75,13 @@ type ReleaseAnswer struct {
 	State string `json:"state"`
 }
 
-func (s *Service) Release(ctx context.Context, c Claimer, runID string, attempt int) (ReleaseAnswer, error) {
-	row, err := s.claimedRun(ctx, c, runID, attempt)
+func (s *Service) Release(ctx context.Context, c Claimer, runID string, attempt, claimEpoch int) (ReleaseAnswer, error) {
+	row, err := s.claimedRun(ctx, c, runID, attempt, claimEpoch)
 	if err != nil {
 		return ReleaseAnswer{}, err
 	}
 	if !revisions.State(row.State).Terminal() {
-		// The next claim reuses this attempt number, so the run is requeued only once its tokens are deleted.
+		// DeleteRunTokens deletes by run, so after the release it could take the next holder's token.
 		if err := s.db.Queries().DeleteRunTokens(ctx, row.ID); err != nil {
 			return ReleaseAnswer{}, fmt.Errorf("delete the run's tokens before its release: %w", err)
 		}
@@ -95,8 +96,8 @@ func (s *Service) Release(ctx context.Context, c Claimer, runID string, attempt 
 	return ReleaseAnswer{State: stored.State}, nil
 }
 
-func (s *Service) ClaimedRun(ctx context.Context, c Claimer, runID string, attempt int) (revisions.Request, error) {
-	row, err := s.claimedRun(ctx, c, runID, attempt)
+func (s *Service) ClaimedRun(ctx context.Context, c Claimer, runID string, attempt, claimEpoch int) (revisions.Request, error) {
+	row, err := s.claimedRun(ctx, c, runID, attempt, claimEpoch)
 	if err != nil {
 		return revisions.Request{}, err
 	}
@@ -112,13 +113,13 @@ func (s *Service) ClaimedRun(ctx context.Context, c Claimer, runID string, attem
 	return req, nil
 }
 
-func (s *Service) claimedRun(ctx context.Context, c Claimer, runID string, attempt int) (dbsqlc.AgentRequest, error) {
+func (s *Service) claimedRun(ctx context.Context, c Claimer, runID string, attempt, claimEpoch int) (dbsqlc.AgentRequest, error) {
 	id, err := db.ParseUUID(runID)
-	if err != nil || attempt < 1 || attempt > math.MaxInt32 {
+	if err != nil || attempt < 1 || attempt > math.MaxInt32 || claimEpoch < 0 || claimEpoch > math.MaxInt32 {
 		return dbsqlc.AgentRequest{}, ErrNotYourRun
 	}
 	row, err := s.db.Queries().GetClaimedAgentRequest(ctx, dbsqlc.GetClaimedAgentRequestParams{
-		ID: id, Attempts: int32(attempt), ClaimedBy: textOf(c.claimant().Key()),
+		ID: id, Attempts: int32(attempt), ClaimedBy: textOf(c.claimant().Key()), ClaimEpoch: int32(claimEpoch),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return dbsqlc.AgentRequest{}, ErrNotYourRun
@@ -127,7 +128,7 @@ func (s *Service) claimedRun(ctx context.Context, c Claimer, runID string, attem
 }
 
 func (s *Service) deadlinePassed(ctx context.Context, row dbsqlc.AgentRequest) (bool, error) {
-	deadline, err := s.db.Queries().GetRunTokenDeadline(ctx, dbsqlc.GetRunTokenDeadlineParams{AgentRequestID: row.ID, Attempt: row.Attempts})
+	deadline, err := s.db.Queries().GetRunTokenDeadline(ctx, dbsqlc.GetRunTokenDeadlineParams{AgentRequestID: row.ID, Attempt: row.Attempts, ClaimEpoch: row.ClaimEpoch})
 	if err != nil {
 		return false, err
 	}
@@ -136,7 +137,7 @@ func (s *Service) deadlinePassed(ctx context.Context, row dbsqlc.AgentRequest) (
 
 func (s *Service) renewTokens(ctx context.Context, row dbsqlc.AgentRequest) error {
 	return s.db.Queries().RenewRunTokens(ctx, dbsqlc.RenewRunTokensParams{
-		AgentRequestID: row.ID, Attempt: row.Attempts, ExpiresAt: pgtype.Timestamptz{Time: s.tokenExpiry(), Valid: true},
+		AgentRequestID: row.ID, Attempt: row.Attempts, ClaimEpoch: row.ClaimEpoch, ExpiresAt: pgtype.Timestamptz{Time: s.tokenExpiry(), Valid: true},
 	})
 }
 

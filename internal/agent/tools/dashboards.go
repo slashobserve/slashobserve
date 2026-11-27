@@ -333,6 +333,7 @@ type savedOut struct {
 	URL              string                 `json:"url"`
 	Replayed         *bool                  `json:"replayed,omitempty"`
 	MergedFrom       *dashboards.MergedFrom `json:"merged_from,omitempty"`
+	Outcome          string                 `json:"outcome,omitempty"`
 	Panels           []panelOut             `json:"panels"`
 	Truncated        bool                   `json:"truncated,omitempty"`
 	UnverifiedPanels []string               `json:"unverified_panels,omitempty"`
@@ -358,6 +359,7 @@ type proposedOut struct {
 	Opened     bool   `json:"opened"`
 	URL        string `json:"url"`
 	Message    string `json:"message"`
+	Outcome    string `json:"outcome"`
 }
 
 type proposalRequiredOut struct {
@@ -610,6 +612,7 @@ func (r *Registry) saveSucceeded(ctx context.Context, saved dashboards.SaveResul
 	}
 	out := r.savedOut(saved.Dashboard, saved.Version, &saved.Replayed)
 	out.MergedFrom = saved.MergedFrom
+	out.Outcome = saved.Outcome()
 	out = withAdvice(ctx, out, saved.Version.Spec)
 	out.noteDroppedVariables(before, saved.Version.Spec)
 	return success(savedStep(saved), out)
@@ -632,6 +635,7 @@ func (r *Registry) proposed(saved dashboards.SaveResult) Result {
 		Opened:     ref.Opened,
 		URL:        links.Dashboard(r.deps.PublicURL, saved.Dashboard.ID, saved.Dashboard.Title),
 		Message:    proposedMessage,
+		Outcome:    saved.Outcome(),
 	})
 }
 

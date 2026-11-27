@@ -44,7 +44,7 @@ func (s *claimingService) Claim(_ context.Context, c claims.Claimer, _ time.Dura
 	return claims.Offer{Run: &claims.OfferedRun{ID: runRequestID, Attempt: 1, Kind: "create", Intent: "ask", Prompt: "checkout latency"}}, nil
 }
 
-func (*claimingService) ClaimedRun(context.Context, claims.Claimer, string, int) (revisions.Request, error) {
+func (*claimingService) ClaimedRun(context.Context, claims.Claimer, string, int, int) (revisions.Request, error) {
 	return revisions.Request{}, claims.ErrNotYourRun
 }
 
@@ -52,7 +52,7 @@ func (*claimingService) Report(context.Context, claims.Claimer, claims.ReportInp
 	return claims.ReportAnswer{}, claims.ErrNotYourRun
 }
 
-func (*claimingService) Release(context.Context, claims.Claimer, string, int) (claims.ReleaseAnswer, error) {
+func (*claimingService) Release(context.Context, claims.Claimer, string, int, int) (claims.ReleaseAnswer, error) {
 	return claims.ReleaseAnswer{}, claims.ErrNotYourRun
 }
 
