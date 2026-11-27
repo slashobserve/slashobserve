@@ -95,7 +95,7 @@ Point your load balancer or orchestrator at these endpoints.
 | Endpoint | Meaning |
 | --- | --- |
 | `GET /healthz` | Liveness. It checks nothing else, so use it to decide whether to restart. |
-| `GET /readyz` | Readiness. It returns 200 when Postgres answers and no migration is pending, and 503 otherwise. |
+| `GET /readyz` | Readiness. It returns 200 when Postgres answers and no migration is pending, and 503 otherwise, and 503 with `status` `stopping` from the shutdown signal on. |
 
 The `/readyz` body names each check:
 

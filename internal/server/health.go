@@ -22,12 +22,19 @@ type readinessResponse struct {
 	Checks map[string]string `json:"checks"`
 }
 
-func registerHealthRoutes(engine *gin.Engine, logger *slog.Logger, checks []Check) {
+func registerHealthRoutes(engine *gin.Engine, logger *slog.Logger, checks []Check, draining <-chan struct{}) {
 	healthz := func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
 		c.JSON(http.StatusOK, healthResponse{Status: "ok"})
 	}
 	readyz := func(c *gin.Context) {
+		select {
+		case <-draining:
+			c.Header("Cache-Control", "no-store")
+			c.JSON(http.StatusServiceUnavailable, readinessResponse{Status: "stopping", Checks: map[string]string{}})
+			return
+		default:
+		}
 		ctx, cancel := context.WithTimeout(c.Request.Context(), readinessTimeout)
 		defer cancel()
 		resp := readinessResponse{Status: "ok", Checks: make(map[string]string, len(checks))}
