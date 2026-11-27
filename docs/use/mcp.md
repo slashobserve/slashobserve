@@ -344,7 +344,7 @@ The built-in agent needs a model provider on the server; without one, `start_run
 
 ## Take runs as an agent
 
-An outside agent can do the runs that people hand to it, with its own model and under the guards of SlashObserve's own agent.
+An outside agent can do the runs that people hand to it, with its own model, inside the run's lifecycle that the server keeps.
 A run reaches it when a comment mentions it and starts a run: `@[Name](grant:<id>)` for a connected agent and `@[Name](service_account:<id>)` for a service account (see [Give an agent a run](agents.md#give-an-agent-a-run)).
 The run waits in the queue, assigned to that one agent, and only that agent can claim it.
 Only a mention assigns a run to an outside agent, and the built-in agent never takes one.
@@ -414,36 +414,22 @@ A report that arrives after the time limit ends the run as failed.
 A run that saved a dashboard version, a [proposal](../concepts/proposals.md) or a finding ends as succeeded whatever `finish_run` says, and one that saved nothing ends as failed.
 A run that no outside agent took within 10 minutes fails as `agent_unavailable`.
 
-### The run session enforces the guards
+### The run session keeps the lifecycle
 
-The server enforces the guards of [SlashObserve's own agent](../concepts/agent.md#guards) on every run session, whatever agent works in it, except a run its own agent claimed with `harness: true` (below):
+The server keeps the lifecycle of every run session, whatever agent works in it: the build, the steps, how a save settles the run, the parent version the run's saves are checked against, the rebase or restart on a conflict, usage, the cost limit, the lease and the write scope.
+The guards, the grounding check, the preflight sweep and the routing of an investigation belong to [SlashObserve's own agent](../concepts/agent.md#guards), which keeps them in its own process; an outside agent keeps whatever guards of its own it needs:
 
-- The save-now window: after 6 turns without a save, 12 in a suggest run and `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` (by default the task type's limit, 12 to 30, and 12 in a create run) in an investigate run and in a create run until its first panel is saved, only a save runs and a read in a turn without a save is refused; the call before the limit gets a note.
-- Identical reads: a third identical read is refused, and an errored read or a query result runs again.
-- One save per turn: a second save in one turn is refused.
-- Repeated saves: a save identical to an earlier one is refused.
-- Rejected saves in a row: the third ends the run as `validation_exhausted`.
-- Saves refused with `restricted_answer` in a row: the third ends the run as `restricted_answer`, and they do not count as rejected saves.
-- Stalled turns: two turns in a row in which every call was refused end the run as `no_progress`.
-- The hypothesis ledger: with `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, an investigate run has `note_hypotheses`, which a connected agent gets only in an investigate run with a run token and `get_run_brief` gives it the prompt section too, never outside a run; its calls are neither reads nor writes, so they are not refused at the call limit, and a turn with only ledger calls counts as stalled.
-  The stages, the stage line after each turn and the call limit that grow with progress (`SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`) belong to the built-in agent only; a connected agent never sees a stage line and keeps the fixed limit.
+- The hypothesis ledger: with `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, an investigate run has `note_hypotheses`, which a connected agent gets only in an investigate run with a run token, never outside a run; the run stores the ledger it was last given.
 - Whole series: an investigate run with a run token also has `read_series`, never outside a run, which gives every point of a range query as `[unix seconds, value]` per series, at most 50 series and about `max_data_points` (10 to 150, default 120) points each, with `truncated` when it cut; the built-in agent sweeps with it before its first model call, and `query_range` stays the read for checking a query.
-- The grounding check: with `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `enforce`, the default, a finding saved in a run is checked against what the run read, for a connected agent as for the built-in one; the measurement, trace, `log_facets` and `log_patterns` reads then carry fact ids in `facts`, `save_finding` cites them as `{{f3}}` and lists `answers`, and the server writes the values into the text before it is stored.
-  With `enforce`, `save_finding` is sent back once with the figures and names that were not found, the next call may read past the call limit, and the second save is accepted; the send-back is not a rejected save.
-  Each entry of an investigation's `causes` is then scored from the evidence, and `save_finding` answers with each cause's `confidence`, `band` and `stated`; see [Causes and confidence](../concepts/investigate.md#causes-and-confidence).
-  In a run of SlashObserve's own agent, `save_finding` also takes the agent's own `unverified`, `reads_refused` and `unchecked` and, for each cause (or a legacy `root_cause`), `signals`, `score`, `band` and `queries`, and uses them in place of what the server works out; a connected agent's values for these are ignored.
-- Task types: an investigate run whose question the server sorted into a [task type](../concepts/investigate.md#task-types) lists only that type's tools, for a connected agent as for the built-in one, and a call to another tool answers `unknown_tool` with a line naming the run's tools; `list_more_tools`, offered only in such a run, offers every investigation tool for the rest of the run, so list the tools again after it.
-- Churn: a save that changes no panel, or changes a panel for the fifth time, gets a note, and the fourth such save in a row ends the run as `no_progress`.
+- The finding: in a run of SlashObserve's own agent, `save_finding` also takes the agent's own `unverified`, `reads_refused` and `unchecked` and, for each cause (or a legacy `root_cause`), `signals`, `score`, `band` and `queries`, which the agent works out from what the run read; a connected agent's values for these are ignored, and its causes are stored without a score.
+- Task types: SlashObserve's own agent sorts an investigation into a [task type](../concepts/investigate.md#task-types) and sends it once as `report_run`'s `task`; the run then lists only that type's tools, and a call to another tool answers `unknown_tool` with a line naming the run's tools; `list_more_tools`, offered only in such a run, offers every investigation tool for the rest of the run, so list the tools again after it.
 - The cost limit: when `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` is set and `report_run` or `finish_run` reports `usage` whose cost reaches it, the answer has `stop: true` and the run ends as `budget_exhausted`.
   Without `usage` the server cannot know the cost and never stops a run for it.
 - Conflicts: a save that finds a newer version first rebases the build onto it when the panels do not overlap, and otherwise the run restarts once from the latest version; a second conflict ends the run as `conflict`.
 
-Every call may carry `_meta["slashobserve.com/turn"]` with `{"id", "calls", "saves"}`: the id of one model turn, how many calls the turn made and how many of them save.
-The server treats the calls with one id as one turn.
-Without the key, each call is its own turn, so the stalled-turn and one-save-per-turn guards judge one call at a time.
-A key the server cannot trust (an empty or over-long id, more than 64 calls, or more saves than calls) is ignored.
-The key may also carry `usage`, the same cumulative object as `report_run`, counting the model call that made the turn, so a run the server ends on the result of that turn stores the usage including it.
+Every call may carry `_meta["slashobserve.com/turn"]` with `{"id", "calls", "saves", "usage"}`, where `usage` is the same cumulative object as `report_run`, counting the model call that made the turn, so a run the server ends on the result of that call stores the usage including it.
 The cost limit is checked only on `report_run` and `finish_run`.
+A call of SlashObserve's own agent may also carry `_meta["slashobserve.com/call"]` with `{"sweep", "step"}`: `sweep: true` marks a read of its preflight sweep, which records no step and does not count toward the run's tool calls, and `step` replaces the text of the step the call records; a call of any other agent ignores the key.
 
 Every result of a run session carries `_meta["slashobserve.com/run"]` with `{"settled", "build"}`.
 `settled` is `saved`, `proposed`, `finding`, `suggested`, `restarted`, `ended` or `null`:
@@ -455,19 +441,13 @@ Every result of a run session carries `_meta["slashobserve.com/run"]` with `{"se
 - `null` otherwise.
 
 `build` is the saved panel progress, `{"saves", "panels", "planned_panels"}`, or `null` when the run has no build.
-A result of a call that ran also carries `call`, what the call did that its content does not show; a call the server refused before it ran has none:
+A result of a call that ran also carries `call`, what the call did that its content does not show:
 
 - `edits`: `{"panels", "added", "deleted", "settings"}` for a save that changed the build, the panel ids it changed, added and deleted and whether it changed a dashboard-level field, or `null`.
 - `refusal`: `one_panel` when a build save was refused for changing more than one panel, or `null`.
 - `unchecked`: the error code of a read that could not finish, `query_timeout`, `datasource_unavailable` or `too_many_requests`, so the data it asked for is not known to be missing, or `null`.
 - `discovered`: `{"datasource", "of", "names"}` for a read that listed names, such as metrics or labels, or `null`.
 - `ranges`: each time range the call resolved and read, as `{"from", "to"}` in RFC 3339 UTC, in the order it read them; empty when it read none.
-`claim_run` takes `harness: true` only from SlashObserve's own agent, and answers `invalid_request` to any other claimer.
-Such a run's session leaves the guards to the agent: it skips the admission guards and their nudges and stops, the grounding check and the fact ids, the candidate check, the preflight sweep, the routing of an investigation and the text of the brief, so `get_run_brief` answers empty `system` and `message` with `brief` filled.
-Its agent routes an investigation itself and sends the task type once as `report_run`'s `task` (`measure`, `logs`, `traces`, `incident`, `inventory` or `explain`), which the session keeps and narrows the run's tools to, `list_more_tools` included; `task` is ignored from any other claimer and in any other session.
-It keeps the run's lifecycle: the build, the steps, how a save settles the run, the parent version pin, the rebase or restart on a conflict, usage, the cost limit, the lease and the write scope.
-In such a session a call may carry `_meta["slashobserve.com/call"]` with `{"sweep", "step"}`: `sweep: true` marks a read of the agent's preflight sweep, which records no step and counts toward neither the run's tool calls nor its data reads, and `step` replaces the text of the step the call records; in any other session the key is ignored.
-
 `get_run` and `GET /api/v1/observe/{id}` return the same `settled` value for a running run (never `restarted`, which describes one call), so a reader can tell a run that already has its result from one still working.
 They also return `check_failures` and `check_failures_max`: a run going back to the queue with that count rising is waiting on a server check, and it fails with `check_failed` at the limit.
 Some results also carry a note after the content, which an agent reads like any other tool text.
@@ -488,7 +468,7 @@ Some results also carry a note after the content, which an agent reads like any 
 - `draft`: the draft panel of a suggest run, or `null`.
 
 `agent_state` is what the agent last sent in `report_run`'s `agent_state`, or `null`.
-Calling it starts a session: it resets the read guard and pins the parent version the run's saves are checked against.
+Calling it pins the parent version the run's saves are checked against.
 The server may replace `reason`, with `conflict` after a rebase and with the resume reason when the run has a build.
 An agent that never calls it works from the claim answer and the `observe` prompt.
 It answers `run_ended` for a run that has ended.
@@ -505,7 +485,7 @@ A request on the run's token after the run ended is answered with HTTP 409 and `
   `session` is for this attempt; `carry` is also copied to the next attempt of the run, so a retry starts with it.
   A `null` part is left out.
 - `steps`: at most 20 steps of the agent's own, each with `phase` (`discover`, `lint`, `query`, `save`, `write`, `ledger`, `repair` or `stage`), an optional `tool` (at most 64 characters, `agent` when left out), `status` (`ok` or `error`) and `message` (at most 500 characters), recorded in the run's steps like the server's own.
-- `task`: SlashObserve's own agent only, in a `harness: true` run (above).
+- `task`: SlashObserve's own agent only, in an investigate run: `measure`, `logs`, `traces`, `incident`, `inventory` or `explain`, kept from the first report that sends one (above); any other claimer's `task` is ignored.
 
 Its answer has, next to `state`, `stop` and `lease_until`, the run's `build` progress and `server_time`, the server's clock when it renewed the lease.
 `lease_until` minus `server_time` is how long the lease has left, so an agent can time it on its own clock from the moment it sent the report, whatever the difference between its clock and the server's.

@@ -2,7 +2,6 @@ package runsession
 
 import (
 	"bytes"
-	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -14,9 +13,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/agent/brief"
-	"github.com/slashobserve/slashobserve/internal/agent/grounding"
-	"github.com/slashobserve/slashobserve/internal/agent/guard"
-	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
@@ -69,44 +65,35 @@ type Datasources interface {
 }
 
 type Config struct {
-	DB                    *db.DB
-	Runs                  *revisions.Service
-	Claims                *claims.Service
-	Builds                Builds
-	Dashboards            Dashboards
-	Imports               brief.ImportReader
-	Statuses              Statuses
-	Datasources           Datasources
-	Steps                 revisions.StepRecorder
-	Prices                pricing.Table
-	MaxRunCostUSD         float64
-	InvestigationCalls    int
-	InvestigationLoop     bool
-	InvestigationCallsMax int
-	FindingGrounding      grounding.Mode
-	Logger                *slog.Logger
+	DB            *db.DB
+	Runs          *revisions.Service
+	Claims        *claims.Service
+	Builds        Builds
+	Dashboards    Dashboards
+	Imports       brief.ImportReader
+	Statuses      Statuses
+	Datasources   Datasources
+	Steps         revisions.StepRecorder
+	Prices        pricing.Table
+	MaxRunCostUSD float64
+	Logger        *slog.Logger
 }
 
 type Service struct {
-	db                 *db.DB
-	runs               *revisions.Service
-	claims             *claims.Service
-	builds             Builds
-	dashboards         Dashboards
-	loader             brief.Loader
-	statuses           Statuses
-	datasources        Datasources
-	steps              revisions.StepRecorder
-	prices             pricing.Table
-	maxRunCost         float64
-	investigationCalls int
-	investigationLoop  bool
-	investigationMax   int
-	findingGrounding   grounding.Mode
-	logger             *slog.Logger
-	inFlight           slots
-	runLocks           runLocks
-	sweeper            Sweeper
+	db          *db.DB
+	runs        *revisions.Service
+	claims      *claims.Service
+	builds      Builds
+	dashboards  Dashboards
+	loader      brief.Loader
+	statuses    Statuses
+	datasources Datasources
+	steps       revisions.StepRecorder
+	prices      pricing.Table
+	maxRunCost  float64
+	logger      *slog.Logger
+	inFlight    slots
+	runLocks    runLocks
 }
 
 func New(c Config) *Service {
@@ -119,7 +106,7 @@ func New(c Config) *Service {
 	return &Service{
 		db: c.DB, runs: c.Runs, claims: c.Claims, builds: c.Builds, dashboards: c.Dashboards,
 		loader:   brief.Loader{Dashboards: c.Dashboards, Imports: c.Imports, Logger: c.Logger},
-		statuses: c.Statuses, datasources: c.Datasources, steps: c.Steps, prices: c.Prices, maxRunCost: c.MaxRunCostUSD, investigationCalls: c.InvestigationCalls, investigationLoop: c.InvestigationLoop, investigationMax: c.InvestigationCallsMax, findingGrounding: c.FindingGrounding, logger: c.Logger,
+		statuses: c.Statuses, datasources: c.Datasources, steps: c.Steps, prices: c.Prices, maxRunCost: c.MaxRunCostUSD, logger: c.Logger,
 		inFlight: make(slots, max(1, c.DB.Stat().MaxConns()/2)),
 	}
 }
@@ -140,14 +127,6 @@ type session struct {
 }
 
 func (s *Service) with(ctx context.Context, req revisions.Request, fn func(ctx context.Context, sess *session) error) error {
-	return s.withStart(ctx, req, nil, fn)
-}
-
-type start struct {
-	harness bool
-}
-
-func (s *Service) withStart(ctx context.Context, req revisions.Request, begin *start, fn func(ctx context.Context, sess *session) error) error {
 	id, err := db.ParseUUID(req.ID)
 	if err != nil {
 		return fmt.Errorf("run session: run id: %w", err)
@@ -171,7 +150,7 @@ func (s *Service) withStart(ctx context.Context, req revisions.Request, begin *s
 	var steps []revisions.Step
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		ctx := datasource.WithAccess(ctx, access)
-		sess, err := s.open(ctx, q, req, id, begin)
+		sess, err := s.open(ctx, q, req, id)
 		if err != nil {
 			return err
 		}
@@ -193,12 +172,12 @@ func (s *Service) withStart(ctx context.Context, req revisions.Request, begin *s
 	return nil
 }
 
-func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Request, id pgtype.UUID, begin *start) (*session, error) {
+func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Request, id pgtype.UUID) (*session, error) {
 	key := dbsqlc.GetRunSessionForUpdateParams{AgentRequestID: id, Attempt: httpapi.Int32(req.Attempt)}
 	stored, err := q.GetRunSessionForUpdate(ctx, key)
 	created := errors.Is(err, pgx.ErrNoRows)
 	if created {
-		stored, err = s.create(ctx, q, req, id, begin != nil && begin.harness)
+		stored, err = s.create(ctx, q, req, id)
 	}
 	if err != nil {
 		return nil, err
@@ -210,19 +189,10 @@ func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Req
 	if err := json.Unmarshal(stored.State, &sess.state); err != nil {
 		return nil, fmt.Errorf("decode run session: %w", err)
 	}
-	if begin != nil {
-		sess.state.AgentHarness = begin.harness
-	}
-	if created && !sess.state.AgentHarness {
-		sess.recordRoute()
-	}
-	if sess.state.Guard.InvestigationCalls == 0 {
-		sess.state.Guard.InvestigationCalls = s.investigationCalls
-	}
 	return sess, nil
 }
 
-func (s *Service) create(ctx context.Context, q *dbsqlc.Queries, req revisions.Request, id pgtype.UUID, harness bool) (dbsqlc.GetRunSessionForUpdateRow, error) {
+func (s *Service) create(ctx context.Context, q *dbsqlc.Queries, req revisions.Request, id pgtype.UUID) (dbsqlc.GetRunSessionForUpdateRow, error) {
 	var none dbsqlc.GetRunSessionForUpdateRow
 	row, err := q.GetAgentRequestByID(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) || (err == nil && (revisions.State(row.State).Terminal() || int(row.ClaimEpoch) != req.ClaimEpoch)) {
@@ -231,7 +201,7 @@ func (s *Service) create(ctx context.Context, q *dbsqlc.Queries, req revisions.R
 	if err != nil {
 		return none, fmt.Errorf("get run for its session: %w", err)
 	}
-	initial, err := s.initial(ctx, req, id, harness)
+	initial, err := s.initial(ctx, req, id)
 	if err != nil {
 		return none, err
 	}
@@ -240,8 +210,7 @@ func (s *Service) create(ctx context.Context, q *dbsqlc.Queries, req revisions.R
 	if err != nil {
 		return none, err
 	}
-	initial.Triage, initial.Agent = before.Triage, before.carried()
-	initial.seedLedger()
+	initial.Agent = before.carried()
 	raw, err := json.Marshal(initial)
 	if err != nil {
 		return none, fmt.Errorf("encode run session: %w", err)
@@ -255,17 +224,12 @@ func (s *Service) create(ctx context.Context, q *dbsqlc.Queries, req revisions.R
 	return q.GetRunSessionForUpdate(ctx, dbsqlc.GetRunSessionForUpdateParams{AgentRequestID: id, Attempt: attempt})
 }
 
-func (s *Service) initial(ctx context.Context, req revisions.Request, id pgtype.UUID, harness bool) (State, error) {
+func (s *Service) initial(ctx context.Context, req revisions.Request, id pgtype.UUID) (State, error) {
 	run, err := tools.RunFor(req)
 	if err != nil {
 		return State{}, err
 	}
-	var state State
-	if harness {
-		state = State{Guard: guard.New(run.Mode), AgentHarness: true}
-	} else {
-		state = s.watched(run, req, s.routed(ctx, run, req))
-	}
+	state := State{Mode: run.Mode}
 	parent := 0
 	switch {
 	case run.Mode == tools.ModeSuggest:
@@ -279,38 +243,17 @@ func (s *Service) initial(ctx context.Context, req revisions.Request, id pgtype.
 			return State{}, err
 		}
 	}
-	building := false
 	if run.Build {
 		build, found, err := s.builds.Build(ctx, id)
 		if err != nil {
 			return State{}, fmt.Errorf("get the run's build: %w", err)
 		}
 		if found {
-			building, state.Build = true, buildProgress(build)
+			state.Build = buildProgress(build)
 		}
 	}
-	state.Guard.BeginSession(building, parent)
+	state.beginSession(parent)
 	return state, nil
-}
-
-func (s *Service) watched(run tools.Run, req revisions.Request, task route.Task) State {
-	state := State{Guard: guard.New(run.Mode), Task: task, Loop: s.investigationLoop && run.Mode == tools.ModeInvestigate && run.Investigation}
-	if run.Mode == tools.ModeInvestigate {
-		state.Guard.InvestigationCalls = cmp.Or(s.investigationCalls, guard.InvestigationCallsFor(task))
-	}
-	if state.Loop {
-		state.Guard.WatchLedger()
-	}
-	if run.Mode != tools.ModeSuggest {
-		state.Grounding = grounding.NewRecord(s.findingGrounding)
-	}
-	if state.Grounding.Enforced() {
-		state.Guard.WatchGrounding()
-	}
-	if state.Loop && req.Assignee == revisions.AssignBuiltin {
-		state.Guard.StartLoop(s.investigationMax)
-	}
-	return state
 }
 
 func buildProgress(b dashboards.Build) *tools.BuildProgress {
@@ -349,7 +292,7 @@ func (s *Service) Scope(ctx context.Context, req revisions.Request) (tools.Run, 
 	}
 	ended := false
 	err = s.with(ctx, req, func(ctx context.Context, sess *session) error {
-		run.ParentVersion = sess.state.Guard.ParentVersion
+		run.ParentVersion = sess.state.ParentVersion
 		run.Task, run.AllTools = sess.state.Task, sess.state.AllTools
 		run.Access, run.WriteFolders = sess.access, sess.writes.Folders
 		if run.Mode != tools.ModeSuggest {
@@ -367,14 +310,6 @@ func (s *Service) Scope(ctx context.Context, req revisions.Request) (tools.Run, 
 		return tools.Run{}, tools.ErrRunEnded
 	}
 	return run, err
-}
-
-func (s *Service) BeginHarness(ctx context.Context, req revisions.Request) error {
-	err := s.withStart(ctx, req, &start{harness: true}, func(context.Context, *session) error { return nil })
-	if errors.Is(err, errRunNotRunning) {
-		return tools.ErrRunEnded
-	}
-	return err
 }
 
 func (s *Service) Progress(ctx context.Context, req revisions.Request) (*tools.BuildProgress, error) {

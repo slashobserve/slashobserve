@@ -131,7 +131,7 @@ func (sess *session) loadCurrent(ctx context.Context) (*brief.Revision, error) {
 		return nil, fmt.Errorf("run session: dashboard id: %w", err)
 	}
 	var current *brief.Revision
-	switch sess.state.Guard.Mode {
+	switch sess.state.Mode {
 	case tools.ModeRevise:
 		current, err = sess.s.loader.Latest(ctx, id, sess.req.ID)
 	case tools.ModeSuggest:
@@ -148,7 +148,7 @@ func (sess *session) loadCurrent(ctx context.Context) (*brief.Revision, error) {
 }
 
 func (sess *session) loadBuild(ctx context.Context) (*dashboards.Build, error) {
-	if sess.state.Guard.Mode != tools.ModeCreate && sess.state.Guard.Mode != tools.ModeRevise {
+	if sess.state.Mode != tools.ModeCreate && sess.state.Mode != tools.ModeRevise {
 		return nil, nil
 	}
 	build, found, err := sess.s.builds.Build(ctx, sess.id)
@@ -236,8 +236,8 @@ func (sess *session) restartFromLatest(ctx context.Context) error {
 		return sess.failed(ctx, "could not read the latest version", err)
 	}
 	sess.state.Restarts++
-	sess.state.Guard.Restart()
-	sess.state.Guard.BeginSession(false, latest)
+	sess.state.restart()
+	sess.state.beginSession(latest)
 	sess.state.Build = nil
 	return nil
 }
@@ -308,9 +308,6 @@ func (s *Service) Brief(ctx context.Context, req revisions.Request, reason strin
 		return tools.BriefAnswer{}, err
 	}
 	access := tools.RunAccess(req, writes)
-	if err := s.preflightOnFirstBrief(ctx, req, why, access); err != nil {
-		return tools.BriefAnswer{}, err
-	}
 	health := s.statuses.Health(datasource.WithAccess(ctx, access))
 	everyone := s.everyoneReads(datasource.WithAccess(ctx, access))
 	var answer tools.BriefAnswer
@@ -339,15 +336,9 @@ func (s *Service) everyoneReads(ctx context.Context) func(uid string) bool {
 }
 
 func (sess *session) brief(ctx context.Context, why brief.Reason, health []datasource.Status, everyone func(string) bool) (tools.BriefAnswer, error) {
-	mode := sess.state.Guard.Mode
+	mode := sess.state.Mode
 	task := briefTask(sess.req, mode)
 	task.Withheld = tools.Withheld(sess.access)
-	task.Facts = sess.state.Grounding != nil
-	task.Triage = sess.triageBlock()
-	task.Route = sess.state.Task
-	if sess.state.Loop {
-		task.Loop, task.Hypotheses = true, brief.Hypotheses(sess.state.Ledger)
-	}
 	current, build, restarted, err := sess.settleBuildOnLatest(ctx)
 	if err != nil || sess.ended {
 		return tools.BriefAnswer{}, err
@@ -362,21 +353,14 @@ func (sess *session) brief(ctx context.Context, why brief.Reason, health []datas
 	if current != nil {
 		parent = current.Number
 	}
-	sess.state.Guard.BeginSession(build != nil, parent)
+	sess.state.beginSession(parent)
 	sess.state.Build = nil
 	if build != nil {
 		sess.state.Build = buildProgress(*build)
 	}
 	view := brief.View{Current: current, Build: build}
-	var message brief.Message
-	if !sess.state.AgentHarness {
-		if message, err = brief.Render(health, task, view, why, sess.state.Digest.Text()); err != nil {
-			sess.s.failure(ctx, "run session could not render the brief", "run_session_brief_failed", err, sess.req)
-			return tools.BriefAnswer{}, fmt.Errorf("render the brief: %w", err)
-		}
-	}
 	structured := brief.Structured(health, everyone, task, view, sess.req.Draft)
-	return tools.BriefAnswer{System: message.System, Message: message.User, Reason: string(why), Build: sess.state.Build, Brief: &structured, AgentState: sess.state.Agent}, nil
+	return tools.BriefAnswer{Reason: string(why), Build: sess.state.Build, Brief: &structured, AgentState: sess.state.Agent}, nil
 }
 
 func (sess *session) settleBuildOnLatest(ctx context.Context) (current *brief.Revision, build *dashboards.Build, restarted bool, err error) {
@@ -387,7 +371,7 @@ func (sess *session) settleBuildOnLatest(ctx context.Context) (current *brief.Re
 		if build, err = sess.loadBuild(ctx); err != nil || sess.ended {
 			return nil, nil, false, err
 		}
-		if sess.state.Guard.Mode != tools.ModeRevise || build == nil || current == nil || build.BaseVersion == current.Number {
+		if sess.state.Mode != tools.ModeRevise || build == nil || current == nil || build.BaseVersion == current.Number {
 			return current, build, restarted, nil
 		}
 		rebased, err := sess.rebase(ctx)
@@ -409,7 +393,7 @@ func (s *Service) NoteAgent(ctx context.Context, req revisions.Request, in tools
 		if in.State != nil {
 			sess.state.Agent = keptAgentState(*in.State)
 		}
-		if in.Task != nil && sess.state.AgentHarness && sess.state.Guard.Mode == tools.ModeInvestigate && sess.state.Task == route.Full {
+		if in.Task != nil && sess.state.Mode == tools.ModeInvestigate && sess.state.Task == route.Full {
 			sess.state.Task = *in.Task
 		}
 		for _, step := range in.Steps {
@@ -503,7 +487,7 @@ func (sess *session) finishRun(ctx context.Context, failure revisions.FailureCod
 	if in.Usage != nil {
 		sess.state.noteModel(*in.Usage)
 	}
-	if in.Commit && sess.state.Guard.Mode != tools.ModeInvestigate && sess.state.Guard.Mode != tools.ModeSuggest {
+	if in.Commit && sess.state.Mode != tools.ModeInvestigate && sess.state.Mode != tools.ModeSuggest {
 		restarted, err := sess.commit(ctx)
 		switch {
 		case err != nil:
@@ -541,7 +525,7 @@ func (sess *session) endingOf(failure revisions.FailureCode, in tools.RunFinish)
 		if ending.Message = claims.CleanText(in.Message, maxMessageRunes); ending.Message == "" {
 			ending.Message = silentFailure
 		}
-	case sess.state.Guard.Mode == tools.ModeSuggest:
+	case sess.state.Mode == tools.ModeSuggest:
 		ending.Suggestion = sess.state.Suggestion
 	}
 	return ending

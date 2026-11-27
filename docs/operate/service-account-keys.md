@@ -55,8 +55,8 @@ An account takes runs only when an Admin turns on **Takes agent runs** in the **
 The account then lists as `listening` or `working` while it asks for work.
 The switch applies to every key of the account, like the role, and the panel saves it when you create the key.
 
-A service account that takes runs works under the same guards as the built-in agent, which the server enforces on every call of the run's session.
-See [MCP](../use/mcp.md#the-run-session-enforces-the-guards).
+A service account that takes runs works inside the run's lifecycle that the server keeps, with guards of its own.
+See [MCP](../use/mcp.md#the-run-session-keeps-the-lifecycle).
 
 ## Declare service accounts in a file
 

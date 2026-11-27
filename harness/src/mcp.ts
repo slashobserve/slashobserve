@@ -315,7 +315,7 @@ export class ClaimClient implements ClaimApi {
   claimRun(waitSeconds: number, signal?: AbortSignal): Promise<ClaimAnswer> {
     return this.base.claimTool(
       "claim_run",
-      claimInput.parse({ wait_seconds: waitSeconds, harness: true }),
+      claimInput.parse({ wait_seconds: waitSeconds }),
       claimAnswer,
       claimTimeoutMs,
       signal

@@ -124,14 +124,14 @@ func TestARunTheSessionEndsAnswersInTheThreadItWasAskedIn(t *testing.T) {
 	}
 }
 
-func TestBriefAnswersTheSystemTextTheMessageAndTheReason(t *testing.T) {
+func TestBriefAnswersTheStructuredBriefAndTheReason(t *testing.T) {
 	r := newRig(t)
 	req := r.revise()
 	got, err := r.svc.Brief(context.Background(), req, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.System == "" || !strings.Contains(got.Message, "add a latency panel") || got.Reason != "" || got.Build != nil {
+	if got.System != "" || got.Message != "" || got.Brief == nil || !strings.Contains(got.Brief.Request.Prompt, "add a latency panel") || got.Reason != "" || got.Build != nil {
 		t.Fatalf("brief = %+v", got)
 	}
 	if _, err := r.svc.Brief(context.Background(), req, "nonsense"); !errors.Is(err, tools.ErrInvalidReason) {
@@ -147,9 +147,8 @@ func TestBriefCarriesTheThreadTheRunWasAskedIn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lead := "The request was asked in this thread (earlier messages, oldest first):\nAda: why did errors rise?"
-	if !strings.Contains(got.Message, lead) || strings.Index(got.Message, lead) > strings.Index(got.Message, "<request>") {
-		t.Fatalf("message = %q", got.Message)
+	if got.Brief == nil || got.Brief.Request.ThreadContext == nil || *got.Brief.Request.ThreadContext != "Ada: why did errors rise?" {
+		t.Fatalf("brief = %+v", got.Brief)
 	}
 }
 
@@ -161,7 +160,7 @@ func TestBriefOfARunWithABuildResumesIt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Reason != string(brief.Restart) || got.Build == nil || got.Build.Saves != 1 || !strings.Contains(got.Message, "Panels built: 1 of 3") {
+	if got.Reason != string(brief.Restart) || got.Build == nil || got.Build.Saves != 1 || got.Brief.Build == nil || got.Brief.Build.Progress.Panels != 1 || got.Brief.Build.Progress.PlannedPanels != 3 {
 		t.Fatalf("brief = %+v", got)
 	}
 }

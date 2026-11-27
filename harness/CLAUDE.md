@@ -1,7 +1,7 @@
 # harness
 
 The harness is the built-in agent (the Observe Agent people see in the app) as a separate process, `slashobserve-harness`: an ordinary claimer that runs the model loop and works a run through the claim tools over MCP.
-It claims with `harness: true`, so the run's session keeps only its lifecycle and the harness runs every agentic piece itself: routing, the preflight sweep, the run text, the guards, grounding and the conclude rule.
+The run's session on the server keeps only its lifecycle, and the harness runs every agentic piece itself: routing, the preflight sweep, the run text, the guards, grounding and the conclude rule.
 The server starts it whenever a model provider is configured; the image ships it at `/usr/local/bin/slashobserve-harness` and `make harness` builds `bin/slashobserve-harness`.
 
 ## Layout

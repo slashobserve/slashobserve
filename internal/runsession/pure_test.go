@@ -5,52 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/agent/brief"
-	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
-
-func TestTurnValidityRejectsKeysTheServerCannotTrust(t *testing.T) {
-	long := strings.Repeat("x", maxTurnIDBytes+1)
-	cases := []struct {
-		name string
-		turn *Turn
-		ok   bool
-	}{
-		{"none", nil, false},
-		{"a turn", &Turn{ID: "t", Calls: 3, Saves: 1}, true},
-		{"the largest turn", &Turn{ID: strings.Repeat("x", maxTurnIDBytes), Calls: maxTurnCalls, Saves: maxTurnCalls}, true},
-		{"no id", &Turn{Calls: 1}, false},
-		{"id too long", &Turn{ID: long, Calls: 1}, false},
-		{"no calls", &Turn{ID: "t"}, false},
-		{"too many calls", &Turn{ID: "t", Calls: maxTurnCalls + 1}, false},
-		{"negative saves", &Turn{ID: "t", Calls: 1, Saves: -1}, false},
-		{"more saves than calls", &Turn{ID: "t", Calls: 1, Saves: 2}, false},
-	}
-	for _, tc := range cases {
-		if got := tc.turn.valid(); (got != nil) != tc.ok {
-			t.Errorf("%s: valid = %v, want %v", tc.name, got != nil, tc.ok)
-		}
-	}
-}
-
-func TestOpenTurnIsJoinedOnlyByAKeyWithItsID(t *testing.T) {
-	open := OpenTurn{Open: true, ID: "t1"}
-	if !open.joinedBy(&Turn{ID: "t1"}) || open.joinedBy(&Turn{ID: "t2"}) || open.joinedBy(nil) {
-		t.Fatal("joinedBy does not match on the id")
-	}
-	if (OpenTurn{Open: true}).joinedBy(&Turn{ID: ""}) || (OpenTurn{ID: "t1"}).joinedBy(&Turn{ID: "t1"}) {
-		t.Fatal("a keyless or closed turn was joined")
-	}
-}
 
 func TestAnswerTextAppendsEachNoteAfterTheContent(t *testing.T) {
 	a := Answer{Content: []byte(`{"ok":true}`), Notes: []string{"one", "two"}}
@@ -92,24 +56,6 @@ func TestMetaNamesTheSettledStateAndHidesTheBuildOfAnEndedRun(t *testing.T) {
 	}
 }
 
-func TestStoredDigestKeepsTheNewestEntriesWithinItsCap(t *testing.T) {
-	var s State
-	name := strings.Repeat("n", 1000)
-	for i := range 30 {
-		s.addDiscovery(tools.Discovery{Datasource: "prom", Of: strconv.Itoa(i), Names: []string{name}})
-	}
-	total := 0
-	for _, e := range s.Digest.Entries {
-		total += len(e.Datasource) + len(e.Of) + len(e.Names[0])
-	}
-	if total > maxStoredDigestBytes || len(s.Digest.Entries) == 0 || len(s.Digest.Entries) >= 30 {
-		t.Fatalf("kept %d entries, %d bytes", len(s.Digest.Entries), total)
-	}
-	if last := s.Digest.Entries[len(s.Digest.Entries)-1]; last.Of != strconv.Itoa(29) {
-		t.Fatalf("the newest entry was dropped: %+v", last)
-	}
-}
-
 func TestNoteModelKeepsTheLargestOfEachCumulativeCount(t *testing.T) {
 	var s State
 	s.noteModel(revisions.Usage{Provider: "p", Model: "m", InputTokens: 100, ModelCalls: 3, CostUSD: floatPtr(0.5)})
@@ -140,12 +86,12 @@ func TestStoredUsageKeepsARunWhoseOnlyModelCallFailed(t *testing.T) {
 	}
 }
 
-func TestStoredUsageIsNilForARunThatDidNothingAndCarriesGuardCounts(t *testing.T) {
+func TestStoredUsageIsNilForARunThatDidNothingAndCarriesTheSessionCounts(t *testing.T) {
 	var s State
 	if s.storedUsage(pricing.Table{}) != nil {
 		t.Fatal("an idle run stored usage")
 	}
-	s.Guard.Counts.ToolCalls, s.Guard.Counts.Repairs, s.Guard.Counts.BuildSaves = 4, 1, 2
+	s.Counts.ToolCalls, s.Counts.Repairs, s.Counts.BuildSaves = 4, 1, 2
 	got := s.storedUsage(pricing.Table{})
 	if got == nil || got.ToolCalls != 4 || got.RepairRounds != 1 || got.BuildSaves != 2 {
 		t.Fatalf("usage = %+v", got)
@@ -175,10 +121,8 @@ func TestOverCostLimitNeedsALimitAndACost(t *testing.T) {
 }
 
 func TestSessionStateRoundTripsThroughJSON(t *testing.T) {
-	var s State
-	s.Guard = newGuardForTest()
+	s := State{Mode: tools.ModeRevise, ParentVersion: 2, Rejected: 1, Counts: Counts{ToolCalls: 3, Repairs: 1}}
 	s.Settled = Settled{Kind: settledSaved, Version: 3}
-	s.Turn = OpenTurn{Seq: 4, ID: "t", Open: true, Calls: 2, Admitted: 1}
 	raw, err := json.Marshal(s)
 	if err != nil {
 		t.Fatal(err)
@@ -191,13 +135,6 @@ func TestSessionStateRoundTripsThroughJSON(t *testing.T) {
 	if string(again) != string(raw) {
 		t.Fatalf("round trip changed the state:\n%s\n%s", raw, again)
 	}
-}
-
-func newGuardForTest() guard.State {
-	g := guard.New(tools.ModeRevise)
-	g.BeginSession(true, 2)
-	g.BeginTurn(false)
-	return g
 }
 
 func TestSlotsBlockWhenFullAndFreeOnRelease(t *testing.T) {
@@ -292,16 +229,15 @@ func TestCreatedAndCommittedSurviveAStoredStateRoundTrip(t *testing.T) {
 
 func TestAWriteThatCreatedObjectsLetsTheNextCallWriteOnThem(t *testing.T) {
 	sess := &session{}
-	call := guard.Call{Name: "create_observation", Input: json.RawMessage(`{"title":"t"}`)}
 	done := dispatched{res: tools.Result{Created: []string{"obs", "blk"}}, content: []byte(`{}`)}
-	if _, err := sess.settleOutcome(context.Background(), call, done, &Answer{}); err != nil {
+	if _, err := sess.settleOutcome(context.Background(), "create_observation", done); err != nil {
 		t.Fatal(err)
 	}
 	if got := sess.state.writeScope().Created; len(got) != 2 || got[0] != "obs" || got[1] != "blk" {
 		t.Fatalf("created = %v", got)
 	}
 	failed := dispatched{res: tools.Result{IsError: true, Created: []string{"nope"}}, content: []byte(`{}`)}
-	if _, err := sess.settleOutcome(context.Background(), call, failed, &Answer{}); err != nil {
+	if _, err := sess.settleOutcome(context.Background(), "create_observation", failed); err != nil {
 		t.Fatal(err)
 	}
 	if len(sess.state.Created) != 2 {
@@ -309,47 +245,17 @@ func TestAWriteThatCreatedObjectsLetsTheNextCallWriteOnThem(t *testing.T) {
 	}
 }
 
-func TestAWriteInTheTurnOfAnUnsettledReadIsRefusedUntilTheReadSettles(t *testing.T) {
-	ctx := context.Background()
-	sess := &session{state: State{Guard: guard.New(tools.ModeCreate)}}
-	turn := &Turn{ID: "turn", Calls: 3}
-	read := guard.Call{Name: "list_datasources", Input: json.RawMessage(`{}`)}
-	write := guard.Call{Name: "add_block", Input: json.RawMessage(`{"observation_id":"o"}`)}
-
-	first, err := sess.admit(ctx, read, turn)
-	if err != nil || first.adm.Verdict != guard.Dispatch {
-		t.Fatalf("read = %+v, %v", first.adm, err)
-	}
-	refused, err := sess.admit(ctx, write, turn)
-	if err != nil || refused.answer == nil || !refused.answer.IsError || !strings.Contains(string(refused.answer.Content), "read_in_flight") {
-		t.Fatalf("write beside the read = %+v, %v", refused.answer, err)
-	}
-	if sess.state.Guard.Writes != 0 {
-		t.Fatalf("the refused write used the cap: %d", sess.state.Guard.Writes)
-	}
-
-	done := dispatched{res: tools.Result{}, content: []byte(`{}`), start: time.Now()}
-	if _, err := sess.settle(ctx, read, first, done); err != nil {
-		t.Fatal(err)
-	}
-	retried, err := sess.admit(ctx, write, turn)
-	if err != nil || retried.answer != nil || retried.adm.Verdict != guard.Dispatch {
-		t.Fatalf("write after the read settled = %+v, %v", retried.adm, err)
-	}
-}
-
 func TestOnlyASuccessfulWriteMarksTheRunAsHavingWritten(t *testing.T) {
 	sess := &session{s: &Service{}}
-	call := guard.Call{Name: "create_observation", Input: json.RawMessage(`{"title":"t"}`)}
 	failed := dispatched{res: tools.Result{IsError: true}, content: []byte(`{}`)}
-	if _, err := sess.settleOutcome(context.Background(), call, failed, &Answer{}); err != nil {
+	if _, err := sess.settleOutcome(context.Background(), "create_observation", failed); err != nil {
 		t.Fatal(err)
 	}
 	if sess.state.Wrote || sess.endingOf("", tools.RunFinish{Outcome: outcomeDone}).Wrote {
 		t.Fatal("a failed write marked the run as having written")
 	}
 	done := dispatched{res: tools.Result{Created: []string{"obs"}}, content: []byte(`{}`)}
-	if _, err := sess.settleOutcome(context.Background(), call, done, &Answer{}); err != nil {
+	if _, err := sess.settleOutcome(context.Background(), "create_observation", done); err != nil {
 		t.Fatal(err)
 	}
 	if !sess.endingOf("", tools.RunFinish{Outcome: outcomeDone}).Wrote {
@@ -362,5 +268,19 @@ func TestOnlyASuccessfulWriteMarksTheRunAsHavingWritten(t *testing.T) {
 	}
 	if err := json.Unmarshal(raw, &back); err != nil || !back.Wrote {
 		t.Fatalf("wrote did not survive a stored state round trip: %v %s", err, raw)
+	}
+}
+
+func TestAnUnchangedLedgerIsNotAChange(t *testing.T) {
+	var s State
+	ledger := []revisions.Hypothesis{{ID: "a", Text: "t", Status: revisions.HypothesisOpen}}
+	if !s.noteLedger(ledger) {
+		t.Fatal("the first ledger is not a change")
+	}
+	if s.noteLedger([]revisions.Hypothesis{{ID: "a", Text: "t", Status: revisions.HypothesisOpen}}) {
+		t.Fatal("an equal ledger is a change")
+	}
+	if !s.noteLedger([]revisions.Hypothesis{{ID: "a", Text: "t", Status: revisions.HypothesisSupport, Evidence: []string{"e"}}}) {
+		t.Fatal("a new status is not a change")
 	}
 }

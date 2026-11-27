@@ -88,13 +88,6 @@ type fakeRunSessions struct {
 	progress       *BuildProgress
 	agentReports   []AgentReport
 	agentErr       error
-	harnessed      []revisions.Request
-	harnessErr     error
-}
-
-func (f *fakeRunSessions) BeginHarness(_ context.Context, req revisions.Request) error {
-	f.harnessed = append(f.harnessed, req)
-	return f.harnessErr
 }
 
 func (f *fakeRunSessions) NoteAgent(_ context.Context, _ revisions.Request, in AgentReport) error {
@@ -348,35 +341,6 @@ func TestReleaseRunOfARunThatIsNotTheCallersIsNotYourRun(t *testing.T) {
 
 	if code := errorCode(t, res); code != codeNotYourRun {
 		t.Fatalf("code %q, want %q", code, codeNotYourRun)
-	}
-}
-
-func TestClaimRunWithHarnessIsOnlyForTheBuiltInClaimerAndMarksItsSession(t *testing.T) {
-	builtIn := &claims.Claimer{Kind: revisions.AssignBuiltin, ID: "server-1"}
-	offer := claims.Offer{Run: &claims.OfferedRun{ID: runID, Attempt: 2, ClaimEpoch: 3}}
-
-	fc := &fakeClaims{offer: offer, req: claimedRequest()}
-	rs := &fakeRunSessions{}
-	res, err := callClaimToolWith(t, Deps{Claims: fc, RunSessions: rs}, outsideClaimer, nameClaimRun, `{"wait_seconds":0,"harness":true}`)
-	if err != nil || errorCode(t, res) != codeInvalidRequest || fc.claimedBy.Kind != "" || len(rs.harnessed) != 0 {
-		t.Fatalf("an outside claimer's harness claim = %#v, %v, claimed %+v", res.Content, err, fc.claimedBy)
-	}
-
-	res, err = callClaimToolWith(t, Deps{Claims: fc, RunSessions: rs}, builtIn, nameClaimRun, `{"wait_seconds":0,"harness":true}`)
-	if err != nil || res.IsError || len(rs.harnessed) != 1 || rs.harnessed[0].ID != runID || fc.lookedUp[0] != 3 {
-		t.Fatalf("harness claim = %#v, %v, harnessed %+v", res.Content, err, rs.harnessed)
-	}
-
-	plain := &fakeRunSessions{}
-	if _, err := callClaimToolWith(t, Deps{Claims: fc, RunSessions: plain}, builtIn, nameClaimRun, `{"wait_seconds":0}`); err != nil || len(plain.harnessed) != 0 {
-		t.Fatalf("a claim without harness began a harness session: %v, %+v", err, plain.harnessed)
-	}
-
-	failing := &fakeRunSessions{harnessErr: ErrRunEnded}
-	fc = &fakeClaims{offer: offer, req: claimedRequest()}
-	res, err = callClaimToolWith(t, Deps{Claims: fc, RunSessions: failing}, builtIn, nameClaimRun, `{"wait_seconds":0,"harness":true}`)
-	if err != nil || errorCode(t, res) != codeRunEnded || len(fc.released) != 1 || fc.released[0].claimEpoch != 3 {
-		t.Fatalf("a harness session that failed to open = %#v, %v, released %+v", res.Content, err, fc.released)
 	}
 }
 

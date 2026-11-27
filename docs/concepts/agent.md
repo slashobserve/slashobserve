@@ -321,7 +321,7 @@ Details of what stops a run:
 - A finding rejected for such evidence tells the model to send it again without those panels and to say that their data was not read.
 - A save that changes no panel, changes a panel for the fifth time, or deletes a panel and adds another, gets a note, and the fourth such save in a row ends the run with `no_progress`.
 
-The server enforces these guards at its MCP tool boundary on every run session, so an agent you connect that takes runs meets the same guards; see [MCP](../use/mcp.md#the-run-session-enforces-the-guards).
+The built-in agent keeps these guards in its own process; an agent you connect that takes runs works inside the run's lifecycle that the server keeps and brings guards of its own, see [MCP](../use/mcp.md#the-run-session-keeps-the-lifecycle).
 
 ### Tool results and failures
 

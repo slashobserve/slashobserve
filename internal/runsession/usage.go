@@ -1,11 +1,9 @@
 package runsession
 
 import (
-	"cmp"
 	"math"
 	"slices"
 
-	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
@@ -21,7 +19,7 @@ const (
 	maxReportedCallLimit = 1000
 )
 
-var reportedStages = []string{guard.StageOrient, guard.StageHypothesize, guard.StageTest, guard.StageConclude}
+var reportedStages = []string{"orient", "hypothesize", "test", "conclude"}
 
 func cleanUsage(u revisions.Usage) revisions.Usage {
 	clean := revisions.Usage{
@@ -95,20 +93,13 @@ func (s *State) noteModel(u revisions.Usage) {
 
 func (s *State) usage() revisions.Usage {
 	u := s.Usage
-	counts := s.Guard.Counts
+	counts := s.Counts
 	u.ToolCalls = counts.ToolCalls
 	u.RepairRounds = max(counts.Repairs, s.Usage.RepairRounds)
 	u.BuildSaves = counts.BuildSaves
-	u.Nudges = max(counts.Nudges, s.Usage.Nudges)
-	u.SaveNowRefusals = max(counts.SaveNowRefusals, s.Usage.SaveNowRefusals)
-	u.StalledTurns = max(counts.StalledTurns, s.Usage.StalledTurns)
 	u.OnePanelRefusals = max(counts.OnePanelRefusals, s.Usage.OnePanelRefusals)
 	if len(s.Ledger) > 0 {
 		u.Hypotheses = s.Ledger
-	}
-	if loop := s.Guard.Loop; loop != nil {
-		u.CallLimit = max(loop.Limit, s.Usage.CallLimit)
-		u.StageAtSave = cmp.Or(loop.SavedStage, s.Usage.StageAtSave)
 	}
 	return u
 }

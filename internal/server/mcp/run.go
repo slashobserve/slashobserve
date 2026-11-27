@@ -119,7 +119,11 @@ func (h *handler) callInRun(ctx context.Context, name string, input json.RawMess
 	if !ok || h.runs == nil {
 		return runsession.Answer{}, errNoRunSessions
 	}
-	return h.runs.Call(ctx, run, runsession.Call{Name: name, Input: input, Turn: metaOf[runsession.Turn](req, turnMetaKey), Hints: metaOf[runsession.Hints](req, callMetaKey)}, dispatch)
+	call := runsession.Call{Name: name, Input: input, Turn: metaOf[runsession.Turn](req, turnMetaKey)}
+	if run.Assignee == revisions.AssignBuiltin {
+		call.Hints = metaOf[runsession.Hints](req, callMetaKey)
+	}
+	return h.runs.Call(ctx, run, call, dispatch)
 }
 
 func metaOf[T any](req mcplib.CallToolRequest, key string) *T {

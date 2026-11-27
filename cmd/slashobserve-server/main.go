@@ -26,7 +26,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/actions"
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
-	"github.com/slashobserve/slashobserve/internal/agent/triage"
 	"github.com/slashobserve/slashobserve/internal/agentsview"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/assets"
@@ -351,12 +350,6 @@ func logDatasources(cfg config.Config, logger *slog.Logger) {
 	logger.Info("datasources configured", slog.Int("count", len(cfg.Datasources)))
 }
 
-func sweepBeforeInvestigations(on bool, runs *runsession.Service, reg *tools.Registry, datasources *datasource.Registry) {
-	if on {
-		runs.SweepWith(triage.Service{Tools: reg, Datasources: datasources, Limits: triage.DefaultLimits})
-	}
-}
-
 func run() error {
 	cfg, err := config.Load(os.LookupEnv)
 	if err != nil {
@@ -516,7 +509,7 @@ func run() error {
 	runSessions := runsession.New(runsession.Config{
 		DB: database, Runs: revisionsService, Claims: claimsService, Builds: dashboardsService, Dashboards: dashboardsService,
 		Imports: importsService, Statuses: registry, Datasources: registry, Steps: claimsService,
-		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, InvestigationCalls: cfg.Agent.InvestigationCalls, InvestigationLoop: cfg.Agent.InvestigationLoop, InvestigationCallsMax: cfg.Agent.InvestigationCallsMax, FindingGrounding: cfg.Agent.FindingGrounding, Logger: logger,
+		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, Logger: logger,
 	})
 	outbound := allowlist.New(database, allowlist.Lock{Locked: cfg.OutboundDomainsLocked, Domains: cfg.OutboundDomains}, logger)
 	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
@@ -558,7 +551,6 @@ func run() error {
 		Logger:         logger,
 		LedgerTool:     cfg.Agent.InvestigationLoop,
 	})
-	sweepBeforeInvestigations(cfg.Agent.InvestigationBrief, runSessions, toolRegistry, registry)
 
 	broker := events.NewBroker(database.Listen, logger)
 	go broker.Run(ctx)

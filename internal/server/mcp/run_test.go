@@ -706,3 +706,22 @@ func TestARunSessionListsOnlyTheToolsOfItsTaskTypeForEveryAssignee(t *testing.T)
 		}
 	}
 }
+
+func TestOnlyTheBuiltInAgentsCallsCarryTheirHints(t *testing.T) {
+	for _, assignee := range []revisions.AssigneeKind{revisions.AssignBuiltin, revisions.AssignGrant} {
+		f := newAssignedRunFixture(t, tools.ModeInvestigate, assignee)
+		f.handler.call = func(context.Context, string, json.RawMessage) (tools.Result, error) {
+			return tools.Result{Content: map[string]string{"ok": "true"}}, nil
+		}
+		meta := map[string]any{callMetaKey: map[string]any{"sweep": true, "step": "a step the agent chose"}}
+		f.post(runToken, rpc(1, "tools/call", map[string]any{"name": "lint_query", "arguments": map[string]any{}, "_meta": meta}))
+		calls := f.runs.recorded()
+		if len(calls) != 1 {
+			t.Fatalf("%s: calls = %+v", assignee, calls)
+		}
+		got := calls[0].call.Hints
+		if builtIn := assignee == revisions.AssignBuiltin; (got != nil) != builtIn || (builtIn && (!got.Sweep || got.Step != "a step the agent chose")) {
+			t.Fatalf("%s: hints = %+v", assignee, got)
+		}
+	}
+}

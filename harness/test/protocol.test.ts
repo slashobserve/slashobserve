@@ -384,13 +384,11 @@ describe("protocol", () => {
     ).toBe(false)
   })
 
-  test("a claim may ask for a harness session", () => {
+  test("a claim takes only how long to wait", () => {
+    expect(claimInput.safeParse({ wait_seconds: 0 }).success).toBe(true)
     expect(
       claimInput.safeParse({ wait_seconds: 0, harness: true }).success
-    ).toBe(true)
-    expect(claimInput.safeParse({ wait_seconds: 0, harness: 1 }).success).toBe(
-      false
-    )
+    ).toBe(false)
   })
 
   test("the run key reads the call side fields when the server sends them", () => {

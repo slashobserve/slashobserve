@@ -1,18 +1,6 @@
 package runsession
 
-import (
-	"context"
-	"time"
-
-	"github.com/slashobserve/slashobserve/internal/agent/guard"
-	"github.com/slashobserve/slashobserve/internal/agent/tools"
-	"github.com/slashobserve/slashobserve/internal/revisions"
-)
-
-const (
-	maxTurnCalls   = 64
-	maxTurnIDBytes = 128
-)
+import "github.com/slashobserve/slashobserve/internal/revisions"
 
 type Turn struct {
 	ID    string `json:"id"`
@@ -20,61 +8,4 @@ type Turn struct {
 	Saves int    `json:"saves"`
 
 	Usage *revisions.Usage `json:"usage"`
-}
-
-func (t *Turn) valid() *Turn {
-	if t == nil || t.ID == "" || len(t.ID) > maxTurnIDBytes || t.Calls < 1 || t.Calls > maxTurnCalls || t.Saves < 0 || t.Saves > t.Calls {
-		return nil
-	}
-	return t
-}
-
-func isSave(name string) bool {
-	return tools.Phase(name) == tools.PhaseSave
-}
-
-func (t OpenTurn) joinedBy(turn *Turn) bool {
-	return t.Open && turn != nil && t.ID != "" && t.ID == turn.ID
-}
-
-func (sess *session) beginTurn(c guard.Call, turn *Turn) {
-	next := OpenTurn{Seq: sess.state.Turn.Seq + 1, Open: true, Calls: 1}
-	saves := 0
-	if isSave(c.Name) {
-		saves = 1
-	}
-	if turn != nil {
-		next.ID, next.Calls, saves = turn.ID, turn.Calls, turn.Saves
-	}
-	sess.state.Guard.BeginTurn(saves > 0)
-	sess.state.Turn = next
-}
-
-func (sess *session) closeTurn(ctx context.Context) (notes []string, err error) {
-	nudge, stop := sess.state.Guard.EndTurn()
-	sess.state.Turn.Open = false
-	if nudge != "" {
-		notes = append(notes, nudge)
-	}
-	if stop != nil {
-		return notes, sess.end(ctx, endSpec{failure: stop.Failure, step: stop.Step, message: stop.Message})
-	}
-	if line := sess.state.Guard.StageLine(); line != "" {
-		notes = append(notes, line)
-		if stage, changed := sess.state.Guard.StageChange(); changed {
-			sess.record(revisions.Step{At: time.Now(), Phase: guard.PhaseStage, Tool: stopTool, Status: "ok", Message: "Stage: " + stage})
-		}
-	}
-	return notes, nil
-}
-
-func (sess *session) complete(ctx context.Context, seq int) (notes []string, err error) {
-	turn := &sess.state.Turn
-	if !turn.Open || turn.Seq != seq {
-		return nil, nil
-	}
-	if turn.Settled++; turn.Settled < turn.Calls {
-		return nil, nil
-	}
-	return sess.closeTurn(ctx)
 }
