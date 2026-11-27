@@ -216,7 +216,9 @@ func TestAuthenticateRefusesTheTokenOfAReleasedClaimWhileItIsStillStored(t *test
 	f := newFixture(t)
 	queued := f.queue(t, revisions.AssignGrant, grantID)
 	first := f.claim(t, grantClaimer)
-	f.runs.Release(context.Background(), f.stored(t, queued.ID))
+	if err := f.runs.Release(context.Background(), f.stored(t, queued.ID)); err != nil {
+		t.Fatalf("release: %v", err)
+	}
 
 	second, found, err := f.runs.Claim(context.Background(), grantClaimer.claimant())
 	if err != nil || !found {

@@ -45,7 +45,7 @@ type sourceJSON struct {
 func sourcesOfJSON(in []sourceJSON) []Source {
 	var out []Source
 	for _, s := range in {
-		out = append(out, Source{s.UID, s.Type})
+		out = append(out, Source(s))
 	}
 	return out
 }
@@ -79,7 +79,7 @@ type transcriptTools struct {
 
 func keyOf(tool string, input json.RawMessage) string { return tool + " " + string(input) }
 
-func (tt *transcriptTools) answerOf(tool string, input json.RawMessage, make func() transcriptCall) (transcriptCall, bool) {
+func (tt *transcriptTools) answerOf(tool string, input json.RawMessage, record func() transcriptCall) (transcriptCall, bool) {
 	tt.mu.Lock()
 	defer tt.mu.Unlock()
 	key := keyOf(tool, input)
@@ -90,7 +90,7 @@ func (tt *transcriptTools) answerOf(tool string, input json.RawMessage, make fun
 		}
 		return c, ok
 	}
-	c := make()
+	c := record()
 	tt.recorded[key] = c
 	return c, true
 }
@@ -416,7 +416,7 @@ func TestSweepTranscripts(t *testing.T) {
 			live := runSweep(tt, c.sources, c.question)
 			sc := sweepCase{Name: c.name, End: end}
 			for _, src := range c.sources {
-				sc.Sources = append(sc.Sources, sourceJSON{src.UID, src.Type})
+				sc.Sources = append(sc.Sources, sourceJSON(src))
 			}
 			if c.question != nil {
 				sc.Question = &windowJSON{c.question.From, c.question.To}

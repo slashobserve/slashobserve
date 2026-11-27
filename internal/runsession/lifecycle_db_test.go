@@ -662,7 +662,9 @@ func TestACallOfAReleasedClaimLeavesTheSessionOfTheClaimThatReplacedIt(t *testin
 	r.d.Exec(t, "UPDATE agent_requests SET assigned_kind = 'grant', assigned_id = $2 WHERE id = $1", row.ID, mustUUID(t, grantID))
 	first := r.claim(grantClaimant)
 	r.read(first.Request, 0)
-	r.runs.Release(context.Background(), first.Row)
+	if err := r.runs.Release(context.Background(), first.Row); err != nil {
+		t.Fatalf("release: %v", err)
+	}
 	second := r.claim(grantClaimant)
 	if second.Request.Attempt != first.Request.Attempt || second.Request.ClaimEpoch <= first.Request.ClaimEpoch {
 		t.Fatalf("second claim = attempt %d epoch %d after attempt %d epoch %d, want the same attempt under a later epoch",

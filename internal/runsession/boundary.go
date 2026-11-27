@@ -283,23 +283,7 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 	if d.err != nil {
 		return Answer{}, sess.settleFailed(ctx, c, a, step)
 	}
-	if !state.AgentHarness {
-		d.content = state.issueFacts(c, d)
-		state.noteGrounding(c, d)
-	}
-	if !d.res.IsError && guard.ReadsData(c.Name) {
-		state.DataReads++
-	}
-	if d.res.IsError {
-		step.Status = "error"
-	}
-	step.Message = state.stepMessage(c, a, d)
-	if a.hints != nil {
-		if message := claims.CleanText(a.hints.Step, maxMessageRunes); message != "" {
-			step.Message = message
-		}
-	}
-	sess.record(step)
+	d.content = sess.noteResult(c, a, d, step)
 	answer := Answer{Content: d.content, IsError: d.res.IsError, Notes: slices.Clone(a.notes)}
 	if a.adm.Note != "" {
 		answer.Notes = append(answer.Notes, a.adm.Note)
@@ -326,6 +310,28 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 	}
 	answer.Meta = state.meta(restarted && !sess.ended)
 	return answer, nil
+}
+
+func (sess *session) noteResult(c guard.Call, a admitted, d dispatched, step revisions.Step) []byte {
+	state := &sess.state
+	if !state.AgentHarness {
+		d.content = state.issueFacts(c, d)
+		state.noteGrounding(c, d)
+	}
+	if !d.res.IsError && guard.ReadsData(c.Name) {
+		state.DataReads++
+	}
+	if d.res.IsError {
+		step.Status = "error"
+	}
+	step.Message = state.stepMessage(c, a, d)
+	if a.hints != nil {
+		if message := claims.CleanText(a.hints.Step, maxMessageRunes); message != "" {
+			step.Message = message
+		}
+	}
+	sess.record(step)
+	return d.content
 }
 
 func (sess *session) settleSweep(d dispatched) (Answer, error) {

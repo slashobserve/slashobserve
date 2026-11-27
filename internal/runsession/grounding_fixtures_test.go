@@ -240,7 +240,7 @@ func TestGroundingSessionFixtures(t *testing.T) {
 		if err := enc.Encode(cases); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(groundingSessions, b.Bytes(), 0o644); err != nil {
+		if err := os.WriteFile(groundingSessions, b.Bytes(), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}

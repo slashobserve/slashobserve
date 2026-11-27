@@ -19,7 +19,7 @@ var updateFixtures = flag.Bool("update", false, "rewrite spec/examples/agent/tri
 
 func readFixture(t *testing.T, name string, into any) {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(fixtureDir, name))
+	data, err := os.ReadFile(filepath.Join(fixtureDir, name)) //nolint:gosec // fixture names are constants in this package
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func writeFixture(t *testing.T, name string, from any) {
 	if err := enc.Encode(from); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(fixtureDir, name), b.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(fixtureDir, name), b.Bytes(), 0o600); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -191,7 +191,7 @@ func originsJSON(in []Origin) []originJSON {
 func originsOfJSON(in []originJSON) []Origin {
 	var out []Origin
 	for _, o := range in {
-		out = append(out, Origin{o.Source, o.Service, o.Operation, o.Message, o.Traces, o.Share, o.Example, o.RelayedBy})
+		out = append(out, Origin(o))
 	}
 	return out
 }
@@ -207,7 +207,7 @@ func eventsJSON(in []Event) []eventJSON {
 func eventsOf(in []eventJSON) []Event {
 	var out []Event
 	for _, e := range in {
-		out = append(out, Event{e.Kind, e.Source, e.Service, e.At, e.Text})
+		out = append(out, Event(e))
 	}
 	return out
 }
@@ -215,7 +215,7 @@ func eventsOf(in []eventJSON) []Event {
 func patternsJSON(in []Pattern) []patternJSON {
 	out := []patternJSON{}
 	for _, p := range in {
-		out = append(out, patternJSON{p.Source, p.Service, p.Level, p.Text, p.Window, p.Baseline})
+		out = append(out, patternJSON(p))
 	}
 	return out
 }
@@ -223,7 +223,7 @@ func patternsJSON(in []Pattern) []patternJSON {
 func patternsOfJSON(in []patternJSON) []Pattern {
 	var out []Pattern
 	for _, p := range in {
-		out = append(out, Pattern{p.Source, p.Service, p.Level, p.Text, p.Window, p.Baseline})
+		out = append(out, Pattern(p))
 	}
 	return out
 }
@@ -250,10 +250,10 @@ func reportOfJSON(r reportJSON) Report {
 		out.Question = &Window{From: r.Question.From, To: r.Question.To}
 	}
 	for _, s := range r.Services {
-		out.Services = append(out.Services, ServiceSource{s.Source, s.Type, s.Signal, s.Field, s.Services})
+		out.Services = append(out.Services, ServiceSource(s))
 	}
 	for _, s := range r.Skipped {
-		out.Skipped = append(out.Skipped, Skip{s.Step, s.Source, s.Reason, s.Signals})
+		out.Skipped = append(out.Skipped, Skip(s))
 	}
 	return out
 }

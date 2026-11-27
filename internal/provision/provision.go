@@ -158,6 +158,17 @@ func (p *Provisioner) provisionAll(ctx context.Context, requested bool) error {
 	if err := p.clearRemovedErrors(ctx, present); err != nil {
 		return err
 	}
+	if err := p.noteGone(ctx, rows, present); err != nil {
+		return err
+	}
+	p.failing = failing
+	if requested && p.saves == 0 && !failing {
+		return p.store.unchanged(ctx)
+	}
+	return nil
+}
+
+func (p *Provisioner) noteGone(ctx context.Context, rows []dbsqlc.ProvisionedDashboard, present map[string]bool) error {
 	for _, r := range rows {
 		if present[r.Path] {
 			continue
@@ -172,10 +183,6 @@ func (p *Provisioner) provisionAll(ctx context.Context, requested bool) error {
 			p.gone[r.Path] = true
 			p.logger.InfoContext(ctx, "a provisioned file is gone; its dashboard stays", slog.String("path", r.Path), slog.String("dashboard_id", r.DashboardID.String()))
 		}
-	}
-	p.failing = failing
-	if requested && p.saves == 0 && !failing {
-		return p.store.unchanged(ctx)
 	}
 	return nil
 }

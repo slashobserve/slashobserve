@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
@@ -83,7 +84,7 @@ func TestNoteAgentOfAnEndedRunAnswersRunEnded(t *testing.T) {
 		t.Fatal(err)
 	}
 	err := r.svc.NoteAgent(context.Background(), req, tools.AgentReport{State: &tools.AgentState{Carry: json.RawMessage(`1`)}})
-	if err != tools.ErrRunEnded {
+	if !errors.Is(err, tools.ErrRunEnded) {
 		t.Fatalf("err = %v, want tools.ErrRunEnded", err)
 	}
 }

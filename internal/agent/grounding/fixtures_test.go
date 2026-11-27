@@ -43,7 +43,7 @@ func writeFixture(t *testing.T, name string, from any) {
 	if err := enc.Encode(from); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(fixtureDir, name), b.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(fixtureDir, name), b.Bytes(), 0o600); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -72,7 +72,7 @@ type problemJSON struct {
 func problemsJSON(ps []Problem) []problemJSON {
 	out := []problemJSON{}
 	for _, p := range ps {
-		out = append(out, problemJSON{p.Kind, p.Text, p.Fix})
+		out = append(out, problemJSON(p))
 	}
 	return out
 }
@@ -246,7 +246,8 @@ func TestRenderFixtures(t *testing.T) {
 	for i, c := range fx.MissingAnswers.Cases {
 		var got *problemJSON
 		if p, ok := MissingAnswers(c.Input, fx.MissingAnswers.Question); ok {
-			got = &problemJSON{p.Kind, p.Text, p.Fix}
+			converted := problemJSON(p)
+			got = &converted
 		}
 		if *updateFixtures {
 			fx.MissingAnswers.Cases[i].Want = got

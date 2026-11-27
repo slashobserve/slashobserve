@@ -135,7 +135,7 @@ func TestConcludeFixtures(t *testing.T) {
 		if err := enc.Encode(fx); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(concludeFixture, b.Bytes(), 0o644); err != nil {
+		if err := os.WriteFile(concludeFixture, b.Bytes(), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
