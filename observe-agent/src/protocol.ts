@@ -50,9 +50,32 @@ export const settledKinds = [
 ] as const
 export type SettledKind = (typeof settledKinds)[number]
 
+export const callMeta = z.object({
+  edits: z
+    .object({
+      panels: z.array(z.string()),
+      added: z.array(z.string()),
+      deleted: z.array(z.string()),
+      settings: z.boolean(),
+    })
+    .nullable(),
+  refusal: z.string().nullable(),
+  unchecked: z.string().nullable(),
+  discovered: z
+    .object({
+      datasource: z.string(),
+      of: z.string(),
+      names: z.array(z.string()),
+    })
+    .nullable(),
+  ranges: z.array(z.object({ from: z.string(), to: z.string() })),
+})
+export type CallMeta = z.infer<typeof callMeta>
+
 export const runMeta = z.object({
   settled: z.enum(settledKinds).nullable(),
   build: buildProgress.nullable(),
+  call: callMeta.optional(),
 })
 export type RunMeta = z.infer<typeof runMeta>
 

@@ -230,6 +230,24 @@ describe("protocol", () => {
     )
   })
 
+  test("the run key reads the call side fields when the server sends them", () => {
+    const meta = runMeta.parse({
+      settled: null,
+      build: null,
+      call: {
+        edits: { panels: ["a"], added: ["a"], deleted: [], settings: false },
+        refusal: "one_panel",
+        unchecked: null,
+        discovered: { datasource: "prom", of: "metrics", names: ["up"] },
+        ranges: [{ from: "2026-03-01T09:00:00Z", to: "2026-03-01T10:00:00Z" }],
+      },
+    })
+    expect(meta.call?.edits?.panels).toEqual(["a"])
+    expect(meta.call?.refusal).toBe("one_panel")
+    expect(meta.call?.ranges).toHaveLength(1)
+    expect(runMeta.parse({ settled: null, build: null }).call).toBeUndefined()
+  })
+
   test("a tool error body becomes a ToolError with its code", () => {
     const error = parseToolError(
       JSON.stringify({ code: "not_your_run", message: "that run is not yours" })

@@ -29,6 +29,60 @@ type Call struct {
 type RunMeta struct {
 	Settled *SettledKind         `json:"settled"`
 	Build   *tools.BuildProgress `json:"build"`
+	Call    *CallMeta            `json:"call,omitempty"`
+}
+
+type CallMeta struct {
+	Edits      *CallEdits     `json:"edits"`
+	Refusal    *string        `json:"refusal"`
+	Unchecked  *string        `json:"unchecked"`
+	Discovered *CallDiscovery `json:"discovered"`
+	Ranges     []CallRange    `json:"ranges"`
+}
+
+type CallEdits struct {
+	Panels   []string `json:"panels"`
+	Added    []string `json:"added"`
+	Deleted  []string `json:"deleted"`
+	Settings bool     `json:"settings"`
+}
+
+type CallDiscovery struct {
+	Datasource string   `json:"datasource"`
+	Of         string   `json:"of"`
+	Names      []string `json:"names"`
+}
+
+type CallRange struct {
+	From time.Time `json:"from"`
+	To   time.Time `json:"to"`
+}
+
+func callMeta(res tools.Result, ranges []datasource.TimeRange) *CallMeta {
+	meta := &CallMeta{Ranges: make([]CallRange, len(ranges))}
+	for i, r := range ranges {
+		meta.Ranges[i] = CallRange{From: r.From.UTC(), To: r.To.UTC()}
+	}
+	if e := res.Edits; len(e.Panels) > 0 || len(e.Added) > 0 || len(e.Deleted) > 0 || e.Settings {
+		meta.Edits = &CallEdits{Panels: nonNil(e.Panels), Added: nonNil(e.Added), Deleted: nonNil(e.Deleted), Settings: e.Settings}
+	}
+	if res.Refusal != "" {
+		meta.Refusal = ptr(string(res.Refusal))
+	}
+	if res.Unchecked != "" {
+		meta.Unchecked = ptr(res.Unchecked)
+	}
+	if found := res.Discovered; found != nil {
+		meta.Discovered = &CallDiscovery{Datasource: found.Datasource, Of: found.Of, Names: nonNil(found.Names)}
+	}
+	return meta
+}
+
+func nonNil[T any](s []T) []T {
+	if s == nil {
+		return []T{}
+	}
+	return s
 }
 
 type Answer struct {
@@ -120,9 +174,12 @@ func (s *Service) Call(ctx context.Context, req revisions.Request, call Call, di
 	})
 	switch {
 	case errors.Is(err, errRunNotRunning):
-		return Answer{Content: done.content, IsError: done.res.IsError, Meta: RunMeta{Settled: ptr(settledEnded)}}, done.err
+		return Answer{Content: done.content, IsError: done.res.IsError, Meta: RunMeta{Settled: ptr(settledEnded), Call: callMeta(done.res, done.ranges)}}, done.err
 	case err != nil:
 		return Answer{}, err
+	}
+	if done.err == nil {
+		answer.Meta.Call = callMeta(done.res, done.ranges)
 	}
 	return answer, done.err
 }

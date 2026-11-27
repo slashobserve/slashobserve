@@ -477,3 +477,19 @@ func TestAWriteIsDispatchedWithTheObjectsAnEarlierWriteCreated(t *testing.T) {
 		t.Fatalf("step = %+v", last)
 	}
 }
+
+func TestADispatchedCallCarriesItsCallMetaAndARefusedOneNone(t *testing.T) {
+	r := newRig(t)
+	req := r.revise()
+	built := r.call(req, "update_panels", `{"n":1}`, nil, buildSaved(r, "a", 3))
+	if built.Meta.Call == nil || built.Meta.Call.Edits == nil || built.Meta.Call.Edits.Panels[0] != "a" {
+		t.Fatalf("build call meta = %+v", built.Meta.Call)
+	}
+	for n := range 6 {
+		r.read(req, n)
+	}
+	refused := r.read(req, 7)
+	if !refused.IsError || refused.Meta.Call != nil {
+		t.Fatalf("refused read = %s, call meta %+v", refused.Content, refused.Meta.Call)
+	}
+}

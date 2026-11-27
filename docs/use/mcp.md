@@ -451,6 +451,13 @@ Every result of a run session carries `_meta["slashobserve.com/run"]` with `{"se
 - `null` otherwise.
 
 `build` is the saved panel progress, `{"saves", "panels", "planned_panels"}`, or `null` when the run has no build.
+A result of a call that ran also carries `call`, what the call did that its content does not show; a call the server refused before it ran has none:
+
+- `edits`: `{"panels", "added", "deleted", "settings"}` for a save that changed the build, the panel ids it changed, added and deleted and whether it changed a dashboard-level field, or `null`.
+- `refusal`: `one_panel` when a build save was refused for changing more than one panel, or `null`.
+- `unchecked`: the error code of a read that could not finish, `query_timeout`, `datasource_unavailable` or `too_many_requests`, so the data it asked for is not known to be missing, or `null`.
+- `discovered`: `{"datasource", "of", "names"}` for a read that listed names, such as metrics or labels, or `null`.
+- `ranges`: each time range the call resolved and read, as `{"from", "to"}` in RFC 3339 UTC, in the order it read them; empty when it read none.
 `get_run` and `GET /api/v1/observe/{id}` return the same `settled` value for a running run (never `restarted`, which describes one call), so a reader can tell a run that already has its result from one still working.
 They also return `check_failures` and `check_failures_max`: a run going back to the queue with that count rising is waiting on a server check, and it fails with `check_failed` at the limit.
 Some results also carry a note after the content, which an agent reads like any other tool text.
