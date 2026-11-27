@@ -19,7 +19,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/egress/domains"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
@@ -30,6 +29,8 @@ type LogFormat string
 const (
 	groundingOff     = "off"
 	groundingEnforce = "enforce"
+
+	defaultInvestigationCallsMax = 40
 )
 
 const (
@@ -772,7 +773,7 @@ func loadInvestigationCalls(lookup func(string) (string, bool), cfg *Config) []e
 			cfg.Agent.InvestigationCalls = n
 		}
 	}
-	cfg.Agent.InvestigationCallsMax = max(guard.DefaultInvestigationCallsMax, cfg.Agent.InvestigationCalls)
+	cfg.Agent.InvestigationCallsMax = max(defaultInvestigationCallsMax, cfg.Agent.InvestigationCalls)
 	if v := get(lookup, envAgentInvestigationMax); v != "" {
 		floor := max(minAgentInvestigationCalls, cfg.Agent.InvestigationCalls)
 		n, err := strconv.Atoi(v)

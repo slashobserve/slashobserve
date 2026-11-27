@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/harness"
@@ -80,7 +79,7 @@ func TestAgentSettingsCarryTheConfigAndTheGuardDefaults(t *testing.T) {
 	if got.InvestigationCalls != 20 || got.InvestigationCallsMax != 50 || !got.Loop || got.Grounding != "enforce" || !got.BriefSweep || got.SessionRenewBytes != 65536 {
 		t.Fatalf("settings = %+v", got)
 	}
-	if got.DefaultCalls != guard.DefaultInvestigationCalls || got.ChatCalls != guard.DefaultChatCalls || got.SaveCalls != 6 || got.SuggestCalls != 12 {
+	if got.DefaultCalls != 30 || got.ChatCalls != 12 || got.SaveCalls != 6 || got.SuggestCalls != 12 {
 		t.Fatalf("call limits = %+v", got)
 	}
 	if got.TaskCalls["measure"] != 16 || got.TaskCalls["incident"] != 30 || len(got.TaskCalls) != 6 {

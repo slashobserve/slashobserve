@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/config"
@@ -78,19 +77,26 @@ func (s *sidecarSetup) agentSettings(cfg config.Config) *claims.AgentSettings {
 	return agentSettingsOf(cfg.Agent)
 }
 
+const (
+	defaultInvestigationCalls = 30
+	defaultChatCalls          = 12
+	callsBeforeSave           = 6
+	callsBeforeProposal       = 12
+)
+
+func investigationCallsByTask() map[string]int {
+	return map[string]int{"measure": 16, "logs": 20, "traces": 20, "incident": 30, "inventory": 12, "explain": 12}
+}
+
 func agentSettingsOf(a config.Agent) *claims.AgentSettings {
-	tasks := map[string]int{}
-	for task, calls := range guard.TaskCalls() {
-		tasks[string(task)] = calls
-	}
 	return &claims.AgentSettings{
 		InvestigationCalls:    a.InvestigationCalls,
 		InvestigationCallsMax: a.InvestigationCallsMax,
-		DefaultCalls:          guard.DefaultInvestigationCalls,
-		TaskCalls:             tasks,
-		ChatCalls:             guard.DefaultChatCalls,
-		SaveCalls:             guard.MaxCallsBeforeSave,
-		SuggestCalls:          guard.MaxCallsBeforeProposal,
+		DefaultCalls:          defaultInvestigationCalls,
+		TaskCalls:             investigationCallsByTask(),
+		ChatCalls:             defaultChatCalls,
+		SaveCalls:             callsBeforeSave,
+		SuggestCalls:          callsBeforeProposal,
 		Loop:                  a.InvestigationLoop,
 		Grounding:             a.FindingGrounding,
 		BriefSweep:            a.InvestigationBrief,
