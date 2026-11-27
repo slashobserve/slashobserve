@@ -20,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/public"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/server"
 	"github.com/slashobserve/slashobserve/internal/threads"
 	"github.com/slashobserve/slashobserve/internal/webhooks"
 )
@@ -45,6 +46,7 @@ func statesReference() string {
 		inboundmcp.ToolMachine.Doc("MCP source tool", "An MCP source tool is one tool of an MCP server an Admin registered, returned by `GET /api/v1/mcp-sources/{uid}/tools`; discovery moves it between `offered`, `changed`, `gone` and `refused`, and an Admin approves or revokes it."),
 		inboundmcp.SourceStates.Doc("MCP source", "`GET /api/v1/mcp-sources` returns the `state` of each MCP source."),
 		presence.States.Doc("Agent presence", "Whether an outside agent is taking runs: derived from when it last asked for work and the runs it holds."),
+		server.PhaseMachine.Doc("Server process", "A server process moves through these phases from start to exit: `GET /readyz` returns the current one as `phase`, the `slashobserve_server_phase` series is 1 for it, and each move writes one server log line with the name in the Event column and the new phase as its `phase` attribute, not an activity event."),
 	)
 }
 

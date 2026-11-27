@@ -242,3 +242,25 @@ This state is computed from stored fields on every read; nothing stores it.
 | `working` | It holds the lease of a run it claimed. |
 | `listening` | It asked for work in the last 40 seconds. |
 | `offline` | It has not asked for work in 40 seconds and holds no run. |
+
+## Server process
+
+A server process moves through these phases from start to exit: `GET /readyz` returns the current one as `phase`, the `slashobserve_server_phase` series is 1 for it, and each move writes one server log line with the name in the Event column and the new phase as its `phase` attribute, not an activity event.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `booting` | It reads its settings and connects to Postgres. | - |
+| `migrating` | It applies the pending database migrations. | - |
+| `provisioning` | It reconciles roles, applies the service-account and MCP source files and builds its services; it does not listen yet. | - |
+| `ready` | It listens and serves requests, and `/readyz` answers 200 while its checks pass. | - |
+| `stopping` | It got the shutdown signal: `/readyz` answers 503 while it keeps serving for 5 seconds, then it stops accepting requests and finishes the open ones. The 503 code `shutting_down` of the event streams is this phase. | - |
+| `stopped` | It serves nothing more and exits. Final. | - |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `boot` | - | `booting` | `starting slashobserve-server` | server |
+| `migrate` | `booting` | `migrating` | `migrating database` | server |
+| `provision` | `migrating` | `provisioning` | `provisioning` | server |
+| `serve` | `provisioning` | `ready` | `listening` | server |
+| `stop` | `ready` | `stopping` | `shutting down` | server |
+| `exit` | `booting`, `migrating`, `provisioning`, `ready`, `stopping` | `stopped` | `server stopped` | server |

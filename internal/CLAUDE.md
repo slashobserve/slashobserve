@@ -356,6 +356,7 @@ This lists only the packages whose purpose the name does not make obvious.
 ## Logging
 
 - `log/slog`; request logs record the path, never the query string.
+- `server.Phases` holds the server process phase (`booting`, `migrating`, `provisioning`, `ready`, `stopping`, `stopped`): `Enter` makes only the moves of `server.PhaseMachine` and writes the move's log line, named by the machine, with the `phase` attribute, and `/readyz` and the `slashobserve_server_phase` gauge read `Current`, so a new boot or shutdown step that needs its own word is a phase in the machine, never free log text.
 - The server never logs secrets, prompt text, query text, variable values, tool results or MCP client names.
   OAuth codes, tokens, `state`, redirect URIs and registered client names are never logged either.
   The `asset fetch failed` and `action run` lines never hold URLs, paths, queries, bodies or action inputs.
