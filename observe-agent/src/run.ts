@@ -362,6 +362,7 @@ class RunLoop {
         this.cutOffs = 0
         this.answerNudged = false
         this.pendingNudged = false
+        this.inWriteWindow = false
         this.session = undefined
         reason = "conflict"
         carry = undefined
