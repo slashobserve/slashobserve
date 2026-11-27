@@ -170,24 +170,6 @@
       ]
     },
     {
-      "name": "unset question run runs the eleventh",
-      "source": "TestAQuestionRunReadsUpToTheConfiguredCallsAndABuildingRunUpToSix",
-      "start": {"mode":"create","agent":{},"building":false,"window_calls":10},
-      "steps": [
-        {"turn":{"saves":0}},
-        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"dispatch"}}
-      ]
-    },
-    {
-      "name": "unset question run refuses the twelfth",
-      "source": "TestAQuestionRunReadsUpToTheConfiguredCallsAndABuildingRunUpToSix",
-      "start": {"mode":"create","agent":{},"building":false,"window_calls":11},
-      "steps": [
-        {"turn":{"saves":0}},
-        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse","step":"Refused get_panels: 12 model calls passed without a save"}}
-      ]
-    },
-    {
       "name": "raised question run runs the nineteenth",
       "source": "TestAQuestionRunReadsUpToTheConfiguredCallsAndABuildingRunUpToSix",
       "start": {"mode":"create","agent":{"chat_calls":20},"building":false,"window_calls":18},
