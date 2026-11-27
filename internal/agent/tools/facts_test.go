@@ -12,7 +12,7 @@ import (
 )
 
 var factLedger = &grounding.Ledger{Facts: []grounding.Fact{
-	{ID: "f1", Text: "0.5234123", Value: 0.5234123, Kind: grounding.FactNumber},
+	{ID: "f1", Text: "0.5234123", Value: 0.5234123, Kind: grounding.FactNumber, Query: "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))"},
 	{ID: "f2", Text: "1284", Value: 1284, Kind: grounding.FactCount},
 }}
 

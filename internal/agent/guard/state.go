@@ -35,11 +35,12 @@ type State struct {
 }
 
 type Window struct {
-	Calls    int  `json:"calls"`
-	Stalled  int  `json:"stalled"`
-	Diagnose bool `json:"diagnose,omitempty"`
-	Refused  int  `json:"refused,omitempty"`
-	Noted    int  `json:"noted,omitempty"`
+	Calls       int  `json:"calls"`
+	Stalled     int  `json:"stalled"`
+	Diagnose    bool `json:"diagnose,omitempty"`
+	Refused     int  `json:"refused,omitempty"`
+	Noted       int  `json:"noted,omitempty"`
+	LedgerTurns int  `json:"ledger_turns,omitempty"`
 }
 
 type Unchecked struct {
@@ -60,6 +61,7 @@ type Turn struct {
 	Progress  bool   `json:"progress,omitempty"`
 	Rejected  bool   `json:"rejected,omitempty"`
 	Noted     bool   `json:"noted,omitempty"`
+	SentBack  bool   `json:"sent_back,omitempty"`
 
 	Reads         int                `json:"reads,omitempty"`
 	LedgerChanged bool               `json:"ledger_changed,omitempty"`

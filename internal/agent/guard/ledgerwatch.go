@@ -22,6 +22,9 @@ func (s *State) WatchLedger() {
 }
 
 func (s *State) noteLedgerResult(res tools.Result) {
+	if res.IsError {
+		s.Turn.SentBack = true
+	}
 	if s.Ledger == nil || res.IsError || res.Ledger == nil {
 		return
 	}

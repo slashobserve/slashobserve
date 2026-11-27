@@ -149,21 +149,56 @@ func (r *rendering) apply(f Fact, opt string) error {
 		}
 		r.value, r.unit, r.moved = r.value*100, "%", true
 	case durationScales[opt] != 0:
-		from := r.unit
-		if from == "" && f.Kind == FactNumber {
-			from = "s"
-		}
-		scale, ok := durationScales[from]
-		if !ok || f.Kind != FactDuration && f.Kind != FactNumber {
-			return fmt.Errorf("%s is a %s, so it cannot be shown in %s", f.ID, describeKind(f), opt)
-		}
-		r.value, r.unit, r.moved = r.value*scale/durationScales[opt], opt, true
+		return r.convert(f, opt)
 	case len(opt) == 1 && opt[0] >= '1' && opt[0] <= '9':
 		r.digits = int(opt[0] - '0')
 	default:
 		return fmt.Errorf("%q is not an option for %s; use ms, s, us, min, %%, bare or 1 to 9 significant figures", opt, f.ID)
 	}
 	return nil
+}
+
+func (r *rendering) convert(f Fact, opt string) error {
+	from := r.unit
+	if from == "" && f.Kind == FactNumber {
+		if from = namedUnit(f); from == "" {
+			return fmt.Errorf("%s is a number whose unit the read did not name, so it cannot be converted to %s; cite it as {{%s}} and write the unit its query measures after it", f.ID, opt, f.ID)
+		}
+	}
+	scale, ok := durationScales[from]
+	if !ok || f.Kind != FactDuration && f.Kind != FactNumber {
+		return fmt.Errorf("%s is a %s, so it cannot be shown in %s", f.ID, describeKind(f), opt)
+	}
+	r.value, r.unit, r.moved = r.value*scale/durationScales[opt], opt, true
+	return nil
+}
+
+var namedUnits = []struct {
+	match *regexp.Regexp
+	unit  string
+}{
+	{regexp.MustCompile(`(?i)(^|[^a-z0-9])(ms|millis|milliseconds)([^a-z0-9]|$)`), "ms"},
+	{regexp.MustCompile(`(?i)(^|[^a-z0-9])(micros|microseconds)([^a-z0-9]|$)`), "us"},
+	{regexp.MustCompile(`(?i)(^|[^a-z0-9])(sec|secs|seconds)([^a-z0-9]|$)`), "s"},
+}
+
+func namedUnit(f Fact) string {
+	found := ""
+	for _, text := range []string{f.Of, f.Query, f.Asked} {
+		for _, n := range namedUnits {
+			if !n.match.MatchString(text) {
+				continue
+			}
+			if found != "" && found != n.unit {
+				return ""
+			}
+			found = n.unit
+		}
+		if found != "" {
+			return found
+		}
+	}
+	return ""
 }
 
 func describeKind(f Fact) string {
