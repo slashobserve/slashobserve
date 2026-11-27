@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -201,6 +202,15 @@ func (r *RunDesk) answer(ctx context.Context, row dbsqlc.AgentRequest, caller au
 }
 
 func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, readOnly bool) (agentRequestJSON, error) {
+	out, err := r.renderStored(ctx, row, caller, readOnly)
+	if err != nil {
+		return agentRequestJSON{}, err
+	}
+	out.Settled, err = r.service.settled(ctx, row)
+	return out, err
+}
+
+func (r *RunDesk) renderStored(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, readOnly bool) (agentRequestJSON, error) {
 	view := r.service.viewOf(ctx, row, caller)
 	if view == viewNone {
 		return agentRequestJSON{}, ErrRequestNotFound
@@ -247,6 +257,21 @@ func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller au
 	return out, nil
 }
 
+func holdsSession(state State) bool {
+	return state == StateRunning || state == StateCanceling
+}
+
+func (s *Service) settled(ctx context.Context, row dbsqlc.AgentRequest) (*string, error) {
+	if !holdsSession(State(row.State)) {
+		return nil, nil
+	}
+	kind, err := s.db.Queries().GetRunSessionSettled(ctx, dbsqlc.GetRunSessionSettledParams{AgentRequestID: row.ID, Attempt: row.Attempts, ClaimEpoch: row.ClaimEpoch})
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("read what a running agent request already settled: %w", err)
+	}
+	return httpapi.OptionalString(kind), nil
+}
+
 func (s *Service) assignee(ctx context.Context, row dbsqlc.AgentRequest) (*assigneeJSON, error) {
 	kind := AssigneeKind(row.AssignedKind)
 	if kind == AssignBuiltin {
@@ -287,7 +312,7 @@ func (r *RunDesk) attachFinding(ctx context.Context, caller auth.Principal, row 
 		return err
 	}
 	out.Finding = raw
-	if out.Status != StatusSucceeded || !row.ObservationID.Valid || r.opts.ObservationURL == nil {
+	if out.State != StateSucceeded || !row.ObservationID.Valid || r.opts.ObservationURL == nil {
 		return nil
 	}
 	url := r.opts.ObservationURL(row.ObservationID.String())
@@ -318,7 +343,7 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 		Trigger:       row.Trigger,
 		Title:         titleShownTo(row, caller),
 		Prompt:        row.Prompt,
-		Status:        Status(row.Status),
+		Status:        State(row.State).Status(),
 		State:         State(row.State),
 		ResultKind:    ReportedResultKind(row.ResultKind, row.ObservationID),
 		Attempt:       int(row.Attempts),
@@ -336,8 +361,12 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 		FinishedAt:   httpapi.FormatOptionalTime(optionalTime(row.FinishedAt)),
 		Build:        state.progressFor(requesterOf(row), caller),
 		BuildSavedAt: httpapi.FormatOptionalTime(optionalTime(row.BuildSavedAt)),
+		BuildState:   state.derived(),
+		Reply:        replyJSON{State: replyStateOf(row, time.Now())},
 
 		QueuePosition:     position,
+		CheckFailures:     int(row.CheckFailures),
+		CheckFailuresMax:  maxCheckFailures,
 		CancelRequestedAt: httpapi.FormatOptionalTime(optionalTime(row.CancelRequestedAt)),
 		CanCancel:         slices.Contains(allowed, ActionCancel),
 		AllowedActions:    actionStrings(allowed),
@@ -363,7 +392,7 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 	if row.DashboardID.Valid {
 		id := row.DashboardID.String()
 		out.DashboardID = &id
-		if out.Status == StatusSucceeded && out.Kind == KindBuild && r.opts.DashboardURL != nil {
+		if out.State == StateSucceeded && out.Kind == KindBuild && r.opts.DashboardURL != nil {
 			url := r.opts.DashboardURL(id, "")
 			out.URL = &url
 		}
@@ -510,7 +539,7 @@ func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, caller auth.Princip
 		Title:         requestTitle(row.Title, row.Prompt),
 		PinnedAt:      httpapi.FormatOptionalTime(optionalTime(row.PinnedAt)),
 		Prompt:        row.Prompt,
-		Status:        Status(row.Status),
+		Status:        State(row.State).Status(),
 		State:         State(row.State),
 		ResultKind:    ReportedResultKind(row.ResultKind, row.ObservationID),
 		PanelID:       optionalText(row.PanelID),
@@ -527,6 +556,7 @@ func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, caller auth.Princip
 		FailureCode:  httpapi.OptionalString(row.FailureCode.String),
 		Build:        state.build,
 		BuildSavedAt: httpapi.FormatOptionalTime(optionalTime(row.BuildSavedAt)),
+		BuildState:   state.derived(),
 		ContinuesID:  optionalUUID(row.ContinuesID),
 		ContinuedBy:  state.continuedBy,
 		RetriedBy:    state.retriedBy,
@@ -542,12 +572,12 @@ func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, caller auth.Princip
 		id := row.DashboardID.String()
 		out.DashboardID = &id
 		out.DashboardTitle = optionalText(row.DashboardTitle)
-		if out.Status == StatusSucceeded && out.Kind == KindBuild && r.opts.DashboardURL != nil {
+		if out.State == StateSucceeded && out.Kind == KindBuild && r.opts.DashboardURL != nil {
 			url := r.opts.DashboardURL(id, row.DashboardTitle.String)
 			out.URL = &url
 		}
 	}
-	if out.Status == StatusSucceeded && row.FindingID.Valid && row.ObservationID.Valid && r.opts.ObservationURL != nil {
+	if out.State == StateSucceeded && row.FindingID.Valid && row.ObservationID.Valid && r.opts.ObservationURL != nil {
 		url := r.opts.ObservationURL(row.ObservationID.String())
 		out.URL = &url
 	}

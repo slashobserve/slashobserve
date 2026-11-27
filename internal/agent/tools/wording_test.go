@@ -302,6 +302,27 @@ func TestRunTargetVariant(t *testing.T) {
 	if dashboardID.Description != agentPanelsDashboard {
 		t.Errorf("agent get_panels dashboard_id description = %q, want %q", dashboardID.Description, agentPanelsDashboard)
 	}
+	pin := byName[namePinObservation]
+	for label, c := range map[string]struct {
+		schema   json.RawMessage
+		required []string
+	}{
+		"mcp":   {pin.InputSchema, []string{"observation_id"}},
+		"agent": {pin.ForAgent().InputSchema, []string{"observation_id", "dashboard_id"}},
+	} {
+		var parsed struct {
+			Required []string `json:"required"`
+		}
+		if err := json.Unmarshal(c.schema, &parsed); err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(parsed.Required, c.required) {
+			t.Errorf("%s pin_observation requires %v, want %v", label, parsed.Required, c.required)
+		}
+	}
+	if !strings.Contains(pin.Description, "defaults to the one the observation's run was about") || strings.Contains(pin.ForAgent().Description, "defaults") {
+		t.Errorf("pin_observation describes a default the run's scope check refuses: %q", pin.ForAgent().Description)
+	}
 }
 
 func schemaProperties(t *testing.T, schema json.RawMessage) map[string]json.RawMessage {

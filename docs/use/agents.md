@@ -98,6 +98,9 @@ A message that mentions exactly one agent starts a run for it.
 That agent becomes the thread's agent, which later plain replies in the web app ask too.
 The run answers in the same thread when it ends.
 Over the API, MCP or the CLI, send the message with `to: agent`.
+`GET /api/v1/threads` returns the thread's agent with its `state`: `following` while a plain reply asks it, and `off` after a message was sent to everyone.
+A thread with no agent returns `agent: null`.
+A message makes each change of that state, and [States](../reference/states.md) has the moves.
 
 The mentions in the comment text are:
 

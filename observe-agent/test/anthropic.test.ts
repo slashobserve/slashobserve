@@ -609,18 +609,14 @@ describe("failures", () => {
     expect(model.doStreamCalls).toHaveLength(1)
   })
 
-  test("a bad tool schema fails the session at start", () => {
-    expect(() =>
-      createAnthropicSession(
-        settings(),
-        start({
-          tools: [
-            { name: "bad", description: "", inputSchema: { type: "string" } },
-          ],
-        }),
-        live,
-        { model: new MockLanguageModelV4(), env: freshEnv() }
-      )
-    ).toThrow(SessionError)
+  test("a bad tool schema fails the turn before the model is called", async () => {
+    const { session: s, model } = session([toolTurn("c1")])
+    const bad = [
+      { name: "bad", description: "", inputSchema: { type: "string" } },
+    ]
+    await expect(
+      s.next(undefined, { ...io(), tools: bad })
+    ).rejects.toBeInstanceOf(SessionError)
+    expect(model.doStreamCalls).toHaveLength(0)
   })
 })

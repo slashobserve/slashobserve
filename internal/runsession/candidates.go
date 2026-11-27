@@ -53,7 +53,7 @@ func (s *State) noteTransient(next []revisions.Hypothesis) {
 			delete(s.TransientAt, l.ID)
 			continue
 		}
-		if _, ok := s.TransientAt[l.ID]; ok {
+		if _, ok := s.TransientAt[l.ID]; ok && sameHypothesis(s.Ledger, next[i]) {
 			continue
 		}
 		if s.TransientAt == nil {
@@ -61,6 +61,11 @@ func (s *State) noteTransient(next []revisions.Hypothesis) {
 		}
 		s.TransientAt[l.ID] = s.DataReads
 	}
+}
+
+func sameHypothesis(ledger []revisions.Hypothesis, h revisions.Hypothesis) bool {
+	i := hypothesisOf(ledger, h.ID)
+	return i >= 0 && guard.SameLedger(ledger[i:i+1], []revisions.Hypothesis{h})
 }
 
 func (s *State) checkCandidates(c *guard.Call) []findings.Unverified {

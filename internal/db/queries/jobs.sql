@@ -7,7 +7,9 @@ ON CONFLICT (name) DO UPDATE SET every_seconds = EXCLUDED.every_seconds;
 UPDATE jobs
 SET leased_by = @instance_id,
     lease_until = now() + make_interval(secs => LEAST(every_seconds, @max_lease_seconds::int)),
-    last_started_at = now()
+    last_started_at = now(),
+    last_outcome = CASE WHEN lease_until IS NOT NULL THEN 'interrupted' ELSE last_outcome END,
+    last_error = CASE WHEN lease_until IS NOT NULL THEN '' ELSE last_error END
 WHERE name = (
   SELECT j.name FROM jobs j
   WHERE j.name = ANY(@names::text[])
@@ -38,3 +40,9 @@ WHERE name = @name AND leased_by = @instance_id AND last_started_at = @started_a
 SELECT name, every_seconds, next_run_at, leased_by, lease_until, last_started_at, last_finished_at, last_outcome, last_error
 FROM jobs
 WHERE name = @name;
+
+-- name: ListJobs :many
+SELECT name, every_seconds, next_run_at, leased_by, lease_until, last_started_at, last_finished_at, last_outcome, last_error,
+  now()::timestamptz AS read_at
+FROM jobs
+ORDER BY name;

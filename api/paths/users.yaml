@@ -55,7 +55,7 @@ users-id:
     operationId: updatePersonRole
     x-audit: { action: user.role_change, target: { kind: user, id: path.id } }
     summary: Set or clear the role an Admin chose for a person.
-    description: A role value sets the chosen role and null clears it, after which the role is computed again from the server settings, the identity provider's groups and the default. A role decided by SLASHOBSERVE_ADMIN_EMAILS, by being the first person, or by an identity-provider group is locked and answers 409 with code role_locked. Lowering the last Admin answers 409 with code last_admin. Service accounts cannot call this endpoint.
+    description: A role value sets the chosen role and null clears it, after which the role is computed again from the server settings, the identity provider's groups and the default. A role decided by SLASHOBSERVE_ADMIN_EMAILS, by being the first person, or by an identity-provider group is locked and answers 409 with code role_locked. Lowering the last Admin answers 409 with code last_admin. Both refusals carry the person's `state` and `allowed_actions`. Service accounts cannot call this endpoint.
     requestBody:
       required: true
       content:
@@ -89,7 +89,7 @@ users-id:
     summary: Remove a deactivated person and their My Dashboards.
     description: >-
       Admin only, from a person's session; service-account keys cannot.
-      Only a deactivated person can be removed; an active one answers 409 with code not_deactivated.
+      Only a deactivated person can be removed; an active one answers 409 with code not_deactivated and the person's `state` and `allowed_actions`.
       Deleted with them: their My Dashboards folder and the dashboards, observations, findings and saved searches in it (counted in personal_items), their saved prompts, stars, views, inbox state and folder grants.
       Kept under their stored name: dashboards, versions, observations, comments, proposals and activity in shared folders, and the service accounts and keys they created.
       A new sign-in with the same identity-provider account afterwards makes a new person.
@@ -152,7 +152,7 @@ users-id-deactivate:
       Their dashboards, observations, comments and folder grants stay; queued agent runs they requested fail when claimed, and webhooks they own stop.
       Service-account keys they created keep working, because a key acts as its service account.
       Deactivating a deactivated person answers 200 and changes nothing.
-      Deactivating yourself answers 409 with code cannot_deactivate_self, and the last active Admin answers 409 with code last_admin.
+      Deactivating yourself answers 409 with code cannot_deactivate_self, and the last active Admin answers 409 with code last_admin; both carry the person's `state` and `allowed_actions`.
     responses:
       "200":
         description: The person, deactivated.

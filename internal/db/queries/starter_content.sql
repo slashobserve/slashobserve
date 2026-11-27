@@ -17,9 +17,6 @@ SELECT EXISTS (
   WHERE v.dashboard_id = @dashboard_id AND NOT (v.author_kind = @author_kind AND v.author_id = @author_id)
 )::boolean;
 
--- name: ProvisionedAmong :many
-SELECT ref FROM starter_content WHERE ref = ANY(@ids::uuid[]);
-
 -- name: StarterAdoptable :one
 SELECT d.id FROM dashboards d
 WHERE d.folder_id = @folder_id AND lower(d.title) = lower(@title::text)

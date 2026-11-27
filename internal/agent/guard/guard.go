@@ -330,6 +330,10 @@ func (s *State) ForgetWrite(c Call) {
 	}
 }
 
+func (s *State) ForgetSave(c Call) {
+	delete(s.Saves, Key(c.Name, c.Input))
+}
+
 func writeKey(c Call) string {
 	var parsed any
 	decoder := json.NewDecoder(bytes.NewReader(c.Input))

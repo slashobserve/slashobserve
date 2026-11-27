@@ -60,6 +60,14 @@ describe("linkStatus", () => {
       { unusable_reason: "user_scoped" },
       "Not usable: uses the viewer's identity",
     ],
+    [
+      { unusable_reason: "admins_only_folder" },
+      "Not usable: the dashboard is in a folder only Admins can read",
+    ],
+    [
+      { unusable_reason: "restricted_datasource" },
+      "Not usable: reads a datasource only Admins can query",
+    ],
     [{ unusable_reason: null }, null],
   ] as const)("%o reads %j", (link, expected) => {
     expect(linkStatus(link)).toBe(expected)

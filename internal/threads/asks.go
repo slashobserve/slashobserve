@@ -307,7 +307,7 @@ func (r *ask) startOrRefuse(q *dbsqlc.Queries, thread Thread, message Message) e
 func (r *ask) setSticky(q *dbsqlc.Queries, thread Thread, state threadAgent, recipient Recipient) error {
 	switch recipient.Sticky {
 	case stickyOff:
-		if state.Agent == nil || state.Off {
+		if !state.allows(AgentTurnOff) {
 			return nil
 		}
 		return r.writeSticky(q, thread, state.Agent, true)

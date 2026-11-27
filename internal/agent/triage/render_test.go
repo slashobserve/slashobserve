@@ -95,6 +95,53 @@ func TestRenderCutsLowestPriorityFirstWithinTheBudget(t *testing.T) {
 	}
 }
 
+func TestRenderNamesTheSkippedSignalsInsteadOfAnAllClear(t *testing.T) {
+	cases := []struct {
+		name    string
+		skipped []Skip
+		want    string
+		absent  string
+	}{
+		{"nothing skipped", nil, "No service's errors or latency moved", "not an all-clear"},
+		{"a skip with no signal", []Skip{{Step: "service map", Reason: "the read failed"}}, "No service's errors or latency moved", "not an all-clear"},
+		{"errors skipped", []Skip{{Step: "metric rates over 1h", Reason: "the read failed", Signals: []string{SignalErrors}}}, "the reads of errors were skipped or failed", "No service's errors or latency moved"},
+		{"signals deduplicated and sorted", []Skip{
+			{Step: "metric rates over 1h", Signals: []string{SignalLatency}},
+			{Step: "metric rates over 6h", Signals: []string{SignalLatency, SignalErrors}},
+		}, "the reads of errors, latency were skipped or failed", "No service's errors or latency moved"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			r := sampleReport()
+			r.Candidates, r.Background, r.Skipped = nil, nil, c.skipped
+			got := Render(r, MaxBlockBytes)
+			if !strings.Contains(got, "Candidates: none") || !strings.Contains(got, c.want) || strings.Contains(got, c.absent) {
+				t.Fatalf("block:\n%s", got)
+			}
+		})
+	}
+}
+
+func TestRenderKeepsASkippedErrorOrLatencyReadThroughTheSizeCut(t *testing.T) {
+	r := sampleReport()
+	r.Skipped = []Skip{{Step: "metric rates over 1h", Source: "prom", Reason: "the read failed", Signals: []string{SignalErrors}}}
+	for i := range 40 {
+		r.Skipped = append(r.Skipped, Skip{Step: fmt.Sprintf("step %d", i), Reason: strings.Repeat("x", 60)})
+	}
+	for i := range 10 {
+		r.Background = append(r.Background, Row{Service: fmt.Sprintf("svc%d", i), Signal: SignalErrors, Rung: time.Hour, Window: 0.1, Baseline: 0.1, Unit: "ratio"})
+	}
+	for _, budget := range []int{3000, 2000, 1500} {
+		got := Render(r, budget)
+		if !strings.Contains(got, "Skipped: metric rates over 1h on prom") {
+			t.Errorf("budget %d: the skipped error read was cut:\n%s", budget, got)
+		}
+		if strings.Contains(got, "Skipped: step 39") {
+			t.Errorf("budget %d: an unrelated skipped step outlived it:\n%s", budget, got)
+		}
+	}
+}
+
 func TestClipTextKeepsRunesWhole(t *testing.T) {
 	got := clipText(strings.Repeat("é", 100))
 	if !strings.HasSuffix(got, "...") || len(got) > maxTextBytes+3 {

@@ -40,7 +40,7 @@ func (sw *sweep) metricPlan(ctx context.Context, src Source) (metricPlan, bool) 
 	okCalls, okDurations := false, false
 	sw.parallel(ctx, []func(context.Context){
 		func(ctx context.Context) {
-			okCalls = sw.call(ctx, "metric names", src.UID, func(ctx context.Context) error {
+			okCalls = sw.callFor(ctx, comparedSignals, "metric names", src.UID, func(ctx context.Context) error {
 				names, err := sw.r.MetricNames(ctx, src.UID, "calls_total")
 				mu.Lock()
 				calls = names
@@ -49,7 +49,7 @@ func (sw *sweep) metricPlan(ctx context.Context, src Source) (metricPlan, bool) 
 			})
 		},
 		func(ctx context.Context) {
-			okDurations = sw.call(ctx, "metric names", src.UID, func(ctx context.Context) error {
+			okDurations = sw.callFor(ctx, comparedSignals, "metric names", src.UID, func(ctx context.Context) error {
 				names, err := sw.r.MetricNames(ctx, src.UID, "duration")
 				mu.Lock()
 				durations = names
@@ -72,21 +72,18 @@ func (sw *sweep) metricRung(ctx context.Context, src Source, plan metricPlan, w 
 	rng, windowStart := sw.rung(w)
 	rate := rateWindow(2 * w / rungPoints)
 	var req, errs, lat []Series
-	reads := []struct {
-		query string
-		into  *[]Series
-	}{{plan.requestQuery(rate), &req}, {plan.errorQuery(rate), &errs}}
+	reads := []*metricRead{
+		{signals: comparedSignals, query: plan.requestQuery(rate), into: &req},
+		{signals: []string{SignalErrors}, query: plan.errorQuery(rate), into: &errs},
+	}
 	if plan.bucket != "" {
-		reads = append(reads, struct {
-			query string
-			into  *[]Series
-		}{plan.latencyQuery(rate), &lat})
+		reads = append(reads, &metricRead{signals: []string{SignalLatency}, query: plan.latencyQuery(rate), into: &lat})
 	}
 	step := "metric rates over " + short(w)
 	var tasks []func(context.Context)
 	for _, read := range reads {
 		tasks = append(tasks, func(ctx context.Context) {
-			sw.call(ctx, step, src.UID, func(ctx context.Context) (err error) {
+			read.ok = sw.callFor(ctx, read.signals, step, src.UID, func(ctx context.Context) (err error) {
 				*read.into, err = sw.r.Range(ctx, src.UID, read.query, rng, rungPoints)
 				return err
 			})
@@ -94,8 +91,17 @@ func (sw *sweep) metricRung(ctx context.Context, src Source, plan metricPlan, w 
 	}
 	sw.parallel(ctx, tasks)
 	base := Row{Rung: w, Source: src.UID, Basis: plan.basis}
-	sw.addRows(metricRows(base, windowStart, byService(req, plan.label), byService(errs, plan.label), byService(lat, plan.label), plan.scale))
+	sw.addRows(metricRows(base, windowStart, byService(req, plan.label), byService(errs, plan.label), byService(lat, plan.label), plan.scale, reads[1].ok))
 }
+
+type metricRead struct {
+	signals []string
+	query   string
+	into    *[]Series
+	ok      bool
+}
+
+var comparedSignals = []string{SignalRequests, SignalErrors, SignalLatency}
 
 func byService(series []Series, label string) map[string][]Point {
 	out := map[string][]Point{}
@@ -110,12 +116,14 @@ func byService(series []Series, label string) map[string][]Point {
 	return out
 }
 
-func metricRows(base Row, windowStart time.Time, req, errs, lat map[string][]Point, scale float64) []Row {
+func metricRows(base Row, windowStart time.Time, req, errs, lat map[string][]Point, scale float64, errsRead bool) []Row {
 	var rows []Row
 	for _, name := range slices.Sorted(maps.Keys(req)) {
 		rows = append(rows, requestRow(base, name, windowStart, req[name]))
-		if row, ok := errorRow(base, name, windowStart, req[name], errs[name]); ok {
-			rows = append(rows, row)
+		if errsRead {
+			if row, ok := errorRow(base, name, windowStart, req[name], errs[name]); ok {
+				rows = append(rows, row)
+			}
 		}
 		if row, ok := latencyRow(base, name, windowStart, lat[name], scale); ok {
 			rows = append(rows, row)
@@ -251,22 +259,25 @@ func (sw *sweep) traceRates(ctx context.Context) {
 
 func (sw *sweep) traceRung(ctx context.Context, src Source, w time.Duration) {
 	var now, before TraceStats
+	var nowOK, beforeOK bool
 	step := "trace rates over " + short(w)
 	sw.parallel(ctx, []func(context.Context){
 		func(ctx context.Context) {
-			sw.call(ctx, step, src.UID, func(ctx context.Context) (err error) {
+			nowOK = sw.callFor(ctx, comparedSignals, step, src.UID, func(ctx context.Context) (err error) {
 				now, err = sw.r.TraceStats(ctx, src.UID, TraceStatsInput{Query: traceAll(src.Type), GroupBy: traceServiceKey, Range: Window{From: sw.in.End.Add(-w), To: sw.in.End}, Buckets: 1})
 				return err
 			})
 		},
 		func(ctx context.Context) {
-			sw.call(ctx, step, src.UID, func(ctx context.Context) (err error) {
+			beforeOK = sw.callFor(ctx, comparedSignals, step, src.UID, func(ctx context.Context) (err error) {
 				before, err = sw.r.TraceStats(ctx, src.UID, TraceStatsInput{Query: traceAll(src.Type), GroupBy: traceServiceKey, Range: Window{From: sw.in.End.Add(-2 * w), To: sw.in.End.Add(-w)}, Buckets: 1})
 				return err
 			})
 		},
 	})
-	sw.addRows(traceRows(Row{Rung: w, Source: src.UID, Basis: basisTraceSpans}, now.Groups, before.Groups))
+	if nowOK && beforeOK {
+		sw.addRows(traceRows(Row{Rung: w, Source: src.UID, Basis: basisTraceSpans}, now.Groups, before.Groups))
+	}
 }
 
 func traceRows(base Row, now, before []TraceGroup) []Row {
@@ -371,7 +382,7 @@ func (sw *sweep) logRates(ctx context.Context) {
 			rng, windowStart := sw.rung(w)
 			step := 2 * w / rungPoints
 			var got []Series
-			if sw.call(ctx, "log rates over "+short(w), src.UID, func(ctx context.Context) (err error) {
+			if sw.callFor(ctx, []string{SignalErrors}, "log rates over "+short(w), src.UID, func(ctx context.Context) (err error) {
 				got, err = sw.r.Range(ctx, src.UID, logLevelQuery(label, step), rng, rungPoints)
 				return err
 			}) {

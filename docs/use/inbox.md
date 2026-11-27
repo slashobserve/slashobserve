@@ -154,6 +154,7 @@ An item is the event as `GET /api/v1/activity` returns it, plus these fields.
 | --- | --- |
 | `reason` | The reason, or null in the `everything` view for an event without one. |
 | `unread` | Whether the item is unread. |
+| `state` | `done` when you marked it done, else `unread` or `read`; see [States](../reference/states.md). |
 | `target_title` | The title of the dashboard, observation or proposal the item is about. |
 | `excerpt` | A short plain-text extract, as described below. |
 | `question` | The question an agent reply answered, or the prompt of a failed run, as described below. |

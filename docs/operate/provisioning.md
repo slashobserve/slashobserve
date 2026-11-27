@@ -68,7 +68,26 @@ For every file, the server hashes its content and compares it with the content i
 
 An edit someone made in the app since then is replaced by the file's content, and stays in the version history.
 Versions are authored by `Provisioning` and their origin is `api`.
-Dashboards provisioned from files are ordinary dashboards: people can edit, move and comment on them, and the next change to the file adds a version again.
+Dashboards provisioned from files are ordinary dashboards: people can edit, move and comment on them, and a change to the file adds a version again.
+
+### Edits made in the app
+
+A dashboard read tells an editor where the dashboard comes from, so the edit does not come as a surprise later:
+
+- `GET /api/v1/dashboards/{id}`, each item of `GET /api/v1/dashboards`, `get_dashboard`, `list_dashboards` and `observe dashboards show` return `managed_by`: `file` for a dashboard bound to a provisioning file, `apply` for one that `observe dashboards apply` wrote, `starter` for a [starter dashboard](#starter-dashboards) and `workspace` for every other dashboard.
+- The web app shows a note on a `file` or `apply` dashboard, where an edit starts: in the panel editor and above the prompt.
+- A save to a `file` dashboard works, and its answer carries a `warning` that a change to the file replaces the edit.
+  A save to an `apply` dashboard carries a `warning` that applying its file again after the file changes replaces the edit.
+  A restore, a proposal merge and an update from a Grafana file write the dashboard too, so their answers carry the same `warning`.
+  Over MCP that is `update_dashboard`, `update_panels`, `restore_dashboard_version`, `merge_proposal`, `import_grafana_dashboard` with its `update_dashboard` argument, and the save at the end of an agent build.
+  The CLI prints it on stderr after `observe dashboards panels`, `observe dashboards restore`, `observe proposals merge` and `observe import --update`.
+- When the file changes and its content replaces a version that `Provisioning` did not save, the `dashboard.version_created` event of the new version has `replaced_version`, the number of the version it replaced.
+  An apply that replaces a version no apply saved records the same field.
+  `observe activity` prints it as `saved version 5 of "Checkout" from its file, replacing version 4`.
+  Restore that version from the dashboard's history to get the edit back, then move it into the file.
+
+The warning and the note do not say that a replacement is coming, because the server does not know whether the file will change.
+A dashboard stays at `managed_by: file` after its file is removed from the directory and after provisioning is turned off, and its warning then describes a file that no longer writes it.
 
 A save checks the file the way every save is checked: the Spec must be valid and every panel and variable query must run.
 Unlike a Grafana import, a provisioned file is never saved with failing queries.
@@ -81,6 +100,7 @@ Renaming or moving a file is therefore a new file: it becomes a new dashboard, a
 Delete it in the app.
 Provisioning never deletes a dashboard.
 A file removed from the directory keeps its dashboard, and the server logs `a provisioned file is gone; its dashboard stays` once.
+That dashboard still reads `managed_by: file`.
 
 Deleting a provisioned dashboard while its file is still in the directory brings it back as a new dashboard the next time the file is read.
 That happens at startup, after a file in the directory changes, or on a manual run.
@@ -104,7 +124,7 @@ Provisioning reads a directory on the server's own disk, saves as the `Provision
 [`observe dashboards apply`](../use/dashboards-as-code.md) sends files from anywhere, such as a CI job, saves as the key's account with the summary `Applied from <path>`, and follows the same directory layout.
 
 The two keep separate records, so one dashboard belongs to at most one of them.
-Apply refuses a dashboard that came from the provisioning directory with 409 `provisioned`, because the next change to the server's file would replace what apply saved.
+Apply refuses a dashboard that came from the provisioning directory with 409 `provisioned`, because a change to the server's file would replace what apply saved.
 Change that file instead.
 
 | | Provisioning | Apply |

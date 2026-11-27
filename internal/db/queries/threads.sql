@@ -71,7 +71,7 @@ WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = @run_id::uuid AND
 RETURNING *;
 
 -- name: ShareRunInThread :execrows
-UPDATE agent_requests SET thread_message_id = @thread_message_id, thread_replied_at = NULL WHERE id = @id AND thread_message_id IS NULL;
+UPDATE agent_requests SET thread_message_id = @thread_message_id, thread_replied_at = NULL, thread_reply_abandoned_at = NULL WHERE id = @id AND thread_message_id IS NULL;
 
 -- name: LockSharedRunsInThread :many
 SELECT r.id, r.chat_id, r.thread_message_id, f.id AS finding_id FROM agent_requests r
@@ -83,7 +83,7 @@ ORDER BY r.id
 FOR UPDATE OF r;
 
 -- name: WithdrawRunShares :exec
-UPDATE agent_requests SET thread_message_id = NULL, thread_replied_at = NULL WHERE id = ANY(@ids::uuid[]);
+UPDATE agent_requests SET thread_message_id = NULL, thread_replied_at = NULL, thread_reply_abandoned_at = NULL WHERE id = ANY(@ids::uuid[]);
 
 -- name: DeleteSharedMessages :many
 DELETE FROM thread_messages

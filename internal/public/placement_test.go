@@ -56,6 +56,23 @@ func TestAPublicLinkStopsAnsweringOnceItsDashboardReadsAnAdminsOnlyDatasource(t 
 	if _, err := r.service.View(reading(t.Context()), link.Token); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("view after = %v, want %v", err, ErrNotFound)
 	}
+	listed, err := r.service.List(reading(t.Context()), admin, r.shared)
+	if err != nil || len(listed) != 1 || listed[0].Usable || listed[0].Expired || listed[0].UnusableReason != reasonRestrictedDatasource {
+		t.Fatalf("list after = %+v, %v; want the link not usable because of its datasource", listed, err)
+	}
+}
+
+func TestALinkWhoseFolderBecameAdminsOnlyIsListedAsNotUsable(t *testing.T) {
+	r := newAdminsOnlyRig(t)
+	link := r.create(t, CreateInput{Mode: ModeFree})
+	foldertest.Move(t, r.db, r.shared, foldertest.AdminsOnly(t, r.db, "Payroll"))
+	if _, err := r.service.View(reading(t.Context()), link.Token); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("view = %v, want %v", err, ErrNotFound)
+	}
+	listed, err := r.service.List(reading(t.Context()), admin, r.shared)
+	if err != nil || len(listed) != 1 || listed[0].Usable || listed[0].Expired || listed[0].UnusableReason != reasonAdminsOnlyFolder {
+		t.Fatalf("list = %+v, %v; want the link not usable because of its folder", listed, err)
+	}
 }
 
 func TestAnAdminsOnlyFolderHidesItsPublicLinksFromItsNonAdminCreator(t *testing.T) {

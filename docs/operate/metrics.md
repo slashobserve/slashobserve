@@ -104,6 +104,7 @@ sum(rate(slashobserve_proxy_cache_total{result="hit"}[15m])) / sum(rate(slashobs
 | `slashobserve_http_request_duration_seconds` | histogram | `route`, `method`, `status` | Time to answer an HTTP request. |
 | `slashobserve_agent_runs_total` | counter | `kind`, `outcome` | Agent runs that ended. |
 | `slashobserve_agent_queue_wait_seconds` | histogram | `source` | Time an agent request waited before the agent claimed it. |
+| `slashobserve_thread_replies_abandoned_total` | counter | none | Replies of finished agent runs that could not be posted in their comment thread within 24 hours, so the server stopped trying; the run reads `reply.state` `abandoned`. |
 | `slashobserve_model_call_duration_seconds` | histogram | `provider`, `model`, `outcome` | Time of one model call, including its retries. |
 | `slashobserve_model_tokens_total` | counter | `direction` | Tokens the model provider reported. |
 | `slashobserve_proxy_query_duration_seconds` | histogram | `datasource_type`, `outcome` | Time of one datasource call from the query proxy. |

@@ -32,7 +32,7 @@ func TestBuildStateMapsEveryField(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"saves":3,"panels":14,"planned_panels":40,"title":"Node Exporter","updated_at":"2026-11-03T10:30:00Z"}`
+	want := `{"saves":3,"panels":14,"planned_panels":40,"title":"Node Exporter","updated_at":"2026-11-03T10:30:00Z","state":"building","expires_at":null}`
 	if string(got) != want {
 		t.Fatalf("progress = %s, want %s", got, want)
 	}
@@ -161,9 +161,9 @@ func TestBuildTitleIsHiddenFromEveryoneButTheRequester(t *testing.T) {
 		caller auth.Principal
 		want   string
 	}{
-		{"requester", requester, `{"saves":1,"panels":3,"planned_panels":0,"title":"Check small","updated_at":"2026-11-03T10:30:00Z"}`},
-		{"another user", auth.Principal{Kind: auth.KindUser, ID: "u2"}, `{"saves":1,"panels":3,"planned_panels":0,"title":null,"updated_at":"2026-11-03T10:30:00Z"}`},
-		{"key with the requester's id", auth.Principal{Kind: auth.KindServiceAccount, ID: "u1"}, `{"saves":1,"panels":3,"planned_panels":0,"title":null,"updated_at":"2026-11-03T10:30:00Z"}`},
+		{"requester", requester, `{"saves":1,"panels":3,"planned_panels":0,"title":"Check small","updated_at":"2026-11-03T10:30:00Z","state":"building","expires_at":null}`},
+		{"another user", auth.Principal{Kind: auth.KindUser, ID: "u2"}, `{"saves":1,"panels":3,"planned_panels":0,"title":null,"updated_at":"2026-11-03T10:30:00Z","state":"building","expires_at":null}`},
+		{"key with the requester's id", auth.Principal{Kind: auth.KindServiceAccount, ID: "u1"}, `{"saves":1,"panels":3,"planned_panels":0,"title":null,"updated_at":"2026-11-03T10:30:00Z","state":"building","expires_at":null}`},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

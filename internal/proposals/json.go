@@ -38,6 +38,7 @@ type SummaryJSON struct {
 	Behind         bool        `json:"behind"`
 	LatestVersion  int         `json:"latest_version"`
 	AllowedActions []string    `json:"allowed_actions"`
+	Warning        string      `json:"warning,omitempty"`
 }
 
 type ProposalJSON struct {
@@ -79,6 +80,12 @@ func timeText(t *time.Time) *string {
 		return nil
 	}
 	return httpapi.OptionalString(httpapi.FormatTime(*t))
+}
+
+func NewMergedJSON(p Proposal) SummaryJSON {
+	body := NewSummaryJSON(p.Item)
+	body.Warning = p.Warning
+	return body
 }
 
 func NewSummaryJSON(i Item) SummaryJSON {

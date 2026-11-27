@@ -255,3 +255,4 @@ Each one records its audit event before the server writes its last buffered audi
 
 A worker holds a 60-second lease on its request and renews it every 5 seconds while the run is in flight.
 A crash instead leaves the lease to expire, so the next process picks the request up within a minute.
+The built-in agent gives a run up when the lease ends without a renewal the server answered: it makes no further model call or report for that run and logs `lease lapsed without a successful report` at `WARN`.

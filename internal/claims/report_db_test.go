@@ -32,8 +32,8 @@ func TestReportRenewsTheLeaseOfALiveRun(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if answer.State != "running" || answer.Stop || answer.LeaseUntil == nil {
-		t.Fatalf("answer = %+v, want running without stop and a lease", answer)
+	if answer.State != "running" || answer.Stop || answer.LeaseUntil == nil || answer.ServerTime == nil {
+		t.Fatalf("answer = %+v, want running without stop, a lease and the server's time", answer)
 	}
 	if after := f.stored(t, queued.ID).LeaseUntil.Time; !after.After(before.Add(30 * time.Second)) {
 		t.Fatalf("lease_until moved from %v to %v, want it renewed to about a minute", before, after)

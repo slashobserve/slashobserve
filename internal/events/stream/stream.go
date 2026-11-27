@@ -51,11 +51,12 @@ type Handler struct {
 	logger       *slog.Logger
 	pingInterval time.Duration
 	roleInterval time.Duration
+	lifetime     time.Duration
 	slots        *slots
 }
 
 func NewHandler(b *events.Broker, d Dashboards, principals Principals, access Access, view gin.HandlerFunc, logger *slog.Logger) *Handler {
-	return &Handler{broker: b, dashboards: d, principals: principals, access: access, view: view, logger: logger, pingInterval: pingInterval, roleInterval: roleCheckInterval, slots: newSlots(maxStreamsPerUser, maxStreamsPerProc)}
+	return &Handler{broker: b, dashboards: d, principals: principals, access: access, view: view, logger: logger, pingInterval: pingInterval, roleInterval: roleCheckInterval, lifetime: maxStreamLifetime, slots: newSlots(maxStreamsPerUser, maxStreamsPerProc)}
 }
 
 func (h *Handler) Register(api auth.Routes) {
@@ -85,8 +86,8 @@ func (h *Handler) serve(c *gin.Context) {
 	}
 	principal, _ := auth.FromContext(c.Request.Context())
 	key := string(principal.Kind) + ":" + principal.ID
-	if status, code := h.slots.acquire(key); status != 0 {
-		abort(c, status, code, "too many open event streams")
+	if status, reason := h.slots.acquire(key); status != 0 {
+		abortTooManyStreams(c, status, reason, tooManyEventStreams)
 		return
 	}
 	defer h.slots.release(key)
@@ -134,22 +135,26 @@ func (h *Handler) latestVersion(c *gin.Context, id pgtype.UUID) (int, bool) {
 }
 
 func (h *Handler) pump(c *gin.Context, sub *events.Subscription, id pgtype.UUID, role auth.Role) {
+	sayClosed(c, h.follow(c, sub, id, role))
+}
+
+func (h *Handler) follow(c *gin.Context, sub *events.Subscription, id pgtype.UUID, role auth.Role) closeReason {
 	ping := time.NewTicker(h.pingInterval)
 	defer ping.Stop()
 	roleCheck := time.NewTicker(h.roleInterval)
 	defer roleCheck.Stop()
-	lifetime := time.NewTimer(maxStreamLifetime)
+	lifetime := time.NewTimer(h.lifetime)
 	defer lifetime.Stop()
 	failedChecks := 0
 	for {
 		select {
 		case ev := <-sub.Events():
-			if !h.forward(c, id, ev) {
-				return
+			if end := h.forward(c, id, ev); end != stillOpen {
+				return end
 			}
 		case <-roleCheck.C:
 			if !h.reportRoleChange(c, id, &role) {
-				return
+				return unannounced
 			}
 		case <-ping.C:
 			valid, failed := h.stillAllowed(c, id)
@@ -158,15 +163,21 @@ func (h *Handler) pump(c *gin.Context, sub *events.Subscription, id pgtype.UUID,
 			} else {
 				failedChecks = 0
 			}
-			if !valid || failedChecks >= maxFailedChecks || !write(c, ": ping\n\n") {
-				return
+			if end := endAfterCheck(valid, failed, maxFailedChecks-failedChecks); end != stillOpen {
+				return end
+			}
+			if !write(c, ": ping\n\n") {
+				return unannounced
 			}
 		case <-lifetime.C:
-			return
+			return closedLifetime
 		case <-sub.Done():
-			return
+			if sub.Dropped() {
+				return closedSlowSubscriber
+			}
+			return closedStopping
 		case <-c.Request.Context().Done():
-			return
+			return unannounced
 		}
 	}
 }
@@ -210,20 +221,25 @@ func (h *Handler) stillAllowed(c *gin.Context, id pgtype.UUID) (valid, failed bo
 	return h.checkFailed(c, "re-check event stream dashboard access", "stream_access_check_failed", err, slog.String("dashboard_id", id.String()))
 }
 
-func (h *Handler) forward(c *gin.Context, id pgtype.UUID, ev events.Event) bool {
-	if ev.Type == events.TypeDashboardMoved && !h.seesAfterMove(c, id) {
-		return false
+func (h *Handler) forward(c *gin.Context, id pgtype.UUID, ev events.Event) closeReason {
+	if ev.Type == events.TypeDashboardMoved {
+		if end := h.lostWithTheMove(c, id); end != stillOpen {
+			return end
+		}
 	}
 	var data any = ev
 	if ev.Type == events.TypeResync {
 		data = resyncData{DashboardID: ev.DashboardID}
 	}
-	return writeEvent(c, ev.Type, data)
+	if !writeEvent(c, ev.Type, data) {
+		return unannounced
+	}
+	return stillOpen
 }
 
-func (h *Handler) seesAfterMove(c *gin.Context, id pgtype.UUID) bool {
+func (h *Handler) lostWithTheMove(c *gin.Context, id pgtype.UUID) closeReason {
 	valid, failed := h.stillAllowed(c, id)
-	return valid && !failed
+	return endAfterCheck(valid, failed, 0)
 }
 
 func (h *Handler) checkFailed(c *gin.Context, message, code string, err error, attrs ...any) (valid, failed bool) {

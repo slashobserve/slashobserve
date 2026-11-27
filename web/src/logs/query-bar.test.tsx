@@ -19,6 +19,7 @@ function status(uid: string, type: string): DatasourceStatus {
     index: type === "elasticsearch" ? "logs-*" : undefined,
     source: "file",
     healthy: true,
+    health_state: "healthy",
     checked_at: "2026-11-07T12:00:00Z",
     dashboard_count: 0,
   }
