@@ -332,6 +332,7 @@ Details of each Secret:
 | `auth.allowedEmailDomains` | `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS`. Required with browser sign-in; list the domains or set `["*"]`. |
 | `auth.adminEmails` | `SLASHOBSERVE_ADMIN_EMAILS`. |
 | `replicaCount` | The Deployment's replica count. Default 1. |
+| `terminationGracePeriodSeconds` | Seconds Kubernetes waits after `SIGTERM` before it kills the pod. Default 30; keep it at 15 or more, see [Shutdown and leases](upgrades-and-backups.md#shutdown-and-leases). |
 
 The chart also has `imagePullSecrets`, `service.type` and `service.port` (default `ClusterIP` and 8080), `serviceAccount.create` and `serviceAccount.name`, `podAnnotations`, `resources`, `nodeSelector`, `tolerations` and `affinity`.
 
@@ -339,5 +340,6 @@ The chart also has `imagePullSecrets`, `service.type` and `service.port` (defaul
 
 - The pod runs as the image's non-root user 65532 with a read-only root filesystem, every capability dropped and no Kubernetes API token mounted.
 - The liveness probe requests `/healthz` and the readiness probe `/readyz`.
+- On `SIGTERM` the readiness probe starts failing at once and the server waits 5 seconds before it stops accepting requests, so the Service takes the pod out of rotation first and a rolling update drops no new connection.
 - A startup probe on `/readyz` allows 5 minutes before the liveness probe starts, so a long migration at boot is not mistaken for a hung server.
 - Set `resources` to fit your load; the demo stack limits the server to 512 MiB of memory.

@@ -105,6 +105,7 @@ const (
 	idleTimeout       = 120 * time.Second
 	shutdownTimeout   = 15 * time.Second
 	requestsCutAfter  = shutdownTimeout - 5*time.Second
+	drainPeriod       = 5 * time.Second
 )
 
 func versionLine() string { return version + " (" + commit + ")" }
@@ -639,6 +640,8 @@ func run() error {
 	handler, err := server.New(server.Options{
 		Logger:          logger,
 		TrustedProxies:  cfg.TrustedProxies,
+		Draining:        ctx.Done(),
+		PublicURL:       cfg.PublicURL,
 		Auth:            authService,
 		Datasources:     registry,
 		DatasourceUsage: dashboardsService,
@@ -1108,13 +1111,14 @@ func serve(ctx context.Context, logger *slog.Logger, listener net.Listener, hand
 	}
 
 	logger.Info("shutting down", slog.Duration("timeout", shutdownTimeout))
-	return shutdown(srv, cutRequests, requestsCutAfter, shutdownTimeout)
+	return shutdown(srv, cutRequests, drainPeriod, requestsCutAfter, shutdownTimeout)
 }
 
-func shutdown(srv *http.Server, cutRequests context.CancelFunc, cutAfter, timeout time.Duration) error {
+func shutdown(srv *http.Server, cutRequests context.CancelFunc, drain, cutAfter, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	cut := time.AfterFunc(cutAfter, cutRequests)
 	defer cut.Stop()
+	time.Sleep(drain)
 	return srv.Shutdown(ctx)
 }
