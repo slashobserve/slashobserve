@@ -180,6 +180,7 @@ Details of the ledger:
 ### Closing every candidate
 
 An incident investigation that started with candidates may conclude only when each of them is accounted for, so the first plausible anomaly is not taken for the whole answer.
+Its prompt tells the agent to work every candidate with its own reads, to close each in the ledger with its evidence, and to list every candidate it closed as a cause in `causes`.
 Its `save_finding` is sent back once, with a line per candidate that says what is missing, when:
 
 - a candidate is still open, missing from the ledger, or supported or ruled out with no closing, with the read that would close it;
