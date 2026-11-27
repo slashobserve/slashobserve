@@ -312,7 +312,7 @@ An MCP client investigates with its own model, using the discovery and query too
 
 ## Search logs and traces
 
-Over MCP, `log_context`, `log_patterns`, `log_facets` and `logs_for_trace` read logs, and `get_trace`, `trace_stats`, `trace_error_origins` and `compare_traces` read traces.
+Over MCP, `log_context`, `log_patterns`, `log_facets` and `logs_for_trace` read logs, and `get_trace`, `trace_stats`, `trace_error_origins`, `trace_slow_path` and `compare_traces` read traces.
 `query_instant` runs your own query, including SQL over `otel_traces` on ClickHouse.
 `save_search` saves a search so people can open it from the logs, traces or metrics page.
 [Logs and traces](logs-and-traces.md) describes the same features in the web app.
@@ -625,6 +625,7 @@ The server uses the role of the key's service account, or of the person for an O
 | `show_panel` | Viewer |
 | `start_run` | Viewer |
 | `trace_error_origins` | Viewer |
+| `trace_slow_path` | Viewer |
 | `trace_stats` | Viewer |
 | `unpin_dashboard` | Viewer |
 | `unpin_run` | Viewer |
@@ -1273,6 +1274,19 @@ Each group has its trace count, its share of the examined traces, one full examp
 - `by_route` splits the groups by route, so each share is of that route's examined traces, and `routes` lists each route's failing and examined traces.
 - The server lists up to 2,000 failing traces, the newest first, and reads up to 200 of them, spread over the window and taken from every route in turn.
   `failing_traces` is how many it listed, `complete` whether that is every failing trace in the window, `examined` how many it read and `sample` whether the figures rest on fewer than all of them.
+
+The built-in agent has the same tool.
+
+#### `trace_slow_path`
+
+Finds where slow requests spend their time, for each route on its own.
+A trace is slow when it lasts longer than `threshold_ms`, or by default longer than twice the p50 of its route over the listed traces of the window.
+For each route (the root span name) it gives the threshold, the number of slow traces, the three spans with the most self time across them (service, operation, self time, share of the slow traces' self time and how many traces have the span), every service in the slow traces with its trace count, and the slowest one as an example with its full trace id and exact duration.
+
+- It takes `datasource` (Tempo, Jaeger or ClickHouse), `service`, `route`, `operation`, `threshold_ms`, `from` and `to`; Jaeger needs `service`.
+- Self time is a span's duration less the time its children cover.
+- The server lists up to 2,000 traces and reads up to 200 slow ones, spread over the window and taken from every route in turn; `complete` and `sample` say whether the figures cover every slow trace, and at most 10 routes are returned.
+- Tempo lists trace durations in whole milliseconds, so on Tempo the threshold and p50 rest on those, while the example's duration comes from the whole trace.
 
 The built-in agent has the same tool.
 
