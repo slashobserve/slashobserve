@@ -41,6 +41,11 @@
       ]
     },
     {
+      "expect": [
+        {
+          "is_error": true
+        }
+      ],
       "tool_calls": [
         {
           "name": "save_finding",

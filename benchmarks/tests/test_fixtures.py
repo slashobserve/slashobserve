@@ -33,6 +33,16 @@ def test_replay_answer_saves_causes_in_the_tool_input_shape(name):
         assert cause["kind"] in CAUSE_KINDS
 
 
+@pytest.mark.parametrize("name", ["store-answer.json", "orca-answer.json", "sregym-answer.json"])
+def test_replay_answer_saves_again_only_after_a_send_back(name):
+    turns = json.loads((FIXTURES / name).read_text())["turns"]
+    first, second = (i for i, turn in enumerate(turns) if turn["tool_calls"][0]["name"] == "save_finding")
+    assert second == first + 1 == len(turns) - 1
+    assert "expect" not in turns[first]
+    assert turns[second]["expect"] == [{"is_error": True}]
+    assert turns[first]["tool_calls"] == turns[second]["tool_calls"]
+
+
 def test_replay_answers_render_as_the_benchmarks_read_them():
     report = orca.render_report(saves("orca-answer.json")[0]["input"])
     assert "Root cause:\nreplay: The replay model names no real cause." in report

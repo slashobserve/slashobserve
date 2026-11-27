@@ -60,6 +60,8 @@ Set `SLASHOBSERVE_SERVER_IMAGE` to use another image than `slashobserve-server:l
 
 The fixture is generated because its prompt is the task statement, which belongs to o11y-bench and is not copied into this repository.
 `fixtures/store-answer.json` is the template.
+It saves the answer a second time, expecting the first save to have been sent back, because an investigation with the loop on sends back a finding that leaves a triage candidate of the preflight sweep unaccounted for; a question ends at the first save.
+Every replay fixture marks its second save with `expect` and `is_error: true`, since the replay provider fails a run whose tool result is an error it did not expect.
 
 ## Run a subset with a real model
 
