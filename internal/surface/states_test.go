@@ -9,6 +9,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 
 	"github.com/slashobserve/slashobserve/api/apitest"
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/health"
@@ -41,6 +42,7 @@ func statesReference() string {
 		auth.KeyStates.Doc("Service-account key", "`GET /service-accounts/{id}/keys` returns the `state` of each key."),
 		mcpauth.GrantStates.Doc("Connected agent", "`GET /me/grants` and `GET /grants` return the `state` of each connected agent."),
 		public.LinkStates.Doc("Public link", "`GET /dashboards/{id}/public-links` returns the `state` of each link."),
+		activity.InboxItemStates.Doc("Inbox item", "`GET /inbox` returns the `state` of each item for the person reading it."),
 		grafanaconn.SyncMachine.Doc("Grafana import", "A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /grafana/{id}/imports/{sync_id}`; its moves write server log lines with these names, not activity events, because a Grafana connection is Admin only."),
 		inboundmcp.ToolMachine.Doc("MCP source tool", "An MCP source tool is one tool of an MCP server an Admin registered, returned by `GET /api/v1/mcp-sources/{uid}/tools`; discovery moves it between `offered`, `changed`, `gone` and `refused`, and an Admin approves or revokes it."),
 		inboundmcp.SourceStates.Doc("MCP source", "`GET /api/v1/mcp-sources` returns the `state` of each MCP source."),
@@ -98,6 +100,7 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 		{"ServiceAccountKey", "state", auth.KeyStates.Names()},
 		{"ConnectedAgent", "state", mcpauth.GrantStates.Names()},
 		{"PublicLink", "state", public.LinkStates.Names()},
+		{"InboxItem", "state", activity.InboxItemStates.Names()},
 		{"MCPSource", "state", inboundmcp.SourceStates.Names()},
 	}
 	var offered []string
