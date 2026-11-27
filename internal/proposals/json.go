@@ -42,10 +42,11 @@ type SummaryJSON struct {
 
 type ProposalJSON struct {
 	SummaryJSON
-	Spec      *spec.Dashboard   `json:"spec"`
-	Changes   []spec.UnitChange `json:"changes"`
-	Diff      []spec.Change     `json:"diff"`
-	Conflicts []spec.Conflict   `json:"conflicts"`
+	Spec         *spec.Dashboard   `json:"spec"`
+	Changes      []spec.UnitChange `json:"changes"`
+	Diff         []spec.Change     `json:"diff"`
+	Conflicts    []spec.Conflict   `json:"conflicts"`
+	Mergeability *string           `json:"mergeability"`
 }
 
 type listJSON struct {
@@ -115,5 +116,12 @@ func NewSummaryJSON(i Item) SummaryJSON {
 }
 
 func NewProposalJSON(p Proposal) ProposalJSON {
-	return ProposalJSON{SummaryJSON: NewSummaryJSON(p.Item), Spec: p.Spec, Changes: p.Changes, Diff: p.Diff, Conflicts: p.Conflicts}
+	return ProposalJSON{
+		SummaryJSON:  NewSummaryJSON(p.Item),
+		Spec:         p.Spec,
+		Changes:      p.Changes,
+		Diff:         p.Diff,
+		Conflicts:    p.Conflicts,
+		Mergeability: httpapi.OptionalString(string(p.Mergeability())),
+	}
 }

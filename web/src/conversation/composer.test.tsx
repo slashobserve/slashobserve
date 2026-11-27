@@ -47,14 +47,16 @@ function stubCreate() {
 function ChatComposer({
   subject: initialSubject = null,
   removableSubject = false,
+  movableChat = false,
   layout = "page",
-  chatId = null,
+  chatId: initialChatId = null,
   initialText,
   runningRequestId,
   onSent,
 }: {
   subject?: Subject | null
   removableSubject?: boolean
+  movableChat?: boolean
   layout?: "page" | "docked"
   chatId?: string | null
   initialText?: string
@@ -62,6 +64,7 @@ function ChatComposer({
   onSent: (sent: SentResult) => void
 }) {
   const [subject, setSubject] = useState(initialSubject)
+  const [chatId, setChatId] = useState(initialChatId)
   const model = useComposer({
     subject,
     place: { kind: "chat", chatId },
@@ -81,6 +84,11 @@ function ChatComposer({
       {removableSubject ? (
         <button type="button" onClick={() => setSubject(null)}>
           Remove chip
+        </button>
+      ) : null}
+      {movableChat ? (
+        <button type="button" onClick={() => setChatId("another-chat")}>
+          Open another chat
         </button>
       ) : null}
     </>
@@ -281,6 +289,15 @@ describe("Composer in a chat", () => {
     )
   })
 
+  it("leaves a failure behind when the composer moves to another chat", async () => {
+    stubCreate()
+    const { user } = renderComposer({ movableChat: true })
+    await user.click(await screen.findByRole("button", { name: "Send" }))
+    expect(await screen.findByRole("alert")).toBeVisible()
+    await user.click(screen.getByRole("button", { name: "Open another chat" }))
+    expect(screen.queryByRole("alert")).toBeNull()
+  })
+
   it("counts characters near the limit and marks an over-long prompt", async () => {
     const { user } = renderComposer()
     const field = await box()
@@ -427,6 +444,25 @@ describe("Composer in a chat", () => {
       resolveAgent(agentOk())
       await waitFor(() => expect(posts).toHaveLength(1))
       expect(posts[0]).not.toHaveProperty("dashboard_id")
+    })
+
+    it("drops the hold when the composer moves to another chat", async () => {
+      const { user, posts, resolveAgent } = renderLoading({
+        initialText: "Why is it slow?",
+        movableChat: true,
+      })
+      await box()
+      await user.click(screen.getByRole("button", { name: "Send" }))
+      await screen.findByText(holdingText)
+      await user.click(
+        screen.getByRole("button", { name: "Open another chat" })
+      )
+      expect(screen.queryByText(holdingText)).toBeNull()
+      resolveAgent(agentOk())
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20))
+      })
+      expect(posts).toEqual([])
     })
 
     it("cancels the hold on Escape", async () => {
