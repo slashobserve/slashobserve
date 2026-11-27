@@ -100,7 +100,7 @@ That process makes the model calls from the pod, so the pod needs a network path
 The chart sets the environment variables of the [configuration reference](../reference/configuration.md) from its values.
 Add any other `SLASHOBSERVE_*` setting under `env`, in Kubernetes `EnvVar` form.
 For example, `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` has no chart value, so set it under `env` with the number quoted, because `value` is a string.
-It takes a whole number from 6 to 60 and defaults to 12.
+It takes a whole number from 6 to 60; unset, it is picked by task type, `12` to `30`.
 
 ```yaml
 env:
