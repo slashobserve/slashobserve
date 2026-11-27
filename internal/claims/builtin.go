@@ -26,11 +26,11 @@ func (s *Service) BuiltIn() Claimer {
 	return Claimer{Kind: revisions.AssignBuiltin, ID: s.instanceID}
 }
 
-func (s *Service) modelFor(c Claimer) *ModelSettings {
+func (s *Service) modelFor(c Claimer, req revisions.Request) *ModelSettings {
 	if c.Kind != revisions.AssignBuiltin || s.model == nil {
 		return nil
 	}
-	return s.model()
+	return s.model(req.Investigates())
 }
 
 func (s *Service) sessionBase(c Claimer) *url.URL {

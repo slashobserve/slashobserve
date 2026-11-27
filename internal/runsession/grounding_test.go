@@ -179,11 +179,11 @@ func TestEveryRunButASuggestionStartsWithAGroundingRecord(t *testing.T) {
 
 func TestAHomeQuestionAndARevisionKeepAGroundingRecordToo(t *testing.T) {
 	for _, mode := range []tools.Mode{tools.ModeCreate, tools.ModeRevise} {
-		state := (&Service{findingGrounding: grounding.Enforce}).watched(tools.Run{Mode: mode}, revisions.Request{ID: "run", Attempt: 1})
+		state := (&Service{findingGrounding: grounding.Enforce}).watched(tools.Run{Mode: mode}, revisions.Request{ID: "run", Attempt: 1}, route.Full)
 		if state.Grounding == nil || state.Guard.Grounding == nil {
 			t.Errorf("%s: record = %t, watched = %t, want both", mode, state.Grounding != nil, state.Guard.Grounding != nil)
 		}
-		if off := (&Service{findingGrounding: grounding.Off}).watched(tools.Run{Mode: mode}, revisions.Request{ID: "run", Attempt: 1}); off.Grounding != nil {
+		if off := (&Service{findingGrounding: grounding.Off}).watched(tools.Run{Mode: mode}, revisions.Request{ID: "run", Attempt: 1}, route.Full); off.Grounding != nil {
 			t.Errorf("%s: grounding off kept a record", mode)
 		}
 	}

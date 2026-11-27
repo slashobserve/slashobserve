@@ -253,6 +253,10 @@ type Request struct {
 	AsOf *time.Time
 }
 
+func (r Request) Investigates() bool {
+	return r.Intent == IntentAsk && r.Source != SourceObserve
+}
+
 func (r Request) WriteOrigin(outside origin.Origin) origin.Origin {
 	if r.Assignee == AssignBuiltin {
 		return r.Origin

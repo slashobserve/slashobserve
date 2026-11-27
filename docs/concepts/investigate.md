@@ -146,7 +146,7 @@ The block is sent to the LLM provider like any tool result and never written to 
 
 ### The hypothesis ledger
 
-With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` set to `true`, the built-in agent also gets `note_hypotheses`, and an investigation that opens an observation is told in its prompt to use it.
+With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` set to `true`, the default, the built-in agent also gets `note_hypotheses`, and an investigation that opens an observation is told in its prompt to use it.
 A plain question gets the tool but no prompt section and no `<hypotheses>` block.
 It writes down 2 to 4 candidate causes after its first look and sends the whole list again with each batch of reads.
 Each hypothesis has a short id, one sentence, a status of `open`, `supported` or `ruled_out`, up to 3 evidence lines and, for an open one, the next check.
@@ -181,8 +181,8 @@ The agent never declares a stage; the server derives it from the ledger and the 
 Details of the stages:
 
 - The agent gets one line after each turn, such as `Stage: test. Model call 7 of 12.`, and the run's steps show one line each time the stage changes, under the label `stage`.
-- The limit starts at `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`.
-  It grows by 3 calls each time a hypothesis moves to `supported` or `ruled_out`, as long as the run made at least one successful read since the limit last grew, and stops at `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`.
+- The limit starts at `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`, or the task type's own limit when that is unset.
+  It grows by 3 calls each time a hypothesis moves to `supported` or `ruled_out`, as long as the run made at least one successful read since the limit last grew, and stops at `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`, 40 by default.
   The move counts when the hypothesis carried evidence already or gains an evidence line that no hypothesis of the earlier ledger had, so renaming a hypothesis earns nothing.
   A ledger written without reading anything earns nothing, and unset, the ceiling equals the starting limit, so the limit never grows.
 - When the stage becomes `conclude` because a hypothesis is supported and none is open, the agent is told at once to save the finding instead of waiting for the limit.
@@ -194,7 +194,7 @@ Details of the stages:
 
 ### The grounding check
 
-With `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, the server checks each finding against what the run read before it is saved.
+With `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, the default, the server checks each finding against what the run read before it is saved.
 It looks at the cited facts and `answers` (see [Facts](#facts)), the figures and trace ids in the Markdown and the impact, the root cause component and the onset.
 
 - A cited fact is a figure from a read by construction, so it always passes the figure rules.
@@ -256,7 +256,7 @@ With `report`, the items that did not pass are stored with the finding and nothi
 With `enforce`, the first save with such items is sent back once with a line per item that says how to fix it: "read it, correct it, or remove it" for a figure or name no read gave, the fact to cite for a rounded figure, the whole id for a cut one, and the settling read for two values of one quantity.
 The agent may read past its call limit to do that, and the send-back is not counted as a rejected save.
 The second save is accepted, and the items that still did not pass are stored with it.
-The check never fails a run, and with `off`, the default, nothing is recorded.
+The check never fails a run, and with `off` nothing is recorded.
 
 The stored items are returned as `unverified` on the finding and on each entry of the observation's `findings`, and the observation shows one line under its header, such as `2 figures were not found in what the agent read: 9.3 s, 2,950`.
 `observe investigate` prints the same items with the summary lines before the answer.
@@ -357,7 +357,7 @@ Details of the evidence:
 
 Details of the markdown:
 
-- The server appends a note when reads were refused after the run reached its limit of model calls (12 by default, set by `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`), or when a datasource did not answer.
+- The server appends a note when reads were refused after the run reached its limit of model calls (the task type's limit by default, set for every investigation by `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`), or when a datasource did not answer.
 - That note counts toward the 400 words and the 4,000 characters.
 
 A finding has the id of its observation when the save creates it, and its own id when the run already had an observation.

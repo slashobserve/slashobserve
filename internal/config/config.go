@@ -94,6 +94,8 @@ const (
 
 var instanceRoles = []string{"admin", "editor", "commenter", "viewer"}
 
+const defaultQuestionEffort = "high"
+
 var llmEfforts = map[string][]string{
 	LLMProviderAnthropic: {"low", "medium", "high", "xhigh", "max"},
 	LLMProviderOpenAI:    {"none", "minimal", "low", "medium", "high", "xhigh"},
@@ -187,6 +189,7 @@ type LLM struct {
 	APIKey         datasource.Secret
 	BaseURL        *url.URL
 	Effort         string
+	QuestionEffort string
 	MaxTokens      int
 	RequestTimeout time.Duration
 	IdleTimeout    time.Duration
@@ -327,7 +330,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		errs = append(errs, err)
 	}
 	errs = append(errs, loadAgent(lookup, &cfg)...)
-	cfg.Agent.InvestigationLoop, err = loadBool(lookup, envAgentInvestigationLoop, false)
+	cfg.Agent.InvestigationLoop, err = loadBool(lookup, envAgentInvestigationLoop, true)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -656,12 +659,8 @@ func loadLLM(lookup func(string) (string, bool), cfg *Config) []error {
 		}
 	}
 
-	if v, allowed := strings.ToLower(get(lookup, envLLMEffort)), llmEfforts[llm.Provider]; v != "" && allowed != nil {
-		if !slices.Contains(allowed, v) {
-			errs = append(errs, fmt.Errorf("%s: for provider %s must be one of %s, got %q", envLLMEffort, llm.Provider, strings.Join(allowed, ", "), v))
-		} else {
-			llm.Effort = v
-		}
+	if err := loadEffort(lookup, &llm); err != nil {
+		errs = append(errs, err)
 	}
 
 	if v := get(lookup, envLLMMaxTokens); v != "" {
@@ -749,7 +748,6 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 
 func loadInvestigationCalls(lookup func(string) (string, bool), cfg *Config) []error {
 	var errs []error
-	cfg.Agent.InvestigationCalls = guard.DefaultInvestigationCalls
 	if v := get(lookup, envAgentInvestigationCalls); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil || n < minAgentInvestigationCalls || n > maxAgentInvestigationCalls {
@@ -758,16 +756,33 @@ func loadInvestigationCalls(lookup func(string) (string, bool), cfg *Config) []e
 			cfg.Agent.InvestigationCalls = n
 		}
 	}
-	cfg.Agent.InvestigationCallsMax = cfg.Agent.InvestigationCalls
+	cfg.Agent.InvestigationCallsMax = max(guard.DefaultInvestigationCallsMax, cfg.Agent.InvestigationCalls)
 	if v := get(lookup, envAgentInvestigationMax); v != "" {
+		floor := max(minAgentInvestigationCalls, cfg.Agent.InvestigationCalls)
 		n, err := strconv.Atoi(v)
-		if err != nil || n < cfg.Agent.InvestigationCalls || n > maxAgentInvestigationCalls {
-			errs = append(errs, fmt.Errorf("%s: must be a whole number from the value of %s (%d) to %d, got %q", envAgentInvestigationMax, envAgentInvestigationCalls, cfg.Agent.InvestigationCalls, maxAgentInvestigationCalls, v))
+		if err != nil || n < floor || n > maxAgentInvestigationCalls {
+			errs = append(errs, fmt.Errorf("%s: must be a whole number from %d, and not below %s, to %d, got %q", envAgentInvestigationMax, floor, envAgentInvestigationCalls, maxAgentInvestigationCalls, v))
 		} else {
 			cfg.Agent.InvestigationCallsMax = n
 		}
 	}
 	return errs
+}
+
+func loadEffort(lookup func(string) (string, bool), llm *LLM) error {
+	var err error
+	if v, allowed := strings.ToLower(get(lookup, envLLMEffort)), llmEfforts[llm.Provider]; v != "" && allowed != nil {
+		if !slices.Contains(allowed, v) {
+			err = fmt.Errorf("%s: for provider %s must be one of %s, got %q", envLLMEffort, llm.Provider, strings.Join(allowed, ", "), v)
+		} else {
+			llm.Effort = v
+		}
+	}
+	llm.QuestionEffort = llm.Effort
+	if llm.Effort == "" && llm.Provider == LLMProviderAnthropic {
+		llm.QuestionEffort = defaultQuestionEffort
+	}
+	return err
 }
 
 func loadRunMaxCost(lookup func(string) (string, bool), cfg *Config) error {

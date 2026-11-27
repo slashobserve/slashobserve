@@ -230,12 +230,12 @@ From the sixth model call since the session started, its history was shortened, 
 This limit of six is for a revision and for a chat message that has started building a dashboard.
 The call before gets a note to save next.
 
-- A new message in a chat with no dashboard or observation, which may be a question, gets the investigation limit instead of 6 until its first panel is saved (12 calls by default, with the note one call before).
+- A new message in a chat with no dashboard or observation, which may be a question, gets the investigation limit instead of 6 until its first panel is saved (12 calls unless `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` is set, with the note one call before).
   Its note and its refusal name the first panel for a dashboard request and `save_finding` otherwise.
   After its first accepted save, including an import, six calls apply to each panel.
 - A suggest run, which proposes one panel for the panel editor, gets 12 calls instead of 6, with the note at the 11th.
-- An investigation, which saves a finding, gets 12 calls by default, with the note one call before.
-  `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` sets it from 6 to 60 for investigations that need longer, on the server and for connected agents alike.
+- An investigation, which saves a finding, gets the calls of its [task type](investigate.md#task-types) by default, from 12 for `inventory` and `explain` to 30 for `incident` and an unsorted question, with the note one call before.
+  `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` sets one number from 6 to 60 for every investigation instead, on the server and for connected agents alike.
 - Reads in the same call as a save always run, and so do the reads of the call right after a rejected save, so the model can look into why a save was rejected.
 - Two turns in a row in which every call was refused end the run with `no_progress`.
 
@@ -348,6 +348,7 @@ See [Run cost](../connect/llm-providers.md#run-cost).
 
 More details of a run:
 
+- With `SLASHOBSERVE_LLM_EFFORT` unset on Anthropic, an investigation and a question about a dashboard or an observation run at `high` and every other run at `medium`; a set value applies to every run.
 - The first call of a session, before any save to the build, runs one reasoning step higher than `SLASHOBSERVE_LLM_EFFORT`: `low` becomes `medium`, `medium` becomes `high`, and any other value stays.
 - Every other call caps its output at half of `SLASHOBSERVE_LLM_MAX_TOKENS`, but at least 8192 and never above it.
   A call cut off at that lower cap is sent once more at the full value.
@@ -667,13 +668,13 @@ See [Run cost](../connect/llm-providers.md#run-cost) for the price table.
 | `SLASHOBSERVE_AGENT_RUN_TIMEOUT` | none | Time limit of a run, at least `1m`. |
 | `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` | none | Cost limit of one attempt. |
 | `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` | 256 | Conversation size after which it is shortened, from 32 to 4096. |
-| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | 12 | Model calls an investigation gets before only a save runs, from 6 to 60. |
-| `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` | false | Gives an investigation a hypothesis ledger that the server writes back into the brief when the conversation is shortened, stages, and a call limit that grows with progress. |
-| `SLASHOBSERVE_AGENT_FINDING_GROUNDING` | off | Numbers what reads return as facts and checks a run's finding against what the run read; `report` stores what did not pass and `enforce` also sends the finding back once. |
-| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX` | the investigation calls | Ceiling of the growing call limit, up to 60. |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | by task type, 12 to 30 | Model calls an investigation gets before only a save runs, from 6 to 60. |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` | true | Gives an investigation a hypothesis ledger that the server writes back into the brief when the conversation is shortened, stages, and a call limit that grows with progress. |
+| `SLASHOBSERVE_AGENT_FINDING_GROUNDING` | enforce | Numbers what reads return as facts and checks a run's finding against what the run read; `report` stores what did not pass and `enforce` also sends the finding back once. |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX` | 40, or the investigation calls when higher | Ceiling of the growing call limit, up to 60. |
 | `SLASHOBSERVE_LLM_IDLE_TIMEOUT` | 180 s | Time without output after which a call is retried, `0` for none. |
 | `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` | 10 minutes | Time limit of one model call, retries included, `0` for none. |
-| `SLASHOBSERVE_LLM_EFFORT` | `medium` on Anthropic, nothing sent on OpenAI | Reasoning effort. |
+| `SLASHOBSERVE_LLM_EFFORT` | on Anthropic `high` for an investigation or a question about a dashboard or an observation and `medium` otherwise, nothing sent on OpenAI | Reasoning effort. |
 | `SLASHOBSERVE_LLM_MAX_TOKENS` | 16000 | Output limit of a model call. |
 
 [Configuration](../reference/configuration.md) describes every variable.

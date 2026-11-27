@@ -98,7 +98,7 @@ func TestAgentInvestigationCallsSetting(t *testing.T) {
 		want    int
 		wantErr string
 	}{
-		{name: "unset gives the default", want: 12},
+		{name: "unset leaves the limit to each task type", want: 0},
 		{name: "raised", set: map[string]string{envAgentInvestigationCalls: "20"}, want: 20},
 		{name: "lowest", set: map[string]string{envAgentInvestigationCalls: "6"}, want: 6},
 		{name: "highest", set: map[string]string{envAgentInvestigationCalls: "60"}, want: 60},
@@ -126,14 +126,14 @@ func TestAgentInvestigationCallsSetting(t *testing.T) {
 	}
 }
 
-func TestAgentInvestigationLoopIsOffUnlessSet(t *testing.T) {
+func TestAgentInvestigationLoopIsOnUnlessSetOff(t *testing.T) {
 	for _, tt := range []struct {
 		name    string
 		set     map[string]string
 		want    bool
 		wantErr bool
 	}{
-		{name: "unset", want: false},
+		{name: "unset", want: true},
 		{name: "on", set: map[string]string{envAgentInvestigationLoop: "true"}, want: true},
 		{name: "off", set: map[string]string{envAgentInvestigationLoop: "false"}, want: false},
 		{name: "not a boolean", set: map[string]string{envAgentInvestigationLoop: "yes"}, wantErr: true},
@@ -156,14 +156,14 @@ func TestAgentInvestigationLoopIsOffUnlessSet(t *testing.T) {
 	}
 }
 
-func TestFindingGroundingIsOffUnlessSet(t *testing.T) {
+func TestFindingGroundingIsEnforcedUnlessSet(t *testing.T) {
 	for _, tt := range []struct {
 		name    string
 		set     map[string]string
 		want    grounding.Mode
 		wantErr bool
 	}{
-		{name: "unset", want: grounding.Off},
+		{name: "unset", want: grounding.Enforce},
 		{name: "off", set: map[string]string{envAgentFindingGrounding: "off"}, want: grounding.Off},
 		{name: "report", set: map[string]string{envAgentFindingGrounding: "report"}, want: grounding.Report},
 		{name: "enforce", set: map[string]string{envAgentFindingGrounding: "enforce"}, want: grounding.Enforce},
@@ -218,19 +218,21 @@ func TestInvestigationBriefIsOnUnlessSetOff(t *testing.T) {
 }
 
 func TestAgentInvestigationCallsMaxSetting(t *testing.T) {
-	const message = envAgentInvestigationMax + ": must be a whole number from the value of " + envAgentInvestigationCalls
+	const message = envAgentInvestigationMax + ": must be a whole number from "
 	tests := []struct {
 		name    string
 		set     map[string]string
 		want    int
 		wantErr string
 	}{
-		{name: "unset equals the default calls", want: 12},
-		{name: "unset equals the configured calls", set: map[string]string{envAgentInvestigationCalls: "20"}, want: 20},
+		{name: "unset is the default ceiling", want: 40},
+		{name: "unset stays at the default ceiling over lower calls", set: map[string]string{envAgentInvestigationCalls: "20"}, want: 40},
+		{name: "unset follows calls above the default ceiling", set: map[string]string{envAgentInvestigationCalls: "50"}, want: 50},
+		{name: "low without calls", set: map[string]string{envAgentInvestigationMax: "6"}, want: 6},
 		{name: "raised", set: map[string]string{envAgentInvestigationMax: "30"}, want: 30},
 		{name: "equal to the calls", set: map[string]string{envAgentInvestigationCalls: "20", envAgentInvestigationMax: "20"}, want: 20},
 		{name: "highest", set: map[string]string{envAgentInvestigationMax: "60"}, want: 60},
-		{name: "below the calls", set: map[string]string{envAgentInvestigationCalls: "20", envAgentInvestigationMax: "19"}, wantErr: message + " (20) to 60"},
+		{name: "below the calls", set: map[string]string{envAgentInvestigationCalls: "20", envAgentInvestigationMax: "19"}, wantErr: message + "20, and not below " + envAgentInvestigationCalls + ", to 60"},
 		{name: "above the highest", set: map[string]string{envAgentInvestigationMax: "61"}, wantErr: message},
 		{name: "not a number", set: map[string]string{envAgentInvestigationMax: "abc"}, wantErr: message},
 	}
@@ -248,6 +250,33 @@ func TestAgentInvestigationCallsMaxSetting(t *testing.T) {
 			}
 			if cfg.Agent.InvestigationCallsMax != tt.want {
 				t.Fatalf("InvestigationCallsMax = %d, want %d", cfg.Agent.InvestigationCallsMax, tt.want)
+			}
+		})
+	}
+}
+
+func TestAQuestionRunsAtHighEffortOnAnthropicUnlessTheEffortIsSet(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		set  map[string]string
+		want string
+	}{
+		{name: "anthropic unset", set: map[string]string{envLLMProvider: LLMProviderAnthropic}, want: "high"},
+		{name: "anthropic set", set: map[string]string{envLLMProvider: LLMProviderAnthropic, envLLMEffort: "low"}, want: "low"},
+		{name: "openai unset", set: map[string]string{envLLMProvider: LLMProviderOpenAI}, want: ""},
+		{name: "openai set", set: map[string]string{envLLMProvider: LLMProviderOpenAI, envLLMEffort: "minimal"}, want: "minimal"},
+		{name: "no provider", want: ""},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.set != nil {
+				tt.set[envLLMModel], tt.set[envLLMAPIKey] = "m", "k"
+			}
+			cfg, err := Load(envOf(llmEnv(tt.set)))
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.LLM.QuestionEffort != tt.want {
+				t.Fatalf("QuestionEffort = %q, want %q", cfg.LLM.QuestionEffort, tt.want)
 			}
 		})
 	}

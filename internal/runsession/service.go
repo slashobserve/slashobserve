@@ -2,6 +2,7 @@ package runsession
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/agent/brief"
 	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
@@ -240,7 +242,7 @@ func (s *Service) initial(ctx context.Context, req revisions.Request, id pgtype.
 	if err != nil {
 		return State{}, err
 	}
-	state := s.watched(run, req)
+	state := s.watched(run, req, s.routed(ctx, run, req))
 	parent := 0
 	switch {
 	case run.Mode == tools.ModeSuggest:
@@ -265,12 +267,14 @@ func (s *Service) initial(ctx context.Context, req revisions.Request, id pgtype.
 		}
 	}
 	state.Guard.BeginSession(building, parent)
-	state.Task = s.routed(ctx, run, req)
 	return state, nil
 }
 
-func (s *Service) watched(run tools.Run, req revisions.Request) State {
-	state := State{Guard: guard.New(run.Mode), Loop: s.investigationLoop && run.Mode == tools.ModeInvestigate && run.Investigation}
+func (s *Service) watched(run tools.Run, req revisions.Request, task route.Task) State {
+	state := State{Guard: guard.New(run.Mode), Task: task, Loop: s.investigationLoop && run.Mode == tools.ModeInvestigate && run.Investigation}
+	if run.Mode == tools.ModeInvestigate {
+		state.Guard.InvestigationCalls = cmp.Or(s.investigationCalls, guard.InvestigationCallsFor(task))
+	}
 	if state.Loop {
 		state.Guard.WatchLedger()
 	}
@@ -281,7 +285,6 @@ func (s *Service) watched(run tools.Run, req revisions.Request) State {
 		state.Guard.WatchGrounding()
 	}
 	if state.Loop && req.Assignee == revisions.AssignBuiltin {
-		state.Guard.InvestigationCalls = s.investigationCalls
 		state.Guard.StartLoop(s.investigationMax)
 	}
 	return state
