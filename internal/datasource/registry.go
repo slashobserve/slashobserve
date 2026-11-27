@@ -51,17 +51,18 @@ type Instance struct {
 }
 
 type Status struct {
-	UID       string    `json:"uid"`
-	Type      string    `json:"type"`
-	Name      string    `json:"name"`
-	Source    string    `json:"source"`
-	Index     string    `json:"index,omitempty"`
-	TimeField string    `json:"time_field,omitempty"`
-	Spans     string    `json:"spans,omitempty"`
-	Healthy   bool      `json:"healthy"`
-	Message   string    `json:"message,omitempty"`
-	Detail    string    `json:"detail,omitempty"`
-	CheckedAt time.Time `json:"checked_at"`
+	UID         string    `json:"uid"`
+	Type        string    `json:"type"`
+	Name        string    `json:"name"`
+	Source      string    `json:"source"`
+	Index       string    `json:"index,omitempty"`
+	TimeField   string    `json:"time_field,omitempty"`
+	Spans       string    `json:"spans,omitempty"`
+	TraceSearch bool      `json:"trace_search,omitempty"`
+	Healthy     bool      `json:"healthy"`
+	Message     string    `json:"message,omitempty"`
+	Detail      string    `json:"detail,omitempty"`
+	CheckedAt   time.Time `json:"checked_at"`
 }
 
 func statusFor(in Instance) Status {
@@ -69,9 +70,12 @@ func statusFor(in Instance) Status {
 	if indexed, ok := in.Datasource.(IndexSource); ok {
 		s.Index, s.TimeField = indexed.Index()
 	}
-	if spans, ok := in.Datasource.(SpanIndexSource); ok {
+	spans, isSpanIndex := in.Datasource.(SpanIndexSource)
+	if isSpanIndex {
 		s.Spans = spans.SpanFormat()
 	}
+	_, reads := in.Datasource.(TraceSource)
+	s.TraceSearch = reads && !isSpanIndex
 	return s
 }
 

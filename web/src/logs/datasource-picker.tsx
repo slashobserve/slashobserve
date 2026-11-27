@@ -22,9 +22,15 @@ export function typeName(type: string): string {
 
 export function eligibleDatasources(
   list: readonly DatasourceStatus[] | undefined,
-  types: readonly string[]
+  accepts: (datasource: DatasourceStatus) => boolean
 ): DatasourceStatus[] {
-  return (list ?? []).filter((datasource) => types.includes(datasource.type))
+  return (list ?? []).filter(accepts)
+}
+
+export function ofTypes(
+  types: readonly string[]
+): (datasource: DatasourceStatus) => boolean {
+  return (datasource) => types.includes(datasource.type)
 }
 
 export function distinctName(type: string, name: string): string | undefined {
@@ -40,20 +46,20 @@ export function optionText(datasource: DatasourceStatus): string {
 
 export function ExploreDatasourcePicker({
   id,
-  types,
+  accepts,
   value,
   onChange,
   label,
 }: {
   id: string
-  types: readonly string[]
+  accepts: (datasource: DatasourceStatus) => boolean
   value: string | undefined
   onChange: (uid: string) => void
   label: string
 }) {
   const datasources = useDatasources()
   const loading = datasources.isPending
-  const eligible = eligibleDatasources(datasources.data, types)
+  const eligible = eligibleDatasources(datasources.data, accepts)
   if (!loading && eligible.length === 0) return null
   const items = eligible.map((datasource) => ({
     value: datasource.uid,

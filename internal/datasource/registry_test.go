@@ -680,3 +680,36 @@ func TestAFailingProbeLogsOnceWhileQueriesKeepAnsweringBetweenProbes(t *testing.
 		t.Fatalf("warnings = %d, want 1", got)
 	}
 }
+
+type traceReader struct {
+	failingHealth
+}
+
+func (traceReader) Type() string { return "tempo" }
+func (traceReader) Trace(context.Context, string, datasource.TimeRange, int) (datasource.Frame, error) {
+	return datasource.Frame{}, nil
+}
+
+type spanReader struct {
+	traceReader
+}
+
+func (spanReader) Type() string       { return "elasticsearch" }
+func (spanReader) SpanFormat() string { return "jaeger" }
+
+func TestStatusReportsTraceSearchOnlyWhereTheQueryPathAnswersIt(t *testing.T) {
+	registry, err := datasource.NewRegistry(nil,
+		datasource.Instance{UID: "tempo", Datasource: traceReader{}},
+		datasource.Instance{UID: "spans", Datasource: spanReader{}},
+		datasource.Instance{UID: "prom", Datasource: failingHealth{}},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{"tempo": true, "spans": false, "prom": false}
+	for _, s := range registry.Health(everything(t)) {
+		if s.TraceSearch != want[s.UID] {
+			t.Errorf("%s TraceSearch = %v, want %v", s.UID, s.TraceSearch, want[s.UID])
+		}
+	}
+}
