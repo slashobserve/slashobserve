@@ -1820,9 +1820,10 @@ observe mcp-sources revoke docs search
 - `remove <uid>` deletes the source, its tools and its secret.
 - `discover <uid>` lists the server's tools and prints how many are new, changed, gone or ignored.
   It exits 1 and prints the failure when the server could not be asked.
-- `tools <uid>` prints each tool with its state and its refusal.
+- `tools <uid>` prints each tool with its state, whether the server marks it read-only and its refusal.
 - `approve <uid> <tool>` approves one tool as it is listed now, and fails when the server changed it since.
-  `approve <uid> --all-read-only` approves every tool still to review.
+  It approves a tool the server does not mark read-only too, and then warns that the agent may call it and that it can change the system it reaches.
+  `approve <uid> --all-read-only` approves every tool still to review that the server marks read-only, and leaves the others to be approved by name.
   A refused tool cannot be approved.
 - `revoke <uid> <tool>` withdraws an approval.
 

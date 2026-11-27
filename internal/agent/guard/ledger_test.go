@@ -215,3 +215,12 @@ func TestTheLedgerWatchOnlyStartsInAnInvestigation(t *testing.T) {
 		t.Fatal("a build run watches the ledger")
 	}
 }
+
+func TestAFindingWithCausesNamesAConclusion(t *testing.T) {
+	if !namesConclusion([]byte(`{"markdown":"x","causes":[{"component":{"kind":"service","name":"cart"},"kind":"deploy","mechanism":"m"}]}`)) {
+		t.Error("causes are not a conclusion")
+	}
+	if namesConclusion([]byte(`{"markdown":"x","causes":[]}`)) {
+		t.Error("an empty causes list is a conclusion")
+	}
+}

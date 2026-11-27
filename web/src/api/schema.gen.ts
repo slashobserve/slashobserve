@@ -1664,7 +1664,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the server for its tools and compare them with what was approved.
-         * @description Only Admins can call this endpoint. The server connects over MCP streamable HTTP through the outbound allowlist and lists its tools. A tool the server marks destructive, or does not mark read-only, is stored as `refused` with the reason. A new read-only tool is stored as `offered`; nothing is approved automatically. An approved tool whose name, description or input schema changed becomes `changed` and is not served until an Admin approves it again. An approved tool the server no longer lists becomes `gone`. A failed discovery answers 200 with `source.state` `unreachable` and `source.failure` naming why: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
+         * @description Only Admins can call this endpoint. The server connects over MCP streamable HTTP through the outbound allowlist and lists its tools. A tool the server marks destructive (`destructiveHint: true`), or whose description or input schema is too large, is stored as `refused` with the reason. Any other new tool is stored as `offered` with `read_only` saying whether the server marks it read-only; nothing is approved automatically. An approved tool whose name, description, input schema or read-only mark changed becomes `changed` and is not served until an Admin approves it again. An approved tool the server no longer lists becomes `gone`. A failed discovery answers 200 with `source.state` `unreachable` and `source.failure` naming why: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
          */
         post: operations["discoverMCPSourceTools"];
         delete?: never;
@@ -1684,7 +1684,7 @@ export interface paths {
         };
         /**
          * List what discovery found on an MCP source.
-         * @description Only Admins can call this endpoint. Each tool carries the definition that was pinned (`description`, `input_schema`, `hash`), and for a `changed` tool the definition the server offers now in `seen`.
+         * @description Only Admins can call this endpoint. Each tool carries the definition that was pinned (`description`, `input_schema`, `read_only`, `hash`), and for a `changed` tool the definition the server offers now in `seen`.
          */
         get: operations["listMCPSourceTools"];
         put?: never;
@@ -1707,8 +1707,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Approve every offered tool of an MCP source at once.
-         * @description Only Admins can call this endpoint. Every `offered` tool is approved as it is pinned now; the server marks each of them read-only. `changed` tools are left alone because each needs its own review, and `refused` tools cannot be approved.
+         * Approve every offered read-only tool of an MCP source at once.
+         * @description Only Admins can call this endpoint. Every `offered` tool the server marks read-only is approved as it is pinned now. An `offered` tool that is not marked read-only is left alone: it is approved only by name, with the single-tool approve route. `changed` tools are left alone because each needs its own review, and `refused` tools cannot be approved.
          */
         post: operations["approveReadOnlyMCPSourceTools"];
         delete?: never;
@@ -5145,6 +5145,11 @@ export interface components {
             /** @description The time field of an Elasticsearch or OpenSearch datasource; absent on other types. */
             time_field?: string;
             /**
+             * @description Present on an Elasticsearch or OpenSearch datasource whose index holds span documents that Jaeger wrote, which answers the trace reads.
+             * @enum {string}
+             */
+            spans?: "jaeger";
+            /**
              * @description Who can query the datasource, for an Admin caller only; absent for everyone else.
              * @enum {string}
              */
@@ -5225,6 +5230,11 @@ export interface components {
             time_field?: string;
             /** @enum {string} */
             query_language?: "" | "kql" | "lucene";
+            /**
+             * @description Elasticsearch and OpenSearch only. `jaeger` says the index holds span documents that Jaeger wrote, so the datasource answers the trace reads; the time field is then `startTimeMillis`.
+             * @enum {string}
+             */
+            spans?: "" | "jaeger";
             fields?: components["schemas"]["DatasourceFieldRoles"];
             limits?: components["schemas"]["DatasourceLimits"];
             secrets?: components["schemas"]["DatasourceSecrets"];
@@ -5253,6 +5263,8 @@ export interface components {
             index?: string;
             time_field?: string;
             query_language?: string;
+            /** @enum {string} */
+            spans?: "jaeger";
             fields?: components["schemas"]["DatasourceFieldRoles"];
             limits?: components["schemas"]["DatasourceLimits"];
             /** @description Which credentials are stored, each `password`, `bearer_token`, `api_key` or `header:<name>`. Their values are never returned. */
@@ -5372,7 +5384,9 @@ export interface components {
             input_schema: {
                 [key: string]: unknown;
             };
-            /** @description SHA-256 over the tool's name, description and input schema, as 64 hex characters. */
+            /** @description Whether the server marks the tool read-only (`readOnlyHint`). */
+            read_only: boolean;
+            /** @description SHA-256 over the tool's name, description, input schema and read-only mark, as 64 hex characters. */
             hash: string;
         };
         MCPSourceTool: {
@@ -5386,7 +5400,9 @@ export interface components {
             input_schema: {
                 [key: string]: unknown;
             };
-            /** @description SHA-256 over the pinned name, description and input schema, as 64 hex characters. */
+            /** @description Whether the server marks the pinned tool read-only (`readOnlyHint`). A tool that is not marked can still be approved, by name only, and the agent may then call it, so it can change the system it reaches. A tool discovered before the server stored the mark reads `false` while it was refused, until the next discovery fills it in. */
+            read_only: boolean;
+            /** @description SHA-256 over the pinned name, description, input schema and read-only mark, as 64 hex characters. */
             hash: string;
             /** @description What the server describes now, for a `changed` tool; null otherwise. */
             seen: components["schemas"]["MCPSourceDefinition"] | null;
@@ -6851,6 +6867,13 @@ export interface components {
             text: string;
             /** @enum {string} */
             status: "open" | "supported" | "ruled_out";
+            /**
+             * @description How a supported or ruled-out hypothesis was settled; `cause` goes with `supported` and the others with `ruled_out`. Absent when the agent gave none.
+             * @enum {string}
+             */
+            closing?: "cause" | "knock_on" | "background" | "transient" | "unrelated";
+            /** @description With the `knock_on` closing, the id of the hypothesis it follows from. */
+            knock_on_of?: string;
             /** @description What the agent read and what it showed. */
             evidence?: string[];
             /** @description For an open hypothesis, the read that would settle it. */
@@ -7316,12 +7339,73 @@ export interface components {
             /** @description One sentence on what failed. */
             summary: string;
         };
-        FindingUnverified: {
+        FindingCauseComponent: {
+            /** @enum {string} */
+            kind: "service" | "pod" | "deployment" | "config" | "flag" | "datastore" | "dependency" | "node" | "other";
+            /** @description The name as the telemetry or the system spells it. */
+            name: string;
+            /** @description The namespace or scope the name lives in; null when the agent gave none. */
+            namespace: string | null;
+        };
+        /** @description One cause of the incident, as the agent listed it and the server scored it. */
+        FindingCause: {
+            component: components["schemas"]["FindingCauseComponent"];
+            /** @enum {string} */
+            kind: "deploy" | "config_or_flag" | "dependency" | "resource" | "data" | "traffic" | "infrastructure" | "unknown";
+            /** @description One sentence on how the component failed. */
+            mechanism: string;
+            /** @description The change that set the cause off; null when the agent named none. */
+            trigger: {
+                /** @enum {string} */
+                kind: "feature_flag" | "config_value" | "deploy" | "traffic" | "dependency" | "unknown";
+                /** @description The flag key, setting, version or name exactly as the system spells it. */
+                key: string;
+                /** @description The value it was set to; null when the agent gave none. */
+                value: string | null;
+            } | null;
             /**
-             * @description A figure from the Markdown or the impact, the root cause component, the onset time, a cited fact or `answers` entry that did not pass (an unknown fact, an option more than 1% away, two values for one quantity, or an answer the Markdown never gives), or a trace or span id that was cut short or that the run never read.
+             * Format: date-time
+             * @description When this cause began; null when the agent gave none.
+             */
+            onset: string | null;
+            /** @description The components this cause affects. */
+            affected: components["schemas"]["FindingCauseComponent"][];
+            /**
+             * @description `knock_on` when the cause only follows another listed cause, which `knock_on_of` names.
              * @enum {string}
              */
-            kind: "figure" | "component" | "onset" | "fact" | "trace_id";
+            relation: "independent" | "knock_on";
+            /** @description The index in `causes` of the cause this one follows; null for an independent cause. */
+            knock_on_of: number | null;
+            evidence: {
+                /** @description The ids of the run's facts the agent cited for this cause. */
+                facts: string[];
+                /** @description Trace ids the agent cited for this cause. */
+                trace_ids: string[];
+                /** @description The queries the cited facts came from, when the run kept them. */
+                queries: string[];
+            };
+            /**
+             * @description The agent's own estimate; null when it gave none.
+             * @enum {string|null}
+             */
+            estimate: "high" | "medium" | "low" | null;
+            /** @description The server's score from the evidence the run read; null when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `off` or for a finding saved before causes existed. */
+            confidence: number | null;
+            /**
+             * @description The band of `confidence`, 0.7 and above high and 0.4 and above medium; null when it is null.
+             * @enum {string|null}
+             */
+            band: "high" | "medium" | "low" | null;
+            /** @description True when the finding states the cause, a medium or high one or any unscored one; false for an unconfirmed cause. */
+            stated: boolean;
+        };
+        FindingUnverified: {
+            /**
+             * @description A figure from the Markdown or the impact, a cause's component or trigger key, an onset time, a cited fact or `answers` entry that did not pass (an unknown fact, an option more than 1% away, two values for one quantity, or an answer the Markdown never gives), or a trace or span id that was cut short or that the run never read; `candidate` is a triage candidate the investigation left open when it concluded, as its id and service, such as "c2 ad".
+             * @enum {string}
+             */
+            kind: "figure" | "component" | "onset" | "fact" | "trace_id" | "trigger" | "candidate";
             /** @description The item as the agent wrote it, such as "523 ms". */
             text: string;
         };
@@ -7332,8 +7416,10 @@ export interface components {
              * @description The run whose conclusion block this describes; it is the `created_by.run_id` of that block.
              */
             run_id: string;
-            /** @description What failed, when the agent named it; null otherwise. */
+            /** @description The first stated cause that is not a knock-on, kept for readers of the single cause; null when there is none. */
             root_cause: components["schemas"]["FindingRootCause"] | null;
+            /** @description The causes of the incident, stated ones first and most confident first; empty when the agent listed none. */
+            causes: components["schemas"]["FindingCause"][];
             /**
              * Format: date-time
              * @description When the failure started, as the agent judged it; null when it gave none.
@@ -7397,8 +7483,10 @@ export interface components {
             observe_worthy: boolean;
             /** @description True when the run that wrote the answer read a datasource only Admins can query, such as the audit trail, which only an Admin's private chat or a run whose every reader is an Admin can do, or when the dashboard or observation the answer is about sits in a folder only Admins can read. Such an answer is shared, saved, pinned, applied or made a dashboard only in a folder only Admins can read; anywhere else the server answers 409 `restricted_answer`. */
             restricted: boolean;
-            /** @description What failed, when the agent named it; null otherwise. */
+            /** @description The first stated cause that is not a knock-on, kept for readers of the single cause; null when there is none. */
             root_cause?: components["schemas"]["FindingRootCause"] | null;
+            /** @description The causes of the incident, stated ones first and most confident first; empty when the agent listed none. */
+            causes?: components["schemas"]["FindingCause"][];
             /**
              * Format: date-time
              * @description When the failure started, as the agent judged it; null when it gave none.
@@ -13451,7 +13539,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The tools approved by this call; empty when none was offered. */
+            /** @description The tools approved by this call; empty when no read-only tool was offered. */
             200: {
                 headers: {
                     [name: string]: unknown;

@@ -142,6 +142,9 @@ func TestAggregateCountsLokiLinesAtTheWindowEnd(t *testing.T) {
 	if len(out.Values) != 1 || *out.Values[0].Value != 4 || fake.queries[0] != `sum(count_over_time({service_name="cart"} |= "error" [3600s]))` {
 		t.Fatalf("out = %+v queries = %q", out, fake.queries)
 	}
+	if out.Store != "loki" {
+		t.Errorf("store = %q, want loki so a fact of it counts as the logs signal", out.Store)
+	}
 	if !fake.ranges[0].To.Equal(time.Date(2026, 11, 20, 10, 0, 0, 0, time.UTC)) {
 		t.Errorf("evaluated at %s, want the end of the window", fake.ranges[0].To)
 	}

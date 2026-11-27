@@ -19,7 +19,7 @@ const (
 	traceReadConcurrency = 4
 	traceReadMargin      = time.Hour
 	maxSampledRoutes     = 10
-	traceAnalyticsText   = "reads Tempo, Jaeger and ClickHouse datasources"
+	traceAnalyticsText   = "reads Tempo, Jaeger and ClickHouse datasources, and Elastic or OpenSearch datasources with spans: jaeger"
 
 	propTraceService   = `"service":{"type":"string","maxLength":256,"description":"Only traces with a span from this service. Required on Jaeger."}`
 	propTraceRoute     = `"route":{"type":"string","maxLength":512,"description":"Only traces whose root span has this name, such as GET /api/cart."}`

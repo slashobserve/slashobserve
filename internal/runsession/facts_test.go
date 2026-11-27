@@ -71,10 +71,10 @@ func TestACleanCitationIsAdmittedWithTheLedgerForTheSave(t *testing.T) {
 	s.readAnswer("measure_window", `{"datasource":"prom","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1})
 
 	got := s.admitSave(`{"markdown":"Checkout p99 peaked at {{f1:ms}}."}`, &Turn{ID: "t2", Calls: 1})
-	if got.answer != nil || got.unverified != nil {
-		t.Fatalf("a clean save was refused or flagged: %+v %+v", got.answer, got.unverified)
+	if got.answer != nil || got.grounding.unverified != nil {
+		t.Fatalf("a clean save was refused or flagged: %+v %+v", got.answer, got.grounding.unverified)
 	}
-	if rendered, problems := got.ledger.Render("{{f1:ms:3}}"); rendered != "523 ms" || problems != nil {
+	if rendered, problems := got.grounding.ledger.Render("{{f1:ms:3}}"); rendered != "523 ms" || problems != nil {
 		t.Errorf("the save's ledger rendered %q, %+v", rendered, problems)
 	}
 }
@@ -96,10 +96,10 @@ func TestAnUnknownFactIsSentBackOnceAndTheSecondSaveStillSaves(t *testing.T) {
 	if second.answer != nil {
 		t.Fatalf("the second save was refused: %s", second.answer.Content)
 	}
-	if len(second.unverified) != 1 || second.unverified[0].Kind != "fact" || second.unverified[0].Text != "{{f12}}" {
-		t.Errorf("unverified = %+v, want the cited fact", second.unverified)
+	if len(second.grounding.unverified) != 1 || second.grounding.unverified[0].Kind != "fact" || second.grounding.unverified[0].Text != "{{f12}}" {
+		t.Errorf("unverified = %+v, want the cited fact", second.grounding.unverified)
 	}
-	if rendered, _ := second.ledger.Render("{{f12}}"); rendered != grounding.UnreadMarker {
+	if rendered, _ := second.grounding.ledger.Render("{{f12}}"); rendered != grounding.UnreadMarker {
 		t.Errorf("the unknown fact renders as %q", rendered)
 	}
 }
@@ -116,8 +116,8 @@ func TestTwoAnswersForOneQuantityAreSentBack(t *testing.T) {
 		t.Errorf("the send-back does not name the conflict:\n%s", message)
 	}
 	clean := s.admitSave(`{"markdown":"Checkout p99 peaked at {{f2:ms}}.","answers":[{"quantity":"peak p99","fact":"f2"}]}`, &Turn{ID: "t4", Calls: 1})
-	if clean.answer != nil || clean.unverified != nil {
-		t.Errorf("the settled save = %+v, %+v", clean.answer, clean.unverified)
+	if clean.answer != nil || clean.grounding.unverified != nil {
+		t.Errorf("the settled save = %+v, %+v", clean.answer, clean.grounding.unverified)
 	}
 }
 
@@ -153,10 +153,10 @@ func TestACutTraceIDIsSentBackWithTheWholeID(t *testing.T) {
 	ids := s.sess.state.Grounding.Facts
 	trace, duration := ids[len(ids)-2], ids[len(ids)-1]
 	clean := s.admitSave(`{"markdown":"GET /cart had {{f3}} slow traces, such as {{`+trace.ID+`}}, which took {{`+duration.ID+`:s}}.","answers":[{"quantity":"example trace","fact":"`+trace.ID+`"},{"quantity":"its duration","fact":"`+duration.ID+`"}]}`, &Turn{ID: "t3", Calls: 1})
-	if clean.answer != nil || clean.unverified != nil {
-		t.Errorf("the repaired save = %+v, %+v", clean.answer, clean.unverified)
+	if clean.answer != nil || clean.grounding.unverified != nil {
+		t.Errorf("the repaired save = %+v, %+v", clean.answer, clean.grounding.unverified)
 	}
-	if rendered, _ := clean.ledger.Render("{{" + duration.ID + ":s}} in {{" + trace.ID + "}}"); rendered != "1.31275 s in 4bf92f3577b34da6a3ce929d0e0e4736" {
+	if rendered, _ := clean.grounding.ledger.Render("{{" + duration.ID + ":s}} in {{" + trace.ID + "}}"); rendered != "1.31275 s in 4bf92f3577b34da6a3ce929d0e0e4736" {
 		t.Errorf("rendered = %q", rendered)
 	}
 }
@@ -165,8 +165,24 @@ func TestReportRecordsABrokenCitationWithoutSendingItBack(t *testing.T) {
 	s := groundingScript(t, grounding.Report)
 	s.readAnswer("measure_window", `{"datasource":"prom","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1})
 	got := s.admitSave(`{"markdown":"Checkout p99 peaked at {{f1:1}}."}`, &Turn{ID: "t2", Calls: 1})
-	if got.answer != nil || len(got.unverified) != 1 || got.unverified[0].Text != "{{f1:1}}" {
-		t.Errorf("report = %+v, %+v", got.answer, got.unverified)
+	if got.answer != nil || len(got.grounding.unverified) != 1 || got.grounding.unverified[0].Text != "{{f1:1}}" {
+		t.Errorf("report = %+v, %+v", got.answer, got.grounding.unverified)
+	}
+}
+
+func TestASampledLogFacetCountIsCitedAsALowerBound(t *testing.T) {
+	s := groundingScript(t, grounding.Enforce)
+	const facets = `{"sampled":true,"lines_sampled":2000,"fields":[{"name":"level","kind":"field","exact":false,"values":[{"value":"error","count":37}],"truncated":false}],"truncated":false}`
+	answer := s.readAnswer("log_facets", `{"datasource":"loki","query":"{service_name=\"cart\"}"}`, facets, &Turn{ID: "t1", Calls: 1})
+	if !strings.Contains(string(answer.Content), `{"value":"error","count":37,"facts":{"count":"f2"}}`) {
+		t.Fatalf("the facet count lacks its fact id: %s", answer.Content)
+	}
+	got := s.admitSave(`{"markdown":"Cart logged {{f2}} errors."}`, &Turn{ID: "t2", Calls: 1})
+	if got.answer != nil || got.grounding.unverified != nil {
+		t.Fatalf("the citation was refused or flagged: %+v %+v", got.answer, got.grounding.unverified)
+	}
+	if rendered, _ := got.grounding.ledger.Render("Cart logged {{f2}} errors."); rendered != "Cart logged at least 37 errors." {
+		t.Errorf("rendered %q", rendered)
 	}
 }
 

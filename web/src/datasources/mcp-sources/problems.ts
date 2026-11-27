@@ -198,7 +198,7 @@ export function contextProblemText(error: unknown): string {
     case "tool_changed":
       return "The server described this tool differently since you read it. Review it again."
     case "tool_refused":
-      return "The server does not mark this tool read-only, so it cannot be approved."
+      return "The server marks this tool destructive, or its description or schema is too large, so it cannot be approved."
     case "outbound_domain_not_allowed":
       return "The outbound allowlist is set by configuration and does not include this domain."
   }
@@ -266,7 +266,7 @@ export function toolStatus(tool: MCPTool): ToolStatus {
       return {
         tone: "none",
         label: "Offered",
-        detail: "The server marks it read-only. The agent cannot call it yet.",
+        detail: "You have not approved it. The agent cannot call it yet.",
       }
     case "changed":
       return {
@@ -291,6 +291,10 @@ export function toolStatus(tool: MCPTool): ToolStatus {
   }
 }
 
+export function isMarkedReadOnly(tool: MCPTool): boolean {
+  return tool.seen?.read_only ?? tool.read_only
+}
+
 export function hasReadOnlyToApprove(tools: MCPTool[]): boolean {
-  return tools.some((tool) => tool.state === "offered")
+  return tools.some((tool) => tool.state === "offered" && tool.read_only)
 }

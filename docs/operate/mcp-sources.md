@@ -1,11 +1,15 @@
 ---
 title: MCP sources
-description: Register an MCP server as a source, discover its tools, approve the read-only ones one by one or all at once, and see why a tool is refused, changed or gone.
+description: Register an MCP server as a source, discover its tools, approve them one by one or the read-only ones all at once, and see why a tool is refused, changed or gone.
 ---
 
 An MCP source is an MCP server that an Admin registers so the agent can read from it, such as a documentation index or a ticket system.
 The SlashObserve server is the client: it connects to the source, lists its tools and keeps what an Admin approved.
 Nothing a source offers reaches the agent until an Admin approves it.
+
+The server speaks the streamable HTTP transport of MCP.
+When a source refuses that and serves the older HTTP with SSE transport at the registered address, the server uses SSE instead, with the same outbound domain rules, secret header and size limit.
+Register an SSE server by the address of its event stream, which usually ends in `/sse`.
 
 This page covers registering a source, approving its tools and what the agent may do with them.
 
@@ -85,7 +89,7 @@ Each tool is in one state:
 
 | State | Meaning |
 | --- | --- |
-| `offered` | The server marks the tool read-only and an Admin has not approved it. The agent cannot call it. |
+| `offered` | An Admin has not approved the tool. The agent cannot call it. |
 | `approved` | An Admin approved the tool as pinned. |
 | `changed` | The server describes an approved tool differently from what was pinned. It is not served until an Admin approves the new description. |
 | `gone` | The server no longer lists an approved tool. It returns to `approved` when the server lists it unchanged. |
@@ -93,14 +97,26 @@ Each tool is in one state:
 
 The [states reference](../reference/states.md#mcp-source-tool) lists the moves between them.
 
-A tool is refused when the server marks it destructive, when it does not mark it read-only, when its description is over 4000 characters or when its input schema is over 32 KiB.
-A tool the server leaves unmarked is refused, because the server's word is the only evidence that it only reads.
+A tool is refused when the server marks it destructive (`destructiveHint: true`), when its description is over 4000 characters or when its input schema is over 32 KiB.
+Nobody can approve a refused tool.
 
-An Admin approves a tool one by one, or approves every `offered` tool at once with **Approve all read-only** or `observe mcp-sources approve <id> --all-read-only`.
-Approving pins the tool's name, description and input schema as a SHA-256 hash.
+Every tool shows whether the server marks it read-only (`readOnlyHint: true`): `read_only` in the API, **Not marked read-only** beside the tool in the web app, and the `READ-ONLY` column of `observe mcp-sources tools`.
+The mark is the server's word, and SlashObserve cannot check it.
+
+Servers before this release also refused a tool that was not marked read-only.
+After an upgrade such a tool stays `refused`, with the old reason, until the source's next discovery, which offers it like any other new tool; nothing is approved by the upgrade.
+Choose **Discover**, or run `observe mcp-sources discover <id>`, to see them; a source with an `approve` list in the provisioning file is discovered again at every start.
+Approved and offered tools keep their state and their pins, and read as marked read-only, because only such tools could be in those states before.
+
+An Admin approves a tool one by one, or approves every `offered` tool the server marks read-only at once with **Approve all read-only** or `observe mcp-sources approve <id> --all-read-only`.
+A tool that is not marked read-only is never approved in bulk: approve it by name, with **Approve** on its row, `observe mcp-sources approve <id> <tool>` or the `approve` list of the provisioning file.
+Approving such a tool means the agent can call it, and a tool that changes the system it reaches will change it when the agent calls it.
+Approve one only on a system where that is acceptable.
+Approving pins the tool's name, description, input schema and read-only mark as a SHA-256 hash.
 The web app and the CLI send the hash they showed, and the server answers `409 tool_changed` when the tool changed in between, so an Admin never approves a definition they did not read.
 
 If a later discovery finds an approved tool described differently, the tool becomes `changed` and stops being served until it is approved again, with its new definition shown beside the approved one.
+A tool the server stops marking read-only becomes `changed` the same way, so the agent stops calling it until an Admin approves it as it is now.
 A tool the server marks destructive after the fact becomes `refused` and loses its approval.
 **Revoke** withdraws an approval and returns the tool to `offered`.
 
@@ -141,7 +157,8 @@ mcpSources:
   At every start, after it makes the entries match, the server runs a discovery for each source with a list, in the background, so the tools can be a few seconds behind the start.
   It approves a listed tool the first time the server sees it, when the tool is `offered` and was not known before that discovery.
   That is the only definition the file ever pins: a tool an Admin revoked, a tool an Admin or an earlier discovery already knew and left unapproved, and a tool that is `changed` stay as they are until an Admin approves them, so a revoke sticks across restarts and the file never approves a definition nobody read.
-  A tool the server marks destructive, or does not mark read-only, stays `refused`, as it does for an Admin.
+  A listed tool that the server does not mark read-only is approved like any other, because the file names it.
+  A tool the server marks destructive stays `refused`, as it does for an Admin.
   A listed name the server does not offer, and any tool left as it is, is logged as a warning that names the tool and the reason.
   Removing a name from the list does not revoke the tool; use **Revoke**.
   The approval is recorded as `mcp_source.approve` by the system, with `provisioned: true` in its data.
@@ -170,7 +187,7 @@ At most 50 sources can exist; a 51st answers `422 too_many_mcp_sources`.
 | `GET`, `PATCH`, `DELETE /api/v1/mcp-sources/{uid}` | Reads, changes or deletes a source. |
 | `POST /api/v1/mcp-sources/{uid}/discover` | Discovers its tools. |
 | `GET /api/v1/mcp-sources/{uid}/tools` | Lists its tools. |
-| `POST /api/v1/mcp-sources/{uid}/tools/approve-read-only` | Approves every `offered` tool. |
+| `POST /api/v1/mcp-sources/{uid}/tools/approve-read-only` | Approves every `offered` tool the server marks read-only. |
 | `POST /api/v1/mcp-sources/{uid}/tools/{name}/approve` | Approves one tool; the body may carry the `hash` that was read. |
 | `POST /api/v1/mcp-sources/{uid}/tools/{name}/revoke` | Withdraws an approval. |
 
@@ -185,6 +202,7 @@ An approved tool of a source can be used by the agent in an investigation or a q
 They are not offered when a dashboard is built or revised.
 
 - Only an approved tool can be called.
+  Each tool the agent lists or finds carries `read_only`, so the model can tell a tool the server marks read-only from one it does not, and it is told to call one that is not only to read, never to change anything.
   A source whose last discovery failed is still listed to the agent with a status that says so, and a call to it is still tried.
   A tool that changed since you approved it stays unusable until you approve it again.
 - A source set to **Admins only** is used only on behalf of an Admin.

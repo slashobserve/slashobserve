@@ -116,7 +116,7 @@ func offerOf(source Source, stored []Tool) tools.ContextOffer {
 	offer := tools.ContextOffer{UID: source.UID, Name: source.Name, Description: source.Description, Host: hostOfURL(source.URL), Unreachable: source.State == StateUnreachable, Failure: source.Failure}
 	for _, tool := range stored {
 		if tool.State == ToolApproved {
-			offer.Tools = append(offer.Tools, tools.ContextOfferedTool{Name: tool.Name, Description: firstLine(tool.Pinned.Description), Arguments: argumentsOf(tool.Pinned.InputSchema)})
+			offer.Tools = append(offer.Tools, tools.ContextOfferedTool{Name: tool.Name, Description: firstLine(tool.Pinned.Description), Arguments: argumentsOf(tool.Pinned.InputSchema), ReadOnly: tool.Pinned.ReadOnly})
 		}
 	}
 	return offer

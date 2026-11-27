@@ -7,6 +7,7 @@ import {
   createBody,
   failureText,
   hasReadOnlyToApprove,
+  isMarkedReadOnly,
   sourceProblems,
   sourceStatus,
   toolStatus,
@@ -57,6 +58,7 @@ function tool(overrides: Partial<MCPTool> = {}): MCPTool {
     refusal: null,
     description: "Search",
     input_schema: {},
+    read_only: true,
     hash: "a".repeat(64),
     seen: null,
     approved_by: null,
@@ -221,7 +223,7 @@ describe("contextProblemText", () => {
     ).toContain("differently")
     expect(
       contextProblemText(new ApiError(409, "tool_refused", "x"))
-    ).toContain("read-only")
+    ).toContain("destructive")
   })
 
   test("falls back to the server's message, and to a network sentence", () => {
@@ -285,5 +287,23 @@ describe("status text", () => {
     expect(hasReadOnlyToApprove([tool({ state: "refused" }), tool()])).toBe(
       true
     )
+    expect(hasReadOnlyToApprove([tool({ read_only: false })])).toBe(false)
+  })
+
+  test("a changed tool is marked read-only as the server describes it now", () => {
+    expect(isMarkedReadOnly(tool({ read_only: false }))).toBe(false)
+    expect(
+      isMarkedReadOnly(
+        tool({
+          state: "changed",
+          seen: {
+            description: "Search",
+            input_schema: {},
+            read_only: false,
+            hash: "b".repeat(64),
+          },
+        })
+      )
+    ).toBe(false)
   })
 })

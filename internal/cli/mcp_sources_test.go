@@ -13,9 +13,10 @@ import (
 const mcpSourceReply = `{"uid":"docs","name":"Docs","url":"https://docs.example.com/mcp","audience":"admins","secret_header":"Authorization","secret_set":true,"provisioned":false,"state":"ready","failure":null,"checked_at":"2026-11-25T10:00:00Z","tools":{"offered":2,"approved":1,"changed":1,"gone":0,"refused":1},"created_at":"2026-11-25T09:00:00Z","updated_at":"2026-11-25T10:00:00Z"}`
 
 const mcpToolsReply = `{"tools":[
-{"name":"search","state":"offered","refusal":null,"description":"Search\nthe docs","hash":"h-search","seen":null},
-{"name":"fetch page","state":"changed","refusal":null,"description":"Fetch","hash":"h-old","seen":{"hash":"h-new"}},
-{"name":"wipe","state":"offered","refusal":"the server marks it destructive","description":"Wipe","hash":"h-wipe","seen":null}]}`
+{"name":"search","state":"offered","refusal":null,"description":"Search\nthe docs","read_only":true,"hash":"h-search","seen":null},
+{"name":"fetch page","state":"changed","refusal":null,"description":"Fetch","read_only":true,"hash":"h-old","seen":{"hash":"h-new","read_only":true}},
+{"name":"restart","state":"offered","refusal":null,"description":"Restart a pod","read_only":false,"hash":"h-restart","seen":null},
+{"name":"wipe","state":"refused","refusal":"the server marks it destructive","description":"Wipe","read_only":false,"hash":"h-wipe","seen":null}]}`
 
 type mcpSourcesFake struct {
 	server   *httptest.Server
@@ -171,10 +172,37 @@ func TestMCPToolsListsEachToolWithItsRefusal(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
-	for _, want := range []string{"search", "offered", "Search", "fetch page", "changed", "wipe", "refused: the server marks it destructive"} {
+	for _, want := range []string{"READ-ONLY", "search", "offered", "Search", "fetch page", "changed", "wipe", "refused: the server marks it destructive"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("output lacks %q:\n%s", want, stdout)
 		}
+	}
+	for name, mark := range map[string]string{"search": "yes", "restart": "no"} {
+		for _, line := range strings.Split(stdout, "\n") {
+			if strings.HasPrefix(line, name+" ") && !strings.Contains(line, " "+mark+" ") {
+				t.Errorf("%s must read %q in the read-only column: %q", name, mark, line)
+			}
+		}
+	}
+}
+
+func TestContextApproveByNameApprovesAToolNotMarkedReadOnlyAndSaysWhatThatMeans(t *testing.T) {
+	f := newContextFake(t)
+	f.replies["GET /api/v1/mcp-sources/docs/tools"] = mcpToolsReply
+	f.replies["POST /api/v1/mcp-sources/docs/tools/restart/approve"] = `{}`
+
+	stdout, stderr, code := f.run("", "mcp-sources", "approve", "docs", "restart")
+	if code != 0 || !strings.Contains(stdout, "Approved restart") {
+		t.Fatalf("exit %d, stdout = %q, stderr = %q", code, stdout, stderr)
+	}
+	if got := f.last(); got.path != "/api/v1/mcp-sources/docs/tools/restart/approve" || !strings.Contains(got.body, `"h-restart"`) {
+		t.Errorf("request = %+v", got)
+	}
+	if !strings.Contains(stderr, "does not mark restart as read-only") {
+		t.Errorf("stderr = %q", stderr)
+	}
+	if _, stderr, _ := f.run("", "mcp-sources", "approve", "docs", "search"); strings.Contains(stderr, "read-only") {
+		t.Errorf("a read-only tool needs no warning: %q", stderr)
 	}
 }
 

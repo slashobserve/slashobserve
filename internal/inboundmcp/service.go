@@ -153,11 +153,11 @@ func toolOf(row dbsqlc.McpSourceTool) Tool {
 		Name:      row.Name,
 		State:     ToolState(row.State),
 		Refusal:   row.Refusal.String,
-		Pinned:    Definition{Description: row.Description, InputSchema: row.InputSchema, Hash: row.Hash},
+		Pinned:    Definition{Description: row.Description, InputSchema: row.InputSchema, ReadOnly: row.ReadOnly, Hash: row.Hash},
 		UpdatedAt: row.UpdatedAt.Time.UTC(),
 	}
 	if row.SeenHash.Valid {
-		t.Seen = &Definition{Description: row.SeenDescription.String, InputSchema: row.SeenInputSchema, Hash: row.SeenHash.String}
+		t.Seen = &Definition{Description: row.SeenDescription.String, InputSchema: row.SeenInputSchema, ReadOnly: row.SeenReadOnly.Bool, Hash: row.SeenHash.String}
 	}
 	if row.ApprovedBy.Valid {
 		t.ApprovedBy = uuid.UUID(row.ApprovedBy.Bytes).String()
@@ -176,11 +176,13 @@ func putParams(sourceID pgtype.UUID, t Tool) dbsqlc.PutMCPSourceToolParams {
 		Refusal:     text(t.Refusal),
 		Description: t.Pinned.Description,
 		InputSchema: t.Pinned.InputSchema,
+		ReadOnly:    t.Pinned.ReadOnly,
 		Hash:        t.Pinned.Hash,
 	}
 	if t.Seen != nil {
 		p.SeenDescription = pgtype.Text{String: t.Seen.Description, Valid: true}
 		p.SeenInputSchema = t.Seen.InputSchema
+		p.SeenReadOnly = pgtype.Bool{Bool: t.Seen.ReadOnly, Valid: true}
 		p.SeenHash = text(t.Seen.Hash)
 	}
 	if t.ApprovedBy != "" {

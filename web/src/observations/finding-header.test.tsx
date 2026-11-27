@@ -28,6 +28,7 @@ function finding(overrides: Partial<RunFinding> = {}): RunFinding {
   return {
     run_id: "r1",
     root_cause: null,
+    causes: [],
     onset: null,
     impact: null,
     confidence: null,
@@ -108,6 +109,105 @@ describe("the finding header", () => {
   })
 })
 
+type Cause = RunFinding["causes"][number]
+
+function cause(overrides: Partial<Cause> = {}): Cause {
+  return {
+    component: { kind: "service", name: "cart", namespace: null },
+    kind: "config_or_flag",
+    mechanism: "The flag made cart fail.",
+    trigger: null,
+    onset: null,
+    affected: [],
+    relation: "independent",
+    knock_on_of: null,
+    evidence: { facts: [], trace_ids: [], queries: [] },
+    estimate: null,
+    confidence: null,
+    band: null,
+    stated: true,
+    ...overrides,
+  }
+}
+
+describe("the causes in the header", () => {
+  it("lists stated causes with their band and unconfirmed ones apart", () => {
+    render(
+      <FindingHeader
+        finding={finding({
+          root_cause: {
+            component: "cart",
+            kind: "config_or_flag",
+            summary: "The flag made cart fail.",
+          },
+          causes: [
+            cause({
+              band: "high",
+              confidence: 0.85,
+              trigger: {
+                kind: "feature_flag",
+                key: "cartFailure",
+                value: "on",
+              },
+            }),
+            cause({
+              component: {
+                kind: "service",
+                name: "checkout",
+                namespace: "shop",
+              },
+              kind: "dependency",
+              mechanism: "Checkout failed on cart calls.",
+              relation: "knock_on",
+              knock_on_of: 0,
+              band: "medium",
+            }),
+            cause({
+              component: { kind: "service", name: "payments", namespace: null },
+              kind: "unknown",
+              mechanism: "Maybe payments slowed down.",
+              band: "low",
+              stated: false,
+            }),
+          ],
+        })}
+      />
+    )
+    const stated = within(screen.getByRole("list", { name: "Causes" }))
+      .getAllByRole("listitem")
+      .map((item) => item.textContent)
+    expect(stated).toEqual([
+      "cart · Config or flag · high - The flag made cart fail. (cartFailure = on)",
+      "shop/checkout · Dependency · medium · knock-on of cart - Checkout failed on cart calls.",
+    ])
+    const unconfirmed = within(
+      screen.getByRole("list", { name: "Unconfirmed causes" })
+    ).getAllByRole("listitem")
+    expect(unconfirmed.map((item) => item.textContent)).toEqual([
+      "payments · Unknown · low - Maybe payments slowed down.",
+    ])
+  })
+
+  it("keeps the one-line root cause for a single unscored cause", () => {
+    render(
+      <FindingHeader
+        finding={finding({
+          root_cause: {
+            component: "cart",
+            kind: "config_or_flag",
+            summary: "The flag made cart fail.",
+          },
+          causes: [cause()],
+        })}
+      />
+    )
+    expect(screen.queryByRole("list", { name: "Causes" })).toBeNull()
+    expect(
+      screen.getByText("The flag made cart fail.", { exact: false })
+    ).toBeTruthy()
+  })
+})
+
 describe("the line for items the agent did not read", () => {
   it("counts figures", () => {
     expect(
@@ -159,14 +259,39 @@ describe("the line for items the agent did not read", () => {
         })
       )
     ).toBe(
-      "1 figure, the root cause component and the onset time were not found in what the agent read: 12%, cartservice, 2026-11-20T10:05:00Z"
+      "1 figure, 1 cause component and the onset time were not found in what the agent read: 12%, cartservice, 2026-11-20T10:05:00Z"
     )
     expect(
       unverifiedLine(
         finding({ unverified: [{ kind: "component", text: "cartservice" }] })
       )
     ).toBe(
-      "The root cause component was not found in what the agent read: cartservice"
+      "1 cause component was not found in what the agent read: cartservice"
+    )
+  })
+})
+
+describe("the line for triage candidates left open", () => {
+  it("names them apart from the items the agent did not read", () => {
+    expect(
+      unverifiedLine(
+        finding({ unverified: [{ kind: "candidate", text: "c2 ad" }] })
+      )
+    ).toBe(
+      "1 triage candidate was left open when the investigation ended: c2 ad"
+    )
+    expect(
+      unverifiedLine(
+        finding({
+          unverified: [
+            { kind: "figure", text: "12%" },
+            { kind: "candidate", text: "c2 ad" },
+            { kind: "candidate", text: "c3 cart" },
+          ],
+        })
+      )
+    ).toBe(
+      "1 figure was not found in what the agent read: 12%. 2 triage candidates were left open when the investigation ended: c2 ad, c3 cart"
     )
   })
 })

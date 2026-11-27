@@ -403,6 +403,7 @@ type Finding struct {
 	NextSteps          []string
 	NoIncident         pgtype.Bool
 	Unverified         []byte
+	Causes             []byte
 }
 
 type Folder struct {
@@ -565,6 +566,8 @@ type McpSourceTool struct {
 	ApprovedBy      pgtype.UUID
 	ApprovedAt      pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
+	ReadOnly        bool
+	SeenReadOnly    pgtype.Bool
 }
 
 type OauthClient struct {

@@ -280,15 +280,34 @@ func TestPrintFindingShowsTheStructuredFieldsAboveTheAnswerOnlyWhenSet(t *testin
 	}
 }
 
+func TestPrintFindingListsTheOtherCausesUnderTheRootCause(t *testing.T) {
+	var f findingSummary
+	raw := `{"root_cause":{"component":"cartFailure","kind":"config_or_flag","summary":"The flag broke cart."},"causes":[
+		{"component":{"name":"cartFailure","namespace":null},"mechanism":"The flag broke cart.","knock_on_of":null,"band":"high","stated":true},
+		{"component":{"name":"checkout","namespace":"shop"},"mechanism":"Checkout failed on cart calls.","knock_on_of":0,"band":"medium","stated":true},
+		{"component":{"name":"payments","namespace":null},"mechanism":"Maybe slow.","knock_on_of":null,"band":"low","stated":false}]}`
+	if err := json.Unmarshal([]byte(raw), &f); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"Root cause: cartFailure (config_or_flag) - The flag broke cart.",
+		"Also caused by: shop/checkout (knock-on, medium) - Checkout failed on cart calls.",
+		"Unconfirmed cause: payments (low) - Maybe slow.",
+	}
+	if got := f.header(); strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("header %q\nwant %q", got, want)
+	}
+}
+
 func TestPrintFindingListsTheItemsNotFoundInWhatTheAgentRead(t *testing.T) {
 	var stdout bytes.Buffer
 	printFinding(&output{out: &stdout, err: io.Discard}, findingSummary{
 		Title:      "Checkout latency",
 		Markdown:   "p99 rose to 523 ms.",
 		URL:        "https://o.example/o/1",
-		Unverified: []findingUnverified{{Kind: "figure", Text: "523 ms"}, {Kind: "component", Text: "cartservice"}},
+		Unverified: []findingUnverified{{Kind: "figure", Text: "523 ms"}, {Kind: "candidate", Text: "c2 ad"}, {Kind: "component", Text: "cartservice"}},
 	}, investigationID)
-	want := "Checkout latency\n\nNot found in what the agent read: 523 ms; cartservice\n\np99 rose to 523 ms.\n\nhttps://o.example/o/1\n"
+	want := "Checkout latency\n\nNot found in what the agent read: 523 ms; cartservice\nTriage candidates left open: c2 ad\n\np99 rose to 523 ms.\n\nhttps://o.example/o/1\n"
 	if stdout.String() != want {
 		t.Errorf("printed %q\nwant %q", stdout.String(), want)
 	}

@@ -10,7 +10,10 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 )
 
-const toolSaveFinding = "save_finding"
+const (
+	toolSaveFinding = "save_finding"
+	toolCallMCPTool = "call_mcp_tool"
+)
 
 func answersAFigure(task route.Task) bool {
 	return task == route.Measure || task == route.Logs || task == route.Traces
@@ -20,9 +23,16 @@ func groundsFindings(c guard.Call, res tools.Result) bool {
 	return guard.ReadsData(c.Name) || res.Discovered != nil
 }
 
-func (s *State) checkGrounding(c *guard.Call, question string) ([]findings.Unverified, *grounding.Ledger) {
+type groundingCheck struct {
+	unverified []findings.Unverified
+	ledger     *grounding.Ledger
+	signals    []findings.Signals
+	scored     bool
+}
+
+func (s *State) checkGrounding(c *guard.Call, question string) groundingCheck {
 	if s.Grounding == nil || c.Name != toolSaveFinding {
-		return nil, nil
+		return groundingCheck{}
 	}
 	problems := s.Grounding.Review(c.Input, question)
 	sendBack := problems
@@ -32,11 +42,20 @@ func (s *State) checkGrounding(c *guard.Call, question string) ([]findings.Unver
 	if len(sendBack) > 0 && s.Grounding.Enforced() {
 		c.Ungrounded = grounding.SendBackProblems(sendBack)
 	}
-	return grounding.Unverified(problems), s.Grounding.Ledger()
+	return groundingCheck{
+		unverified: grounding.Unverified(problems),
+		ledger:     s.Grounding.Ledger(),
+		signals:    s.Grounding.CauseSignals(c.Input),
+		scored:     true,
+	}
 }
 
 func (s *State) noteGrounding(c guard.Call, d dispatched) {
 	if s.Grounding == nil || d.res.IsError || !groundsFindings(c, d.res) {
+		return
+	}
+	if c.Name == toolCallMCPTool {
+		s.Grounding.AddSourced(d.content)
 		return
 	}
 	var names []string

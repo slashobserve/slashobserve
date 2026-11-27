@@ -224,6 +224,7 @@ func (s *Service) create(ctx context.Context, q *dbsqlc.Queries, req revisions.R
 	if initial.Triage, err = priorTriage(ctx, q, id, attempt); err != nil {
 		return nil, err
 	}
+	initial.seedLedger()
 	raw, err := json.Marshal(initial)
 	if err != nil {
 		return nil, fmt.Errorf("encode run session: %w", err)

@@ -33,11 +33,11 @@ var ToolMachine = lifecycle.Machine[ToolState, ToolAction]{
 	States:   []ToolState{ToolOffered, ToolApproved, ToolChanged, ToolGone, ToolRefused},
 	Terminal: nil,
 	Meaning: map[ToolState]string{
-		ToolOffered:  "The server marks the tool read-only and an Admin has not approved it; the agent cannot call it.",
+		ToolOffered:  "An Admin has not approved the tool; the agent cannot call it. read_only says whether the server marks it as only reading.",
 		ToolApproved: "An Admin approved the tool as pinned (its name, description and input schema, by hash); the agent may call it.",
 		ToolChanged:  "The server now describes an approved tool differently from what was pinned; it is not served until an Admin approves the new description.",
 		ToolGone:     "The server no longer lists an approved tool; it is not served, and it returns to approved if the server lists it again unchanged.",
-		ToolRefused:  "The server marks the tool destructive, or does not mark it read-only, or its description or schema is too large; refusal says why and nobody can approve it.",
+		ToolRefused:  "The server marks the tool destructive, or its description or schema is too large; refusal says why and nobody can approve it.",
 	},
 	Arrive: map[ToolState]string{
 		ToolOffered:  eventDiscover,

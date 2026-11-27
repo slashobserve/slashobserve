@@ -19,12 +19,18 @@ type reviewed struct {
 	Title     string   `json:"title"`
 	RuledOut  []string `json:"ruled_out"`
 	NextSteps []string `json:"next_steps"`
+	Causes    []struct {
+		Mechanism string `json:"mechanism"`
+	} `json:"causes"`
 }
 
 func (in reviewed) texts() []string {
 	texts := []string{in.Title, in.Markdown, in.Impact}
 	if in.RootCause != nil {
 		texts = append(texts, in.RootCause.Summary)
+	}
+	for _, c := range in.Causes {
+		texts = append(texts, c.Mechanism)
 	}
 	return slices.Concat(texts, in.RuledOut, in.NextSteps)
 }
@@ -66,6 +72,7 @@ func (r *Record) Review(input json.RawMessage, question string) []Problem {
 		out.add(traceIDProblems(text, known)...)
 	}
 	out.add(r.nameAndTimeProblems(in.saved)...)
+	out.add(r.causeProblems(input)...)
 	return out
 }
 

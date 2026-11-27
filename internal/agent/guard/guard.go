@@ -168,6 +168,7 @@ type Call struct {
 	Label      string
 	Input      json.RawMessage
 	Ungrounded string
+	Unclosed   string
 }
 
 func (c Call) label() string {

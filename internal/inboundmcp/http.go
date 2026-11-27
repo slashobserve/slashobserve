@@ -82,6 +82,7 @@ func newSourceJSON(s Source) sourceJSON {
 type definitionJSON struct {
 	Description string          `json:"description"`
 	InputSchema json.RawMessage `json:"input_schema"`
+	ReadOnly    bool            `json:"read_only"`
 	Hash        string          `json:"hash"`
 }
 
@@ -91,6 +92,7 @@ type toolJSON struct {
 	Refusal        *string         `json:"refusal"`
 	Description    string          `json:"description"`
 	InputSchema    json.RawMessage `json:"input_schema"`
+	ReadOnly       bool            `json:"read_only"`
 	Hash           string          `json:"hash"`
 	Seen           *definitionJSON `json:"seen"`
 	ApprovedBy     *string         `json:"approved_by"`
@@ -102,7 +104,7 @@ type toolJSON struct {
 func newToolJSON(t Tool) toolJSON {
 	out := toolJSON{
 		Name: t.Name, State: string(t.State), Refusal: httpapi.OptionalString(t.Refusal),
-		Description: t.Pinned.Description, InputSchema: t.Pinned.InputSchema, Hash: t.Pinned.Hash,
+		Description: t.Pinned.Description, InputSchema: t.Pinned.InputSchema, ReadOnly: t.Pinned.ReadOnly, Hash: t.Pinned.Hash,
 		ApprovedBy: httpapi.OptionalString(t.ApprovedBy), UpdatedAt: httpapi.FormatTime(t.UpdatedAt),
 		AllowedActions: []string{},
 	}

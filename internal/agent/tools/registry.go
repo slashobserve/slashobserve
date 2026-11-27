@@ -318,6 +318,17 @@ func factsOf(ctx context.Context) (*grounding.Ledger, bool) {
 	return ledger, ok && ledger != nil
 }
 
+type causeSignalsKey struct{}
+
+func WithCauseSignals(ctx context.Context, signals []findings.Signals) context.Context {
+	return context.WithValue(ctx, causeSignalsKey{}, signals)
+}
+
+func causeSignalsOf(ctx context.Context) ([]findings.Signals, bool) {
+	signals, ok := ctx.Value(causeSignalsKey{}).([]findings.Signals)
+	return signals, ok
+}
+
 func WithUnverified(ctx context.Context, items []findings.Unverified) context.Context {
 	return context.WithValue(ctx, unverifiedKey{}, items)
 }

@@ -37,7 +37,7 @@ const (
 
 	descFindingBase     = "Save your answer as a finding and end the run: markdown of at most 400 words answering with the names and numbers that show it, plus, with counts, 1 to 4 evidence panels whose queries return data. Call it once, after checking each evidence query. Open with a plain sentence, no query jargon. Write times in the context's time zone with its label, else in UTC; never mention another product. Give only counts you read; say what you did not check unless the request names a length or a form; before saying a signal is missing, list its metrics scoped to the service; a failed read is not empty. Reads are refused once the run's model-call limit passes without a save, so batch reads and name a refused read in the finding as not read. Cite an observation as a titled /o/<id> link."
 	descFindingAskOn    = " A request on Home to change an existing dashboard is made from its own chat: find it with list_dashboards; when exactly one matches, say so and pass its id as ask_on_dashboard_id, else list the candidates by title."
-	descFindingFields   = " For an investigation also fill root_cause, onset (absolute time), impact (with numbers), confidence, ruled_out and next_steps, each in one or two sentences, or set no_incident when nothing was wrong; they must agree with the markdown."
+	descFindingFields   = " For an investigation also fill causes, onset (absolute time), impact (with numbers), confidence, ruled_out and next_steps, each in one or two sentences, or set no_incident when nothing was wrong; they must agree with the markdown."
 	descSaveFinding     = descFindingBase + descFindingFields + descFindingAskOn
 	propFindingMarkdown = `"markdown":{"type":"string","minLength":1,"maxLength":4000,"description":"The finding as Markdown, at most 400 words: a one-sentence answer first, then the evidence unless the request names a length or form."}`
 	propFindingTitle    = `"title":{"type":"string","maxLength":120,"description":"Three to eight words naming the answer's subject, such as Checkout 5xx errors by pod; not the question."}`
@@ -51,24 +51,32 @@ const (
 	propFindingObserveWorthy   = `"observe_worthy":{"type":"boolean","description":"True when the answer shows a jump, drop or error spike."}`
 	propFindingAnswers         = `"answers":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"quantity":{"type":"string"},"fact":{"type":"string"}},"required":["quantity","fact"]},"description":"When results gave fact ids: each quantity asked, in a few words, with the one fact id answering it, cited in markdown as {{f1}}."}`
 
-	propFindingRootCause = `"root_cause":{"type":"object","properties":{"component":{"type":"string","maxLength":120,"description":"Service, datastore, host or flag as named in the telemetry."},"kind":{"type":"string","enum":["deploy","config_or_flag","dependency","resource","data","traffic","infrastructure","unknown"]},"summary":{"type":"string","maxLength":300}},"required":["component","kind","summary"],"additionalProperties":false}`
-	propFindingOnset     = `"onset":{"type":"string","description":"Absolute RFC 3339 time."}`
-	propFindingImpact    = `"impact":{"type":"string","maxLength":300}`
-	propFindingConf      = `"confidence":{"type":"string","enum":["high","medium","low"]}`
-	propFindingRuledOut  = `"ruled_out":{"type":"array","maxItems":5,"items":{"type":"string","maxLength":200}}`
-	propFindingNext      = `"next_steps":{"type":"array","maxItems":3,"items":{"type":"string","maxLength":200}}`
-	propFindingNoInc     = `"no_incident":{"type":"boolean"}`
+	propFindingOnset    = `"onset":{"type":"string","description":"Absolute RFC 3339 time."}`
+	propFindingImpact   = `"impact":{"type":"string","maxLength":300}`
+	propFindingConf     = `"confidence":{"type":"string","enum":["high","medium","low"]}`
+	propFindingRuledOut = `"ruled_out":{"type":"array","maxItems":5,"items":{"type":"string","maxLength":200}}`
+	propFindingNext     = `"next_steps":{"type":"array","maxItems":3,"items":{"type":"string","maxLength":200}}`
+	propFindingNoInc    = `"no_incident":{"type":"boolean"}`
+
+	propCauseComponent = `{"type":"object","properties":{"kind":{"type":"string","enum":["service","pod","deployment","config","flag","datastore","dependency","node","other"]},"name":{"type":"string","maxLength":120},"namespace":{"type":"string","maxLength":120}},"required":["kind","name"],"additionalProperties":false}`
+	propFindingCauses  = `"causes":{"type":"array","maxItems":6,"description":"Each cause the evidence supports, most confident first; none added to be safe. A service failing only on another listed cause's calls sets knock_on_of to that cause's index. The server scores confidence from evidence; estimate is yours.","items":{"type":"object","properties":{` +
+		`"component":` + propCauseComponent + `,"kind":{"type":"string","enum":["deploy","config_or_flag","dependency","resource","data","traffic","infrastructure","unknown"]},` +
+		`"mechanism":{"type":"string","maxLength":300,"description":"One sentence: how it failed, with the changed value."},` +
+		`"trigger":{"type":"object","properties":{"kind":{"type":"string","enum":["feature_flag","config_value","deploy","traffic","dependency","unknown"]},"key":{"type":"string","maxLength":200,"description":"Flag key, setting, version or name exactly as the system spells it."},"value":{"type":"string","maxLength":200}},"required":["kind","key"],"additionalProperties":false},` +
+		`"onset":{"type":"string"},"affected":{"type":"array","maxItems":8,"items":` + propCauseComponent + `},"knock_on_of":{"type":"integer","minimum":0,"maximum":5},` +
+		`"evidence":{"type":"object","properties":{"facts":{"type":"array","maxItems":12,"items":{"type":"string"}},"trace_ids":{"type":"array","maxItems":4,"items":{"type":"string"}}},"additionalProperties":false},` +
+		`"estimate":{"type":"string","enum":["high","medium","low"]}},"required":["component","kind","mechanism"],"additionalProperties":false}}`
 
 	maxSuggestedChangeRunes = 500
 
 	schemaFindingHead       = `{"type":"object","properties":{` + propFindingTitle + `,` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,`
 	schemaFindingPlain      = propFindingSuggestedChange + `,` + propFindingObserveWorthy + `,` + propFindingAnswers
-	schemaFindingStructured = `,` + propFindingRootCause + `,` + propFindingOnset + `,` + propFindingImpact + `,` + propFindingConf + `,` + propFindingRuledOut + `,` + propFindingNext + `,` + propFindingNoInc
+	schemaFindingStructured = `,` + propFindingCauses + `,` + propFindingOnset + `,` + propFindingImpact + `,` + propFindingConf + `,` + propFindingRuledOut + `,` + propFindingNext + `,` + propFindingNoInc
 	schemaFindingEnd        = `},"required":["markdown"],"additionalProperties":false}`
 
 	schemaSaveFinding = schemaFindingHead + propFindingAskOn + `,` + schemaFindingPlain + schemaFindingStructured + schemaFindingEnd
 
-	noteStructuredDropped = "root_cause, onset, impact, confidence, ruled_out, next_steps and no_incident were dropped because this run is not an investigation; the finding is saved without them."
+	noteStructuredDropped = "causes, root_cause, onset, impact, confidence, ruled_out, next_steps and no_incident were dropped because this run is not an investigation; the finding is saved without them."
 )
 
 var errFindingsNotConfigured = errors.New("findings are not configured")
@@ -120,6 +128,45 @@ type findingSavedOut struct {
 	Replayed  bool   `json:"replayed"`
 	Evidence  int    `json:"evidence"`
 	Note      string `json:"note,omitempty"`
+
+	Causes []causeOut `json:"causes,omitempty"`
+}
+
+type causeOut struct {
+	Component  string   `json:"component"`
+	Confidence *float64 `json:"confidence"`
+	Band       *string  `json:"band"`
+	Stated     bool     `json:"stated"`
+}
+
+func causesOut(causes []findings.Cause) []causeOut {
+	out := make([]causeOut, len(causes))
+	for i, c := range causes {
+		out[i] = causeOut{Component: c.Component.Text(), Confidence: c.Score, Stated: c.Stated}
+		if c.Band != "" {
+			out[i].Band = &c.Band
+		}
+	}
+	return out
+}
+
+func withLegacyFacts(ctx context.Context, in findingInput) findingInput {
+	if _, ok := factsOf(ctx); ok && len(in.Causes) == 0 && in.RootCause != nil {
+		in.LegacyFacts = grounding.CitedFacts(in.Markdown, in.Impact, in.RootCause.Summary)
+	}
+	return in
+}
+
+func scoredCauses(ctx context.Context, s *findings.Structured) string {
+	signals, ok := causeSignalsOf(ctx)
+	if !ok || len(s.Causes) == 0 {
+		return ""
+	}
+	notes := s.Score(signals)
+	if ledger, ok := factsOf(ctx); ok {
+		s.WithQueries(ledger.QueryOf)
+	}
+	return findings.ScoreNote(notes)
 }
 
 func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -130,6 +177,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
+	in = withLegacyFacts(ctx, in)
 	in = renderedFinding(ctx, in)
 	run, _ := RunFrom(ctx)
 	principal, _ := auth.FromContext(ctx)
@@ -161,6 +209,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	}
 	save.AgentRequestID, save.DashboardID, save.AskDashboardID = requestID, dashboardID, extras.askOn
 	save.SuggestedChange, save.ObserveWorthy = suggested, in.ObserveWorthy
+	scoreNote := scoredCauses(ctx, &extras.structured)
 	save.Structured = extras.structured
 	save.Unverified = unverifiedOf(ctx)
 	save.AsOf = run.asOf()
@@ -174,9 +223,11 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil {
 		return Result{}, err
 	}
-	out := findingSavedOut{FindingID: f.ID, URL: r.findingURL(f), Replayed: replayed, Evidence: len(f.Evidence)}
+	out := findingSavedOut{FindingID: f.ID, URL: r.findingURL(f), Replayed: replayed, Evidence: len(f.Evidence), Causes: causesOut(f.Structured.Causes)}
 	if extras.droppedStructured {
 		out.Note = noteStructuredDropped
+	} else {
+		out.Note = scoreNote
 	}
 	return success(stepSavedAnswer, out), nil
 }
@@ -195,6 +246,13 @@ func renderedFinding(ctx context.Context, in findingInput) findingInput {
 		cause := *in.RootCause
 		cause.Summary = render(cause.Summary)
 		in.RootCause = &cause
+	}
+	if len(in.Causes) > 0 {
+		causes := slices.Clone(in.Causes)
+		for i := range causes {
+			causes[i].Mechanism = render(causes[i].Mechanism)
+		}
+		in.Causes = causes
 	}
 	in.RuledOut = renderedAll(in.RuledOut, render)
 	in.NextSteps = renderedAll(in.NextSteps, render)

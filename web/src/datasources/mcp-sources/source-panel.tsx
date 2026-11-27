@@ -28,7 +28,7 @@ type Props = {
 }
 
 const addNote =
-  "Only read-only tools can be approved, and each one is pinned by a hash. If the server later describes an approved tool differently, the agent stops using it until you approve it again."
+  "Each tool you approve is pinned by a hash, and the agent may then call it. A tool the server does not mark read-only can change what it reaches, so approve one only where that is acceptable. If the server later describes an approved tool differently, the agent stops using it until you approve it again."
 
 const editNote =
   "A new address drops the approved tools, so approvals never carry over to another server. A new host needs the secret again, or removes it."

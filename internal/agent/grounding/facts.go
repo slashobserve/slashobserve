@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/slashobserve/slashobserve/internal/findings"
 )
 
 const (
@@ -30,22 +32,24 @@ const (
 )
 
 type Fact struct {
-	ID     string            `json:"id"`
-	Text   string            `json:"text"`
-	Value  float64           `json:"value,omitempty"`
-	Kind   FactKind          `json:"kind"`
-	Unit   string            `json:"unit,omitempty"`
-	Of     string            `json:"of"`
-	Labels map[string]string `json:"labels,omitempty"`
-	At     string            `json:"at,omitempty"`
-	From   string            `json:"from,omitempty"`
-	To     string            `json:"to,omitempty"`
-	Query  string            `json:"query,omitempty"`
-	Asked  string            `json:"asked,omitempty"`
+	ID      string            `json:"id"`
+	Text    string            `json:"text"`
+	Value   float64           `json:"value,omitempty"`
+	Kind    FactKind          `json:"kind"`
+	Unit    string            `json:"unit,omitempty"`
+	Of      string            `json:"of"`
+	Labels  map[string]string `json:"labels,omitempty"`
+	At      string            `json:"at,omitempty"`
+	From    string            `json:"from,omitempty"`
+	To      string            `json:"to,omitempty"`
+	Query   string            `json:"query,omitempty"`
+	Asked   string            `json:"asked,omitempty"`
+	Sampled bool              `json:"sampled,omitempty"`
+	Signal  string            `json:"signal,omitempty"`
 }
 
 func (f Fact) same(g Fact) bool {
-	return f.Of == g.Of && f.Text == g.Text && f.At == g.At && f.From == g.From && f.To == g.To && f.Query == g.Query && f.Asked == g.Asked && maps.Equal(f.Labels, g.Labels)
+	return f.Of == g.Of && f.Text == g.Text && f.At == g.At && f.From == g.From && f.To == g.To && f.Query == g.Query && f.Asked == g.Asked && f.Sampled == g.Sampled && f.Unit == g.Unit && maps.Equal(f.Labels, g.Labels)
 }
 
 type factSource map[string][]string
@@ -78,7 +82,21 @@ var factSources = map[string]factSource{
 	},
 	"query_range":   {"series[]": {"min", "max", "last"}},
 	"query_instant": {"series[]": {"last"}},
+	"log_facets": {
+		"":                  {"lines_sampled"},
+		"fields[].values[]": {"count"},
+	},
+	"log_patterns": {
+		"":           {"lines_matched"},
+		"patterns[]": {"count"},
+	},
 }
+
+const (
+	logsStore          = "loki"
+	serverPatterns     = "server"
+	maxFactPatternText = maxNameBytes
+)
 
 func IssuesFacts(tool string) bool {
 	return factSources[tool] != nil
@@ -89,6 +107,7 @@ var labelFields = map[string]bool{"route": true, "service": true, "operation": t
 var countFields = map[string]bool{
 	"spans": true, "errors": true, "traces": true, "failing_traces": true, "slow_traces": true,
 	"examined": true, "listed_traces": true, "unattributed": true, "quantile_spans": true,
+	"count": true, "lines_sampled": true, "lines_matched": true,
 }
 
 var factQueries = map[string]string{"numerator": "numerator_query", "denominator": "denominator_query"}
@@ -119,7 +138,14 @@ type issuing struct {
 	query   string
 	asked   string
 	qualify string
+	signal  string
 	issued  int
+}
+
+type scope struct {
+	labels  map[string]string
+	sampled bool
+	unit    string
 }
 
 func (r *Record) IssueFacts(tool string, input, content []byte, ranges []Range) []byte {
@@ -146,7 +172,10 @@ func (r *Record) IssueFacts(tool string, input, content []byte, ranges []Range) 
 		is.query = is.asked
 	}
 	is.qualify = strings.TrimSpace(top.str("stat") + " " + top.str("op"))
-	is.visit(top, "", nil)
+	if tool == "measure_aggregate" && top.str("store") == logsStore {
+		is.signal = findings.SignalLogs
+	}
+	is.visit(top, "", scope{})
 	if is.issued == 0 {
 		return content
 	}
@@ -166,12 +195,12 @@ func (is *issuing) window(ranges []Range) {
 	}
 }
 
-func (is *issuing) visit(n *node, path string, inherited map[string]string) {
-	labels := is.labelsOf(n, path, inherited)
+func (is *issuing) visit(n *node, path string, inherited scope) {
+	at := is.scopeOf(n, path, inherited)
 	if keys, ok := is.source[path]; ok && n.get(factsKey) == nil {
 		ids := &node{kind: nodeObject}
 		for _, key := range keys {
-			if id := is.fact(n, path, key, labels); id != "" {
+			if id := is.fact(n, path, key, at); id != "" {
 				ids.set(key, stringNode(id))
 			}
 		}
@@ -181,21 +210,35 @@ func (is *issuing) visit(n *node, path string, inherited map[string]string) {
 	}
 	for i, key := range n.keys {
 		child := n.vals[i]
-		at := key
+		under := key
 		if path != "" {
-			at = path + "." + key
+			under = path + "." + key
 		}
 		switch child.kind {
 		case nodeObject:
-			is.visit(child, at, labels)
+			is.visit(child, under, at)
 		case nodeArray:
 			for _, item := range child.vals {
 				if item.kind == nodeObject {
-					is.visit(item, at+"[]", labels)
+					is.visit(item, under+"[]", at)
 				}
 			}
 		}
 	}
+}
+
+func (is *issuing) scopeOf(n *node, path string, inherited scope) scope {
+	out := inherited
+	out.labels = is.labelsOf(n, path, inherited.labels)
+	switch {
+	case is.tool == "log_facets" && path == "fields[]":
+		exact := n.get("exact")
+		out.sampled = exact == nil || exact.text != "true"
+		out.unit = n.str("unit")
+	case is.tool == "log_patterns" && path == "":
+		out.sampled = n.str("source") == serverPatterns
+	}
+	return out
 }
 
 func (is *issuing) labelsOf(n *node, path string, inherited map[string]string) map[string]string {
@@ -219,23 +262,39 @@ func (is *issuing) labelsOf(n *node, path string, inherited map[string]string) m
 		if n.vals[i].kind != nodeString {
 			continue
 		}
-		switch {
-		case labelFields[key]:
-			add(key, n.vals[i].text)
-		case key == "value" && path == "groups[]" && is.top.str("group_by") != "":
-			add(is.top.str("group_by"), n.vals[i].text)
+		if name, value, ok := is.labelOf(path, key, n.vals[i].text); ok {
+			add(name, value)
 		}
 	}
 	return labels
 }
 
-func (is *issuing) fact(n *node, path, key string, labels map[string]string) string {
+func (is *issuing) labelOf(path, key, text string) (string, string, bool) {
+	switch {
+	case labelFields[key]:
+		return key, text, true
+	case key == "value" && path == "groups[]" && is.top.str("group_by") != "":
+		return is.top.str("group_by"), text, true
+	case key == "value" && path == "fields[].values[]":
+		return key, text, true
+	case (key == "pattern" || key == "level") && path == "patterns[]":
+		return key, clipBytes(text, maxFactPatternText), true
+	}
+	return "", "", false
+}
+
+func (is *issuing) fact(n *node, path, key string, at scope) string {
 	value := n.get(key)
 	if value == nil || is.issued >= maxFactsOfRead {
 		return ""
 	}
+	labels := at.labels
 	kind, unit := kindOf(key)
-	f := Fact{Kind: kind, Unit: unit, Of: is.of(path, key), Labels: labels, At: n.str("at"), From: is.from, To: is.to, Query: clipBytes(is.query, maxFactQuery), Asked: is.asked}
+	if at.unit != "" {
+		unit = at.unit
+	}
+	f := Fact{Kind: kind, Unit: unit, Of: is.of(path, key), Labels: labels, At: n.str("at"), From: is.from, To: is.to, Query: clipBytes(is.query, maxFactQuery), Asked: is.asked,
+		Sampled: at.sampled && kind == FactCount, Signal: is.signal}
 	if q := factQueries[key]; q != "" {
 		f.Query = clipBytes(is.top.str(q), maxFactQuery)
 	}

@@ -14,6 +14,7 @@ import (
 const (
 	renderTolerance = 0.01
 	UnreadMarker    = "[figure not read]"
+	SampledLead     = "at least "
 )
 
 var placeholder = regexp.MustCompile(`\{\{\s*(f\d+)((?:\s*:\s*[A-Za-z0-9%]+)*)\s*\}\}`)
@@ -44,6 +45,11 @@ func (l *Ledger) fact(id string) (Fact, bool) {
 		return Fact{}, false
 	}
 	return l.Facts[i], true
+}
+
+func (l *Ledger) QueryOf(id string) string {
+	f, _ := l.fact(id)
+	return f.Query
 }
 
 type citation struct {
@@ -87,7 +93,7 @@ func (l *Ledger) Render(text string) (string, []Problem) {
 
 var durationScales = map[string]float64{"us": 1e-6, "ms": 1e-3, "s": 1, "min": 60}
 
-var unitText = map[string]string{"us": " µs", "ms": " ms", "s": " s", "min": " min", "%": "%"}
+var unitText = map[string]string{"us": " µs", "ms": " ms", "s": " s", "min": " min", "%": "%", "bytes": " bytes"}
 
 type rendering struct {
 	value  float64
@@ -118,11 +124,17 @@ func Format(f Fact, options []string) (string, error) {
 			if off := relative(shown, r.value); off > renderTolerance {
 				return "", fmt.Errorf("{{%s:%d}} would show %s, %.1f%% away from %s; give more significant figures", f.ID, r.digits, plain(shown), off*100, plain(r.value))
 			}
+			if f.Sampled && shown > r.value {
+				return "", fmt.Errorf("{{%s:%d}} would show at least %s, above the %s counted in a sample; give more significant figures", f.ID, r.digits, plain(shown), plain(r.value))
+			}
 		}
 		text = plain(shown)
 	}
 	if !r.bare {
 		text += unitText[r.unit]
+	}
+	if f.Sampled {
+		text = SampledLead + text
 	}
 	return text, nil
 }

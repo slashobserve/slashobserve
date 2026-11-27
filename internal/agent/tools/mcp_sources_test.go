@@ -283,8 +283,8 @@ func TestACallNeedsASourceAndAToolAndTakesNoOtherField(t *testing.T) {
 
 func TestListingMCPSourcesShowsToolsAndArgumentsAndFlagsAnUnreachableSource(t *testing.T) {
 	f := &fakeMCPSources{offers: []ContextOffer{
-		{UID: "code", Name: "Code", Host: "mcp.example.com", Tools: []ContextOfferedTool{{Name: "search", Description: "Search the code", Arguments: "query (string, required)"}}},
-		{UID: "cluster", Name: "Cluster", Host: "k8s.example.com", Unreachable: true, Failure: "timeout", Tools: []ContextOfferedTool{{Name: "pods", Description: "List pods"}}},
+		{UID: "code", Name: "Code", Host: "mcp.example.com", Tools: []ContextOfferedTool{{Name: "search", Description: "Search the code", Arguments: "query (string, required)", ReadOnly: true}}},
+		{UID: "cluster", Name: "Cluster", Host: "k8s.example.com", Unreachable: true, Failure: "timeout", Tools: []ContextOfferedTool{{Name: "restart_pod", Description: "Restart a pod"}}},
 	}}
 	res, err := contextRegistry(t, f).Call(contextInvestigation(contextViewer()), nameListMCPSources, []byte(`{}`))
 	if err != nil || res.IsError {
@@ -300,6 +300,13 @@ func TestListingMCPSourcesShowsToolsAndArgumentsAndFlagsAnUnreachableSource(t *t
 	}
 	if !strings.Contains(out.Sources[1].Status, "failed (timeout)") {
 		t.Errorf("cluster = %+v", out.Sources[1])
+	}
+	if !code.Tools[0].ReadOnly || out.Sources[1].Tools[0].ReadOnly {
+		t.Errorf("the read-only mark did not reach the agent: %+v %+v", code.Tools, out.Sources[1].Tools)
+	}
+	raw, _ := json.Marshal(out.Sources[1].Tools[0])
+	if !strings.Contains(string(raw), `"read_only":false`) {
+		t.Errorf("a tool not marked read-only must say so: %s", raw)
 	}
 	if res.Step != "Listed 2 MCP sources" {
 		t.Errorf("step = %q", res.Step)
@@ -417,7 +424,7 @@ func TestTheTextTheModelGetsForToolsIsTheSameSizeWith0And50And300ApprovedTools(t
 }
 
 func contextMatch(i int) ContextMatch {
-	return ContextMatch{Source: "cluster", SourceName: "Cluster", Name: fmt.Sprintf("pods_%d", i), Description: "List the pods", Arguments: "namespace (string)", InputSchema: json.RawMessage(`{"type":"object","properties":{"namespace":{"type":"string"}}}`)}
+	return ContextMatch{Source: "cluster", SourceName: "Cluster", Name: fmt.Sprintf("pods_%d", i), Description: "List the pods", Arguments: "namespace (string)", InputSchema: json.RawMessage(`{"type":"object","properties":{"namespace":{"type":"string"}}}`), ReadOnly: i%2 == 1}
 }
 
 func TestFindingMCPToolsReturnsMatchesReadyForCallMCPTool(t *testing.T) {
@@ -434,7 +441,7 @@ func TestFindingMCPToolsReturnsMatchesReadyForCallMCPTool(t *testing.T) {
 		t.Fatalf("out = %+v", out)
 	}
 	m := out.Matches[0]
-	if m.Source != "cluster" || m.Tool != "pods_1" || string(m.InputSchema) != string(contextMatch(1).InputSchema) || m.SchemaOmitted {
+	if m.Source != "cluster" || m.Tool != "pods_1" || string(m.InputSchema) != string(contextMatch(1).InputSchema) || m.SchemaOmitted || !m.ReadOnly || out.Matches[1].ReadOnly {
 		t.Errorf("match = %+v", m)
 	}
 	if res.Step != "Found 2 MCP tools for pods in a namespace" {

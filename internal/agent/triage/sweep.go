@@ -44,6 +44,7 @@ type Input struct {
 
 type Outcome struct {
 	Block    string
+	Leads    []Lead
 	Calls    int
 	Duration time.Duration
 }
@@ -81,7 +82,7 @@ func (s Sweeper) Sweep(ctx context.Context, in Input) Outcome {
 	sw.measure(ctx)
 	sw.context(ctx)
 	report := sw.report(time.Since(start))
-	return Outcome{Block: Render(report, MaxBlockBytes), Calls: report.Calls, Duration: report.Duration}
+	return Outcome{Block: Render(report, MaxBlockBytes), Leads: Leads(report.Candidates), Calls: report.Calls, Duration: report.Duration}
 }
 
 func (sw *sweep) report(took time.Duration) Report {

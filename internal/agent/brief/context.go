@@ -96,7 +96,11 @@ func writeDatasources(b *strings.Builder, statuses []datasource.Status) {
 		if s.Healthy {
 			state = "healthy"
 		}
-		fmt.Fprintf(b, "- %s (%s): %s\n", s.UID, s.Type, state)
+		kind := s.Type
+		if s.Spans != "" {
+			kind += ", spans: " + s.Spans
+		}
+		fmt.Fprintf(b, "- %s (%s): %s\n", s.UID, kind, state)
 	}
 }
 

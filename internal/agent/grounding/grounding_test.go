@@ -198,7 +198,7 @@ func TestOffRecordsNothing(t *testing.T) {
 
 func TestTheSendBackListsEachItemWithWhatToDo(t *testing.T) {
 	got := SendBack([]findings.Unverified{{Kind: findings.UnverifiedFigure, Text: "37%"}, {Kind: findings.UnverifiedComponent, Text: "cartservice"}})
-	want := sendBackLead + "\n- figure \"37%\": read it, correct it, or remove it\n- root_cause.component, not a name this run saw, \"cartservice\": read it, correct it, or remove it"
+	want := sendBackLead + "\n- figure \"37%\": read it, correct it, or remove it\n- component, not a name this run saw, \"cartservice\": read it, correct it, or remove it"
 	if got != want {
 		t.Errorf("SendBack =\n%s\nwant\n%s", got, want)
 	}

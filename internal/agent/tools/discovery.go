@@ -57,6 +57,7 @@ type datasourceOut struct {
 	Message  string `json:"message,omitempty"`
 	Detail   string `json:"detail,omitempty"`
 	Audience string `json:"audience,omitempty"`
+	Spans    string `json:"spans,omitempty"`
 }
 
 type datasourcesOut struct {
@@ -93,7 +94,7 @@ func (r *Registry) audienceOf(uid string) datasource.Audience {
 }
 
 func datasourceStatusOut(s datasource.Status) datasourceOut {
-	return datasourceOut{UID: s.UID, Type: s.Type, Name: s.Name, Healthy: s.Healthy, Message: clip(s.Message, maxCellBytes), Detail: clip(s.Detail, maxCellBytes)}
+	return datasourceOut{UID: s.UID, Type: s.Type, Name: s.Name, Healthy: s.Healthy, Message: clip(s.Message, maxCellBytes), Detail: clip(s.Detail, maxCellBytes), Spans: s.Spans}
 }
 
 func (r *Registry) recheckDatasource(ctx context.Context, input json.RawMessage) (Result, error) {

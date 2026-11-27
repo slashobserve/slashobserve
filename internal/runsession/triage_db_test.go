@@ -101,3 +101,35 @@ func TestANewAttemptKeepsTheSweepOfTheLastOne(t *testing.T) {
 		t.Fatalf("swept %d times, want the stored block reused", n)
 	}
 }
+
+type leadSweeper struct{}
+
+func (leadSweeper) Sweep(context.Context, tools.Run) triage.Outcome {
+	return triage.Outcome{Block: "<triage>\nc1 payment\nc2 ad\n</triage>", Leads: twoLeads, Calls: 9, Duration: time.Second}
+}
+
+func TestTheSweepSeedsTheLedgerOfTheFirstBriefAndANewAttemptSeedsItAgain(t *testing.T) {
+	r := newRig(t, withInvestigationLoop())
+	r.svc.SweepWith(leadSweeper{})
+	req := r.investigate()
+	req.Investigation = true
+	got, err := r.svc.Brief(context.Background(), req, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"- c1 [open] " + twoLeads[0].Text, "- c2 [open] " + twoLeads[1].Text} {
+		if !strings.Contains(got.Message, want) {
+			t.Fatalf("the first brief lacks %q:\n%s", want, got.Message)
+		}
+	}
+	id := mustUUID(t, req.ID)
+	r.d.Exec(t, `UPDATE agent_requests SET attempts = attempts + 1 WHERE id = $1`, id)
+	req.Attempt++
+	got, err = r.svc.Brief(context.Background(), req, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got.Message, "- c2 [open] "+twoLeads[1].Text) {
+		t.Fatalf("the next attempt's brief lacks the seeded ledger:\n%s", got.Message)
+	}
+}

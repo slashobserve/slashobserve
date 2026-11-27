@@ -20,8 +20,8 @@ const (
 	traceListLimit        = 20
 	traceStatsMaxBuckets  = 60
 	traceIDStepChars      = 8
-	traceSourcesMessage   = "get_trace reads Tempo, Jaeger and ClickHouse datasources"
-	traceStatsSourcesText = "trace_stats reads Tempo and ClickHouse datasources"
+	traceSourcesMessage   = "get_trace reads Tempo, Jaeger and ClickHouse datasources, and Elastic or OpenSearch datasources with spans: jaeger"
+	traceStatsSourcesText = "trace_stats reads Tempo and ClickHouse datasources, and Elastic or OpenSearch datasources with spans: jaeger"
 	nanosPerMilli         = 1e6
 	minHTTPStatus         = 100
 	maxHTTPStatus         = 599
@@ -34,13 +34,13 @@ const (
 	quantilesSample          = "sample"
 	quantilesApproximate     = "approximate"
 
-	descGetTrace   = "Read one trace by id from a Tempo, Jaeger or ClickHouse datasource: its services, root span, error spans with the message each set and the HTTP response status, their parent and depth with each error that has no error below it marked origin (only on a complete trace), and slowest spans with their self time (duration less the children's). Relays lists server spans with an HTTP status of 500 or more above a failing span: they passed the failure upstream and are not counted in errors. Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so. Spans that link to other traces are counted and their trace ids listed. The origin flag marks where an error chain starts inside this one trace; it does not by itself say which service an incident started in, because a failing dependency is the deepest error of every trace that calls it. To name the service an incident began in, compare per-service error counts or shares over the whole window across many traces, with trace_stats filtered by service or a metrics read. Span durations, and the trace duration of a trace that is not truncated, are exact, in milliseconds with sub-millisecond precision; a Tempo trace listing shows durations rounded to whole milliseconds, so take any duration you state for a trace from here. When the result says the trace was truncated, state no total duration from it."
-	descTraceStats = "Count spans and errors per time bucket and get p50, p95 and p99 durations and a duration histogram over a TraceQL filter on Tempo, or a SQL condition over otel_traces on ClickHouse, such as ServiceName = 'checkout' AND StatusCode = 'Error' (StatusCode is Unset, Ok or Error). Also gives p50, p95 and p99 over the whole range (window) and, with group_by, per value of one attribute (top 20 by span count). Window and group quantiles are exact, from every matching span, on ClickHouse, and on Tempo when every matching span is read (up to 20,000); else quantiles says sample and quantile_spans how many spans, and you state it as a sample. Tempo's per-bucket quantiles and the histogram's bucket bounds are approximate: never report one as a window quantile. Use it for a per-service or per-route quantile over a window, or to see whether latency or errors moved before reading single traces."
+	descGetTrace   = "Read one trace by id from a Tempo, Jaeger, ClickHouse or spans: jaeger datasource: its services, root span, error spans with the message each set and the HTTP response status, their parent and depth with each error that has no error below it marked origin (only on a complete trace), and slowest spans with their self time (duration less the children's). Relays lists server spans with an HTTP status of 500 or more above a failing span: they passed the failure upstream and are not counted in errors. Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so. Spans that link to other traces are counted and their trace ids listed. The origin flag marks where an error chain starts inside this one trace; it does not by itself say which service an incident started in, because a failing dependency is the deepest error of every trace that calls it. To name the service an incident began in, compare per-service error counts or shares over the whole window across many traces, with trace_stats filtered by service or a metrics read. Span durations, and the trace duration of a trace that is not truncated, are exact, in milliseconds with sub-millisecond precision; a Tempo trace listing shows durations rounded to whole milliseconds, so take any duration you state for a trace from here. When the result says the trace was truncated, state no total duration from it."
+	descTraceStats = "Count spans and errors per time bucket and get p50, p95 and p99 durations and a duration histogram over a filter: TraceQL on Tempo, a SQL condition over otel_traces on ClickHouse such as ServiceName = 'checkout' AND StatusCode = 'Error' (StatusCode is Unset, Ok or Error), or KQL over the span documents of spans: jaeger such as process.serviceName:checkout. Also gives them over the whole range (window) and, with group_by, per value of one attribute (top 20 by spans). Window and group quantiles are exact on ClickHouse, and elsewhere when every matching span is read (up to 20,000); else quantiles says sample and quantile_spans how many, and you state it as a sample. Per-bucket quantiles outside ClickHouse and the histogram's bucket bounds are approximate: never report one as a window quantile. Use it for a per-service or per-route quantile, or to see if latency or errors moved, before single traces."
 
 	propTraceFrom    = `"from":{"type":"string","description":"Start time such as now-1h or an RFC 3339 time. Default now-24h."}`
 	schemaGetTrace   = `{"type":"object","properties":{` + propDatasource + `,"trace_id":{"type":"string","description":"The trace id as 16 or 32 hex characters."},` + propTraceFrom + `,` + propTo + `},"required":["datasource","trace_id"],"additionalProperties":false}`
-	propTraceFilter  = `"query":{"type":"string","description":"A TraceQL spanset filter such as { resource.service.name = \"checkout\" } on Tempo, {} for every span; a SQL boolean condition over otel_traces on ClickHouse such as ServiceName = 'checkout' AND Duration > 1000000, not a SELECT; empty for every span."}`
-	schemaTraceStats = `{"type":"object","properties":{` + propDatasource + `,` + propTraceFilter + `,` + propFrom + `,` + propTo + `,"buckets":{"type":"integer","minimum":1,"maximum":60,"description":"The most time buckets wanted. Default 60."},"group_by":{"type":"string","maxLength":128,"description":"One attribute to group span counts, errors and p50, p95 and p99 by over the whole range: a TraceQL attribute such as resource.service.name, span.http.route or .http.method, or name, status or kind; on ClickHouse the same names map to its columns."}},"required":["datasource","query"],"additionalProperties":false}`
+	propTraceFilter  = `"query":{"type":"string","description":"A TraceQL spanset filter such as { resource.service.name = \"checkout\" } on Tempo, {} for every span; a SQL condition over otel_traces on ClickHouse such as Duration > 1000000, not a SELECT; KQL on spans: jaeger, duration in microseconds; empty for every span."}`
+	schemaTraceStats = `{"type":"object","properties":{` + propDatasource + `,` + propTraceFilter + `,` + propFrom + `,` + propTo + `,"buckets":{"type":"integer","minimum":1,"maximum":60,"description":"The most time buckets wanted. Default 60."},"group_by":{"type":"string","maxLength":128,"description":"One attribute to group counts, errors and quantiles by over the whole range: a TraceQL attribute such as resource.service.name, span.http.route or .http.method, or name, status or kind, which every store maps to its own fields."}},"required":["datasource","query"],"additionalProperties":false}`
 )
 
 func init() { registerEntries((*Registry).traceEntries) }
@@ -469,12 +469,19 @@ func (r *Registry) traceStats(ctx context.Context, input json.RawMessage) (Resul
 		req := datasource.TraceDurationRequest{Query: *in.Query, GroupBy: in.GroupBy, Range: rng, Limits: queryproxy.DraftLimits, User: queryproxy.UserFor(principal), MaxSpans: datasource.TraceDurationSpanBudget}
 		d, err := durations.TraceDurations(ctx, req)
 		datasource.NoteQuery(ctx, inst.UID, *in.Query, rng, len(d.Groups)+1)
-		out.applyDurations(d, err, in.GroupBy, inst.Datasource.Type() == "tempo")
+		out.applyDurations(d, err, in.GroupBy, bucketNoteOf(inst.Datasource.Type(), stats.Note))
 	}
 	return success(fmt.Sprintf("%s: %s, p95 %s", stepName, plural(int(out.Spans), "span", "spans"), describeP95(out)), out), nil
 }
 
-func (out *traceStatsOut) applyDurations(d datasource.TraceDurations, err error, groupBy string, tempo bool) {
+func bucketNoteOf(datasourceType, storeNote string) string {
+	if datasourceType == "tempo" {
+		return bucketQuantilesNote
+	}
+	return storeNote
+}
+
+func (out *traceStatsOut) applyDurations(d datasource.TraceDurations, err error, groupBy, bucketNote string) {
 	if err != nil {
 		if out.Window != nil || len(out.Groups) > 0 {
 			out.Note = strings.TrimSpace("The exact quantiles could not be read, so the window and group quantiles are Tempo's. " + out.Note)
@@ -495,8 +502,8 @@ func (out *traceStatsOut) applyDurations(d datasource.TraceDurations, err error,
 	if !exact {
 		note = fmt.Sprintf("Window and group quantiles rest on %d of the %d matching spans, the newest a trace search returned within its cap, so they are a sample and not exact; say so when you state one.", d.Window.Spans, out.Spans)
 	}
-	if tempo {
-		note += " " + bucketQuantilesNote
+	if bucketNote != "" {
+		note += " " + bucketNote
 	}
 	out.Note = note
 }

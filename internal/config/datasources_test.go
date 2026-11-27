@@ -150,6 +150,7 @@ elasticsearch:
 opensearch:
   url: http://opensearch:9200
   index: logs-*,events-*
+  spans: jaeger
   basicAuth:
     username: reader
     passwordEnv: SLASHOBSERVE_OS_PASSWORD
@@ -163,7 +164,7 @@ opensearch:
 		t.Fatalf("elasticsearch = %+v", es)
 	}
 	os := got[1].OpenSearch
-	if os == nil || got[1].Type != "opensearch" || os.URL != "http://opensearch:9200" || os.Index != "logs-*,events-*" || os.TimeField != "" ||
+	if os == nil || got[1].Type != "opensearch" || os.URL != "http://opensearch:9200" || os.Index != "logs-*,events-*" || os.TimeField != "" || os.Spans != "jaeger" ||
 		os.QueryLanguage != "" || !os.APIKey.IsZero() || os.BasicAuthUser != "reader" || os.BasicAuthPassword.Reveal() != "pw" || os.Fields != (FieldRoles{}) {
 		t.Fatalf("opensearch = %+v", os)
 	}
@@ -191,6 +192,8 @@ func TestSearchBlockValidation(t *testing.T) {
 		{"time field whitespace", es(`index: logs-*` + "\n" + `timeField: "a b"`), "datasources[0].elasticsearch.timeField: must not contain whitespace"},
 		{"role too long", es("index: logs-*\nfields:\n  level: " + strings.Repeat("a", 257)), "datasources[0].elasticsearch.fields.level: must be at most 256 bytes"},
 		{"query language", es("index: logs-*\nqueryLanguage: sql"), "datasources[0].elasticsearch.queryLanguage: must be kql or lucene"},
+		{"spans format", es("index: jaeger-span-*\nspans: zipkin"), "datasources[0].elasticsearch.spans: must be jaeger"},
+		{"spans time field", es("index: jaeger-span-*\nspans: jaeger\ntimeField: \"@timestamp\""), "datasources[0].elasticsearch.timeField: an index of Jaeger spans uses startTimeMillis"},
 		{"api key with basic auth", es("index: logs-*\napiKeyEnv: SLASHOBSERVE_A\nbasicAuth:\n  username: u\n  passwordEnv: SLASHOBSERVE_A"), "datasources[0].elasticsearch: apiKey and basicAuth are mutually exclusive"},
 		{"api key with bearer", es("index: logs-*\napiKeyEnv: SLASHOBSERVE_A\nbearerTokenEnv: SLASHOBSERVE_A"), "datasources[0].elasticsearch: apiKey and bearerToken are mutually exclusive"},
 		{"api key env and file", es("index: logs-*\napiKeyEnv: SLASHOBSERVE_A\napiKeyFile: /nope"), "datasources[0].elasticsearch: apiKeyEnv and apiKeyFile are mutually exclusive"},

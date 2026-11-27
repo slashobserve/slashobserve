@@ -48,12 +48,12 @@ SELECT * FROM mcp_source_tools WHERE source_id = @source_id ORDER BY name COLLAT
 SELECT source_id, state, count(*) AS n FROM mcp_source_tools GROUP BY source_id, state;
 
 -- name: PutMCPSourceTool :exec
-INSERT INTO mcp_source_tools (source_id, name, state, refusal, description, input_schema, hash, seen_description, seen_input_schema, seen_hash, approved_by, approved_at)
-VALUES (@source_id, @name, @state, @refusal, @description, @input_schema, @hash, @seen_description, @seen_input_schema, @seen_hash, @approved_by, @approved_at)
+INSERT INTO mcp_source_tools (source_id, name, state, refusal, description, input_schema, read_only, hash, seen_description, seen_input_schema, seen_read_only, seen_hash, approved_by, approved_at)
+VALUES (@source_id, @name, @state, @refusal, @description, @input_schema, @read_only, @hash, @seen_description, @seen_input_schema, @seen_read_only, @seen_hash, @approved_by, @approved_at)
 ON CONFLICT (source_id, name) DO UPDATE SET
   state = EXCLUDED.state, refusal = EXCLUDED.refusal, description = EXCLUDED.description, input_schema = EXCLUDED.input_schema,
-  hash = EXCLUDED.hash, seen_description = EXCLUDED.seen_description, seen_input_schema = EXCLUDED.seen_input_schema,
-  seen_hash = EXCLUDED.seen_hash, approved_by = EXCLUDED.approved_by, approved_at = EXCLUDED.approved_at,
+  read_only = EXCLUDED.read_only, hash = EXCLUDED.hash, seen_description = EXCLUDED.seen_description, seen_input_schema = EXCLUDED.seen_input_schema,
+  seen_read_only = EXCLUDED.seen_read_only, seen_hash = EXCLUDED.seen_hash, approved_by = EXCLUDED.approved_by, approved_at = EXCLUDED.approved_at,
   updated_at = clock_timestamp();
 
 -- name: DeleteMCPSourceTool :exec

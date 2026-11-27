@@ -1,6 +1,8 @@
 package inboundmcp
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -46,20 +48,32 @@ func TestSourceStateFollowsTheLastDiscovery(t *testing.T) {
 	}
 }
 
-func TestHashCoversNameDescriptionAndSchema(t *testing.T) {
-	base := hashOf("a", "d", json.RawMessage(`{}`))
+func TestHashCoversNameDescriptionSchemaAndTheReadOnlyMark(t *testing.T) {
+	base := hashOf("a", "d", json.RawMessage(`{}`), true)
 	for name, other := range map[string]string{
-		"name":        hashOf("b", "d", json.RawMessage(`{}`)),
-		"description": hashOf("a", "e", json.RawMessage(`{}`)),
-		"schema":      hashOf("a", "d", json.RawMessage(`{"a":1}`)),
-		"boundary":    hashOf("ad", "", json.RawMessage(`{}`)),
+		"name":        hashOf("b", "d", json.RawMessage(`{}`), true),
+		"description": hashOf("a", "e", json.RawMessage(`{}`), true),
+		"schema":      hashOf("a", "d", json.RawMessage(`{"a":1}`), true),
+		"boundary":    hashOf("ad", "", json.RawMessage(`{}`), true),
+		"mark":        hashOf("a", "d", json.RawMessage(`{}`), false),
 	} {
 		if other == base {
 			t.Errorf("changing the %s did not change the hash", name)
 		}
 	}
-	if hashOf("a", "d", json.RawMessage(`{}`)) != base {
+	if hashOf("a", "d", json.RawMessage(`{}`), true) != base {
 		t.Error("hash is not stable")
+	}
+}
+
+func TestAReadOnlyToolKeepsTheHashItHadBeforeTheMarkWasHashed(t *testing.T) {
+	sum := sha256.New()
+	for _, part := range []string{"search", "d", `{"type":"object"}`} {
+		sum.Write([]byte(part))
+		sum.Write([]byte{0})
+	}
+	if got, want := hashOf("search", "d", json.RawMessage(`{"type":"object"}`), true), hex.EncodeToString(sum.Sum(nil)); got != want {
+		t.Errorf("hash = %s, want the unmarked-era hash %s", got, want)
 	}
 }
 
@@ -72,7 +86,7 @@ func TestSchemaKeyOrderDoesNotChangeTheHash(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if hashOf("t", "d", a) != hashOf("t", "d", b) {
+	if hashOf("t", "d", a, true) != hashOf("t", "d", b, true) {
 		t.Error("the same schema in another key order hashes differently")
 	}
 }
@@ -111,8 +125,10 @@ func TestRefusalReasons(t *testing.T) {
 		want string
 	}{
 		{"destructive wins", Found{Name: "t", ReadOnly: yes(), Destructive: yes()}, refusalDestructive},
-		{"unmarked", Found{Name: "t"}, refusalUnmarked},
-		{"read-only false", Found{Name: "t", ReadOnly: &no}, refusalUnmarked},
+		{"destructive and unmarked", Found{Name: "t", Destructive: yes()}, refusalDestructive},
+		{"unmarked", Found{Name: "t"}, ""},
+		{"read-only false", Found{Name: "t", ReadOnly: &no}, ""},
+		{"destructive false", Found{Name: "t", ReadOnly: &no, Destructive: &no}, ""},
 		{"long description", Found{Name: "t", ReadOnly: yes(), Description: strings.Repeat("é", maxDescriptionRunes+1)}, refusalDescription},
 		{"fine", Found{Name: "t", ReadOnly: yes(), Description: strings.Repeat("é", maxDescriptionRunes)}, ""},
 	}
@@ -126,21 +142,21 @@ func TestRefusalReasons(t *testing.T) {
 	}
 }
 
-func TestANewReadOnlyToolIsOfferedAndADestructiveOneRefused(t *testing.T) {
-	destructive := Found{Name: "wipe", ReadOnly: yes(), Destructive: yes()}
+func TestANewToolIsOfferedWithItsMarkAndADestructiveOneRefused(t *testing.T) {
+	destructive := Found{Name: "wipe", Destructive: yes()}
 	changes, tally := reconcile(nil, []Found{readOnly("search", "s"), destructive, {Name: "plain"}})
 	got := map[string]Change{}
 	for _, c := range changes {
 		got[c.Tool.Name] = c
 	}
-	if got["search"].Tool.State != ToolOffered || got["search"].Action != ActionList {
-		t.Errorf("search = %+v", got["search"])
+	if c := got["search"]; c.Tool.State != ToolOffered || c.Action != ActionList || !c.Tool.Pinned.ReadOnly {
+		t.Errorf("search = %+v", c)
 	}
-	for _, name := range []string{"wipe", "plain"} {
-		c := got[name]
-		if c.Tool.State != ToolRefused || c.Action != ActionReject || c.Tool.Refusal == "" {
-			t.Errorf("%s = %+v", name, c)
-		}
+	if c := got["plain"]; c.Tool.State != ToolOffered || c.Action != ActionList || c.Tool.Pinned.ReadOnly || c.Tool.Refusal != "" {
+		t.Errorf("an unmarked tool must be offered and not marked read-only: %+v", c)
+	}
+	if c := got["wipe"]; c.Tool.State != ToolRefused || c.Action != ActionReject || c.Tool.Refusal != refusalDestructive {
+		t.Errorf("wipe = %+v", c)
 	}
 	if tally.New != 3 || tally.Found != 3 {
 		t.Errorf("tally = %+v", tally)
@@ -280,6 +296,47 @@ func TestAnOfferedToolFollowsTheServerUntilApproved(t *testing.T) {
 	changes, _ = reconcile([]Tool{refused}, []Found{f})
 	if len(changes) != 1 || changes[0].Tool.State != ToolOffered || changes[0].Action != ActionOffer {
 		t.Fatalf("a tool the server stopped refusing = %+v", changes)
+	}
+}
+
+func TestAToolRefusedAsUnmarkedBeforeTheUpgradeIsOfferedAtTheNextDiscovery(t *testing.T) {
+	f := Found{Name: "restart", Description: "Restart a pod", InputSchema: json.RawMessage(`{"type":"object"}`)}
+	legacy := Tool{
+		Name: "restart", State: ToolRefused, Refusal: "The server does not mark this tool as read-only.",
+		Pinned: Definition{Description: f.Description, InputSchema: json.RawMessage(`{"type":"object"}`), Hash: hashOf("restart", f.Description, json.RawMessage(`{"type":"object"}`), true)},
+	}
+	changes, _ := reconcile([]Tool{legacy}, []Found{f})
+	if len(changes) != 1 {
+		t.Fatalf("changes = %+v", changes)
+	}
+	c := changes[0]
+	if c.Tool.State != ToolOffered || c.Action != ActionOffer || c.Tool.Refusal != "" || c.Tool.Pinned.ReadOnly {
+		t.Errorf("change = %+v", c)
+	}
+}
+
+func TestARefusedToolWhoseMarkWasUnknownGetsItAtTheNextDiscovery(t *testing.T) {
+	f := Found{Name: "wipe", ReadOnly: yes(), Destructive: yes()}
+	stored := storedFrom(t, ToolRefused, f)
+	stored.Refusal, stored.ApprovedBy, stored.ApprovedAt = refusalDestructive, "", time.Time{}
+	stored.Pinned.ReadOnly = false
+	changes, _ := reconcile([]Tool{stored}, []Found{f})
+	if len(changes) != 1 || changes[0].Tool.State != ToolRefused || !changes[0].Tool.Pinned.ReadOnly || changes[0].Action != "" {
+		t.Fatalf("changes = %+v", changes)
+	}
+}
+
+func TestAnApprovedToolTheServerStopsMarkingReadOnlyNeedsApprovalAgain(t *testing.T) {
+	f := readOnly("search", "s")
+	stored := storedFrom(t, ToolApproved, f)
+	f.ReadOnly = nil
+	changes, _ := reconcile([]Tool{stored}, []Found{f})
+	if len(changes) != 1 {
+		t.Fatalf("changes = %+v", changes)
+	}
+	c := changes[0]
+	if c.Tool.State != ToolChanged || c.Action != ActionChange || c.Tool.Seen == nil || c.Tool.Seen.ReadOnly || !c.Tool.Pinned.ReadOnly {
+		t.Errorf("change = %+v", c)
 	}
 }
 

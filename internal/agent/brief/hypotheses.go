@@ -18,7 +18,7 @@ func Hypotheses(ledger []revisions.Hypothesis) string {
 	var b strings.Builder
 	b.WriteString(hypothesesOpen)
 	for _, h := range ledger {
-		b.WriteString("- " + h.ID + " [" + h.Status + "] " + h.Text + "\n")
+		b.WriteString("- " + h.ID + " [" + statusOf(h) + "] " + h.Text + "\n")
 		for _, line := range h.Evidence {
 			b.WriteString("  evidence: " + line + "\n")
 		}
@@ -28,4 +28,14 @@ func Hypotheses(ledger []revisions.Hypothesis) string {
 	}
 	b.WriteString(hypothesesClosed)
 	return b.String()
+}
+
+func statusOf(h revisions.Hypothesis) string {
+	switch {
+	case h.Closing == revisions.ClosingKnockOn:
+		return h.Status + ", knock_on of " + h.KnockOnOf
+	case h.Closing != "":
+		return h.Status + ", " + h.Closing
+	}
+	return h.Status
 }

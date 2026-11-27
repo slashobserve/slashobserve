@@ -43,7 +43,8 @@ type mcpSource struct {
 }
 
 type mcpToolDefinition struct {
-	Hash string `json:"hash"`
+	Hash     string `json:"hash"`
+	ReadOnly bool   `json:"read_only"`
 }
 
 type mcpTool struct {
@@ -51,15 +52,23 @@ type mcpTool struct {
 	State       string             `json:"state"`
 	Refusal     *string            `json:"refusal"`
 	Description string             `json:"description"`
+	ReadOnly    bool               `json:"read_only"`
 	Hash        string             `json:"hash"`
 	Seen        *mcpToolDefinition `json:"seen"`
 }
 
-func (t mcpTool) offeredHash() string {
+func (t mcpTool) offered() mcpToolDefinition {
 	if t.Seen != nil {
-		return t.Seen.Hash
+		return *t.Seen
 	}
-	return t.Hash
+	return mcpToolDefinition{Hash: t.Hash, ReadOnly: t.ReadOnly}
+}
+
+func readOnlyWord(readOnly bool) string {
+	if readOnly {
+		return "yes"
+	}
+	return "no"
 }
 
 func (a *app) mcpSourcesCommand() *cobra.Command {
@@ -151,7 +160,7 @@ func (a *app) mcpSourcesApproveCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "approve <uid> [tool | --all-read-only]",
 		Short: "Approve one tool, or every read-only tool",
-		Long:  "approve pins a tool as it is described now.\nWith --all-read-only it approves every offered tool the server marks read-only.\nA tool marked destructive, or not marked at all, is refused.",
+		Long:  "approve pins a tool as it is described now.\nWith --all-read-only it approves every offered tool the server marks read-only.\nA tool the server does not mark read-only is approved only by name; the agent may then call it.\nA tool marked destructive is refused.",
 		Example: "  observe mcp-sources approve docs search\n" +
 			"  observe mcp-sources approve docs --all-read-only",
 		Args: rangeArgs(1, 2, "an MCP source uid and a tool name, or --all-read-only"),
@@ -426,9 +435,9 @@ func (a *app) runMCPTools(cmd *cobra.Command, args []string) error {
 		if t.Refusal != nil {
 			note = "refused: " + *t.Refusal
 		}
-		rows = append(rows, []string{text(t.Name), text(t.State), firstLine(note)})
+		rows = append(rows, []string{text(t.Name), text(t.State), readOnlyWord(t.offered().ReadOnly), firstLine(note)})
 	}
-	a.output().table([]string{"TOOL", "STATE", "NOTE"}, rows)
+	a.output().table([]string{"TOOL", "STATE", "READ-ONLY", "NOTE"}, rows)
 	return nil
 }
 
@@ -461,7 +470,7 @@ func (a *app) runMCPSourcesApprove(cmd *cobra.Command, args []string) error {
 	if target == nil {
 		return fmt.Errorf("MCP source %s has no tool %s; run \"observe mcp-sources discover %s\" first", text(args[0]), text(args[1]), text(args[0]))
 	}
-	data, err := c.post(ctx, mcpSourcesPath(args[0], "tools", url.PathEscape(args[1]), "approve"), map[string]string{"hash": target.offeredHash()})
+	data, err := c.post(ctx, mcpSourcesPath(args[0], "tools", url.PathEscape(args[1]), "approve"), map[string]string{"hash": target.offered().Hash})
 	if err != nil {
 		return mcpSourcesRefusal(err)
 	}
@@ -470,6 +479,9 @@ func (a *app) runMCPSourcesApprove(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 	a.output().confirm("Approved %s", text(args[1]))
+	if !target.offered().ReadOnly {
+		a.output().warn("The server does not mark %s as read-only: the agent may now call it, and if it changes the system it reaches, it will change it", text(args[1]))
+	}
 	return nil
 }
 
@@ -497,7 +509,7 @@ func mcpSourcesRefusal(err error) error {
 	if !errors.As(err, &api) || api.code != "tool_refused" {
 		return err
 	}
-	return fmt.Errorf("%w\nA tool the server marks destructive, or does not mark read-only, cannot be approved", err)
+	return fmt.Errorf("%w\nA tool the server marks destructive, or whose description or input schema is too large, cannot be approved", err)
 }
 
 func (a *app) runMCPSourcesRevoke(cmd *cobra.Command, args []string) error {

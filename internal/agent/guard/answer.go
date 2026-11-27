@@ -60,7 +60,7 @@ func (s *State) unbackedFinding(c Call) []fault {
 		faults = append(faults, f)
 	}
 	faults = append(faults, s.takeAnswerFaults(input)...)
-	if f, ok := s.ledgerBehind(input); ok {
+	if f, ok := s.ledgerBehind(c); ok {
 		faults = append(faults, f)
 	}
 	if f, ok := s.groundingBehind(c); ok {

@@ -78,7 +78,8 @@ How the agent reads and answers:
 - Slowness is judged from the slow requests, not a percentile alone: the agent calls `trace_slow_path`, with the question's threshold when it gives one, and reports for each route the slow count, the span with the most self time, every service in the slow traces with its count and an example trace with its exact duration.
 - A quantile over a window comes from `trace_stats` with `group_by`, which reads it exactly or says it rests on a sample.
 - When it found an onset, the annotations show no deploy and a change is a plausible cause, it searches the involved services' logs at every level for deploy, rollout, version or restart lines in a short window before the onset.
-- When a second service shows errors during an incident, it classifies them as knock-on from the incident, pre-existing background (checked against the rate before the onset) or a separate incident, and says which with the evidence.
+- It lists every cause the evidence supports, most confident first, and adds none to be safe: a second service's errors are a cause of their own only with their own onset or trigger, and otherwise a knock-on of the cause they follow or background checked against the rate before the onset.
+- It names a cause's trigger by its key exactly as the system spells it, such as a flag key, a setting or a version, with its value.
 - It does not say something does not exist, is not happening, is not recurring or was not deployed unless a query checked it, and it says what was checked.
 - It reads durations and rates at the series' native step in a short range around the event.
 - It takes a baseline such as typical or normal from the question's whole window without the event's own span, read at an aggregate or coarser step.
@@ -117,6 +118,7 @@ Every type gets `list_services`, `list_labels`, `list_label_values`, `save_findi
 A call to any other tool is answered `unknown_tool` with a line that names the run's tools.
 When those are not enough, the agent calls `list_more_tools`: the run then offers every investigation tool until it ends, the steps record it, and the built-in agent lists its tools again before its next model call.
 A type never adds a tool its run would not offer without one.
+The datasource list in the agent's context marks an Elasticsearch or OpenSearch datasource that holds Jaeger spans with `spans: jaeger`, so an incident run, which has no `list_datasources`, still knows where the trace tools read.
 
 ### The preflight brief
 
@@ -149,8 +151,20 @@ The block is sent to the LLM provider like any tool result and never written to 
 With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` set to `true`, the default, the built-in agent also gets `note_hypotheses`, and an investigation that opens an observation is told in its prompt to use it.
 A plain question gets the tool but no prompt section and no `<hypotheses>` block.
 It writes down 2 to 4 candidate causes after its first look and sends the whole list again with each batch of reads.
+When the preflight brief lists candidates in an incident investigation, or one the server did not sort into a task type, the ledger starts with one open hypothesis per candidate, up to 5, with the candidate's id (`c1`, `c2`, ...), the service, what moved and the onset, and the agent sees it in a `<hypotheses>` block from its first message; it may add hypotheses of its own.
 Each hypothesis has a short id, one sentence, a status of `open`, `supported` or `ruled_out`, up to 3 evidence lines and, for an open one, the next check.
 A hypothesis is ruled out or supported only with an evidence line that says what was read and what it showed.
+A supported or ruled-out hypothesis may also carry a closing that says how it was settled:
+
+| Closing | Status | Means |
+| --- | --- | --- |
+| `cause` | `supported` | It is one of the finding's causes. |
+| `knock_on` | `ruled_out` | It follows from another hypothesis, named in `knock_on_of`. |
+| `background` | `ruled_out` | It was at a similar level before the window, and the evidence line says so. |
+| `transient` | `ruled_out` | It was gone on a later read: it needs two evidence lines, the read that showed it and the later one. |
+| `unrelated` | `ruled_out` | It has nothing to do with the question, with the evidence line that shows it. |
+
+A closing with the wrong status, a closing with no evidence line, a `transient` with one line and a `knock_on` that names no other hypothesis are refused with the reason.
 
 Details of the ledger:
 
@@ -160,8 +174,24 @@ Details of the ledger:
 - A turn spent only on the ledger still uses a model call, and that call counts toward the model-call limit.
 - The run's steps show one line for each change, such as `3 hypotheses: 1 supported, 1 ruled out, 1 open`, under the label `ledger`.
 - When the conversation is shortened, the server puts the ledger in front of the agent again in a `<hypotheses>` block.
-- The finished run's `usage.hypotheses` holds the last ledger, in the run API and in `get_run`, for the requester and Admins only, because the ledger quotes data the run read.
+- The finished run's `usage.hypotheses` holds the last ledger with each closing, in the run API and in `get_run`, for the requester and Admins only, because the ledger quotes data the run read.
 - Without the setting, the tool, the prompt section and the block are absent.
+
+### Closing every candidate
+
+An incident investigation that started with candidates may conclude only when each of them is accounted for, so the first plausible anomaly is not taken for the whole answer.
+Its prompt tells the agent to work every candidate with its own reads, to close each in the ledger with its evidence, and to list every candidate it closed as a cause in `causes`.
+Its `save_finding` is sent back once, with a line per candidate that says what is missing, when:
+
+- a candidate is still open, missing from the ledger, or supported or ruled out with no closing, with the read that would close it;
+- a candidate is closed as `transient` but the run made no data read after its first one, so nothing showed it gone;
+- a candidate closed as `cause` is not named by the finding's `causes`;
+- a cause in the finding names the service of a candidate closed as `background`, `transient` or `unrelated`;
+- `no_incident` is set while a candidate is open or closed as `cause` or `knock_on`, so a finding of no incident needs every candidate closed as `background`, `transient` or `unrelated`, or no candidate at all.
+
+The rule never traps a run: the save is not sent back at the call limit, the second save is accepted, and the send-back may read past the limit.
+Each candidate still open when the finding is accepted is stored in its `unverified` list as a `candidate` item with its id and service, such as `c2 ad`, rather than as a cause, because nothing the run read says it was one; the observation shows them in a line such as `1 triage candidate was left open when the investigation ended: c2 ad`.
+The rule applies only with the setting on, to an incident investigation or one the server did not sort into a task type, whose preflight brief listed candidates.
 
 ### Stages and the call budget
 
@@ -183,6 +213,7 @@ Details of the stages:
 - The agent gets one line after each turn, such as `Stage: test. Model call 7 of 12.`, and the run's steps show one line each time the stage changes, under the label `stage`.
 - The limit starts at `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`, or the task type's own limit when that is unset.
   It grows by 3 calls each time a hypothesis moves to `supported` or `ruled_out`, as long as the run made at least one successful read since the limit last grew, and stops at `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`, 40 by default.
+  When one ledger closes several candidates with evidence, it grows by 3 calls for each of them, so a run with five candidates is not cut off where a run with one would be.
   The move counts when the hypothesis carried evidence already or gains an evidence line that no hypothesis of the earlier ledger had, so renaming a hypothesis earns nothing.
   A ledger written without reading anything earns nothing, and unset, the ceiling equals the starting limit, so the limit never grows.
 - When the stage becomes `conclude` because a hypothesis is supported and none is open, the agent is told at once to save the finding instead of waiting for the limit.
@@ -207,17 +238,36 @@ It looks at the cited facts and `answers` (see [Facts](#facts)), the figures and
 - Times, dates, whole numbers of 10 or less with no unit, code spans and links are never checked; a small number with a unit, such as `3 s` or `5%`, is checked.
 - Nor are figures that are not measurements: a number that appears in the question; a version after `version`, `release` or `v`; a port after `port` or a host and colon; an HTTP status from 100 to 599 after `HTTP`, `status`, `code` or `returned`, or in a list after one, such as `503s`; a duration in seconds after `last`, `past`, `every`, `each`, `within`, `step` or `interval`, or before `step`, `window`, `interval` or `resolution`; a quantile after or before `quantile` or `percentile`; a whole number after `top`, `first` or `bottom`; a year from 1990 to 2100 after `in`, `since`, `during` or `of`; list numbers; and percentile names such as `p99`.
 - A run of 8 to 32 hexadecimal characters with a letter and a digit is a trace or span id, never a figure: it passes when it is a whole id a result of the run showed, it does not pass when it is the start of such an id cut short, and a 16 or 32 character id the run never read does not pass; link targets and fenced code are not checked.
-- The root cause component passes when it is a name the run discovered or saw as a label value or a trace's service, as a whole or as whole words of it, so `checkout service` passes on `checkout` and `payment-error-handler` does not.
+- The root cause component passes when it is a name the run discovered or saw as a label value or a trace's service, or a name in the text of a `call_mcp_tool` result (see [Names from MCP sources](#names-from-mcp-sources)), as a whole or as whole words of it, so `checkout service` passes on `checkout` and `payment-error-handler` does not.
 - The onset passes when it falls inside a time range the run queried, or next to a time a result showed, such as a log line's, give or take a minute.
+
+### Names from MCP sources
+
+An approved MCP source tool's result, read through `call_mcp_tool`, gives the check names only, such as a Service, a NetworkPolicy or a feature flag key that a cluster or a code server returned.
+Its numbers never pass a figure, its times never pass an onset, its trace ids never pass a trace id, and it never gives a fact, because the server cannot vouch for what an outside tool computed.
+Recording a name is all the server does with the text: it stays outside text that the run treats as data, never as instructions.
+A failed call gives nothing, and the answers of `list_mcp_sources` and `find_mcp_tools` describe tools, so they give nothing either.
+
+The server takes a name from the result's text, read as plain text even when it holds JSON, by these rules:
+
+- A name is a run of ASCII letters, digits, `_`, `.` and `-` that starts with a letter after the start of the text or a character other than a letter or digit, and ends with a letter or digit, so `4bf92f35` and `T10` inside a timestamp are not names.
+- It is from 3 to 64 bytes long; a longer one is left out whole, never cut.
+- Each result gives at most its first 500 distinct names.
+- The run keeps the 2000 names it saw most recently, the oldest dropped first, and a name seen again counts as new; these are kept apart from the names of datasource reads and of discovery, which they never push out.
 
 ### Facts
 
 With `report` or `enforce`, the values the measurement and trace reads return are numbered facts.
 Each object in such a result that holds one carries a `facts` map from the value's key to its id, such as `"facts":{"value":"f3"}`; an id is unique within the run, and the same value read again keeps its id.
-The reads that give facts are `measure_window` and `measure_aggregate` (each value, numerator and denominator), `trace_stats` (the counts and the whole-window and per-group quantiles), `trace_error_origins` (the counts, shares and example trace ids), `trace_slow_path` (each route's threshold, median, slow count and examined count, the self times, shares and counts, and the example trace id and duration), `get_trace` (the trace id, span count, duration and the slowest spans), and the `min`, `max` and `last` of each `query_range` and `query_instant` series.
+The reads that give facts are `measure_window` and `measure_aggregate` (each value, numerator and denominator), `trace_stats` (the counts and the whole-window and per-group quantiles), `trace_error_origins` (the counts, shares and example trace ids), `trace_slow_path` (each route's threshold, median, slow count and examined count, the self times, shares and counts, and the example trace id and duration), `get_trace` (the trace id, span count, duration and the slowest spans), `log_facets` (the count of each value, and the number of lines sampled), `log_patterns` (the count of each pattern, and the lines matched), and the `min`, `max` and `last` of each `query_range` and `query_instant` series.
+`log_context` and `logs_for_trace` return lines, and their only counts are how many lines they showed, so they give no facts.
 The run keeps each fact with its value at full precision, its kind (number, duration, count, ratio or trace id), its unit when the tool knows it, its labels, its window and the query that produced it.
 The ledger holds the newest 400 facts, so the oldest are dropped first, and it is stored with the run's session, never logged and never returned by the API.
 Every read also records the trace and span ids its result showed.
+
+A fact of `log_facets` or `log_patterns`, and of `measure_aggregate` on Loki, is the logs signal of a cause (see [Causes and confidence](#causes-and-confidence)), a fact of a trace read or a trace id is the traces signal, and any other fact is the metrics signal.
+A count the tool took from a sample of lines is a sampled fact: a `log_facets` count of a field that does not say `exact: true`, and the counts of `log_patterns` when it says `source: server`.
+A Loki index label's `log_facets` count is in bytes, as the tool says with `unit: bytes`, and renders with `bytes` after it.
 
 The finding cites a fact with a placeholder in place of the figure, `{{f3}}`, in its Markdown, title, impact, root cause summary, ruled-out items and next steps.
 The server writes the value into the text before the finding is stored, so the saved and shown finding holds the number and nobody downstream sees a placeholder.
@@ -232,6 +282,8 @@ A placeholder takes options after colons, in any order:
 | `bare` | No unit after the number. |
 
 A trace id fact takes no option and renders as the whole id.
+A sampled fact always renders after `at least`, because the lines a sample counted are the fewest that matched: `{{f6}}` of 37 sampled error lines is `at least 37`, with every option, `bare` included.
+Significant figures that would round a sampled count up, such as `{{f6:3}}` of 1249, are refused, because `at least 1250` would claim more than was counted.
 A placeholder naming a fact the run does not hold, or an option that does not fit the fact or would move the value by more than 1%, is a problem with the finding: with `enforce` it is sent back once naming the id, and when the finding is saved anyway, an unknown fact is written as `[figure not read]`, a broken option is ignored, and the item is stored with the finding.
 
 ### One value per quantity
@@ -260,6 +312,34 @@ The check never fails a run, and with `off` nothing is recorded.
 
 The stored items are returned as `unverified` on the finding and on each entry of the observation's `findings`, and the observation shows one line under its header, such as `2 figures were not found in what the agent read: 9.3 s, 2,950`.
 `observe investigate` prints the same items with the summary lines before the answer.
+
+### Causes and confidence
+
+An investigation's finding lists every cause the evidence supports, up to 6, most confident first, in `causes`; see [Structured fields](../use/investigate.md#structured-fields) for each cause's fields.
+A cause that only follows another, such as a second service failing on its calls to the first, is listed as a knock-on of that cause, never as a root cause of its own.
+
+With `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, the server scores each cause from 0 to 1 when the finding is saved.
+The agent may give its own `estimate`, but the stored `confidence` is the server's, from what the run read:
+
+| Signal | Adds |
+| --- | --- |
+| A cited fact of the cause's evidence the run holds, or a trace id it read, on one of metrics, logs and traces | 0.25 |
+| Each further one of those three signals with such evidence | 0.15 |
+| The component is a name the run saw, in a datasource read, in discovery or in an MCP source's result | 0.1 |
+| The onset agrees with a cited fact's time, within 5 minutes of it or inside its window | 0.15 |
+| Otherwise, the onset falls inside a time range the run read | 0.05 |
+| The trigger's key is a name the run saw, the same way | 0.2 |
+| A `ruled_out` line cites a fact the run holds | 0.05 |
+
+The sum is capped at 1, and a cause with no cited fact the run holds and no trace id it read scores at most 0.3, so it is always low.
+A score of 0.7 or more is `high`, of 0.4 or more is `medium`, and below that is `low`.
+A cause scored `medium` or `high` is stated (`stated: true`); a `low` one is listed as unconfirmed, so a report can leave it out or name it as unexplored.
+So a fact on a metric, a component the run saw and an onset that agrees with the fact make a medium cause, adding a trigger the run read makes it high, and a symptom alone, a fact and a component, stays low.
+The causes are kept in the agent's order within a band, and the bands are sorted high first.
+`save_finding` answers with each cause's score and band, and says so when a cause is unconfirmed or when the agent's estimate is two bands away from the score.
+
+With `off`, causes are not scored: `confidence` and `band` are null and every cause is stated.
+`root_cause` is the first stated cause that is not a knock-on, and null when there is none.
 
 ## Where the answer goes
 

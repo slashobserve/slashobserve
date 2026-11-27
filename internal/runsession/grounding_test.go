@@ -77,8 +77,8 @@ func TestReportStoresTheUnverifiedItemsAndAdmitsTheSave(t *testing.T) {
 	if got.answer != nil {
 		t.Fatalf("report sent the finding back: %s", got.answer.Content)
 	}
-	if !slices.Equal(got.unverified, ungroundedItems) {
-		t.Errorf("unverified = %+v\nwant %+v", got.unverified, ungroundedItems)
+	if !slices.Equal(got.grounding.unverified, ungroundedItems) {
+		t.Errorf("unverified = %+v\nwant %+v", got.grounding.unverified, ungroundedItems)
 	}
 }
 
@@ -110,8 +110,8 @@ func TestEnforceSendsBackOnceAndAcceptsARepairedFinding(t *testing.T) {
 	if second.answer != nil {
 		t.Fatalf("the repaired finding was refused: %s", second.answer.Content)
 	}
-	if len(second.unverified) != 0 {
-		t.Errorf("unverified = %+v, want none", second.unverified)
+	if len(second.grounding.unverified) != 0 {
+		t.Errorf("unverified = %+v, want none", second.grounding.unverified)
 	}
 }
 
@@ -126,8 +126,8 @@ func TestEnforceAcceptsTheSecondSaveAndKeepsItsUnverifiedItems(t *testing.T) {
 	if second.answer != nil {
 		t.Fatalf("the second save was refused: %s", second.answer.Content)
 	}
-	if !slices.Equal(second.unverified, ungroundedItems) {
-		t.Errorf("unverified = %+v\nwant %+v", second.unverified, ungroundedItems)
+	if !slices.Equal(second.grounding.unverified, ungroundedItems) {
+		t.Errorf("unverified = %+v\nwant %+v", second.grounding.unverified, ungroundedItems)
 	}
 	if s.sess.state.Guard.Rejections != 0 || s.sess.ended {
 		t.Errorf("rejections = %d, ended = %t, want neither", s.sess.state.Guard.Rejections, s.sess.ended)
@@ -139,8 +139,11 @@ func TestWithGroundingOffNothingIsRecordedOrChecked(t *testing.T) {
 	s.queryLatency(&Turn{ID: "t1", Calls: 1})
 
 	got := s.admitSave(ungroundedFinding, &Turn{ID: "t2", Calls: 1})
-	if got.answer != nil || got.unverified != nil {
-		t.Fatalf("off changed the save: %+v, %+v", got.answer, got.unverified)
+	if got.answer != nil || got.grounding.unverified != nil {
+		t.Fatalf("off changed the save: %+v, %+v", got.answer, got.grounding.unverified)
+	}
+	if got.grounding.scored || got.grounding.signals != nil {
+		t.Errorf("off scored the causes: %+v", got.grounding)
 	}
 	raw, err := json.Marshal(s.sess.state)
 	if err != nil {
@@ -196,15 +199,52 @@ func (s *script) readOf(name, content string, discovered *tools.Discovery) {
 	}, &Turn{ID: name, Calls: 1})
 }
 
-func TestAMCPToolResultFeedsTheRecordButTheSourceListDoesNot(t *testing.T) {
+func TestAnMCPToolResultGivesNamesButNoFigures(t *testing.T) {
 	s := groundingScript(t, grounding.Report)
-	s.readOf("list_mcp_sources", `{"sources":[{"name":"code","tools":3,"revision":7700}]}`, nil)
-	s.readOf("call_mcp_tool", `{"matches":[{"file":"checkout.go","line":4821}]}`, nil)
+	s.readOf("list_mcp_sources", `{"sources":[{"name":"code","about":"reads cartservice code","tools":3,"revision":7700}]}`, nil)
+	s.readOf("find_mcp_tools", `{"matches":[{"source":"code","name":"grep","description":"search paymentservice"}],"total":4821}`, nil)
+	s.readOf("call_mcp_tool", `{"notice":"n","source":"code","tool":"grep","text":"checkout.go:4821: flag adFailure"}`, nil)
 
-	got := s.sess.state.Grounding.Check(json.RawMessage(`{"markdown":"The match is at line 4,821, not 7,700."}`))
-	want := []findings.Unverified{{Kind: findings.UnverifiedFigure, Text: "7,700"}}
+	got := s.sess.state.Grounding.Check(json.RawMessage(`{"markdown":"The match is at line 4,821, not 7,700.","root_cause":{"component":"adFailure","kind":"config","summary":"s"}}`))
+	want := []findings.Unverified{{Kind: findings.UnverifiedFigure, Text: "4,821"}, {Kind: findings.UnverifiedFigure, Text: "7,700"}}
 	if !slices.Equal(got, want) {
 		t.Errorf("unverified = %+v\nwant %+v", got, want)
+	}
+	for _, listed := range []string{"cartservice", "paymentservice"} {
+		if slices.Contains(s.sess.state.Grounding.Sourced, listed) {
+			t.Errorf("a name from the source list or the tool search was recorded: %q", listed)
+		}
+	}
+}
+
+func TestACauseReadOnlyThroughAnMCPSourceIsNotSentBackAndScoresItsTrigger(t *testing.T) {
+	s := groundingScript(t, grounding.Enforce)
+	s.readOf("call_mcp_tool", `{"notice":"n","source":"cluster","tool":"kubectl_get","text":"NAME               POD-SELECTOR   AGE\ndeny-all-ingress   app=cart       4m"}`, nil)
+	s.readOf("call_mcp_tool", `{"notice":"n","source":"code","tool":"read_file","text":"{\"flags\":{\"cartFailure\":{\"state\":\"ENABLED\"}}}"}`, nil)
+	const save = `{"title":"Cart unreachable","markdown":"Cart stopped answering.","causes":[{"component":{"kind":"config","name":"deny-all-ingress"},"kind":"config_or_flag","mechanism":"A policy blocks traffic to cart.","trigger":{"kind":"feature_flag","key":"cartFailure","value":"on"},"evidence":{}}]}`
+
+	got := s.admitSave(save, &Turn{ID: "save", Calls: 1})
+	if got.answer != nil {
+		t.Fatalf("the save was sent back: %s", got.answer.Content)
+	}
+	if len(got.grounding.unverified) != 0 {
+		t.Errorf("unverified = %+v, want none", got.grounding.unverified)
+	}
+	if len(got.grounding.signals) != 1 || !got.grounding.signals[0].Component || !got.grounding.signals[0].TriggerRead {
+		t.Fatalf("signals = %+v, want the component and the trigger seen", got.grounding.signals)
+	}
+	if score := findings.Score(got.grounding.signals[0]); score != 0.3 {
+		t.Errorf("score = %.2f, want 0.3", score)
+	}
+}
+
+func TestAFailedMCPToolCallFeedsNothing(t *testing.T) {
+	s := groundingScript(t, grounding.Report)
+	s.run("call_mcp_tool", `{"source":"code","tool":"grep"}`, func() tools.Result {
+		return tools.Result{Content: json.RawMessage(`{"notice":"n","source":"code","tool":"grep","source_error":true,"text":"cartFailure not found"}`), IsError: true, Step: "Called grep on code: the source reported an error"}
+	}, &Turn{ID: "t1", Calls: 1})
+	if s.sess.state.Grounding.Sourced != nil {
+		t.Errorf("sourced = %q, want nothing from an error", s.sess.state.Grounding.Sourced)
 	}
 }
 
@@ -248,8 +288,8 @@ func TestAFigureQuestionWithoutAnswersIsSentBackOnceUnderEnforce(t *testing.T) {
 			t.Errorf("%s/%s: sent back = %v, want %v", c.task.Name(), c.mode, first.answer != nil, c.sent)
 			continue
 		}
-		if len(first.unverified) != 0 {
-			t.Errorf("%s/%s: the missing answers were stored: %+v", c.task.Name(), c.mode, first.unverified)
+		if len(first.grounding.unverified) != 0 {
+			t.Errorf("%s/%s: the missing answers were stored: %+v", c.task.Name(), c.mode, first.grounding.unverified)
 		}
 		if !c.sent {
 			continue

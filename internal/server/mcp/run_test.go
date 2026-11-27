@@ -325,8 +325,8 @@ func TestRunSessionOffersTheStructuredFindingFieldsOnlyToAnInvestigation(t *test
 		if err := json.Unmarshal(finding.InputSchema, &schema); err != nil {
 			t.Fatal(err)
 		}
-		if _, has := schema.Properties["root_cause"]; has != investigation {
-			t.Errorf("investigation %t: root_cause in schema = %t", investigation, has)
+		if _, has := schema.Properties["causes"]; has != investigation {
+			t.Errorf("investigation %t: causes in schema = %t", investigation, has)
 		}
 	}
 }

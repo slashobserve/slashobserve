@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	traceCompareSourcesMessage = "trace compare reads Tempo and ClickHouse datasources"
+	traceCompareSourcesMessage = "trace compare reads Tempo and ClickHouse datasources, and Elastic or OpenSearch datasources with spans: jaeger"
 	defaultTraceCompareLimit   = 20
 	maxTraceCompareLimit       = 100
 )

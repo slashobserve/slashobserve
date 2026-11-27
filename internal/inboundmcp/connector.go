@@ -139,21 +139,41 @@ func textOf(result *mcp.CallToolResult) string {
 }
 
 func (c MCPConnector) open(ctx context.Context, target Target) (*client.Client, error) {
-	mc, err := c.connect(ctx, target)
-	if err != nil {
-		return nil, err
+	mc, err := c.session(ctx, target, streamable)
+	if !errors.Is(err, transport.ErrLegacySSEServer) {
+		return mc, err
 	}
-	if _, err := mc.Initialize(ctx, mcp.InitializeRequest{Params: mcp.InitializeParams{
-		ProtocolVersion: mcp.LATEST_PROTOCOL_VERSION,
-		ClientInfo:      mcp.Implementation{Name: "slashobserve", Version: c.Version},
-	}}); err != nil {
-		_ = mc.Close()
-		return nil, err
+	legacy, sseErr := c.session(ctx, target, legacySSE)
+	switch {
+	case sseErr == nil:
+		return legacy, nil
+	case classify(ctx, sseErr).Code != FailureUnreachable:
+		return nil, sseErr
 	}
-	return mc, nil
+	return nil, err
 }
 
-func (c MCPConnector) connect(ctx context.Context, target Target) (*client.Client, error) {
+type dialer func(address string, httpClient *http.Client, headers map[string]string) (*client.Client, error)
+
+func streamable(address string, httpClient *http.Client, headers map[string]string) (*client.Client, error) {
+	return client.NewStreamableHttpClient(address,
+		transport.WithHTTPBasicClient(httpClient),
+		transport.WithHTTPHeaders(headers),
+		transport.WithHTTPLogger(slog.New(slog.DiscardHandler)),
+		transport.WithHTTPMaxMessageBytes(maxMessageBytes),
+	)
+}
+
+func legacySSE(address string, httpClient *http.Client, headers map[string]string) (*client.Client, error) {
+	return client.NewSSEMCPClient(address,
+		transport.WithHTTPClient(httpClient),
+		transport.WithHeaders(headers),
+		transport.WithSSELogger(slog.New(slog.DiscardHandler)),
+		transport.WithMaxMessageBytes(maxMessageBytes),
+	)
+}
+
+func (c MCPConnector) session(ctx context.Context, target Target, dial dialer) (*client.Client, error) {
 	headers := map[string]string{}
 	if target.Header != "" {
 		headers[target.Header] = target.Secret.Reveal()
@@ -165,20 +185,21 @@ func (c MCPConnector) connect(ctx context.Context, target Target) (*client.Clien
 	if trip == nil {
 		return nil, errNoTripper
 	}
-	httpClient := &http.Client{
+	mc, err := dial(target.URL, &http.Client{
 		Transport:     trip,
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
-	}
-	mc, err := client.NewStreamableHttpClient(target.URL,
-		transport.WithHTTPBasicClient(httpClient),
-		transport.WithHTTPHeaders(headers),
-		transport.WithHTTPLogger(slog.New(slog.DiscardHandler)),
-		transport.WithHTTPMaxMessageBytes(maxMessageBytes),
-	)
+	}, headers)
 	if err != nil {
 		return nil, err
 	}
 	if err := mc.Start(ctx); err != nil {
+		_ = mc.Close()
+		return nil, err
+	}
+	if _, err := mc.Initialize(ctx, mcp.InitializeRequest{Params: mcp.InitializeParams{
+		ProtocolVersion: mcp.LATEST_PROTOCOL_VERSION,
+		ClientInfo:      mcp.Implementation{Name: "slashobserve", Version: c.Version},
+	}}); err != nil {
 		_ = mc.Close()
 		return nil, err
 	}
