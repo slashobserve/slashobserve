@@ -11,6 +11,8 @@ import {
   type ClaimAnswer,
   type FinishAnswer,
   type FinishInput,
+  type ReleaseAnswer,
+  type ReleaseInput,
   type ReportAnswer,
   type ReportInput,
   type RunMeta,
@@ -24,6 +26,8 @@ import {
   finishInput,
   noRunMeta,
   parseToolError,
+  releaseAnswer,
+  releaseInput,
   reportAnswer,
   ToolError,
   reportInput,
@@ -63,6 +67,7 @@ export interface ClaimApi {
   getRunBrief(input: BriefInput, signal?: AbortSignal): Promise<BriefAnswer>
   reportRun(input: ReportInput, signal?: AbortSignal): Promise<ReportAnswer>
   finishRun(input: FinishInput, signal?: AbortSignal): Promise<FinishAnswer>
+  releaseRun(input: ReleaseInput, signal?: AbortSignal): Promise<ReleaseAnswer>
   openRun(session: RunSessionOffer): RunTools
 }
 
@@ -331,6 +336,19 @@ export class ClaimClient implements ClaimApi {
       "finish_run",
       finishInput.parse(input),
       finishAnswer,
+      reportTimeoutMs,
+      signal
+    )
+  }
+
+  releaseRun(
+    input: ReleaseInput,
+    signal?: AbortSignal
+  ): Promise<ReleaseAnswer> {
+    return this.base.claimTool(
+      "release_run",
+      releaseInput.parse(input),
+      releaseAnswer,
       reportTimeoutMs,
       signal
     )

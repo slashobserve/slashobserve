@@ -1,6 +1,6 @@
 import { log } from "./log"
 import type { ClaimApi } from "./mcp"
-import { ToolError, type ClaimAnswer, type Usage } from "./protocol"
+import { ToolError, type ClaimAnswer, type OfferedRun } from "./protocol"
 import { type ClaimedRun, runLoop } from "./run"
 import type { SessionFactory } from "./session/types"
 
@@ -20,22 +20,6 @@ export type ClaimOptions = {
     factory: SessionFactory,
     signal: AbortSignal
   ) => Promise<void>
-}
-
-const noUsage: Usage = {
-  provider: "none",
-  model: "none",
-  input_tokens: 0,
-  output_tokens: 0,
-  cache_read_tokens: 0,
-  cache_write_tokens: 0,
-  model_calls: 0,
-  failed_calls: 0,
-  retries: 0,
-  compactions: 0,
-  renewals: 0,
-  model_ms: 0,
-  max_save_output_tokens: 0,
 }
 
 function sleepFor(ms: number, signal: AbortSignal): Promise<void> {
@@ -93,26 +77,14 @@ class Slots {
 
 async function release(
   client: ClaimApi,
-  answer: ClaimAnswer,
+  run: OfferedRun,
   signal: AbortSignal
 ): Promise<void> {
-  if (answer.run == null) {
-    return
-  }
   try {
-    await client.finishRun(
-      {
-        run_id: answer.run.id,
-        attempt: answer.run.attempt,
-        outcome: "failed",
-        message: "observe-agent received the run without model settings",
-        usage: noUsage,
-      },
-      signal
-    )
+    await client.releaseRun({ run_id: run.id, attempt: run.attempt }, signal)
   } catch (error) {
     if (!(error instanceof ToolError) && !signal.aborted) {
-      log("warn", "release of a run failed", { run_id: answer.run.id })
+      log("warn", "release of a run failed", { run_id: run.id })
     }
   }
 }
@@ -131,6 +103,10 @@ export async function claimLoop(
   const pool = new Slots(slots)
   const held = new Set<Promise<void>>()
   let backoff = start
+  const backOff = async (): Promise<void> => {
+    await sleep(backoff, signal)
+    backoff = Math.min(backoff * 2, ceiling)
+  }
 
   while (await pool.take(signal)) {
     let answer: ClaimAnswer
@@ -139,7 +115,6 @@ export async function claimLoop(
         options.waitSeconds ?? claimWaitSeconds,
         signal
       )
-      backoff = start
     } catch (error) {
       pool.give()
       if (signal.aborted) {
@@ -149,22 +124,26 @@ export async function claimLoop(
         backoff_ms: backoff,
         error: error instanceof Error ? error.name : "unknown",
       })
-      await sleep(backoff, signal)
-      backoff = Math.min(backoff * 2, ceiling)
+      await backOff()
       continue
     }
     const { run: offered, session, model } = answer
-    if (offered == null || session == null || model == null) {
-      if (offered != null) {
-        log("warn", noModelMessage, { run_id: offered.id })
-        await release(client, answer, signal)
-      }
+    if (offered == null) {
+      backoff = start
       pool.give()
       if ((answer.retry_after_seconds ?? 0) > 0) {
         await sleep((answer.retry_after_seconds ?? 0) * 1000, signal)
       }
       continue
     }
+    if (session == null || model == null) {
+      log("warn", noModelMessage, { run_id: offered.id, backoff_ms: backoff })
+      await release(client, offered, signal)
+      pool.give()
+      await backOff()
+      continue
+    }
+    backoff = start
     const task: Promise<void> = run(
       client,
       { run: offered, session, model },

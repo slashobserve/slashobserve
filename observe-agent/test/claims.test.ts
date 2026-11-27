@@ -172,7 +172,7 @@ describe("claim loop", () => {
     expect(sleeps).toEqual([1000])
   })
 
-  test("a claim without model settings is released by finish_run failed with no code", async () => {
+  test("a claim without model settings goes back to the queue and is not failed", async () => {
     const stop = new AbortController()
     const client = new Script([offer("a", { model: null }), "wait"], stop)
     let runs = 0
@@ -183,18 +183,29 @@ describe("claim loop", () => {
       },
     })
     expect(runs).toBe(0)
-    expect(client.finishes).toHaveLength(1)
-    expect(client.finishes[0]).toMatchObject({
-      run_id: "a",
-      outcome: "failed",
+    expect(client.releases).toEqual([{ run_id: "a", attempt: 1 }])
+    expect(client.finishes).toHaveLength(0)
+  })
+
+  test("claims without model settings back off before the next claim and a usable answer resets it", async () => {
+    const stop = new AbortController()
+    const sleeps: number[] = []
+    const unusable = offer("a", { model: null })
+    const client = new Script(
+      [unusable, unusable, unusable, { run: null }, unusable, "wait"],
+      stop
+    )
+    await claimLoop(client, 1, factory, stop.signal, {
+      sleep: instantSleep(sleeps),
     })
-    expect(client.finishes[0]?.failure_code).toBeUndefined()
+    expect(client.releases).toHaveLength(4)
+    expect(sleeps).toEqual([1000, 2000, 4000, 1000])
   })
 
   test("a failing release does not stop the loop", async () => {
     const stop = new AbortController()
     const client = new Script([offer("a", { model: null }), "wait"], stop)
-    client.finishRun = async () => {
+    client.releaseRun = async () => {
       throw new Error("down")
     }
     await claimLoop(client, 1, factory, stop.signal, {

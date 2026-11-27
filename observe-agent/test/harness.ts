@@ -7,6 +7,8 @@ import {
   type ClaimAnswer,
   type FinishAnswer,
   type FinishInput,
+  type ReleaseAnswer,
+  type ReleaseInput,
   type ReportAnswer,
   type ReportInput,
   type RunMeta,
@@ -101,6 +103,7 @@ export class FakeClaim implements ClaimApi {
   readonly briefs: BriefInput[] = []
   readonly reports: ReportInput[] = []
   readonly finishes: FinishInput[] = []
+  readonly releases: ReleaseInput[] = []
   brief: (input: BriefInput, nth: number) => Partial<BriefAnswer> = () => ({})
   report: (input: ReportInput, nth: number) => Partial<ReportAnswer> =
     () => ({})
@@ -144,6 +147,11 @@ export class FakeClaim implements ClaimApi {
       restarted: false,
       ...this.finish(input, this.finishes.length - 1),
     }
+  }
+
+  async releaseRun(input: ReleaseInput): Promise<ReleaseAnswer> {
+    this.releases.push(input)
+    return { state: "queued" }
   }
 
   openRun(): RunTools {

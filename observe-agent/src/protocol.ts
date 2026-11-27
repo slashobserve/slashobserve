@@ -129,6 +129,11 @@ export const reportAnswer = z.object({
 })
 export type ReportAnswer = z.infer<typeof reportAnswer>
 
+export const releaseAnswer = z.object({
+  state: z.string(),
+})
+export type ReleaseAnswer = z.infer<typeof releaseAnswer>
+
 export const finishAnswer = z.object({
   state: z.string(),
   result_kind: z.string().nullish(),
@@ -184,6 +189,9 @@ export const reportInput = z.strictObject({
   usage: usage.optional(),
 })
 export type ReportInput = z.infer<typeof reportInput>
+
+export const releaseInput = z.strictObject(runRef)
+export type ReleaseInput = z.infer<typeof releaseInput>
 
 export const finishInput = z.strictObject({
   ...runRef,
