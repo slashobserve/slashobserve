@@ -61,6 +61,8 @@ export const dashboardKeys = {
   ) =>
     ["dashboards", id, "versions", version, "variables", name, params] as const,
   history: (id: string) => ["dashboards", id, "history"] as const,
+  replacedVersions: (id: string) =>
+    ["dashboards", id, "history", "replaced"] as const,
   diff: (id: string, from: number, to: number) =>
     ["dashboards", id, "diff", from, to] as const,
   comments: (id: string) => ["dashboards", id, "comments"] as const,

@@ -327,6 +327,17 @@ describe("buildTimeline", () => {
     expect(keys(entries)).toEqual(["thread:c1", "request:r1"])
   })
 
+  it("says which version a file replaced on the version that replaced it", () => {
+    const entries = buildTimeline({
+      ...none,
+      versions: [version(3, at(3)), version(2, at(2))],
+      replaced: new Map([[3, 2]]),
+    })
+    expect(
+      entries.map((entry) => entry.kind === "version" && entry.replaced)
+    ).toEqual([null, 2])
+  })
+
   it("leaves the observe request out and keeps its version", () => {
     const entries = buildTimeline({
       ...none,

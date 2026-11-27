@@ -100,6 +100,8 @@ A version shows who saved as their label and "saved", such as "Ishan saved", "Is
 Then it shows "Version N" with its summary, or "No summary".
 **See changes** opens the comparison with the previous version, on the dashboard's version history page at `/d/<dashboard id>/versions`, headed "Versions of `<title>`".
 A version saved by merging a proposal adds "Proposed by `<name>`, merged by `<name>`".
+A version that a [provisioning file](../operate/provisioning.md#edits-made-in-the-app) or `observe dashboards apply` saved over an edit made in the app adds "Replaced version N, which stays in the version history".
+It reads that from the newest 100 `dashboard.version_created` events of the dashboard, so the line is gone once the event is older than the activity retention.
 
 The card loads the 50 newest versions first.
 When the dashboard has more, **Load older versions** at the top of the list adds the next 50 and moves focus to the oldest version it added.

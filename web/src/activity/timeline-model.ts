@@ -55,6 +55,7 @@ export type TimelineEntry =
       panelId: null
       version: VersionMeta
       proposal: ProposalSummary | null
+      replaced: number | null
     }
   | {
       kind: "proposal"
@@ -178,6 +179,7 @@ export function buildTimeline(input: {
   findings?: readonly Finding[]
   proposals?: readonly ProposalSummary[]
   annotations?: readonly Annotation[]
+  replaced?: ReadonlyMap<number, number>
 }): TimelineEntry[] {
   const entries: TimelineEntry[] = []
 
@@ -258,6 +260,7 @@ export function buildTimeline(input: {
         version.merged_proposal_id === null
           ? null
           : (merged.get(version.merged_proposal_id) ?? null),
+      replaced: input.replaced?.get(version.version) ?? null,
     })
   }
 
