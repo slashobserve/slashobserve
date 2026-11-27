@@ -16,7 +16,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { invalidateSession } from "@/lib/auth"
+import { leaveSession } from "@/lib/auth"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { useSignOutEverywhere, type User } from "./queries"
@@ -47,7 +47,7 @@ export function SignOutEverywhereButton({ user }: { user: User }) {
   }
 
   function leave() {
-    invalidateSession()
+    leaveSession()
     void navigate({ to: "/login" })
   }
 
