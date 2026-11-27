@@ -140,7 +140,9 @@ It reads:
 The server groups what moved into numbered candidates, `c1`, `c2` and so on, in onset order, each with the change events of the 30 minutes before its onset.
 A service whose errors start later than another's and that relays that service's errors in the traces is listed as its knock-on, not as a candidate of its own, and errors present before the window at a similar level are listed as background.
 The block also says what was skipped and why, such as a store that failed or the read budget running out.
-It is at most 6 KiB; the lines cut first are the skipped steps, then the background, log patterns, per-service rates, service lists, evidence lines, signal lines and last the latest candidates.
+A service whose error read failed gets no error figure, and when no candidate was found the block names the signals whose reads were skipped instead of saying nothing moved.
+The sweep runs at most 4 reads at once across all its steps.
+It is at most 6 KiB; the lines cut first are the skipped steps, then the background, log patterns, per-service rates, service lists, evidence lines, signal lines, the skipped rate reads and last the latest candidates.
 
 The block is a starting point, not evidence: the agent is told to test each candidate with its own reads, and every figure in the finding still comes from a read of the run.
 The sweep runs once per run: the block and its duration are kept with the run session, so a shortened conversation, a restart or another server reuses it, and the run's steps show one line with the number of reads and the time it took.
