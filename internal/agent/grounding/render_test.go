@@ -9,7 +9,7 @@ import (
 )
 
 var testLedger = &Ledger{Facts: []Fact{
-	{ID: "f1", Text: "0.5234123", Value: 0.5234123, Kind: FactNumber},
+	{ID: "f1", Text: "0.5234123", Value: 0.5234123, Kind: FactNumber, Query: "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))"},
 	{ID: "f2", Text: "1312.75", Value: 1312.75, Kind: FactDuration, Unit: "ms"},
 	{ID: "f3", Text: "0.4167", Value: 0.4167, Kind: FactRatio},
 	{ID: "f4", Text: "1523", Value: 1523, Kind: FactCount},
@@ -88,7 +88,7 @@ func TestANilLedgerKnowsNoFact(t *testing.T) {
 func TestTheReviewListsBrokenCitationsInEveryTextField(t *testing.T) {
 	r := NewRecord(Report)
 	r.IssueFacts("measure_window", nil, []byte(`{"stat":"max","values":[{"value":0.5234}]}`), nil)
-	got := Unverified(r.Review(finding("p99 peaked at {{f1:ms}}, then {{f7}}.", map[string]any{
+	got := Unverified(r.Review(finding("p99 peaked at {{f1}}, then {{f7}}.", map[string]any{
 		"impact":     "Up to {{f8}} slower.",
 		"root_cause": map[string]any{"component": "checkout", "kind": "dependency", "summary": "{{f1:1}} at peak"},
 	}), ""))
@@ -100,5 +100,20 @@ func TestTheReviewListsBrokenCitationsInEveryTextField(t *testing.T) {
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("unverified = %+v\nwant %+v", got, want)
+	}
+}
+
+func TestANumberIsConvertedOnlyFromTheUnitItsReadNames(t *testing.T) {
+	logged := Fact{ID: "f1", Text: "15004", Value: 15004, Kind: FactNumber, Query: `max_over_time({job="a"} | json | unwrap duration_ms [6h])`}
+	if got, err := Format(logged, []string{"s"}); err != nil || got != "15.004 s" {
+		t.Fatalf("a duration_ms value in s = %q, %v", got, err)
+	}
+	if got, err := Format(logged, []string{"ms"}); err != nil || got != "15004 ms" {
+		t.Fatalf("a duration_ms value in ms = %q, %v", got, err)
+	}
+	for _, query := range []string{"sum(rate(http_requests_total[5m]))", "latency_ms / latency_seconds"} {
+		if _, err := Format(Fact{ID: "f2", Text: "3", Value: 3, Kind: FactNumber, Query: query}, []string{"ms"}); err == nil || !strings.Contains(err.Error(), "unit the read did not name") {
+			t.Fatalf("a number of %q was converted: %v", query, err)
+		}
 	}
 }

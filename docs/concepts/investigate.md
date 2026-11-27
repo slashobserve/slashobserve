@@ -277,7 +277,7 @@ A placeholder takes options after colons, in any order:
 | Option | What it does |
 | --- | --- |
 | none | The value exactly as the read returned it, with its unit: `{{f3}}` is `1312.75 ms`. |
-| `ms`, `s`, `us`, `min` | A duration in another unit; a value with no unit is taken as seconds, as Prometheus writes durations: `{{f3:s}}` is `1.31275 s`. |
+| `ms`, `s`, `us`, `min` | A duration in another unit: `{{f3:s}}` is `1.31275 s`. A number with no unit is converted only when its metric or field names the unit, such as `_seconds` or `duration_ms`; otherwise the finding is sent back, and the agent cites the number plain and writes its unit. |
 | `%` | A ratio as a percent: `{{f4:%}}` of 0.4167 is `41.67%`. |
 | `1` to `9` | That many significant figures, refused when the shown value would be more than 1% from the fact: `{{f3:s:3}}` is `1.31 s`. |
 | `bare` | No unit after the number. |
