@@ -55,17 +55,17 @@ func (b *panelBuild) geomapView(d *spec.Display) {
 		d.View = "world"
 	case id == "coords":
 		d.View = "coords"
-		d.Lat = b.boundedOption("options.view.lat", -maxGeomapLat, maxGeomapLat)
-		d.Lon = b.boundedOption("options.view.lon", -maxGeomapLon, maxGeomapLon)
-		d.Zoom = b.boundedOption("options.view.zoom", minGeomapZoom, maxGeomapZoom)
+		d.Lat = b.numberOption("options.view.lat", -maxGeomapLat, maxGeomapLat, rangeReason)
+		d.Lon = b.numberOption("options.view.lon", -maxGeomapLon, maxGeomapLon, rangeReason)
+		d.Zoom = b.numberOption("options.view.zoom", minGeomapZoom, maxGeomapZoom, rangeReason)
 	case slices.Contains(geomapRegions, id):
 		d.View = id
 	default:
 		b.partial("options.view.id", geomapViewReason)
 	}
 	b.consume("options.view.id", "options.view.lat", "options.view.lon", "options.view.zoom")
-	d.MinZoom = b.boundedOption("options.view.minZoom", 0, maxGeomapZoom)
-	d.MaxZoom = b.boundedOption("options.view.maxZoom", 0, maxGeomapZoom)
+	d.MinZoom = b.numberOption("options.view.minZoom", 0, maxGeomapZoom, rangeReason)
+	d.MaxZoom = b.numberOption("options.view.maxZoom", 0, maxGeomapZoom, rangeReason)
 	if padding, ok := b.boundedWhole("options.view.padding", 0, maxFitPadding); ok {
 		d.FitPadding = &padding
 	}
@@ -116,24 +116,11 @@ func (b *panelBuild) geomapTooltip(d *spec.Display) {
 }
 
 func (b *panelBuild) boundedWhole(path string, low, high int) (int, bool) {
-	f := b.boundedOption(path, float64(low), float64(high))
+	f := b.numberOption(path, float64(low), float64(high), rangeReason)
 	if f == nil {
 		return 0, false
 	}
 	return int(math.Round(*f)), true
-}
-
-func (b *panelBuild) boundedOption(path string, low, high float64) *float64 {
-	v, ok := b.take(path)
-	if !ok {
-		return nil
-	}
-	f, isNumber := numberValue(v)
-	if !isNumber || f < low || f > high {
-		b.partial(path, fmt.Sprintf("Only values from %g to %g are supported.", low, high))
-		return nil
-	}
-	return &f
 }
 
 func (b *panelBuild) markerSizeOption(path string) int {
@@ -259,9 +246,9 @@ func (b *panelBuild) worldmapView(d *spec.Display) {
 	switch center {
 	case "custom":
 		d.View = "coords"
-		d.Lat = b.boundedOption("mapCenterLatitude", -maxGeomapLat, maxGeomapLat)
-		d.Lon = b.boundedOption("mapCenterLongitude", -maxGeomapLon, maxGeomapLon)
-		d.Zoom = b.boundedOption("initialZoom", minGeomapZoom, maxGeomapZoom)
+		d.Lat = b.numberOption("mapCenterLatitude", -maxGeomapLat, maxGeomapLat, rangeReason)
+		d.Lon = b.numberOption("mapCenterLongitude", -maxGeomapLon, maxGeomapLon, rangeReason)
+		d.Zoom = b.numberOption("initialZoom", minGeomapZoom, maxGeomapZoom, rangeReason)
 	case "(0°, 0°)":
 		d.View = "world"
 	case "":

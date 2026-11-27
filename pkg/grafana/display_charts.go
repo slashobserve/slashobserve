@@ -12,12 +12,18 @@ import (
 )
 
 const (
-	shareReason         = "Only row heights and column widths from 0.1 to 1 are supported."
+	shareReason         = "Only row heights and column widths from %g to %g are supported."
 	xyMatcherReason     = "Only fields chosen by name, and Y fields chosen by name, names or a regular expression, are supported."
 	xyExcludeReason     = "The excluded fields must be a list of names."
 	xySeriesCountReason = "At most 20 series are supported."
 	pointRangeReason    = "The smallest point size must not exceed the largest."
-	widthReason         = "Only widths above 0 and up to 1 are supported."
+	widthReason         = "Only widths above 0 and up to %[2]g are supported."
+	barRadiusReason     = "Only bar radii from %g to %g are supported."
+	wholeValueReason    = "The value must be a whole number from %d to %d."
+	wholeRangeReason    = "Only whole numbers from %d to %d are supported."
+	textSizeReason      = "The text size must be a whole number from %d to %d."
+	heatmapIntReason    = "This value is kept as a whole number between %d and %d."
+	rangeReason         = "Only values from %g to %g are supported."
 	pointSizeReason     = "Only point sizes from 1 to 40 are supported."
 	fieldNameLenReason  = "A field name must be between 1 and 200 characters."
 	nodeUnitsDiffReason = "The node and edge units differ, so neither is applied."
@@ -43,34 +49,6 @@ const (
 	maxBarRadius        = 0.5
 )
 
-func (b *panelBuild) boundedIntOption(path string, lo, hi int) int {
-	v, ok := b.value(path)
-	if !ok {
-		return 0
-	}
-	n, isInt := asInt(v)
-	if !isInt || n < lo || n > hi {
-		b.partial(path, fmt.Sprintf("The value must be a whole number from %d to %d.", lo, hi))
-		return 0
-	}
-	b.consume(path)
-	return n
-}
-
-func (b *panelBuild) radiusOption(path string) float64 {
-	v, ok := b.value(path)
-	if !ok {
-		return 0
-	}
-	f, isNumber := numberValue(v)
-	if !isNumber || f < 0 || f > maxBarRadius {
-		b.partial(path, "Only bar radii from 0 to 0.5 are supported.")
-		return 0
-	}
-	b.consume(path)
-	return f
-}
-
 func (b *panelBuild) fieldNameOption(path string) string {
 	v, ok := b.take(path)
 	name, isText := v.(string)
@@ -84,35 +62,9 @@ func (b *panelBuild) fieldNameOption(path string) string {
 	return name
 }
 
-func (b *panelBuild) fractionOption(path string) *float64 {
-	v, ok := b.take(path)
-	if !ok {
-		return nil
-	}
-	f, isNumber := numberValue(v)
-	if !isNumber || f <= 0 || f > 1 {
-		b.partial(path, widthReason)
-		return nil
-	}
-	return &f
-}
-
-func (b *panelBuild) shareOption(path string) *float64 {
-	v, ok := b.take(path)
-	if !ok {
-		return nil
-	}
-	f, isNumber := numberValue(v)
-	if !isNumber || f < minShare || f > 1 {
-		b.partial(path, shareReason)
-		return nil
-	}
-	return &f
-}
-
 func (b *panelBuild) datagridOptions(d *spec.Display) {
 	frame := 0
-	if n, ok := b.wholeInRange("options.selectedSeries", 0, maxFrameIndex); ok {
+	if n, ok := b.intOption("options.selectedSeries", 0, maxFrameIndex, wholeRangeReason); ok {
 		frame = n
 	}
 	d.FrameIndex = &frame
@@ -123,17 +75,19 @@ func displayBarChart(b *panelBuild) {
 	d.Orientation = b.orientation()
 	d.XField = b.fieldNameOption("options.xField")
 	d.ShowValues = b.enumOption("options.showValue", "auto", "always", "never")
-	d.BarWidth = b.fractionOption("options.barWidth")
-	d.GroupWidth = b.fractionOption("options.groupWidth")
-	d.XTickRotation = b.boundedIntOption("options.xTickLabelRotation", minTickRotation, maxTickRotation)
-	d.XTickSpacing = b.boundedIntOption("options.xTickLabelSpacing", 0, maxTickSpacing)
-	d.XTickMaxLength = b.boundedIntOption("options.xTickLabelMaxLength", 0, maxTickLength)
-	d.BarRadius = b.radiusOption("options.barRadius")
+	d.BarWidth = b.numberOption("options.barWidth", math.SmallestNonzeroFloat64, 1, widthReason)
+	d.GroupWidth = b.numberOption("options.groupWidth", math.SmallestNonzeroFloat64, 1, widthReason)
+	d.XTickRotation, _ = b.intOption("options.xTickLabelRotation", minTickRotation, maxTickRotation, wholeValueReason)
+	d.XTickSpacing, _ = b.intOption("options.xTickLabelSpacing", 0, maxTickSpacing, wholeValueReason)
+	d.XTickMaxLength, _ = b.intOption("options.xTickLabelMaxLength", 0, maxTickLength, wholeValueReason)
+	if radius := b.numberOption("options.barRadius", 0, maxBarRadius, barRadiusReason); radius != nil {
+		d.BarRadius = *radius
+	}
 	if flag, ok := b.boolOption("options.fullHighlight"); ok && *flag {
 		d.FullHighlight = flag
 	}
 	d.ColorByField = b.fieldNameOption("options.colorByField")
-	d.ValueSize = b.boundedIntOption("options.text.valueSize", minBarValueSize, maxBarValueSize)
+	d.ValueSize, _ = b.intOption("options.text.valueSize", minBarValueSize, maxBarValueSize, wholeValueReason)
 	b.seriesLegendAndTooltip(d)
 	if mode := b.enumOption("options.stacking", "none", "normal", "percent"); mode != "" {
 		b.panel.Stack = mode
@@ -143,9 +97,9 @@ func displayBarChart(b *panelBuild) {
 func displayStatusHistory(b *panelBuild) {
 	d := b.disp()
 	d.ShowValues = b.enumOption("options.showValue", "auto", "always", "never")
-	d.RowHeight = b.shareOption("options.rowHeight")
-	d.ColumnWidth = b.shareOption("options.colWidth")
-	d.PerPage = b.boundedIntOption("options.perPage", 1, maxPerPage)
+	d.RowHeight = b.numberOption("options.rowHeight", minShare, 1, shareReason)
+	d.ColumnWidth = b.numberOption("options.colWidth", minShare, 1, shareReason)
+	d.PerPage, _ = b.intOption("options.perPage", 1, maxPerPage, wholeValueReason)
 	b.timelineLegendAndTooltip(d)
 }
 
@@ -365,8 +319,8 @@ func (b *panelBuild) xyLegacyPointFields(path string, entry map[string]any, seri
 }
 
 func (b *panelBuild) pointSizeRange(d *spec.Display) {
-	d.PointSizeMin = b.boundedIntOption("fieldConfig.defaults.custom.pointSize.min", 1, maxXYPointSize)
-	d.PointSizeMax = b.boundedIntOption("fieldConfig.defaults.custom.pointSize.max", 1, maxXYPointSize)
+	d.PointSizeMin, _ = b.intOption("fieldConfig.defaults.custom.pointSize.min", 1, maxXYPointSize, wholeValueReason)
+	d.PointSizeMax, _ = b.intOption("fieldConfig.defaults.custom.pointSize.max", 1, maxXYPointSize, wholeValueReason)
 	if d.PointSizeMin != 0 && d.PointSizeMax != 0 && d.PointSizeMin > d.PointSizeMax {
 		b.partial("fieldConfig.defaults.custom.pointSize.min", pointRangeReason)
 		b.partial("fieldConfig.defaults.custom.pointSize.max", pointRangeReason)

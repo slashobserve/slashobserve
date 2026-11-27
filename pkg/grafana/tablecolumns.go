@@ -123,7 +123,7 @@ func propColumnTooltip(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 
 func (b *panelBuild) tableOptions(d *spec.Display) {
 	b.tableCellHeight(d)
-	d.MaxRowHeight, _ = b.wholeInRange("options.maxRowHeight", minRowHeight, maxRowHeight)
+	d.MaxRowHeight, _ = b.intOption("options.maxRowHeight", minRowHeight, maxRowHeight, wholeRangeReason)
 	d.FrameIndex = b.tableFrameIndex()
 	if on, ok := b.boolOption("options.showTypeIcons"); ok && *on {
 		d.TypeIcons = on
@@ -152,25 +152,11 @@ func (b *panelBuild) tableCellHeight(d *spec.Display) {
 }
 
 func (b *panelBuild) tableFrameIndex() *int {
-	n, ok := b.wholeInRange("options.frameIndex", 0, maxFrameIndex)
+	n, ok := b.intOption("options.frameIndex", 0, maxFrameIndex, wholeRangeReason)
 	if !ok {
 		return nil
 	}
 	return &n
-}
-
-func (b *panelBuild) wholeInRange(path string, low, high int) (int, bool) {
-	v, ok := b.value(path)
-	if !ok {
-		return 0, false
-	}
-	n, isInt := asInt(v)
-	if !isInt || n < low || n > high {
-		b.partial(path, fmt.Sprintf("Only whole numbers from %d to %d are supported.", low, high))
-		return 0, false
-	}
-	b.consume(path)
-	return n, true
 }
 
 func (b *panelBuild) tablePagination(d *spec.Display) {

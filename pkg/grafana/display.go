@@ -20,7 +20,7 @@ const (
 	maxBucketCount        = 1000
 	maxReduceRows         = 5000
 	maxReduceFieldsLength = 200
-	minStatTextSize       = 1
+	minTextSizeOption     = 1
 	maxVizLimit           = 2000
 	maxTextSize           = 200
 	minTooltipSize        = 100
@@ -107,6 +107,32 @@ func (b *panelBuild) boolOption(path string) (*bool, bool) {
 	}
 	b.consume(path)
 	return &flag, true
+}
+
+func (b *panelBuild) intOption(path string, lo, hi int, reason string) (int, bool) {
+	v, ok := b.take(path)
+	if !ok {
+		return 0, false
+	}
+	n, isInt := asInt(v)
+	if !isInt || n < lo || n > hi {
+		b.partial(path, fmt.Sprintf(reason, lo, hi))
+		return 0, false
+	}
+	return n, true
+}
+
+func (b *panelBuild) numberOption(path string, lo, hi float64, reason string) *float64 {
+	v, ok := b.take(path)
+	if !ok {
+		return nil
+	}
+	f, isNumber := numberValue(v)
+	if !isNumber || f < lo || f > hi {
+		b.partial(path, fmt.Sprintf(reason, lo, hi))
+		return nil
+	}
+	return &f
 }
 
 func (b *panelBuild) reduceOption(d *spec.Display) {
@@ -294,23 +320,9 @@ func (b *panelBuild) statLayout(d *spec.Display) {
 		d.Justify = "center"
 	}
 	d.WideLayout, _ = b.boolOption("options.wideLayout")
-	d.TitleSize = b.statSizeOption("options.text.titleSize")
-	d.ValueSize = b.statSizeOption("options.text.valueSize")
-	d.PercentSize = b.statSizeOption("options.text.percentSize")
-}
-
-func (b *panelBuild) statSizeOption(path string) int {
-	v, ok := b.value(path)
-	if !ok {
-		return 0
-	}
-	size, isInt := asInt(v)
-	if !isInt || size < minStatTextSize || size > maxTextSize {
-		b.partial(path, fmt.Sprintf("The text size must be a whole number from %d to %d.", minStatTextSize, maxTextSize))
-		return 0
-	}
-	b.consume(path)
-	return size
+	d.TitleSize, _ = b.intOption("options.text.titleSize", minTextSizeOption, maxTextSize, textSizeReason)
+	d.ValueSize, _ = b.intOption("options.text.valueSize", minTextSizeOption, maxTextSize, textSizeReason)
+	d.PercentSize, _ = b.intOption("options.text.percentSize", minTextSizeOption, maxTextSize, textSizeReason)
 }
 
 func (b *panelBuild) statPercentChange(d *spec.Display) {
@@ -413,22 +425,8 @@ func (b *panelBuild) vizLimit(path string, manual bool, grafanaDefault int) int 
 }
 
 func (b *panelBuild) vizTextSizes(d *spec.Display) {
-	d.TitleSize = b.textSize("options.text.titleSize")
-	d.ValueSize = b.textSize("options.text.valueSize")
-}
-
-func (b *panelBuild) textSize(path string) int {
-	v, ok := b.value(path)
-	if !ok {
-		return 0
-	}
-	n, isInt := asInt(v)
-	if !isInt || n < 1 || n > maxTextSize {
-		b.partial(path, fmt.Sprintf("A text size must be a whole number from 1 to %d.", maxTextSize))
-		return 0
-	}
-	b.consume(path)
-	return n
+	d.TitleSize, _ = b.intOption("options.text.titleSize", minTextSizeOption, maxTextSize, textSizeReason)
+	d.ValueSize, _ = b.intOption("options.text.valueSize", minTextSizeOption, maxTextSize, textSizeReason)
 }
 
 func displayTable(b *panelBuild) {
@@ -825,17 +823,11 @@ func (b *panelBuild) heatmapDecimals(path string) *int {
 }
 
 func (b *panelBuild) heatmapWholeNumber(path string, low, high int) (int, bool) {
-	v, ok := b.take(path)
-	if !ok || v == nil {
+	if v, ok := b.value(path); ok && v == nil {
+		b.consume(path)
 		return 0, false
 	}
-	f, isNumber := numberValue(v)
-	n := int(f)
-	if !isNumber || float64(n) != f || n < low || n > high {
-		b.partial(path, fmt.Sprintf("This value is kept as a whole number between %d and %d.", low, high))
-		return 0, false
-	}
-	return n, true
+	return b.intOption(path, low, high, heatmapIntReason)
 }
 
 func (b *panelBuild) heatmapColors(d *spec.Display) {
@@ -951,16 +943,11 @@ func (b *panelBuild) heatmapNumberOption(path string) *float64 {
 }
 
 func (b *panelBuild) heatmapIntOption(path string, fallback, low, high int) int {
-	v, ok := b.take(path)
-	if !ok || v == nil {
+	if v, ok := b.value(path); !ok || v == nil {
+		b.consume(path)
 		return fallback
 	}
-	f, isNumber := numberValue(v)
-	n := int(f)
-	if !isNumber || float64(n) != f || n < low || n > high {
-		b.partial(path, fmt.Sprintf("This value is kept as a whole number between %d and %d.", low, high))
-		return 0
-	}
+	n, _ := b.heatmapWholeNumber(path, low, high)
 	return n
 }
 
@@ -1025,9 +1012,9 @@ func displayStateTimeline(b *panelBuild) {
 		d.MergeValues = flag
 	}
 	d.ShowValues = b.enumOption("options.showValue", "auto", "always", "never")
-	d.RowHeight = b.shareOption("options.rowHeight")
+	d.RowHeight = b.numberOption("options.rowHeight", minShare, 1, shareReason)
 	d.AlignValue = b.enumOption("options.alignValue", "left", "center", "right")
-	d.PerPage = b.boundedIntOption("options.perPage", 1, maxPerPage)
+	d.PerPage, _ = b.intOption("options.perPage", 1, maxPerPage, wholeValueReason)
 	b.timelineLegendAndTooltip(d)
 }
 
