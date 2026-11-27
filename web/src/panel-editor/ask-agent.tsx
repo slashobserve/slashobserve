@@ -1,11 +1,20 @@
-import { useId, useRef, useState, type Dispatch, type FormEvent } from "react"
+import {
+  useId,
+  useReducer,
+  useRef,
+  useState,
+  type Dispatch,
+  type FormEvent,
+} from "react"
 import { useQuery } from "@tanstack/react-query"
 
+import { isRetryable } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAgentInfo } from "@/observe/queries"
 
+import { askIdle, reduceAsk, suggestBusy } from "./ask-agent-state"
 import { rebasePanel } from "./changes"
 import type { DraftAction, EditablePanel } from "./draft"
 import {
@@ -28,8 +37,6 @@ const placeholder =
   "Ask the agent to change this query, like: only 5xx, by route"
 const appliedMessage = "Applied the agent's change. Save to keep it."
 
-type Started = { suggestionId: string; panel: EditablePanel; prompt: string }
-
 function promptProblem(prompt: string): string | null {
   if (prompt === "") return "Describe the change you want first."
   if (Array.from(prompt).length > maxPromptCodePoints) {
@@ -50,34 +57,42 @@ export function AskAgent({
   const agent = useAgentInfo()
   const create = useCreateSuggestion(dashboardId)
   const [prompt, setPrompt] = useState("")
-  const [started, setStarted] = useState<Started | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [applied, setApplied] = useState("")
+  const [phase, act] = useReducer(reduceAsk, askIdle)
+  const creating = useRef(false)
+  const started = phase.kind === "tracking" ? phase.started : null
   const tracked = useQuery({
     ...suggestionQuery(dashboardId, started?.suggestionId ?? ""),
     enabled: started !== null,
   })
+  const busy = suggestBusy(phase, tracked.data?.status)
+  if (
+    started !== null &&
+    busy &&
+    tracked.isError &&
+    !isRetryable(tracked.error)
+  ) {
+    act({
+      type: "poll_failed",
+      suggestionId: started.suggestionId,
+      error: describeSuggestionError(tracked.error),
+    })
+  }
 
   if (agent.data?.available === false) return null
 
-  const status = tracked.data?.status
-  const busy =
-    create.isPending ||
-    (started !== null &&
-      status !== undefined &&
-      status !== "succeeded" &&
-      status !== "failed")
+  const error = phase.kind === "failed" ? phase.error : null
 
   async function send(text: string) {
+    if (creating.current) return
     const trimmed = text.trim()
     const problem = promptProblem(trimmed)
-    setApplied("")
     if (problem !== null) {
-      setError(problem)
+      act({ type: "refused", error: problem })
       return
     }
-    setError(null)
+    creating.current = true
     const panel = structuredClone(draft)
+    act({ type: "create_started", panel, prompt: trimmed })
     try {
       const suggestion = await create.mutateAsync({
         version,
@@ -85,9 +100,11 @@ export function AskAgent({
         prompt: trimmed,
         panel: draft,
       })
-      setStarted({ suggestionId: suggestion.id, panel, prompt: trimmed })
+      act({ type: "created", suggestionId: suggestion.id })
     } catch (failure) {
-      setError(describeSuggestionError(failure))
+      act({ type: "create_failed", error: describeSuggestionError(failure) })
+    } finally {
+      creating.current = false
     }
   }
 
@@ -102,8 +119,7 @@ export function AskAgent({
       type: "replace",
       panel: rebasePanel(started.panel, proposed, draft),
     })
-    setStarted(null)
-    setApplied(appliedMessage)
+    act({ type: "accepted" })
     inputRef.current?.focus()
   }
 
@@ -122,11 +138,11 @@ export function AskAgent({
           value={prompt}
           placeholder={placeholder}
           disabled={blockedReason !== null}
-          aria-invalid={error !== null && started === null}
+          aria-invalid={phase.kind === "failed" && phase.started === null}
           className="h-7 border-0 bg-transparent px-0 focus-visible:ring-0"
           onChange={(event) => {
             setPrompt(event.target.value)
-            setError(null)
+            act({ type: "typed" })
           }}
         />
         <Button
@@ -155,12 +171,12 @@ export function AskAgent({
           suggestionId={started.suggestionId}
           started={started.panel}
           onAccept={accept}
-          onDiscard={() => setStarted(null)}
+          onDiscard={() => act({ type: "discarded" })}
           onRetry={() => void send(started.prompt)}
         />
       )}
       <p role="status" className="sr-only">
-        {applied}
+        {phase.kind === "applied" ? appliedMessage : ""}
       </p>
     </div>
   )

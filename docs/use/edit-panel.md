@@ -154,6 +154,8 @@ The agent reads the panel and proposes a change, shown as "Proposed change" with
 - **Try again** asks for another.
 
 A suggestion never saves anything.
+**Suggest** starts one suggestion at a time and stays disabled until it is ready or has failed.
+When the suggestion can no longer be read, for example because it was removed, the box says why and **Suggest** works again.
 The box is hidden when the server has no model, and unavailable on an older version or while a save is running.
 
 ## Change panel settings
