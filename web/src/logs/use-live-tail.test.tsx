@@ -53,6 +53,8 @@ function lines(ns: string[], newest: string) {
   return { frames: [frame], newest, truncated: false }
 }
 
+const onFailed = vi.fn()
+
 function mount(running = true, seed: WireFrame[] = []) {
   return renderHook(
     (props: { running: boolean }) =>
@@ -62,6 +64,7 @@ function mount(running = true, seed: WireFrame[] = []) {
         seed,
         running: props.running,
         session: 1,
+        onFailed,
       }),
     { initialProps: { running } }
   )
@@ -73,6 +76,7 @@ function latestSource(): FakeEventSource {
 
 describe("useLiveTail", () => {
   beforeEach(() => {
+    onFailed.mockClear()
     FakeEventSource.instances = []
     vi.stubGlobal("EventSource", FakeEventSource)
     vi.useFakeTimers({ now: new Date("2026-11-07T12:00:30Z") })
@@ -131,6 +135,7 @@ describe("useLiveTail", () => {
     expect(result.current.error?.message).toBe("The query is not a log query.")
     expect(result.current.isFetching).toBe(false)
     expect(latestSource().closed).toBe(true)
+    expect(onFailed).toHaveBeenCalledOnce()
   })
 
   it("reopens after a lost connection from the newest line it received", () => {
@@ -151,6 +156,7 @@ describe("useLiveTail", () => {
       vi.advanceTimersByTime(1_000)
     })
     expect(FakeEventSource.instances).toHaveLength(2)
+    expect(onFailed).not.toHaveBeenCalled()
     expect(
       new URL(latestSource().url, "http://localhost").searchParams.get("from")
     ).toBe("2026-11-07T12:00:29.000000001Z")
@@ -177,6 +183,7 @@ describe("useLiveTail", () => {
     )
     expect(fetchMock).toHaveBeenCalledOnce()
     expect(FakeEventSource.instances).toHaveLength(1)
+    expect(onFailed).toHaveBeenCalledOnce()
   })
 
   it("closes the stream when the tail stops", () => {

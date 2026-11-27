@@ -48,18 +48,22 @@ export function useLiveTail({
   seed,
   running,
   session,
+  onFailed,
 }: {
   uid: string
   query: string
   seed: WireFrame[]
   running: boolean
   session: number
+  onFailed: () => void
 }) {
   const [held, setHeld] = useState(() => fresh(session, seed))
   if (held.session !== session) setHeld(fresh(session, seed))
   const newest = useRef(held.buffer.newest)
+  const reportFailed = useRef(onFailed)
   useEffect(() => {
     newest.current = held.buffer.newest
+    reportFailed.current = onFailed
   })
 
   useEffect(() => {
@@ -87,6 +91,7 @@ export function useLiveTail({
       source?.close()
       source = undefined
       enter("failed", { error })
+      reportFailed.current()
     }
     const retry = () => {
       if (closed()) return
