@@ -83,6 +83,7 @@ type written struct {
 	thread   Thread
 	message  Message
 	replayed bool
+	refusal  *RunRefusal
 }
 
 var errReplayed = errors.New("a message with this client_id was already posted")
@@ -327,7 +328,7 @@ func (s *Service) replayed(ctx context.Context, by auth.Principal, sc scope, aut
 	}
 	message.Run = runs[row.ID]
 	thread, err := s.present(ctx, threadRow, by, sc)
-	return written{thread: thread, message: message, replayed: true}, err
+	return written{thread: thread, message: message, replayed: true, refusal: storedRefusal(row)}, err
 }
 
 func (s *Service) existingObservationThread(ctx context.Context, observationID pgtype.UUID) error {

@@ -953,6 +953,8 @@ type ThreadMessage struct {
 	ObservationBlockID pgtype.UUID
 	ClientID           pgtype.UUID
 	RunFailed          bool
+	RunRefusalCode     pgtype.Text
+	RunRefusalMessage  pgtype.Text
 }
 
 type ThreadRead struct {

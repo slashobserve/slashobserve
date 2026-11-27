@@ -178,6 +178,18 @@ This state is computed from stored fields on every read; nothing stores it.
 | `revoked` | The person or an admin revoked it; it leaves the list. |
 | `active` | It may call /mcp as its person until expires_at. |
 
+## Dashboard save
+
+`POST /dashboards/{id}/versions` and `PATCH /dashboards/{id}/panels` return the `outcome` of the save, and so do the `update_dashboard` and `update_panels` tools.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `proposed` | The caller may not save here, so the change became a proposal, or a revision of the caller's open one; no version was saved. |
+| `replayed` | The save repeats a version that already exists, so that version is returned and no version was saved. |
+| `merged` | The save was stale and the server merged it onto the latest version; the merge is the new version and merged_from names both ends. |
+| `created` | None of the above; the save is the new version. |
+
 ## Public link
 
 `GET /dashboards/{id}/public-links` returns the `state` of each link.

@@ -3009,7 +3009,7 @@ components:
     DashboardVersionSaved:
       type: object
       additionalProperties: false
-      required: [dashboard, version]
+      required: [dashboard, version, outcome]
       properties:
         dashboard:
           $ref: "#/components/schemas/DashboardSummary"
@@ -3017,6 +3017,12 @@ components:
           $ref: "#/components/schemas/Version"
         merged_from:
           $ref: "#/components/schemas/MergedFrom"
+        outcome:
+          type: string
+          enum: [replayed, merged, created]
+          description: >-
+            What the save did: `created` made the new version from the request, `merged` made it by merging a stale save onto the latest version,
+            and `replayed` made no version because the request repeats one that exists (the answer also has `Idempotent-Replay: true`).
     MergedFrom:
       type: object
       additionalProperties: false
@@ -3320,9 +3326,13 @@ components:
     ProposalCreated:
       type: object
       additionalProperties: false
-      required: [proposal_id, revision, opened]
+      required: [proposal_id, revision, opened, outcome]
       description: The answer to a save that became a proposal.
       properties:
+        outcome:
+          type: string
+          enum: [proposed]
+          description: Always `proposed`, the save outcome that made no version.
         proposal_id:
           type: string
           format: uuid

@@ -10,6 +10,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/inboundmcp"
@@ -42,6 +43,7 @@ func statesReference() string {
 		webhooks.States.Doc("Webhook", "`GET /webhooks` returns the `state` of each webhook."),
 		auth.KeyStates.Doc("Service-account key", "`GET /service-accounts/{id}/keys` returns the `state` of each key."),
 		mcpauth.GrantStates.Doc("Connected agent", "`GET /me/grants` and `GET /grants` return the `state` of each connected agent."),
+		dashboards.SaveOutcomes.Doc("Dashboard save", "`POST /dashboards/{id}/versions` and `PATCH /dashboards/{id}/panels` return the `outcome` of the save, and so do the `update_dashboard` and `update_panels` tools."),
 		public.LinkStates.Doc("Public link", "`GET /dashboards/{id}/public-links` returns the `state` of each link."),
 		grafanaconn.SyncMachine.Doc("Grafana import", "A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /grafana/{id}/imports/{sync_id}`; its moves write server log lines with these names, not activity events, because a Grafana connection is Admin only."),
 		grafanaconn.TestStates.Doc("Grafana connection test", "`GET /grafana` returns the `test.state` of each connection."),
