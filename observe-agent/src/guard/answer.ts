@@ -155,14 +155,14 @@ export function absenceFault(
     return {
       model: text.faultNoMetrics,
       people: text.peopleNoMetrics,
-      needsRead: false,
+      needsRead: true,
     }
   }
   if (!evidence.annotations && noDeployClaim.test(finding.markdown)) {
     return {
       model: text.faultNoDeploy,
       people: text.peopleNoDeploy,
-      needsRead: false,
+      needsRead: true,
     }
   }
   return undefined

@@ -10,7 +10,8 @@ The server starts it whenever a model provider is configured; the image ships it
 - `src/run.ts`: the model loop for one run.
 - `src/shutdown.ts`: how a stop ended, `drained` or `forced`, and its exit code; `main.ts` keeps listening for `SIGTERM` and `SIGINT` after the first one (`process.on`), because a second signal on a one-shot listener kills the process before it releases its runs.
 - `src/guard/`: ports `internal/agent/guard` without the save classification and the parent version, which stay with the server: a `Guard` admits each call of a turn, settles it from its result and run meta, and ends the turn with its nudges, stage line and stop; `snapshot()` is plain JSON for `agent_state`.
-  Its scenarios are the traces under `spec/examples/agent/guard/`, which the Go guard tests read too.
+  Its scenarios are the traces under `spec/examples/agent/guard/`, which the Go guard tests read too; a trace marked `ts_only` is a behaviour the port changed on purpose, and one marked `go_only` pins the Go behaviour it replaced.
+  It has one call key for reads, saves and writes (`callKey`, canonical JSON), and each of the five send-backs of a finding (absence, evidence, title, ledger, grounding) goes back once per attempt, never re-armed by a restart; a send-back whose fix needs a read lets the next turn read past the call limit.
 - `src/session/`: the model sessions, one per provider.
 - `src/session/replay/`: ports `internal/llm/replay`.
 - `src/route/`: ports `internal/agent/route` (`classify`) and the task-tool narrowing of `internal/agent/tools/tasktools.go` (`toolsForTask`), with the per-task call limits read from `claim_run`'s `agent.task_calls` (`callsForTask`); not yet called by the run loop.

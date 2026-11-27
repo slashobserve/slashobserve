@@ -1,7 +1,7 @@
 import type { AgentSettings, TurnMeta } from "../protocol"
 import * as answer from "./answer"
 import { type Churn, noteChurn } from "./churn"
-import { readKey, writeKey } from "./key"
+import { callKey } from "./key"
 import {
   baseStage,
   type Loop,
@@ -416,9 +416,6 @@ export class Guard {
     s.churn = { changes: {}, inRow: 0 }
     s.saves = []
     s.evidence = answer.noEvidence()
-    s.sentBack.absence = false
-    s.sentBack.evidence = false
-    s.sentBack.title = false
     this.beginSession(false)
   }
 
@@ -441,7 +438,7 @@ export class Guard {
     const adm: Admission = {
       verdict: "dispatch",
       phase: this.phase(call.name),
-      key: this.keyOf(call),
+      key: callKey(call.name, call.input),
       position: s.turn.position++,
     }
     switch (this.phaseOf(call.name)) {
@@ -474,7 +471,7 @@ export class Guard {
   }
 
   forget(call: Call): void {
-    const key = this.keyOf(call)
+    const key = callKey(call.name, call.input)
     const s = this.state
     switch (this.phaseOf(call.name)) {
       case "write":
@@ -558,12 +555,6 @@ export class Guard {
       stageStep,
       notes: [nudge, stageLine].filter((note) => note !== ""),
     }
-  }
-
-  private keyOf(call: Call): string {
-    return this.phaseOf(call.name) === "write"
-      ? writeKey(call.name, call.input)
-      : readKey(call.name, call.input)
   }
 
   private answering(): boolean {

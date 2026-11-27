@@ -18,7 +18,7 @@ import {
   findingOf,
   readsData,
 } from "../src/guard/answer"
-import { readKey, writeKey } from "../src/guard/key"
+import { callKey } from "../src/guard/key"
 import { provedSomething } from "../src/guard/loop"
 import * as text from "../src/guard/text"
 import type { AgentSettings } from "../src/protocol"
@@ -127,7 +127,6 @@ type Cases = {
     a: string
     b: string
     same: boolean
-    go_reads_differ?: boolean
   }>
   count_claims: { match: string[]; no_match: string[] }
   title_causes: Array<{
@@ -378,15 +377,8 @@ for (const file of traceFiles) {
 describe("guard cases", () => {
   test("keys", () => {
     for (const c of cases.keys) {
-      const other = c.other_tool ?? c.tool
-      expect(writeKey(c.tool, c.a) === writeKey(other, c.b), c.name).toBe(
-        c.same
-      )
-      if (!c.go_reads_differ) {
-        expect(readKey(c.tool, c.a) === readKey(other, c.b), c.name).toBe(
-          c.same
-        )
-      }
+      const same = callKey(c.tool, c.a) === callKey(c.other_tool ?? c.tool, c.b)
+      expect(same, c.name).toBe(c.same)
     }
   })
 

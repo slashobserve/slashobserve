@@ -79,41 +79,7 @@ export function canonicalJSON(text: string): string | undefined {
   return value({ text, at: 0 })
 }
 
-function compactJSON(text: string): string | undefined {
-  try {
-    JSON.parse(text)
-  } catch {
-    return undefined
-  }
-  let out = ""
-  let inString = false
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i] as string
-    if (inString) {
-      out += c
-      if (c === "\\") {
-        out += text[++i] ?? ""
-      } else if (c === '"') {
-        inString = false
-      }
-    } else if (c === '"') {
-      inString = true
-      out += c
-    } else if (!" \t\n\r".includes(c)) {
-      out += c
-    }
-  }
-  return out
-}
-
-function hashed(name: string, body: string): string {
+export function callKey(name: string, input: string): string {
+  const body = canonicalJSON(input) ?? input
   return `${name}:${createHash("sha256").update(body).digest("hex")}`
-}
-
-export function readKey(name: string, input: string): string {
-  return hashed(name, compactJSON(input) ?? input)
-}
-
-export function writeKey(name: string, input: string): string {
-  return hashed(name, canonicalJSON(input) ?? input)
 }

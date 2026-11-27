@@ -6,7 +6,7 @@ export {
   saveOutcomeOf,
   toolPhase,
 } from "./guard"
-export { readKey, writeKey } from "./key"
+export { callKey } from "./key"
 export type {
   Admission,
   Call,
