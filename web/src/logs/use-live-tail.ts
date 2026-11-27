@@ -23,7 +23,10 @@ function oldestKept(now: number): number {
   return now - tailWindowMs
 }
 
-type Connection = "connecting" | "live" | "retrying" | "suspended" | "failed"
+export type TailConnection =
+  "off" | "connecting" | "live" | "retrying" | "suspended" | "failed"
+
+type Connection = Exclude<TailConnection, "off">
 
 type Held = {
   session: number
@@ -224,10 +227,12 @@ export function useLiveTail({
     }
   }, [uid, query, running, session])
 
+  const connection: TailConnection =
+    running || held.connection === "failed" ? held.connection : "off"
   return {
     buffer: held.buffer,
     error: held.error,
-    isFetching:
-      running && held.connection !== "live" && held.connection !== "failed",
+    connection,
+    isFetching: running && connection !== "live" && connection !== "failed",
   }
 }

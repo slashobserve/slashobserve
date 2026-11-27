@@ -99,15 +99,18 @@ describe("useLiveTail", () => {
   })
 
   it("does not open a stream while the tail is not running", () => {
-    mount(false)
+    const { result } = mount(false)
     expect(FakeEventSource.instances).toHaveLength(0)
+    expect(result.current.connection).toBe("off")
   })
 
   it("waits until ready, then merges every lines event and counts what it received", () => {
     const { result } = mount()
     expect(result.current.isFetching).toBe(true)
+    expect(result.current.connection).toBe("connecting")
     act(() => latestSource().send("ready", { from: "now-10s" }))
     expect(result.current.isFetching).toBe(false)
+    expect(result.current.connection).toBe("live")
     act(() => {
       latestSource().send(
         "lines",
@@ -136,6 +139,7 @@ describe("useLiveTail", () => {
     expect(result.current.isFetching).toBe(false)
     expect(latestSource().closed).toBe(true)
     expect(onFailed).toHaveBeenCalledOnce()
+    expect(result.current.connection).toBe("failed")
   })
 
   it("reopens after a lost connection from the newest line it received", () => {
@@ -151,11 +155,15 @@ describe("useLiveTail", () => {
     act(() => first.connectionLost())
     expect(first.closed).toBe(true)
     expect(result.current.isFetching).toBe(true)
+    expect(result.current.connection).toBe("retrying")
     expect(FakeEventSource.instances).toHaveLength(1)
     act(() => {
       vi.advanceTimersByTime(1_000)
     })
     expect(FakeEventSource.instances).toHaveLength(2)
+    expect(result.current.connection).toBe("retrying")
+    act(() => latestSource().send("ready", { from: "now-10s" }))
+    expect(result.current.connection).toBe("live")
     expect(onFailed).not.toHaveBeenCalled()
     expect(
       new URL(latestSource().url, "http://localhost").searchParams.get("from")
@@ -193,10 +201,11 @@ describe("useLiveTail", () => {
     rerender({ running: false })
     expect(source.closed).toBe(true)
     expect(result.current.isFetching).toBe(false)
+    expect(result.current.connection).toBe("off")
   })
 
   it("closes the stream while the page sits in the back/forward cache and resumes from the newest line when it returns", () => {
-    mount()
+    const { result } = mount()
     const first = latestSource()
     act(() => first.send("ready", { from: "now-10s" }))
     act(() =>
@@ -211,12 +220,14 @@ describe("useLiveTail", () => {
       )
     })
     expect(first.closed).toBe(true)
+    expect(result.current.connection).toBe("suspended")
     act(() => {
       window.dispatchEvent(
         Object.assign(new Event("pageshow"), { persisted: true })
       )
     })
     expect(FakeEventSource.instances).toHaveLength(2)
+    expect(result.current.connection).toBe("connecting")
     expect(
       new URL(latestSource().url, "http://localhost").searchParams.get("from")
     ).toBe("2026-11-07T12:00:29.000000001Z")
