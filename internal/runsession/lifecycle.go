@@ -316,6 +316,7 @@ func (sess *session) brief(ctx context.Context, why brief.Reason, health []datas
 	mode := sess.state.Guard.Mode
 	task := briefTask(sess.req, mode)
 	task.Withheld = tools.Withheld(sess.access)
+	task.Facts = sess.state.Grounding != nil
 	if sess.state.Loop {
 		task.Loop, task.Hypotheses = true, brief.Hypotheses(sess.state.Ledger)
 	}

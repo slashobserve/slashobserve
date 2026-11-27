@@ -7,6 +7,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -54,6 +55,7 @@ type admitted struct {
 	notes      []string
 	answer     *Answer
 	unverified []findings.Unverified
+	ledger     *grounding.Ledger
 }
 
 type dispatched struct {
@@ -98,7 +100,7 @@ func (s *Service) Call(ctx context.Context, req revisions.Request, call Call, di
 	done := dispatched{start: time.Now()}
 	noted, readRestricted := datasource.NotingRestrictedReads(ctx)
 	noted, ranges := tools.NotingRanges(noted)
-	noted = tools.WithUnverified(noted, first.unverified)
+	noted = tools.WithFacts(tools.WithUnverified(noted, first.unverified), first.ledger)
 	done.res, done.err = dispatch(tools.WithWriteScope(tools.WithUnchecked(tools.WithReadsRefused(noted, first.adm.ReadsRefused), first.adm.Unchecked), scope))
 	done.took = time.Since(done.start)
 	done.ranges = ranges()
@@ -161,7 +163,7 @@ func (sess *session) admit(ctx context.Context, c guard.Call, turn *Turn) (admit
 	position := open.Admitted
 	open.Admitted++
 	out.seq = open.Seq
-	out.unverified = sess.state.checkGrounding(&c)
+	out.unverified, out.ledger = sess.state.checkGrounding(&c, sess.req.Prompt)
 	out.adm = sess.state.Guard.Admit(position, c)
 	if out.adm.Verdict != guard.Refuse {
 		return out, nil
@@ -196,6 +198,7 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 	if d.err != nil {
 		return Answer{}, sess.settleFailed(ctx, c, a, step)
 	}
+	d.content = state.issueFacts(c, d)
 	state.noteGrounding(c, d)
 	if d.res.IsError {
 		step.Status = "error"

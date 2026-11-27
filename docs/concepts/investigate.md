@@ -133,18 +133,64 @@ Details of the stages:
 ### The grounding check
 
 With `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, the server checks each finding against what the run read before it is saved.
-It looks at the figures in the Markdown and the impact, the root cause component and the onset.
+It looks at the cited facts and `answers` (see [Facts](#facts)), the figures and trace ids in the Markdown and the impact, the root cause component and the onset.
 
-- A figure passes when the run read it, rounded, within 2% or within the precision it was written with, such as `0.52 s` for a read value of 0.5234, and never more than 10% away.
+- A cited fact is a figure from a read by construction, so it always passes the figure rules.
+- A figure typed as digits passes when it is a fact's value within 1% and within the precision it was written with, such as `523 ms` for a fact of 0.5234123 s.
+  When it is within the looser tolerance below of a fact but more than 1% away, such as `0.5 s` for that fact, it does not pass, and the send-back names the fact to cite.
+- Otherwise a figure passes when the run read it, rounded, within 2% or within the precision it was written with, such as `0.52 s` for a read value of 0.5234, and never more than 10% away.
 - A figure also passes when it is the difference, sum, ratio or percentage change of two numbers from the same read, such as `+82%` from 287 ms to 523 ms; a percentage is compared as a fraction, so `82%` is never the plain difference of 300 and 382.
 - Times in a result are not numbers for this check.
 - `ms` and `s` are converted into each other, and `K` and `M` multiply a number.
 - Times, dates, whole numbers of 10 or less with no unit, code spans and links are never checked; a small number with a unit, such as `3 s` or `5%`, is checked.
+- Nor are figures that are not measurements: a number that appears in the question; a version after `version`, `release` or `v`; a port after `port` or a host and colon; an HTTP status from 100 to 599 after `HTTP`, `status`, `code` or `returned`, or in a list after one, such as `503s`; a duration in seconds after `last`, `past`, `every`, `each`, `within`, `step` or `interval`, or before `step`, `window`, `interval` or `resolution`; a quantile after or before `quantile` or `percentile`; a whole number after `top`, `first` or `bottom`; a year from 1990 to 2100 after `in`, `since`, `during` or `of`; list numbers; and percentile names such as `p99`.
+- A run of 8 to 32 hexadecimal characters with a letter and a digit is a trace or span id, never a figure: it passes when it is a whole id a result of the run showed, it does not pass when it is the start of such an id cut short, and a 16 or 32 character id the run never read does not pass; link targets and fenced code are not checked.
 - The root cause component passes when it is a name the run discovered or saw as a label value or a trace's service, as a whole or as whole words of it, so `checkout service` passes on `checkout` and `payment-error-handler` does not.
 - The onset passes when it falls inside a time range the run queried, or next to a time a result showed, such as a log line's, give or take a minute.
 
+### Facts
+
+With `report` or `enforce`, the values the measurement and trace reads return are numbered facts.
+Each object in such a result that holds one carries a `facts` map from the value's key to its id, such as `"facts":{"value":"f3"}`; an id is unique within the run, and the same value read again keeps its id.
+The reads that give facts are `measure_window` and `measure_aggregate` (each value, numerator and denominator), `trace_stats` (the counts and the whole-window and per-group quantiles), `trace_error_origins` (the counts, shares and example trace ids), `trace_slow_path` (each route's threshold, median, slow count and examined count, the self times, shares and counts, and the example trace id and duration), `get_trace` (the trace id, span count, duration and the slowest spans), and the `min`, `max` and `last` of each `query_range` and `query_instant` series.
+The run keeps each fact with its value at full precision, its kind (number, duration, count, ratio or trace id), its unit when the tool knows it, its labels, its window and the query that produced it.
+The ledger holds the newest 400 facts, so the oldest are dropped first, and it is stored with the run's session, never logged and never returned by the API.
+Every read also records the trace and span ids its result showed.
+
+The finding cites a fact with a placeholder in place of the figure, `{{f3}}`, in its Markdown, title, impact, root cause summary, ruled-out items and next steps.
+The server writes the value into the text before the finding is stored, so the saved and shown finding holds the number and nobody downstream sees a placeholder.
+A placeholder takes options after colons, in any order:
+
+| Option | What it does |
+| --- | --- |
+| none | The value exactly as the read returned it, with its unit: `{{f3}}` is `1312.75 ms`. |
+| `ms`, `s`, `us`, `min` | A duration in another unit; a value with no unit is taken as seconds, as Prometheus writes durations: `{{f3:s}}` is `1.31275 s`. |
+| `%` | A ratio as a percent: `{{f4:%}}` of 0.4167 is `41.67%`. |
+| `1` to `9` | That many significant figures, refused when the shown value would be more than 1% from the fact: `{{f3:s:3}}` is `1.31 s`. |
+| `bare` | No unit after the number. |
+
+A trace id fact takes no option and renders as the whole id.
+A placeholder naming a fact the run does not hold, or an option that does not fit the fact or would move the value by more than 1%, is a problem with the finding: with `enforce` it is sent back once naming the id, and when the finding is saved anyway, an unknown fact is written as `[figure not read]`, a broken option is ignored, and the item is stored with the finding.
+
+### One value per quantity
+
+`save_finding` takes `answers`: for each quantity the question asks for, a few words naming it and the one fact that answers it, such as `{"quantity":"peak p99 of checkout","fact":"f12"}`.
+The list is checked and then dropped; the finding stores the rendered text, not the list.
+These are problems with the finding, handled like any other item of the check:
+
+- An entry names a fact the run does not hold.
+- Two entries name the same quantity (compared without case or punctuation) with facts whose values are more than 1% apart, or with two different trace ids.
+- An entry's fact is not given in the Markdown or the impact, cited or written within 1% of its value.
+- The Markdown or the impact cites two facts of one quantity with values more than 1% apart: the same tool, statistic and field for the same labels, window and asked query, such as one peak read at two steps, or two durations of one trace.
+
+The check runs on a finding saved in any run that can save one, so a question asked on Home or in a revision's chat is checked like an investigation, and a suggestion has none.
+
+With `report` or `enforce`, the investigate system text drops its two rules on giving one value per quantity at the precision the tool returned and on settling two different figures with one more read, because the server now enforces them, and ends instead with a short Facts section that says to cite facts, how the options work and to list `answers`.
+A question asked on Home or in a revision gets the same instructions as one note in its context, and with `off` every prompt is the one it was.
+`get_run_brief` gives a connected agent the same text.
+
 With `report`, the items that did not pass are stored with the finding and nothing else changes.
-With `enforce`, the first save with such items is sent back once with a line per item that says "read it, correct it, or remove it".
+With `enforce`, the first save with such items is sent back once with a line per item that says how to fix it: "read it, correct it, or remove it" for a figure or name no read gave, the fact to cite for a rounded figure, the whole id for a cut one, and the settling read for two values of one quantity.
 The agent may read past its call limit to do that, and the send-back is not counted as a rejected save.
 The second save is accepted, and the items that still did not pass are stored with it.
 The check never fails a run, and with `off`, the default, nothing is recorded.

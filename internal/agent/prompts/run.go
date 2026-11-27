@@ -4,6 +4,7 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/json"
+	"slices"
 	"strings"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -13,7 +14,23 @@ import (
 //go:embed investigate.md
 var investigate string
 
+//go:embed facts.md
+var factsSection string
+
 const ledgerHeading = "\n## Hypothesis ledger\n"
+
+var enforcedRules = []string{
+	"Give one value per quantity, copied at the precision the tool returned",
+	"When two reads give different figures for it, make one more read that settles it",
+}
+
+func withFacts(body string) string {
+	lines := strings.SplitAfter(body, "\n")
+	lines = slices.DeleteFunc(lines, func(line string) bool {
+		return slices.ContainsFunc(enforcedRules, func(rule string) bool { return strings.HasPrefix(line, rule) })
+	})
+	return strings.TrimRight(strings.Join(lines, ""), "\n") + "\n\n" + strings.TrimRight(factsSection, "\n") + "\n"
+}
 
 func investigateWith(body string) string {
 	return strings.TrimRight(body, "\n") + "\n\n" + strings.TrimRight(Scope(), "\n") + "\n\n# Authoring guide\n" + strings.TrimRight(SpecGuide(), "\n") + "\n"
@@ -23,6 +40,9 @@ var (
 	investigateBase, _, _ = strings.Cut(investigate, ledgerHeading)
 	investigateSystem     = investigateWith(investigateBase)
 	investigateLedger     = investigateWith(investigate)
+	investigateFacts      = investigateWith(withFacts(investigateBase))
+	investigateBoth       = investigateWith(withFacts(investigateBase) + ledgerHeading + ledgerSection)
+	_, ledgerSection, _   = strings.Cut(investigate, ledgerHeading)
 )
 
 func Build(types []spec.DatasourceType) string {
@@ -40,6 +60,13 @@ func Build(types []spec.DatasourceType) string {
 func Investigate() string { return investigateSystem }
 
 func InvestigateWithLedger() string { return investigateLedger }
+
+func InvestigateWithFacts(ledger bool) string {
+	if ledger {
+		return investigateBoth
+	}
+	return investigateFacts
+}
 
 func compactJSON(body []byte) []byte {
 	var compact bytes.Buffer

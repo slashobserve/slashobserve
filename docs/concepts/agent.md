@@ -664,7 +664,7 @@ See [Run cost](../connect/llm-providers.md#run-cost) for the price table.
 | `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` | 256 | Conversation size after which it is shortened, from 32 to 4096. |
 | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | 12 | Model calls an investigation gets before only a save runs, from 6 to 60. |
 | `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` | false | Gives an investigation a hypothesis ledger that the server writes back into the brief when the conversation is shortened, stages, and a call limit that grows with progress. |
-| `SLASHOBSERVE_AGENT_FINDING_GROUNDING` | off | Checks an investigation's finding against what the run read; `report` stores what did not pass and `enforce` also sends the finding back once. |
+| `SLASHOBSERVE_AGENT_FINDING_GROUNDING` | off | Numbers what reads return as facts and checks a run's finding against what the run read; `report` stores what did not pass and `enforce` also sends the finding back once. |
 | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX` | the investigation calls | Ceiling of the growing call limit, up to 60. |
 | `SLASHOBSERVE_LLM_IDLE_TIMEOUT` | 180 s | Time without output after which a call is retried, `0` for none. |
 | `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` | 10 minutes | Time limit of one model call, retries included, `0` for none. |

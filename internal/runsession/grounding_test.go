@@ -150,7 +150,7 @@ func TestWithGroundingOffNothingIsRecordedOrChecked(t *testing.T) {
 	}
 }
 
-func TestOnlyAnInvestigateRunStartsWithAGroundingRecord(t *testing.T) {
+func TestEveryRunButASuggestionStartsWithAGroundingRecord(t *testing.T) {
 	ask := revisions.Request{ID: "run", Attempt: 1, Intent: revisions.IntentAsk, Prompt: "why is checkout slow", Investigation: true}
 	suggest := revisions.Request{ID: "run", Attempt: 1, Intent: revisions.IntentSuggest, Prompt: "add a panel", BaseVersion: 1}
 	cases := []struct {
@@ -172,6 +172,18 @@ func TestOnlyAnInvestigateRunStartsWithAGroundingRecord(t *testing.T) {
 		}
 		if (state.Grounding != nil) != c.record || (state.Guard.Grounding != nil) != c.watched {
 			t.Errorf("%s: record = %t, watched = %t, want %t and %t", c.name, state.Grounding != nil, state.Guard.Grounding != nil, c.record, c.watched)
+		}
+	}
+}
+
+func TestAHomeQuestionAndARevisionKeepAGroundingRecordToo(t *testing.T) {
+	for _, mode := range []tools.Mode{tools.ModeCreate, tools.ModeRevise} {
+		state := (&Service{findingGrounding: grounding.Enforce}).watched(tools.Run{Mode: mode}, revisions.Request{ID: "run", Attempt: 1})
+		if state.Grounding == nil || state.Guard.Grounding == nil {
+			t.Errorf("%s: record = %t, watched = %t, want both", mode, state.Grounding != nil, state.Guard.Grounding != nil)
+		}
+		if off := (&Service{findingGrounding: grounding.Off}).watched(tools.Run{Mode: mode}, revisions.Request{ID: "run", Attempt: 1}); off.Grounding != nil {
+			t.Errorf("%s: grounding off kept a record", mode)
 		}
 	}
 }
