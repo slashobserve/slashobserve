@@ -207,7 +207,7 @@ SET result_version = $1::integer,
   intent = 'apply',
   result_kind = 'partial_version'
 WHERE id = $3 AND state = ANY($4::text[]) AND build_saved_at IS NULL
-RETURNING id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation, read_restricted, as_of, claim_epoch, thread_reply_abandoned_at
+RETURNING id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation, read_restricted, as_of, claim_epoch, thread_reply_abandoned_at, committed_kind, committed_version, committed_dashboard_id
 `
 
 type MarkAgentRequestBuildSavedParams struct {
@@ -289,8 +289,41 @@ func (q *Queries) MarkAgentRequestBuildSaved(ctx context.Context, arg MarkAgentR
 		&i.AsOf,
 		&i.ClaimEpoch,
 		&i.ThreadReplyAbandonedAt,
+		&i.CommittedKind,
+		&i.CommittedVersion,
+		&i.CommittedDashboardID,
 	)
 	return i, err
+}
+
+const markAgentRequestCommitted = `-- name: MarkAgentRequestCommitted :execrows
+UPDATE agent_requests
+SET committed_kind = CASE WHEN committed_kind = 'finding' THEN committed_kind ELSE $1::text END,
+  committed_version = $2::integer,
+  committed_dashboard_id = $3::uuid
+WHERE id = $4 AND status = 'running' AND claim_epoch = $5
+`
+
+type MarkAgentRequestCommittedParams struct {
+	Kind        string
+	Version     pgtype.Int4
+	DashboardID pgtype.UUID
+	ID          pgtype.UUID
+	ClaimEpoch  int32
+}
+
+func (q *Queries) MarkAgentRequestCommitted(ctx context.Context, arg MarkAgentRequestCommittedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markAgentRequestCommitted,
+		arg.Kind,
+		arg.Version,
+		arg.DashboardID,
+		arg.ID,
+		arg.ClaimEpoch,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const moveAgentRequestBuild = `-- name: MoveAgentRequestBuild :execrows

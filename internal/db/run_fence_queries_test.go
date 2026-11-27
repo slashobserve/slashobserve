@@ -13,6 +13,7 @@ const claimQuery = "ClaimAgentRequest"
 var holderQueries = []string{
 	"RenewAgentRequestLease", "AppendAgentRequestStep",
 	"UpsertAgentRequestBuild", "RebaseAgentRequestBuild", "DeleteAgentRequestBuild",
+	"MarkAgentRequestCommitted", "MarkAgentRequestFindingCommitted",
 	"SucceedAgentRequest", "SucceedSuggestRequest", "SucceedFindingRequest", "SucceedProposalRequest",
 	"FailAgentRequest", "SettleAgentRequest", "ReleaseAgentRequest",
 	"GetClaimedAgentRequest", "GetRunTokenDeadline", "RenewRunTokens",

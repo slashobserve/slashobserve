@@ -41,7 +41,7 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 		return Finding{}, false, err
 	}
 	var row dbsqlc.Finding
-	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+	insert := func(q *dbsqlc.Queries) error {
 		observationID, created, err := conclude(q)
 		if err != nil {
 			return err
@@ -86,25 +86,13 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 		if err != nil {
 			return err
 		}
-		if !row.ObservationID.Valid {
-			return nil
-		}
-		data := map[string]string{"title": row.Title}
-		if row.AgentRequestID.Valid {
-			data["agent_request_id"] = row.AgentRequestID.String()
-		}
-		owner, err := createdOwner(ctx, q, row)
-		if err != nil {
+		return appendCreated(ctx, q, by, row)
+	}
+	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := insert(q); err != nil {
 			return err
 		}
-		_, err = activity.Append(ctx, q, activity.Entry{
-			Type:     activity.TypeFindingCreated,
-			TargetID: row.ID,
-			Owner:    owner,
-			Actor:    by,
-			Data:     data,
-		}, nil)
-		return err
+		return markRunCommitted(ctx, q, in)
 	})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
@@ -120,6 +108,42 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 	}
 	f, err := s.get(ctx, row.ID)
 	return f, false, err
+}
+
+func appendCreated(ctx context.Context, q *dbsqlc.Queries, by actor.Actor, row dbsqlc.Finding) error {
+	if !row.ObservationID.Valid {
+		return nil
+	}
+	data := map[string]string{"title": row.Title}
+	if row.AgentRequestID.Valid {
+		data["agent_request_id"] = row.AgentRequestID.String()
+	}
+	owner, err := createdOwner(ctx, q, row)
+	if err != nil {
+		return err
+	}
+	_, err = activity.Append(ctx, q, activity.Entry{
+		Type:     activity.TypeFindingCreated,
+		TargetID: row.ID,
+		Owner:    owner,
+		Actor:    by,
+		Data:     data,
+	}, nil)
+	return err
+}
+
+func markRunCommitted(ctx context.Context, q *dbsqlc.Queries, in SaveInput) error {
+	if !in.AgentRequestID.Valid || in.ClaimEpoch == 0 {
+		return nil
+	}
+	n, err := q.MarkAgentRequestFindingCommitted(ctx, dbsqlc.MarkAgentRequestFindingCommittedParams{ID: in.AgentRequestID, ClaimEpoch: httpapi.Int32(in.ClaimEpoch)})
+	if err != nil {
+		return fmt.Errorf("mark the run's answer committed: %w", err)
+	}
+	if n == 0 {
+		return ErrRunLost
+	}
+	return nil
 }
 
 func (s *store) runObservation(ctx context.Context, requestID pgtype.UUID) (pgtype.UUID, error) {

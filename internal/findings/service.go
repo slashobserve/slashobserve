@@ -74,6 +74,7 @@ type SaveInput struct {
 	ObserveWorthy   bool
 	Structured      Structured
 	Unverified      []Unverified
+	ClaimEpoch      int
 }
 
 func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Finding, bool, error) {

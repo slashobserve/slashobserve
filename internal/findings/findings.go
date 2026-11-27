@@ -46,6 +46,7 @@ var (
 	ErrRequesterOnly  = errors.New("only the one who asked can use the answer of a run that is not an observation")
 	ErrNotSaved       = errors.New("the answer is not an observation yet; save it as an observation first")
 	ErrAskPlacement   = errors.New("a finding about a dashboard has no other dashboard to ask on")
+	ErrRunLost        = errors.New("the run no longer belongs to this attempt")
 )
 
 type Conclusion struct {

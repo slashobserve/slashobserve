@@ -243,7 +243,7 @@ func (s *Service) CommitBuild(ctx context.Context, by auth.Principal, requestID 
 		return Commit{}, err
 	}
 	build.Summary = note.summary
-	deleteBuild := deleteBuildFenced(ctx, requestID, claimEpoch)
+	commitFenced := commitBuildFenced(ctx, requestID, claimEpoch)
 	if build.DashboardID.Valid {
 		access, err := s.need(ctx, by, build.DashboardID, folders.NeedView)
 		if err != nil {
@@ -253,11 +253,13 @@ func (s *Service) CommitBuild(ctx context.Context, by auth.Principal, requestID 
 			return Commit{}, folders.ErrProvisioned
 		}
 		if mustPropose(ctx, access.Abilities) && access.Abilities.Comment && s.proposer != nil {
-			return s.proposeBuild(ctx, by, build, access, deleteBuild)
+			return s.proposeBuild(ctx, by, build, access, func(q *dbsqlc.Queries) error {
+				return commitFenced(q, committedProposal, pgtype.UUID{}, 0)
+			})
 		}
 	}
-	dash, ver, replayed, err := s.commitBuild(ctx, by, build, note, func(q *dbsqlc.Queries, _ pgtype.UUID, _ int) error {
-		return deleteBuild(q)
+	dash, ver, replayed, err := s.commitBuild(ctx, by, build, note, func(q *dbsqlc.Queries, dashboardID pgtype.UUID, version int) error {
+		return commitFenced(q, committedVersion, dashboardID, version)
 	})
 	if err != nil {
 		return Commit{}, err
@@ -265,11 +267,29 @@ func (s *Service) CommitBuild(ctx context.Context, by auth.Principal, requestID 
 	return Commit{Dashboard: dash, Version: ver, Replayed: replayed}, nil
 }
 
-func deleteBuildFenced(ctx context.Context, requestID pgtype.UUID, claimEpoch int) func(q *dbsqlc.Queries) error {
-	return func(q *dbsqlc.Queries) error {
+const (
+	committedVersion  = "version"
+	committedProposal = "proposal"
+)
+
+// The marker takes the run row lock, so a terminal sweep waits for this commit and then reads the marker from the row it re-reads; keep it last to hold that lock briefly.
+func commitBuildFenced(ctx context.Context, requestID pgtype.UUID, claimEpoch int) func(q *dbsqlc.Queries, kind string, dashboardID pgtype.UUID, version int) error {
+	return func(q *dbsqlc.Queries, kind string, dashboardID pgtype.UUID, version int) error {
 		n, err := q.DeleteAgentRequestBuild(ctx, dbsqlc.DeleteAgentRequestBuildParams{AgentRequestID: requestID, ClaimEpoch: httpapi.Int32(claimEpoch)})
 		if err != nil {
 			return fmt.Errorf("delete agent request build: %w", err)
+		}
+		if n == 0 {
+			return ErrBuildLost
+		}
+		marker := dbsqlc.MarkAgentRequestCommittedParams{Kind: kind, ID: requestID, ClaimEpoch: httpapi.Int32(claimEpoch)}
+		if kind == committedVersion {
+			marker.DashboardID = dashboardID
+			marker.Version = pgtype.Int4{Int32: httpapi.Int32(version), Valid: true}
+		}
+		n, err = q.MarkAgentRequestCommitted(ctx, marker)
+		if err != nil {
+			return fmt.Errorf("mark agent request committed: %w", err)
 		}
 		if n == 0 {
 			return ErrBuildLost

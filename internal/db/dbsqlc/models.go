@@ -111,6 +111,9 @@ type AgentRequest struct {
 	AsOf                   pgtype.Timestamptz
 	ClaimEpoch             int32
 	ThreadReplyAbandonedAt pgtype.Timestamptz
+	CommittedKind          pgtype.Text
+	CommittedVersion       pgtype.Int4
+	CommittedDashboardID   pgtype.UUID
 }
 
 type AgentRequestBuild struct {

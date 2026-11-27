@@ -651,6 +651,7 @@ var runEnding = []error{
 	context.Canceled,
 	context.DeadlineExceeded,
 	dashboards.ErrBuildLost,
+	findings.ErrRunLost,
 	ErrPanicked,
 	ErrInvariant,
 	errInvalidRun,

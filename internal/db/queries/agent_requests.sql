@@ -80,14 +80,14 @@ RETURNING cancel_requested_at;
 
 -- name: FailExhaustedAgentRequests :many
 UPDATE agent_requests r
-SET state = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
-  status = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
-  result_kind = CASE WHEN f.id IS NOT NULL THEN 'observation' WHEN saved.version IS NOT NULL THEN 'version' WHEN pr.id IS NOT NULL THEN 'proposal' ELSE r.result_kind END,
-  result_version = saved.version,
-  intent = CASE WHEN saved.version IS NOT NULL THEN 'apply' ELSE r.intent END,
-  dashboard_id = coalesce(r.dashboard_id, saved.dashboard_id),
-  error = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL OR pr.id IS NOT NULL) THEN NULL ELSE 'agent run did not finish' END,
-  failure_code = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL OR pr.id IS NOT NULL) THEN NULL ELSE 'lease_expired' END,
+SET state = CASE WHEN (coalesce(saved.version, r.committed_version) IS NULL AND NOT (f.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'finding') AND NOT (pr.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'proposal')) THEN 'failed' ELSE 'succeeded' END,
+  status = CASE WHEN (coalesce(saved.version, r.committed_version) IS NULL AND NOT (f.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'finding') AND NOT (pr.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'proposal')) THEN 'failed' ELSE 'succeeded' END,
+  result_kind = CASE WHEN (f.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'finding') THEN 'observation' WHEN coalesce(saved.version, r.committed_version) IS NOT NULL THEN 'version' WHEN (pr.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'proposal') THEN 'proposal' ELSE r.result_kind END,
+  result_version = coalesce(saved.version, r.committed_version),
+  intent = CASE WHEN coalesce(saved.version, r.committed_version) IS NOT NULL THEN 'apply' ELSE r.intent END,
+  dashboard_id = coalesce(r.dashboard_id, saved.dashboard_id, r.committed_dashboard_id),
+  error = CASE WHEN (coalesce(saved.version, r.committed_version) IS NULL AND NOT (f.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'finding') AND NOT (pr.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'proposal')) THEN 'agent run did not finish' END,
+  failure_code = CASE WHEN (coalesce(saved.version, r.committed_version) IS NULL AND NOT (f.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'finding') AND NOT (pr.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'proposal')) THEN 'lease_expired' END,
   lease_until = NULL,
   finished_at = clock_timestamp()
 FROM agent_requests e
@@ -100,14 +100,14 @@ RETURNING r.*;
 
 -- name: SettleCanceledAgentRequests :many
 UPDATE agent_requests r
-SET state = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN 'canceled' ELSE 'succeeded' END,
-  status = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
-  result_kind = CASE WHEN f.id IS NOT NULL THEN 'observation' WHEN saved.version IS NOT NULL THEN 'version' WHEN pr.id IS NOT NULL THEN 'proposal' ELSE r.result_kind END,
-  result_version = saved.version,
-  intent = CASE WHEN saved.version IS NOT NULL THEN 'apply' ELSE r.intent END,
-  dashboard_id = coalesce(r.dashboard_id, saved.dashboard_id),
-  error = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN @message::text END,
-  failure_code = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN 'canceled' END,
+SET state = CASE WHEN (coalesce(saved.version, r.committed_version) IS NULL AND NOT (f.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'finding') AND NOT (pr.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'proposal')) THEN 'canceled' ELSE 'succeeded' END,
+  status = CASE WHEN (coalesce(saved.version, r.committed_version) IS NULL AND NOT (f.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'finding') AND NOT (pr.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'proposal')) THEN 'failed' ELSE 'succeeded' END,
+  result_kind = CASE WHEN (f.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'finding') THEN 'observation' WHEN coalesce(saved.version, r.committed_version) IS NOT NULL THEN 'version' WHEN (pr.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'proposal') THEN 'proposal' ELSE r.result_kind END,
+  result_version = coalesce(saved.version, r.committed_version),
+  intent = CASE WHEN coalesce(saved.version, r.committed_version) IS NOT NULL THEN 'apply' ELSE r.intent END,
+  dashboard_id = coalesce(r.dashboard_id, saved.dashboard_id, r.committed_dashboard_id),
+  error = CASE WHEN (coalesce(saved.version, r.committed_version) IS NULL AND NOT (f.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'finding') AND NOT (pr.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'proposal')) THEN @message::text END,
+  failure_code = CASE WHEN (coalesce(saved.version, r.committed_version) IS NULL AND NOT (f.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'finding') AND NOT (pr.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'proposal')) THEN 'canceled' END,
   lease_until = NULL,
   finished_at = clock_timestamp()
 FROM agent_requests e
@@ -121,7 +121,12 @@ RETURNING r.*;
 
 -- name: SettleAgentRequest :one
 WITH target AS (
-  SELECT r.id, saved.version AS saved_version, saved.dashboard_id AS saved_dashboard_id, f.id AS finding_id, pr.id AS proposal_id
+  SELECT r.id, coalesce(saved.version, r.committed_version) AS saved_version,
+    coalesce(r.dashboard_id, saved.dashboard_id, r.committed_dashboard_id) AS dashboard_id,
+    (f.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'finding') AS has_finding,
+    (pr.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'proposal') AS has_proposal,
+    (coalesce(saved.version, r.committed_version) IS NOT NULL OR f.id IS NOT NULL OR pr.id IS NOT NULL OR coalesce(r.committed_kind IN ('finding', 'proposal'), false)) AS kept,
+    r.result_kind, r.result_version, r.intent
   FROM agent_requests r
   LEFT JOIN dashboard_versions saved ON saved.agent_request_id = r.id AND (r.dashboard_id IS NULL OR saved.dashboard_id = r.dashboard_id)
   LEFT JOIN findings f ON f.agent_request_id = r.id
@@ -130,14 +135,14 @@ WITH target AS (
   FOR NO KEY UPDATE OF r
 )
 UPDATE agent_requests
-SET state = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN 'canceled' ELSE 'succeeded' END,
-  status = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN 'failed' ELSE 'succeeded' END,
-  result_kind = CASE WHEN t.finding_id IS NOT NULL THEN 'observation' WHEN t.saved_version IS NOT NULL THEN 'version' WHEN t.proposal_id IS NOT NULL THEN 'proposal' ELSE agent_requests.result_kind END,
+SET state = CASE WHEN t.kept THEN 'succeeded' ELSE 'canceled' END,
+  status = CASE WHEN t.kept THEN 'succeeded' ELSE 'failed' END,
+  result_kind = CASE WHEN t.has_finding THEN 'observation' WHEN t.saved_version IS NOT NULL THEN 'version' WHEN t.has_proposal THEN 'proposal' ELSE t.result_kind END,
   result_version = t.saved_version,
-  intent = CASE WHEN t.saved_version IS NOT NULL THEN 'apply' ELSE agent_requests.intent END,
-  dashboard_id = coalesce(agent_requests.dashboard_id, t.saved_dashboard_id),
-  error = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN @message::text END,
-  failure_code = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN 'canceled' END,
+  intent = CASE WHEN t.saved_version IS NOT NULL THEN 'apply' ELSE t.intent END,
+  dashboard_id = t.dashboard_id,
+  error = CASE WHEN NOT t.kept THEN @message::text END,
+  failure_code = CASE WHEN NOT t.kept THEN 'canceled' END,
   run_usage = coalesce(sqlc.narg('run_usage')::jsonb, agent_requests.run_usage),
   lease_until = NULL,
   finished_at = clock_timestamp()
@@ -147,7 +152,12 @@ RETURNING agent_requests.*;
 
 -- name: CancelAgentRequest :one
 WITH target AS (
-  SELECT r.id, r.state AS prior_state, saved.version AS saved_version, saved.dashboard_id AS saved_dashboard_id, f.id AS finding_id, pr.id AS proposal_id,
+  SELECT r.id, r.state AS prior_state, coalesce(saved.version, r.committed_version) AS saved_version,
+    coalesce(r.dashboard_id, saved.dashboard_id, r.committed_dashboard_id) AS dashboard_id,
+    (f.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'finding') AS has_finding,
+    (pr.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'proposal') AS has_proposal,
+    (coalesce(saved.version, r.committed_version) IS NOT NULL OR f.id IS NOT NULL OR pr.id IS NOT NULL OR coalesce(r.committed_kind IN ('finding', 'proposal'), false)) AS kept,
+    r.result_kind, r.result_version, r.intent, r.dashboard_id AS prior_dashboard_id,
     (r.state = 'queued' OR r.lease_until IS NULL OR r.lease_until < clock_timestamp()) AS finishes
   FROM agent_requests r
   LEFT JOIN dashboard_versions saved ON saved.agent_request_id = r.id AND (r.dashboard_id IS NULL OR saved.dashboard_id = r.dashboard_id)
@@ -161,14 +171,14 @@ SET cancel_requested_at = coalesce(agent_requests.cancel_requested_at, clock_tim
   canceled_by_kind = coalesce(agent_requests.canceled_by_kind, @canceled_by_kind),
   canceled_by_id = coalesce(agent_requests.canceled_by_id, @canceled_by_id),
   canceled_by_name = coalesce(agent_requests.canceled_by_name, @canceled_by_name),
-  state = CASE WHEN NOT t.finishes THEN 'canceling' WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN 'canceled' ELSE 'succeeded' END,
-  status = CASE WHEN NOT t.finishes THEN 'running' WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN 'failed' ELSE 'succeeded' END,
-  result_kind = CASE WHEN NOT t.finishes THEN agent_requests.result_kind WHEN t.finding_id IS NOT NULL THEN 'observation' WHEN t.saved_version IS NOT NULL THEN 'version' WHEN t.proposal_id IS NOT NULL THEN 'proposal' ELSE agent_requests.result_kind END,
-  result_version = CASE WHEN t.finishes THEN t.saved_version ELSE agent_requests.result_version END,
-  intent = CASE WHEN t.finishes AND t.saved_version IS NOT NULL THEN 'apply' ELSE agent_requests.intent END,
-  dashboard_id = CASE WHEN t.finishes THEN coalesce(agent_requests.dashboard_id, t.saved_dashboard_id) ELSE agent_requests.dashboard_id END,
-  error = CASE WHEN NOT t.finishes THEN agent_requests.error WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN @message::text END,
-  failure_code = CASE WHEN NOT t.finishes THEN agent_requests.failure_code WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN 'canceled' END,
+  state = CASE WHEN NOT t.finishes THEN 'canceling' WHEN t.kept THEN 'succeeded' ELSE 'canceled' END,
+  status = CASE WHEN NOT t.finishes THEN 'running' WHEN t.kept THEN 'succeeded' ELSE 'failed' END,
+  result_kind = CASE WHEN NOT t.finishes THEN t.result_kind WHEN t.has_finding THEN 'observation' WHEN t.saved_version IS NOT NULL THEN 'version' WHEN t.has_proposal THEN 'proposal' ELSE t.result_kind END,
+  result_version = CASE WHEN t.finishes THEN t.saved_version ELSE t.result_version END,
+  intent = CASE WHEN t.finishes AND t.saved_version IS NOT NULL THEN 'apply' ELSE t.intent END,
+  dashboard_id = CASE WHEN t.finishes THEN t.dashboard_id ELSE t.prior_dashboard_id END,
+  error = CASE WHEN NOT t.finishes THEN agent_requests.error WHEN NOT t.kept THEN @message::text END,
+  failure_code = CASE WHEN NOT t.finishes THEN agent_requests.failure_code WHEN NOT t.kept THEN 'canceled' END,
   lease_until = CASE WHEN t.finishes THEN NULL ELSE agent_requests.lease_until END,
   finished_at = CASE WHEN t.finishes THEN clock_timestamp() ELSE agent_requests.finished_at END
 FROM target t
@@ -527,14 +537,14 @@ SELECT coalesce(
 
 -- name: ExpireUnclaimedAgentRequests :many
 UPDATE agent_requests r
-SET state = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
-  status = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
-  result_kind = CASE WHEN f.id IS NOT NULL THEN 'observation' WHEN saved.version IS NOT NULL THEN 'version' WHEN pr.id IS NOT NULL THEN 'proposal' ELSE r.result_kind END,
-  result_version = saved.version,
-  intent = CASE WHEN saved.version IS NOT NULL THEN 'apply' ELSE r.intent END,
-  dashboard_id = coalesce(r.dashboard_id, saved.dashboard_id),
-  error = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL OR pr.id IS NOT NULL) THEN NULL ELSE @message::text END,
-  failure_code = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL OR pr.id IS NOT NULL) THEN NULL ELSE 'agent_unavailable' END,
+SET state = CASE WHEN (coalesce(saved.version, r.committed_version) IS NULL AND NOT (f.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'finding') AND NOT (pr.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'proposal')) THEN 'failed' ELSE 'succeeded' END,
+  status = CASE WHEN (coalesce(saved.version, r.committed_version) IS NULL AND NOT (f.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'finding') AND NOT (pr.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'proposal')) THEN 'failed' ELSE 'succeeded' END,
+  result_kind = CASE WHEN (f.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'finding') THEN 'observation' WHEN coalesce(saved.version, r.committed_version) IS NOT NULL THEN 'version' WHEN (pr.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'proposal') THEN 'proposal' ELSE r.result_kind END,
+  result_version = coalesce(saved.version, r.committed_version),
+  intent = CASE WHEN coalesce(saved.version, r.committed_version) IS NOT NULL THEN 'apply' ELSE r.intent END,
+  dashboard_id = coalesce(r.dashboard_id, saved.dashboard_id, r.committed_dashboard_id),
+  error = CASE WHEN (coalesce(saved.version, r.committed_version) IS NULL AND NOT (f.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'finding') AND NOT (pr.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'proposal')) THEN @message::text END,
+  failure_code = CASE WHEN (coalesce(saved.version, r.committed_version) IS NULL AND NOT (f.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'finding') AND NOT (pr.id IS NOT NULL OR r.committed_kind IS NOT DISTINCT FROM 'proposal')) THEN 'agent_unavailable' END,
   lease_until = NULL,
   finished_at = clock_timestamp()
 FROM agent_requests e

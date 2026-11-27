@@ -223,6 +223,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 		save.Unverified = agent.unverified
 	}
 	save.AsOf = run.asOf()
+	save.ClaimEpoch = run.ClaimEpoch
 	f, replayed, err := r.deps.Findings.Save(ctx, principal, save)
 	if errors.Is(err, findings.ErrNotFound) {
 		return toolError(codeNotFound, "dashboard not found"), nil

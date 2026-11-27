@@ -89,3 +89,7 @@ WHERE f.observation_id = @observation_id
   AND (root_cause_kind IS NOT NULL OR onset IS NOT NULL OR impact IS NOT NULL OR confidence IS NOT NULL
     OR ruled_out IS NOT NULL OR next_steps IS NOT NULL OR no_incident IS NOT NULL OR unverified IS NOT NULL OR causes IS NOT NULL)
 ORDER BY f.created_at, f.id;
+
+-- name: MarkAgentRequestFindingCommitted :execrows
+UPDATE agent_requests SET committed_kind = 'finding'
+WHERE id = @id AND status = 'running' AND claim_epoch = @claim_epoch;

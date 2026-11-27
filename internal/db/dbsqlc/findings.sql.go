@@ -605,6 +605,24 @@ func (q *Queries) LockFinding(ctx context.Context, id pgtype.UUID) (pgtype.UUID,
 	return observation_id, err
 }
 
+const markAgentRequestFindingCommitted = `-- name: MarkAgentRequestFindingCommitted :execrows
+UPDATE agent_requests SET committed_kind = 'finding'
+WHERE id = $1 AND status = 'running' AND claim_epoch = $2
+`
+
+type MarkAgentRequestFindingCommittedParams struct {
+	ID         pgtype.UUID
+	ClaimEpoch int32
+}
+
+func (q *Queries) MarkAgentRequestFindingCommitted(ctx context.Context, arg MarkAgentRequestFindingCommittedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markAgentRequestFindingCommitted, arg.ID, arg.ClaimEpoch)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setFindingAnnotation = `-- name: SetFindingAnnotation :execrows
 UPDATE findings SET annotation_id = $1 WHERE id = $2 AND annotation_id IS NULL
 `
