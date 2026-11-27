@@ -174,7 +174,7 @@ This state is computed from stored fields on every read; nothing stores it.
 | State | When |
 | --- | --- |
 | `expired` | Its expiry time has passed; the link no longer opens. |
-| `active` | None of the above; usable says whether the dashboard's latest version can be shown publicly, and unusable_reason says why it cannot. |
+| `active` | None of the above; usable says whether the link opens, and unusable_reason says why it does not. |
 
 ## Grafana import
 

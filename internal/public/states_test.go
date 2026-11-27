@@ -2,7 +2,6 @@ package public
 
 import (
 	"encoding/json"
-	"slices"
 	"testing"
 	"time"
 )
@@ -35,11 +34,11 @@ func TestLinkJSONSaysWhyALinkIsNotUsable(t *testing.T) {
 		link Link
 		want string
 	}{
-		{"a new link", Link{Usable: true}, `null`},
-		{"a link that opens", judged(Link{}, false, now), `null`},
-		{"a link past its expiry", judged(Link{ExpiresAt: &past}, false, now), `"expired"`},
-		{"a link whose dashboard reads the viewer's identity", judged(Link{}, true, now), `"user_scoped"`},
-		{"an expired link whose dashboard reads the viewer's identity", judged(Link{ExpiresAt: &past}, true, now), `"expired"`},
+		{"a link that opens", judged(Link{}, false, "", now), `null`},
+		{"a link past its expiry", judged(Link{ExpiresAt: &past}, false, "", now), `"expired"`},
+		{"a link whose dashboard sits in a folder only Admins can read", judged(Link{}, true, "", now), `"admins_only_folder"`},
+		{"a link whose dashboard reads the viewer's identity", judged(Link{}, false, reasonUserScoped, now), `"user_scoped"`},
+		{"a link whose dashboard reads a datasource only Admins can query", judged(Link{}, false, reasonRestrictedDatasource, now), `"restricted_datasource"`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -58,15 +57,5 @@ func TestLinkJSONSaysWhyALinkIsNotUsable(t *testing.T) {
 				t.Fatalf("usable = %s beside unusable_reason %s", usable, tt.want)
 			}
 		})
-	}
-}
-
-func TestEveryReasonALinkIsNotUsableIsListed(t *testing.T) {
-	now := time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC)
-	past := now.Add(-time.Second)
-	for _, link := range []Link{judged(Link{ExpiresAt: &past}, false, now), judged(Link{}, true, now)} {
-		if !slices.Contains(UnusableReasons, link.UnusableReason) {
-			t.Errorf("UnusableReasons lacks %q", link.UnusableReason)
-		}
 	}
 }

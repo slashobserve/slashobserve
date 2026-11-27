@@ -62,7 +62,10 @@ const unusableText: Record<
   string
 > = {
   expired: "Expired",
+  admins_only_folder:
+    "Not usable: the dashboard is in a folder only Admins can read",
   user_scoped: "Not usable: uses the viewer's identity",
+  restricted_datasource: "Not usable: reads a datasource only Admins can query",
 }
 
 export function linkStatus(
