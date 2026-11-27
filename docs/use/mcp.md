@@ -1423,6 +1423,7 @@ Opens a thread on a `target`.
   With `block_id` on an observation, it is a spot in that block.
 - `client_id` is a UUID you make for the message.
   Sending the same call again returns the message already posted with `replayed` true, and starts nothing.
+  It carries the same `run` or `run_refusal` as the first answer, so a retry of an ask that was refused still says no run started.
 
 #### `reply_to_comment`
 
