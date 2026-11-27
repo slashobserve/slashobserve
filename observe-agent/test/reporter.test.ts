@@ -176,3 +176,132 @@ describe("Reporter usage reports", () => {
     expect(ended[0]?.state).toBe("lost")
   })
 })
+
+describe("Reporter lease", () => {
+  const usage: Usage = {
+    provider: "p",
+    model: "m",
+    input_tokens: 0,
+    output_tokens: 0,
+    cache_read_tokens: 0,
+    cache_write_tokens: 0,
+    model_calls: 0,
+    failed_calls: 0,
+    retries: 0,
+    compactions: 0,
+    renewals: 0,
+    model_ms: 0,
+    max_save_output_tokens: 0,
+  }
+  const leaseMs = 60_000
+  const start = Date.parse("2026-11-27T10:00:00Z")
+
+  function leased(answer?: (nth: number) => Promise<unknown>) {
+    const clock = { ms: start }
+    const sent: Array<{ text?: string }> = []
+    const ended: RunEnded[] = []
+    const renewal = () => ({
+      state: "running",
+      stop: false,
+      lease_until: new Date(clock.ms + leaseMs).toISOString(),
+    })
+    const reporter = new Reporter(
+      {
+        reportRun: async (input: { text?: string }) => {
+          sent.push(input)
+          return answer === undefined ? renewal() : answer(sent.length - 1)
+        },
+      } as unknown as ClaimApi,
+      { run_id: "r", attempt: 1 },
+      {
+        heartbeatMs: 1_000_000,
+        textFlushMs: 1_000_000,
+        now: () => clock.ms,
+      },
+      { onBuild: () => {}, onEnd: (e) => ended.push(e) },
+      new AbortController().signal
+    )
+    return { reporter, clock, sent, ended, renewal }
+  }
+
+  const unreachable = () => new Error("fetch failed")
+
+  test("failed beats lose the lease once lease_until has passed", async () => {
+    const run = leased(async (nth) => {
+      if (nth > 0) throw unreachable()
+      return run.renewal()
+    })
+    await run.reporter.beat()
+    run.clock.ms += leaseMs - 1
+    await run.reporter.beat()
+    expect(run.ended).toEqual([])
+    const sentWhileHeld = run.sent.length
+    run.clock.ms += 1
+    await run.reporter.beat()
+    expect(run.ended.map((e) => e.state)).toEqual(["lost"])
+    expect(run.sent).toHaveLength(sentWhileHeld)
+  })
+
+  test("a lost lease refuses the report before a model call and sends no buffered text", async () => {
+    const run = leased(async (nth) => {
+      if (nth > 0) throw unreachable()
+      return run.renewal()
+    })
+    await run.reporter.beat()
+    run.reporter.push("written while the server was away")
+    run.clock.ms += leaseMs
+    await run.reporter.flush()
+    await expect(run.reporter.report(usage)).rejects.toBeInstanceOf(RunEnded)
+    run.reporter.stop()
+    expect(run.sent).toHaveLength(1)
+    expect(run.ended.map((e) => e.state)).toEqual(["lost"])
+  })
+
+  test("each successful report moves the lease on", async () => {
+    const run = leased()
+    await run.reporter.beat()
+    run.clock.ms += leaseMs - 1
+    await run.reporter.beat()
+    run.clock.ms += leaseMs - 1
+    await run.reporter.report(usage)
+    expect(run.ended).toEqual([])
+    expect(run.sent).toHaveLength(3)
+  })
+
+  test("an answer that arrives after the lease was lost does not bring it back", async () => {
+    let release = (_answer: unknown): void => {}
+    const run = leased((nth) =>
+      nth === 1
+        ? new Promise((resolve) => {
+            release = resolve
+          })
+        : Promise.resolve(run.renewal())
+    )
+    await run.reporter.beat()
+    const slow = run.reporter.beat()
+    run.clock.ms += leaseMs
+    await run.reporter.beat()
+    release(run.renewal())
+    await slow
+    await expect(run.reporter.report(usage)).rejects.toBeInstanceOf(RunEnded)
+    expect(run.sent).toHaveLength(2)
+  })
+
+  test("a server that sends no lease_until never loses the lease by the clock", async () => {
+    const run = leased(async () => ({ state: "running", stop: false }))
+    await run.reporter.beat()
+    run.clock.ms += 10 * leaseMs
+    await run.reporter.report(usage)
+    expect(run.ended).toEqual([])
+  })
+
+  test("a stop from the server still sends the buffered text", async () => {
+    const run = leased(async () => ({ state: "canceling", stop: true }))
+    await run.reporter.beat()
+    run.reporter.push("last words")
+    await run.reporter.flush()
+    run.reporter.stop()
+    expect(run.ended.map((e) => e.state)).toEqual(["canceling"])
+    expect(run.sent.map((s) => s.text)).toEqual([undefined, "last words"])
+  })
+})

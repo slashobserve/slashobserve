@@ -29,6 +29,17 @@ export type ReporterOptions = {
   textFlushMs: number
   usageRetryMs?: readonly number[]
   usageBudgetMs?: number
+  now?: () => number
+}
+
+type Lease =
+  | { state: "renewed"; until: number | undefined }
+  | { state: "stop_told"; ended: RunEnded }
+  | { state: "lost"; ended: RunEnded }
+
+function leaseEnd(leaseUntil: string | null | undefined): number | undefined {
+  const until = Date.parse(leaseUntil ?? "")
+  return Number.isNaN(until) ? undefined : until
 }
 
 export type ReporterHooks = {
@@ -51,13 +62,14 @@ export class Reporter {
   private readonly options: ReporterOptions
   private readonly hooks: ReporterHooks
   private readonly signal: AbortSignal
+  private readonly now: () => number
   private buffered = ""
   private flushTimer: ReturnType<typeof setTimeout> | undefined
   private beatTimer: ReturnType<typeof setInterval> | undefined
   private beating = false
   private wroteText = false
   private messageBreak = false
-  private ended: RunEnded | undefined
+  private lease: Lease = { state: "renewed", until: undefined }
 
   constructor(
     api: ClaimApi,
@@ -71,6 +83,7 @@ export class Reporter {
     this.options = options
     this.hooks = hooks
     this.signal = signal
+    this.now = options.now ?? Date.now
   }
 
   startHeartbeat(): void {
@@ -128,13 +141,32 @@ export class Reporter {
   }
 
   private throwIfEnded(): void {
-    if (this.ended !== undefined) {
-      throw this.ended
+    const lease = this.leaseNow()
+    if (lease.state !== "renewed") {
+      throw lease.ended
     }
+  }
+
+  private leaseNow(): Lease {
+    const { lease } = this
+    if (
+      lease.state === "renewed" &&
+      lease.until !== undefined &&
+      this.now() >= lease.until
+    ) {
+      log("warn", "lease lapsed without a successful report", {
+        run_id: this.run.run_id,
+      })
+      this.end({ state: "lost", ended: new RunEnded("lost") })
+    }
+    return this.lease
   }
 
   async flush(): Promise<void> {
     this.flushTimer = undefined
+    if (this.leaseNow().state === "lost") {
+      return
+    }
     try {
       for (const chunk of this.takeText()) {
         await this.send({ text: chunk })
@@ -144,8 +176,8 @@ export class Reporter {
     }
   }
 
-  private async beat(): Promise<void> {
-    if (this.beating || this.ended !== undefined) {
+  async beat(): Promise<void> {
+    if (this.leaseNow().state !== "renewed" || this.beating) {
       return
     }
     this.beating = true
@@ -173,7 +205,7 @@ export class Reporter {
       answer = await this.attempt(body)
     } catch (error) {
       if (error instanceof ToolError && error.code === "not_your_run") {
-        this.end(new RunEnded("lost"))
+        this.end({ state: "lost", ended: new RunEnded("lost") })
         return
       }
       throw error
@@ -182,7 +214,12 @@ export class Reporter {
       this.hooks.onBuild(answer.build)
     }
     if (answer.stop) {
-      this.end(new RunEnded(answer.state))
+      this.end({ state: "stop_told", ended: new RunEnded(answer.state) })
+      return
+    }
+    const until = leaseEnd(answer.lease_until)
+    if (this.lease.state === "renewed" && until !== undefined) {
+      this.lease = { state: "renewed", until }
     }
   }
 
@@ -205,10 +242,10 @@ export class Reporter {
     )
   }
 
-  private end(ended: RunEnded): void {
-    if (this.ended === undefined) {
-      this.ended = ended
-      this.hooks.onEnd(ended)
+  private end(lease: Exclude<Lease, { state: "renewed" }>): void {
+    if (this.lease.state === "renewed") {
+      this.lease = lease
+      this.hooks.onEnd(lease.ended)
     }
   }
 }

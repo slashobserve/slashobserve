@@ -685,6 +685,15 @@ describe("lease and live text", () => {
     expect(claim.tools.calls).toHaveLength(0)
   })
 
+  test("a lease that lapsed before a model call ends the run without calling the model", async () => {
+    const claim = new FakeClaim()
+    claim.report = () => ({ lease_until: "2000-01-01T00:00:00Z" })
+    await drive(claim, claimed("create happy path"))
+    expect(claim.reports).toHaveLength(1)
+    expect(claim.tools.calls).toHaveLength(0)
+    expect(claim.finishes).toHaveLength(0)
+  })
+
   test("the turn's text is reported after the flush delay or with the next report", async () => {
     const claim = new FakeClaim()
     claim.tools.handler = savedWith()
