@@ -1257,7 +1257,7 @@ It is over MCP only, because a run's cost is counted once for the run and `draft
 - It spends at most two of this server's model calls per question, checks the query with the lint and a short sample, and never runs the full query.
   Run the answer with `query_instant`.
 - A question it cannot turn into a query returns the tool error `cannot_translate` with the reason.
-  A server with no model returns `agent_unavailable`.
+  A server with no model, or whose agent process is not running, returns `agent_unavailable`.
 
 ### Log and trace tools
 

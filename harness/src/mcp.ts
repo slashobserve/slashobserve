@@ -10,7 +10,10 @@ import {
   type BriefInput,
   type CallHints,
   type ClaimAnswer,
+  type ClaimDraftAnswer,
   type FinishAnswer,
+  type FinishDraftAnswer,
+  type FinishDraftInput,
   type FinishInput,
   type ReleaseAnswer,
   type ReleaseInput,
@@ -23,8 +26,11 @@ import {
   briefInput,
   callMetaKey,
   claimAnswer,
+  claimDraftAnswer,
   claimInput,
   finishAnswer,
+  finishDraftAnswer,
+  finishDraftInput,
   finishInput,
   noRunMeta,
   parseToolError,
@@ -41,6 +47,8 @@ import type { ToolSpec } from "./session/types"
 import { version } from "./version"
 
 export const claimTimeoutMs = 60_000
+// finish_draft answers after the server checks the drafted query, within the draft's 60 seconds.
+export const draftTurnTimeoutMs = 75_000
 export const reportTimeoutMs = 10_000
 export const startReadTimeoutMs = 30_000
 export const maxTimeoutsInRow = 3
@@ -72,6 +80,17 @@ export interface ClaimApi {
   finishRun(input: FinishInput, signal?: AbortSignal): Promise<FinishAnswer>
   releaseRun(input: ReleaseInput, signal?: AbortSignal): Promise<ReleaseAnswer>
   openRun(session: RunSessionOffer): RunTools
+}
+
+export interface DraftApi {
+  claimDraft(
+    waitSeconds: number,
+    signal?: AbortSignal
+  ): Promise<ClaimDraftAnswer>
+  finishDraft(
+    input: FinishDraftInput,
+    signal?: AbortSignal
+  ): Promise<FinishDraftAnswer>
 }
 
 export class ProtocolError extends Error {
@@ -305,11 +324,37 @@ export class McpClient implements RunTools {
   }
 }
 
-export class ClaimClient implements ClaimApi {
+export class ClaimClient implements ClaimApi, DraftApi {
   private readonly base: McpClient
 
   constructor(base: McpClient) {
     this.base = base
+  }
+
+  claimDraft(
+    waitSeconds: number,
+    signal?: AbortSignal
+  ): Promise<ClaimDraftAnswer> {
+    return this.base.claimTool(
+      "claim_draft",
+      claimInput.parse({ wait_seconds: waitSeconds }),
+      claimDraftAnswer,
+      claimTimeoutMs,
+      signal
+    )
+  }
+
+  finishDraft(
+    input: FinishDraftInput,
+    signal?: AbortSignal
+  ): Promise<FinishDraftAnswer> {
+    return this.base.claimTool(
+      "finish_draft",
+      finishDraftInput.parse(input),
+      finishDraftAnswer,
+      draftTurnTimeoutMs,
+      signal
+    )
   }
 
   claimRun(waitSeconds: number, signal?: AbortSignal): Promise<ClaimAnswer> {

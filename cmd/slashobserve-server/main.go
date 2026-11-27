@@ -544,7 +544,7 @@ func run() error {
 		AccessRequests: accessRequests,
 		Viewers:        viewersService,
 		Home:           homedash.New(database, folderAccess),
-		Provider:       llmProvider,
+		Drafts:         sidecar.draftModel(),
 		DraftQueue:     sidecar.draftQueue(),
 		DraftBudget:    draftbudget.New(database),
 		PublicURL:      cfg.PublicURL,

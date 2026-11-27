@@ -34,7 +34,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/homedash"
 	"github.com/slashobserve/slashobserve/internal/imports"
-	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/proposals"
@@ -183,7 +182,7 @@ type Deps struct {
 	AccessRequests *accessrequests.Service
 	Viewers        *viewers.Service
 	Home           *homedash.Service
-	Provider       llm.Provider
+	Drafts         DraftModel
 	DraftQueue     DraftQueue
 	DraftBudget    DraftBudget
 	MCPSources     MCPSources

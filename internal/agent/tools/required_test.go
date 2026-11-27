@@ -78,7 +78,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		Annotations:    notes,
 		Search:         search.New(database.DB, access, nil),
 		Viewers:        viewers.New(database.DB),
-		Provider:       &scriptedDraft{},
+		Drafts:         &scriptedDraft{},
 		Runs:           revisions.NewRunDesk(queue, revisions.ObserveOptions{}),
 		Audit:          trail.NewReader(database.DB, logger),
 		MCPSources:     &fakeMCPSources{},

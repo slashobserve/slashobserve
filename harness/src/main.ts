@@ -1,4 +1,5 @@
 import { claimLoop, type Handback } from "./claims"
+import { draftLoop } from "./draft"
 import { loadEnv, mcpUrl } from "./env"
 import { configureLog, log } from "./log"
 import { ClaimClient, McpClient } from "./mcp"
@@ -20,13 +21,13 @@ async function main(): Promise<number> {
   process.on("SIGINT", stop)
   log("info", "harness started", { version, slots: env.slots })
   const handback: Handback = { held: 0, released: 0 }
-  const work = claimLoop(
-    new ClaimClient(base),
-    env.slots,
-    createSession,
-    controller.signal,
-    { handback }
-  ).then(() => base.close())
+  const client = new ClaimClient(base)
+  const work = Promise.all([
+    claimLoop(client, env.slots, createSession, controller.signal, {
+      handback,
+    }),
+    draftLoop(client, createSession, controller.signal),
+  ]).then(() => base.close())
   const outcome = await shutdownOutcome(
     work,
     controller.signal,

@@ -16,7 +16,6 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/prometheus"
-	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
 
@@ -214,7 +213,7 @@ func TestInterleaveMetricsTakesOneFromEachKeywordInTurnWithoutRepeats(t *testing
 }
 
 func TestDraftWritesPromQLOnPrometheus(t *testing.T) {
-	provider := &scriptedDraft{turns: []llm.Turn{submitTurn(`{"query":"sum by (service) (rate(http_requests_total[5m]))","explanation":"Requests per second by service."}`)}}
+	provider := &scriptedDraft{turns: []DraftTurn{submitTurn(`{"query":"sum by (service) (rate(http_requests_total[5m]))","explanation":"Requests per second by service."}`)}}
 	r := draftRegistry(t, provider, map[string]*fakeDS{"prom": promDraftDS(false)})
 	draft, err := r.DraftQuery(viewerContext(), DraftInput{DatasourceUID: "prom", Question: "requests per service"})
 	if err != nil {
@@ -233,7 +232,7 @@ func TestDraftOnPrometheusWarnsAboutAnEmptySample(t *testing.T) {
 	ds.instantFn = func(context.Context, datasource.Query, datasource.TimeRange) ([]datasource.Frame, error) {
 		return nil, nil
 	}
-	provider := &scriptedDraft{turns: []llm.Turn{submitTurn(`{"query":"up{job=\"none\"}","explanation":"Targets of a job."}`)}}
+	provider := &scriptedDraft{turns: []DraftTurn{submitTurn(`{"query":"up{job=\"none\"}","explanation":"Targets of a job."}`)}}
 	r := draftRegistry(t, provider, map[string]*fakeDS{"prom": ds})
 	draft, err := r.DraftQuery(viewerContext(), DraftInput{DatasourceUID: "prom", Question: "up", Signal: signalMetrics})
 	if err != nil {
@@ -252,7 +251,7 @@ func TestDraftFixesAPromQLQueryThatFailsItsLint(t *testing.T) {
 		}
 		return nil, nil
 	}
-	provider := &scriptedDraft{turns: []llm.Turn{
+	provider := &scriptedDraft{turns: []DraftTurn{
 		submitTurn(`{"query":"sum(rate(http_requests_total[5m])","explanation":"Requests per second."}`),
 		submitTurn(`{"query":"sum(rate(http_requests_total[5m]))","explanation":"Requests per second."}`),
 	}}

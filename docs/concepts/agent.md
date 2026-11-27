@@ -596,6 +596,11 @@ The claim answer to the built-in agent carries the model settings, which no othe
 A claim that reaches the sidecar without them is a setup fault: the sidecar hands the run back to the queue with `release_run` and waits before it claims again, 1 second at first and doubling to 30.
 A run that comes back without them after 3 releases is ended as failed with `harness received the run without model settings`, so it does not stay queued with no reason shown.
 
+The process also makes the model calls of a query draft, the `draft_query` tool and **Ask** on the logs, traces and metrics pages.
+The server reads the datasource, writes the request and checks each answer; the process takes the draft with `claim_draft`, calls the model and sends each turn back with `finish_draft`.
+A draft waits in the memory of the server that received it and is answered by that server's process only.
+While that process is not running, a draft answers `agent_unavailable`, and a draft whose process stops before it answers ends with `agent_unavailable` too.
+
 The sidecar reaches the server only over the loopback address, with a token that is new for every start of the process.
 The server refuses that token on any request that carries a forwarding header (`Forwarded`, `X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Proto` or `X-Real-Ip`).
 A reverse proxy on the same host that adds none of them, such as nginx with a bare `proxy_pass`, still reaches the server from loopback.

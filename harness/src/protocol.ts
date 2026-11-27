@@ -365,6 +365,76 @@ export const finishInput = z.strictObject({
 })
 export type FinishInput = z.infer<typeof finishInput>
 
+export const draftJob = z.object({
+  id: z.string().min(1),
+  system: z.string(),
+  prompt: z.string(),
+  context: z.string(),
+  tools: z.array(
+    z.object({
+      name: z.string().min(1),
+      description: z.string(),
+      input_schema: z.record(z.string(), z.unknown()),
+    })
+  ),
+  model: modelSettings,
+  timeout_seconds: count,
+})
+export type DraftJob = z.infer<typeof draftJob>
+
+export const claimDraftAnswer = z.object({ draft: draftJob.nullable() })
+export type ClaimDraftAnswer = z.infer<typeof claimDraftAnswer>
+
+export const draftFailures = [
+  "call_timeout",
+  "rate_limited",
+  "provider_error",
+  "no_fixture",
+  "error",
+] as const
+export type DraftFailure = (typeof draftFailures)[number]
+
+export const finishDraftInput = z.strictObject({
+  id: z.string().min(1),
+  turn: z
+    .strictObject({
+      stop: z.enum(["tool_use", "end_turn", "max_tokens", "refusal"]),
+      tool_calls: z.array(
+        z.strictObject({
+          id: z.string(),
+          name: z.string(),
+          input: z.unknown(),
+        })
+      ),
+    })
+    .optional(),
+  failure: z.enum(draftFailures).optional(),
+  usage: z
+    .strictObject({
+      input_tokens: count,
+      output_tokens: count,
+      cache_read_tokens: count,
+      cache_write_tokens: count,
+    })
+    .optional(),
+  duration_ms: count,
+})
+export type FinishDraftInput = z.infer<typeof finishDraftInput>
+
+export const finishDraftAnswer = z.object({
+  done: z.boolean(),
+  results: z
+    .array(
+      z.object({
+        call_id: z.string(),
+        content: z.string(),
+        is_error: z.boolean(),
+      })
+    )
+    .default([]),
+})
+export type FinishDraftAnswer = z.infer<typeof finishDraftAnswer>
+
 export class ToolError extends Error {
   readonly code: string
 

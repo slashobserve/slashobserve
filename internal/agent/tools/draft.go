@@ -12,7 +12,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
-	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -188,7 +187,7 @@ func (r *Registry) draftQuery(ctx context.Context, input json.RawMessage) (Resul
 }
 
 func (r *Registry) DraftQuery(ctx context.Context, in DraftInput) (Draft, error) {
-	if r.deps.Provider == nil {
+	if r.deps.Drafts == nil || !r.deps.Drafts.Available() {
 		return Draft{}, ErrDraftUnavailable
 	}
 	run, question, err := r.draftRequest(ctx, in)
@@ -304,7 +303,7 @@ func clickHouseDraftSignal(uid, signal string) (string, error) {
 type draftStats struct {
 	calls int
 	reads int
-	usage llm.Usage
+	usage DraftUsage
 }
 
 func (r *Registry) draft(ctx context.Context, run draftRun, question string) (Draft, draftStats, error) {
@@ -315,11 +314,12 @@ func (r *Registry) draft(ctx context.Context, run draftRun, question string) (Dr
 		return Draft{}, stats, err
 	}
 	run.facts = facts
-	session, err := r.deps.Provider.Start(ctx, llm.Request{System: draftSystem, Tools: draftTools(run), Prompt: question, Context: facts.Text})
+	session, err := r.deps.Drafts.Start(ctx, DraftRequest{System: draftSystem, Tools: draftTools(run), Prompt: question, Context: facts.Text})
 	if err != nil {
 		return Draft{}, stats, modelFailure(err)
 	}
-	next := func(results []llm.ToolResult) (llm.Turn, error) {
+	defer session.Close()
+	next := func(results []DraftResult) (DraftTurn, error) {
 		stats.calls++
 		turn, err := session.Next(ctx, results)
 		stats.usage = stats.usage.Add(turn.Usage)
@@ -334,7 +334,7 @@ func (r *Registry) draft(ctx context.Context, run draftRun, question string) (Dr
 	if !errors.As(err, &fix) {
 		return draft, stats, err
 	}
-	turn, err = next([]llm.ToolResult{{CallID: callID, IsError: true, Content: fix.text + lastTurnNote}})
+	turn, err = next([]DraftResult{{CallID: callID, IsError: true, Content: fix.text + lastTurnNote}})
 	if err != nil {
 		return Draft{}, stats, err
 	}
@@ -345,18 +345,18 @@ func (r *Registry) draft(ctx context.Context, run draftRun, question string) (Dr
 	return draft, stats, err
 }
 
-func draftTools(run draftRun) []llm.ToolSpec {
-	return []llm.ToolSpec{
+func draftTools(run draftRun) []DraftToolSpec {
+	return []DraftToolSpec{
 		{Name: nameSubmitQuery, Description: descSubmitQuery, InputSchema: submitSchema(run.dsType, run.signal)},
 		{Name: nameCannotTranslate, Description: descCannotTranslate, InputSchema: json.RawMessage(schemaCannotTranslate)},
 	}
 }
 
-func (r *Registry) readTurn(ctx context.Context, run draftRun, turn llm.Turn) (Draft, string, error) {
+func (r *Registry) readTurn(ctx context.Context, run draftRun, turn DraftTurn) (Draft, string, error) {
 	switch {
-	case turn.Stop == llm.StopRefusal:
+	case turn.Stop == DraftStopRefusal:
 		return Draft{}, "", &CannotTranslate{Reason: reasonDeclined}
-	case turn.Stop == llm.StopMaxTokens:
+	case turn.Stop == DraftStopMaxTokens:
 		return Draft{}, "", &CannotTranslate{Reason: reasonCutOff}
 	case len(turn.ToolCalls) != 1:
 		return Draft{}, "", &CannotTranslate{Reason: reasonNoQuery}
@@ -387,15 +387,16 @@ func cannotTranslateFrom(input json.RawMessage) error {
 }
 
 func modelFailure(err error) error {
-	var callErr *llm.CallError
-	switch {
-	case err == nil:
-		return nil
-	case errors.Is(err, llm.ErrNoFixture):
+	var modelErr *DraftModelError
+	if !errors.As(err, &modelErr) {
+		return err
+	}
+	switch modelErr.Failure {
+	case DraftFailureNoFixture:
 		return &CannotTranslate{Reason: reasonNoReplay}
-	case errors.As(err, &callErr) && callErr.Failure == llm.RateLimited:
+	case DraftFailureRateLimited:
 		return fmt.Errorf("%w: rate limited; try again shortly", ErrDraftProvider)
-	case errors.Is(err, llm.ErrProvider):
+	case DraftFailureProviderError, DraftFailureCallTimeout:
 		return ErrDraftProvider
 	}
 	return err

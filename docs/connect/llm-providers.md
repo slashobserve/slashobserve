@@ -96,7 +96,8 @@ The model calls come from `slashobserve-harness`, the process the server starts 
 It calls `api.anthropic.com` for `anthropic` and `api.openai.com` for `openai`, over HTTPS, unless `SLASHOBSERVE_LLM_BASE_URL` names another server.
 The [outbound allowlist](../operate/outbound-access.md) does not cover these calls, so a firewall that restricts egress must allow the host.
 
-The server hands the process the provider settings, including the key, when it claims a run, so the process needs no settings of its own.
+That includes the model calls of query drafts.
+The server hands the process the provider settings, including the key, when it claims a run or a query draft, so the process needs no settings of its own.
 It gives the process only `PATH`, `HOME` and `TZ` from its own environment.
 A proxy variable such as `HTTPS_PROXY` set on the server does not reach it, and neither do the provider's own variables such as `ANTHROPIC_API_KEY` or `OPENAI_BASE_URL`.
 Set every value through `SLASHOBSERVE_LLM_*`.

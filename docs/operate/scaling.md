@@ -166,6 +166,7 @@ Details of why a limit has its scope:
 - Datasource queries are fleet-wide because the datasource is shared, so each server gets its share, rounded up.
 - OAuth limits that count every client are fleet-wide because they cap a total over every client.
 - Query drafts started are fleet-wide because Postgres counts them, so the model spend stays capped however many servers there are.
+- Query drafts in flight are per server because a draft waits in the memory of the server that received it, and that server's agent process makes its model calls.
 - New dashboard requests and investigations are fleet-wide because Postgres counts them.
 - The agent request limit is per server because the fleet runs the replica count times `SLASHOBSERVE_AGENT_WORKERS`.
 - The other per-server limits protect the server or cap one caller.

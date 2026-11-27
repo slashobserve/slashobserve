@@ -75,6 +75,13 @@ func (s *sidecarSetup) draftQueue() tools.DraftQueue {
 	return s.drafts
 }
 
+func (s *sidecarSetup) draftModel() tools.DraftModel {
+	if s == nil {
+		return nil
+	}
+	return s.drafts
+}
+
 func (s *sidecarSetup) modelSettings(cfg config.Config) func(question bool) *claims.ModelSettings {
 	if s == nil {
 		return nil

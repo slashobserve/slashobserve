@@ -11,7 +11,6 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/elasticsearch"
-	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
 
@@ -248,14 +247,14 @@ func searchCatalog(labels []string, kinds map[string]string, values map[string][
 	}
 }
 
-func searchRegistry(t *testing.T, provider llm.Provider, ds datasource.Datasource) *Registry {
+func searchRegistry(t *testing.T, provider DraftModel, ds datasource.Datasource) *Registry {
 	t.Helper()
 	logger := slog.New(slog.DiscardHandler)
 	reg, err := datasource.NewRegistry(logger, datasource.Instance{UID: "es", Name: "es", Datasource: ds})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return New(Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger), Provider: provider, Logger: logger})
+	return New(Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger), Drafts: provider, Logger: logger})
 }
 
 func searchFacts(t *testing.T, ds datasource.Datasource) (draftFacts, error) {
