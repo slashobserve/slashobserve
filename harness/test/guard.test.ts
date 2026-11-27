@@ -464,6 +464,10 @@ describe("guard state", () => {
     )
     expect(limit("investigate", { default_calls: 0, task_calls: {} })).toBe(30)
     expect(limit("create", { chat_calls: 14 })).toBe(14)
+    expect(limit("create", { chat_calls: 14, investigation_calls: 20 })).toBe(
+      20
+    )
+    expect(limit("revise", { investigation_calls: 20 })).toBe(6)
     expect(limit("revise", { save_calls: 7 })).toBe(7)
     expect(limit("suggest", { suggest_calls: 9 })).toBe(9)
   })

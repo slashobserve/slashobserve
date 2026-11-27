@@ -162,7 +162,7 @@ export function newGuardState(options: GuardOptions): GuardState {
   const answerCalls =
     mode === "investigate"
       ? investigation
-      : agent.chat_calls || text.defaultChatCalls
+      : agent.investigation_calls || agent.chat_calls || text.defaultChatCalls
   const looping = agent.loop && mode === "investigate" && options.investigation
   return {
     mode,
