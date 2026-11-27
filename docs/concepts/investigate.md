@@ -153,6 +153,17 @@ A plain question gets the tool but no prompt section and no `<hypotheses>` block
 It writes down 2 to 4 candidate causes after its first look and sends the whole list again with each batch of reads.
 Each hypothesis has a short id, one sentence, a status of `open`, `supported` or `ruled_out`, up to 3 evidence lines and, for an open one, the next check.
 A hypothesis is ruled out or supported only with an evidence line that says what was read and what it showed.
+A supported or ruled-out hypothesis may also carry a closing that says how it was settled:
+
+| Closing | Status | Means |
+| --- | --- | --- |
+| `cause` | `supported` | It is one of the finding's causes. |
+| `knock_on` | `ruled_out` | It follows from another hypothesis, named in `knock_on_of`. |
+| `background` | `ruled_out` | It was at a similar level before the window, and the evidence line says so. |
+| `transient` | `ruled_out` | It was gone on a later read: it needs two evidence lines, the read that showed it and the later one. |
+| `unrelated` | `ruled_out` | It has nothing to do with the question, with the evidence line that shows it. |
+
+A closing with the wrong status, a closing with no evidence line, a `transient` with one line and a `knock_on` that names no other hypothesis are refused with the reason.
 
 Details of the ledger:
 
@@ -162,7 +173,7 @@ Details of the ledger:
 - A turn spent only on the ledger still uses a model call, and that call counts toward the model-call limit.
 - The run's steps show one line for each change, such as `3 hypotheses: 1 supported, 1 ruled out, 1 open`, under the label `ledger`.
 - When the conversation is shortened, the server puts the ledger in front of the agent again in a `<hypotheses>` block.
-- The finished run's `usage.hypotheses` holds the last ledger, in the run API and in `get_run`, for the requester and Admins only, because the ledger quotes data the run read.
+- The finished run's `usage.hypotheses` holds the last ledger with each closing, in the run API and in `get_run`, for the requester and Admins only, because the ledger quotes data the run read.
 - Without the setting, the tool, the prompt section and the block are absent.
 
 ### Stages and the call budget

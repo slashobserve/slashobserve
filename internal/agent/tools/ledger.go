@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -23,12 +24,14 @@ const (
 	maxHypothesisNext    = 160
 	MaxLedgerBytes       = 4 << 10
 
-	descNoteHypotheses = "Write down your working list of candidate causes, with what each read showed. Send the whole list every time, at most 6 hypotheses, in the same call as your next reads. A hypothesis is open, supported or ruled_out; mark one ruled_out or supported only with an evidence line saying what you read and what it showed. The server keeps the latest list and gives it back if your conversation is shortened. It changes nothing and is not a read."
+	descNoteHypotheses = "Write down your working list of candidate causes, with what each read showed. Send the whole list every time, at most 6 hypotheses, in the same call as your next reads. A hypothesis is open, supported or ruled_out; mark one ruled_out or supported only with an evidence line saying what you read and what it showed. Close a triage candidate (c1, c2, ...) with closing: cause (supported), or knock_on with knock_on_of, background, transient or unrelated (ruled_out). The server keeps the latest list and gives it back if your conversation is shortened. It changes nothing and is not a read."
 
 	schemaNoteHypotheses = `{"type":"object","properties":{"hypotheses":{"type":"array","minItems":1,"maxItems":6,"description":"The whole ledger, replacing the last one.","items":{"type":"object","properties":{` +
 		`"id":{"type":"string","maxLength":16,"description":"A short id such as h1 or db-pool, kept the same across updates."},` +
 		`"text":{"type":"string","maxLength":160,"description":"One sentence saying what may have failed."},` +
 		`"status":{"type":"string","enum":["open","supported","ruled_out"]},` +
+		`"closing":{"type":"string","enum":["cause","knock_on","background","transient","unrelated"],"description":"How it was closed: cause, knock_on of another hypothesis, background (at a similar level before the window, which the evidence says), transient (gone on a later read, cited as a second evidence line) or unrelated."},` +
+		`"knock_on_of":{"type":"string","maxLength":16,"description":"With knock_on: the id of the hypothesis it follows from."},` +
 		`"evidence":{"type":"array","maxItems":3,"items":{"type":"string","maxLength":200},"description":"What you read and what it showed; required for supported and ruled_out."},` +
 		`"next_check":{"type":"string","maxLength":160,"description":"For an open hypothesis: the read that would settle it."}` +
 		`},"required":["id","text","status"],"additionalProperties":false}}},"required":["hypotheses"],"additionalProperties":false}`
@@ -48,11 +51,13 @@ func (r *Registry) ledgerEntries() []entry {
 }
 
 type hypothesisInput struct {
-	ID       string   `json:"id"`
-	Text     string   `json:"text"`
-	Status   string   `json:"status"`
-	Evidence []string `json:"evidence"`
-	Next     string   `json:"next_check"`
+	ID        string   `json:"id"`
+	Text      string   `json:"text"`
+	Status    string   `json:"status"`
+	Closing   string   `json:"closing"`
+	KnockOnOf string   `json:"knock_on_of"`
+	Evidence  []string `json:"evidence"`
+	Next      string   `json:"next_check"`
 }
 
 type ledgerInput struct {
@@ -117,6 +122,11 @@ func checkLedger(in []hypothesisInput) ([]revisions.Hypothesis, string) {
 		seen[item.ID] = true
 		ledger = append(ledger, item)
 	}
+	for i, h := range ledger {
+		if h.Closing == revisions.ClosingKnockOn && (h.KnockOnOf == h.ID || !seen[h.KnockOnOf]) {
+			return nil, fmt.Sprintf("hypotheses[%d] is closed as knock_on, so knock_on_of must name another hypothesis of this ledger by its id", i)
+		}
+	}
 	size := 0
 	for _, h := range ledger {
 		size += h.Size()
@@ -142,6 +152,9 @@ func checkHypothesis(i int, in hypothesisInput) (revisions.Hypothesis, string) {
 		return h, problem
 	}
 	h.Evidence = evidence
+	if problem := checkClosing(i, &h, in); problem != "" {
+		return h, problem
+	}
 	if h.Status != revisions.HypothesisOpen && len(h.Evidence) == 0 {
 		return h, fmt.Sprintf("hypotheses[%d] is %s with no evidence line; say what you read and what it showed, or keep it open", i, h.Status)
 	}
@@ -152,6 +165,29 @@ func checkHypothesis(i int, in hypothesisInput) (revisions.Hypothesis, string) {
 		}
 	}
 	return h, ""
+}
+
+func checkClosing(i int, h *revisions.Hypothesis, in hypothesisInput) string {
+	h.Closing, h.KnockOnOf = strings.TrimSpace(in.Closing), strings.TrimSpace(in.KnockOnOf)
+	switch {
+	case h.Closing == "" && h.KnockOnOf != "":
+		return fmt.Sprintf("hypotheses[%d].knock_on_of goes only with closing knock_on", i)
+	case h.Closing == "":
+		return ""
+	case !slices.Contains(revisions.Closings, h.Closing):
+		return fmt.Sprintf("hypotheses[%d].closing must be one of %s", i, strings.Join(revisions.Closings, ", "))
+	case h.Status == revisions.HypothesisOpen:
+		return fmt.Sprintf("hypotheses[%d] is open, so it takes no closing; close it as %s with status %s", i, h.Closing, revisions.ClosingStatus(h.Closing))
+	case h.Status != revisions.ClosingStatus(h.Closing):
+		return fmt.Sprintf("hypotheses[%d] is closed as %s, so its status must be %s", i, h.Closing, revisions.ClosingStatus(h.Closing))
+	case len(h.Evidence) == 0:
+		return fmt.Sprintf("hypotheses[%d] is closed as %s with no evidence line; say what you read and what it showed, or keep it open", i, h.Closing)
+	case h.Closing == revisions.ClosingTransient && len(h.Evidence) < 2:
+		return fmt.Sprintf("hypotheses[%d] is closed as transient with one evidence line; give the read that showed it and a later read that shows it gone, or keep it open", i)
+	case h.Closing != revisions.ClosingKnockOn && h.KnockOnOf != "":
+		return fmt.Sprintf("hypotheses[%d].knock_on_of goes only with closing knock_on", i)
+	}
+	return ""
 }
 
 func checkEvidence(i int, in []string) ([]string, string) {

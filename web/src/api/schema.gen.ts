@@ -6867,6 +6867,13 @@ export interface components {
             text: string;
             /** @enum {string} */
             status: "open" | "supported" | "ruled_out";
+            /**
+             * @description How a supported or ruled-out hypothesis was settled; `cause` goes with `supported` and the others with `ruled_out`. Absent when the agent gave none.
+             * @enum {string}
+             */
+            closing?: "cause" | "knock_on" | "background" | "transient" | "unrelated";
+            /** @description With the `knock_on` closing, the id of the hypothesis it follows from. */
+            knock_on_of?: string;
             /** @description What the agent read and what it showed. */
             evidence?: string[];
             /** @description For an open hypothesis, the read that would settle it. */

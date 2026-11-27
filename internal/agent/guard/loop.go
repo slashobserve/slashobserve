@@ -45,7 +45,7 @@ func (s *State) StartLoop(callsMax int) {
 
 func SameLedger(a, b []revisions.Hypothesis) bool {
 	return slices.EqualFunc(a, b, func(x, y revisions.Hypothesis) bool {
-		return x.ID == y.ID && x.Text == y.Text && x.Status == y.Status && x.Next == y.Next && slices.Equal(x.Evidence, y.Evidence)
+		return x.ID == y.ID && x.Text == y.Text && x.Status == y.Status && x.Closing == y.Closing && x.KnockOnOf == y.KnockOnOf && x.Next == y.Next && slices.Equal(x.Evidence, y.Evidence)
 	})
 }
 

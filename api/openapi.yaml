@@ -4923,6 +4923,14 @@ components:
         status:
           type: string
           enum: [open, supported, ruled_out]
+        closing:
+          type: string
+          enum: [cause, knock_on, background, transient, unrelated]
+          description: How a supported or ruled-out hypothesis was settled; `cause` goes with `supported` and the others with `ruled_out`. Absent when the agent gave none.
+        knock_on_of:
+          type: string
+          maxLength: 16
+          description: With the `knock_on` closing, the id of the hypothesis it follows from.
         evidence:
           type: array
           maxItems: 3
