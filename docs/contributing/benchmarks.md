@@ -45,6 +45,9 @@ For a real model, a subset of tasks, the options, the spend cap and how the Graf
 ORCA-bench runs on Harbor 0.20.0 and a snapshot image of about 50 GB, so it has its own environment in `benchmarks/orca/`, and `make test-benchmarks` tests both.
 The adapter runs the Observe Agent beside the task's main container, writes `/app/report.md` from the run's finding, and runs a fixed subset of ten tasks.
 Scores from it use a different judge than the leaderboard, so they are not comparable with published ones.
+By default each trial gives the agent the task's source code through the repository's read-only code server (`tools/codeserver`), provisioned as an MCP source, because the answer is usually a feature flag defined in that source.
+Build its image once with `docker build -f tools/codeserver/Dockerfile -t slashobserve-codeserver:local .` from the repository root, or pass `--ak code_context=off` to run without code.
+A server image built before MCP sources were renamed reads the older sources file setting and needs `--ak source_names=context`.
 The steps, the disk the snapshot needs and how to point the judge at a Claude model are in the ORCA-bench section of [`benchmarks/README.md`](https://github.com/slashobserve/slashobserve/blob/main/benchmarks/README.md).
 
 ## Run SREGym problems

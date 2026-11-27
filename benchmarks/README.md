@@ -255,30 +255,56 @@ It runs on Harbor 0.20.0 with a patched `Task.checksum`, while o11y-bench pins H
 ### What one trial does
 
 1. Harbor starts the task's main container, whose entrypoint starts the OpenTelemetry Demo 2.2.0 (Prometheus, Jaeger and OpenSearch) on a per-trial Docker network `otel-<hash>_default` through the host's Docker socket and restores the telemetry.
-2. `setup` pulls the server and Postgres images.
+2. `setup` pulls the server and Postgres images, and fails when the code server image is not on the host (see [Source code](#source-code)).
 3. `run` waits for `/tmp/env-ready`, reads the store URLs from `/tmp/env-ports`, and finds the trial's network by inspecting the main container from the host.
-4. It starts a throwaway Postgres and the server image on that network, beside the main container and not inside it.
+4. It copies `/app/opentelemetry-demo` out of the main container and starts the code server over that copy on the trial's network, then a throwaway Postgres and the server image on the same network, beside the main container and not inside it.
    The datasources are `prometheus`, `logs` (OpenSearch `otel-logs-*`) and `traces` (OpenSearch `jaeger-main-jaeger-span-*`).
    The trial's Jaeger is 2.12.0, and the Jaeger datasource needs 2.21 or later, so spans are read through OpenSearch.
 5. It starts an `investigate` run with the task text and a short note as the question, and `as_of` set from `metadata.current` in the task's `task.toml`, or from "The current time is ... ET" in the task text when the metadata lacks it.
    The data is from April 2026 and the clocks are real, so the note gives the current time in UTC and says the task's times are US Eastern.
+   When the run has source code, the note also says where to read it and the feature flag definitions, that a fault may have been switched on by a flag, and that a flag is named by its key exactly as the source spells it.
+   The question, notes included, must fit the server's 4000 character prompt limit; a longer one fails the trial before any container starts.
 6. It writes `/app/report.md` from the run's finding, in the four sections the benchmark asks for: Summary, Timeline, 5 Whys and Remediation.
    The structured fields of the finding (`root_cause`, `onset`, `impact`, `ruled_out`, `next_steps`) fill the sections when the server returns them, with every time written in UTC; otherwise the Markdown fills them.
    The full Markdown stays under 5 Whys, because it holds the evidence the judge looks for.
    A finding with `no_incident` writes an empty file, which is how the benchmark spells "no incident".
 7. A run that ends without a finding raises, so Harbor records an exception and skips the verifier; an empty report would pass a quiet control by default.
 
-The code context source is a hook: `--ak code_context=<module>:<function>` names a function that is called with the API client, the trial's Docker network and a local copy of `/app/opentelemetry-demo`, and registers the source.
-Without it the trial runs without code and `agent/notes.txt` says so.
-
 | File in `agent/` | Content |
 | --- | --- |
 | `report.md` | The report that was written to `/app/report.md`. |
 | `trajectory.json`, `run.json`, `server.log` | As for o11y-bench. |
-| `notes.txt` | How traces were read, whether a code source was registered, and the judge caveat. |
+| `codeserver.log` | The code server's log, when the trial started one. |
+| `notes.txt` | How traces were read, which code context applied, and the judge caveat. |
 
-The options are those of o11y-bench without `network`, plus `code_context`, and `wall_timeout_sec` defaults to 3300 under the task's 3600 second agent timeout.
+The options are those of o11y-bench without `network`, plus `code_context`, `codeserver_image` (default `slashobserve-codeserver:local`) and `source_names` (`mcp`, the default, or `context`), and `wall_timeout_sec` defaults to 3300 under the task's 3600 second agent timeout.
 Leaderboard rules forbid a timeout or resource override, so leave Harbor's at their defaults.
+
+### Source code
+
+The task's ground truth is usually a feature flag, and its definition is in the demo source the task mounts at `/app/opentelemetry-demo`, so a trial reads that source by default.
+`code_context` picks one of three ways, and `agent/notes.txt` says which one applied:
+
+| `code_context` | What the trial does |
+| --- | --- |
+| not set (the default) | Starts this repository's read-only code server (`tools/codeserver`) as a container on the trial's network, with the copy of the source mounted read-only at `/code`, and provisions it as the MCP source `orca-code`. |
+| `<module>:<function>` | Calls that function with the API client, the trial's Docker network and the local copy of the source, and lets it register a code source of its own. |
+| `off` | Runs without source code and without the note about it, for example to measure what code access is worth. |
+
+The code server container is named `slashobserve-bench-code-<hex>`, carries the `slashobserve-bench` label like the server and Postgres, listens on `:8080` under the network alias `codeserver.orca.internal`, and is removed when the trial ends, also when it fails; its log is saved as `agent/codeserver.log`.
+The server's sources file lists `orca-code` with `allowPrivate: true` and `approve: [list_dir, read_file, grep]`, and `SLASHOBSERVE_OUTBOUND_DOMAINS` is fixed to `codeserver.orca.internal`.
+After the server is ready the trial waits up to 60 seconds for the three tools to be approved and fails with the reason when they are not, so a run never goes on silently without code.
+
+Build the code server image once from the repository root; `codeserver_image` names another tag:
+
+```sh
+docker build -f tools/codeserver/Dockerfile -t slashobserve-codeserver:local .
+```
+
+The server image under test decides how the sources file is named.
+An image built after MCP sources were renamed reads `SLASHOBSERVE_MCP_SOURCES_FILE` with the key `mcpSources`, which is the default.
+An image built before the rename, such as one built from `main` or the published image at the time of writing, reads `SLASHOBSERVE_CONTEXT_SOURCES_FILE` with the key `contextSources`; pass `--ak source_names=context` for it.
+With the wrong naming the server does not know `orca-code`, and the trial fails and names the other option.
 
 ### Disk and memory
 
@@ -319,6 +345,7 @@ benchmarks/run-orca-replay.sh /path/to/ORCA-bench
 
 The script downloads one task's package, writes a replay fixture for its question from `fixtures/orca-answer.json`, runs it with `--model replay/replay` and verification off, and prints the path of `agent/report.md`.
 No model is called, but the snapshot must already be staged, because the trial needs the demo's data.
+The trial starts the code server like any other, so build its image first; `SLASHOBSERVE_CODESERVER_IMAGE` and `SLASHOBSERVE_SOURCE_NAMES` set `codeserver_image` and `source_names`, and the fixture's question carries the code note to match.
 Run it by hand on a machine that has the snapshot; it is not part of any test.
 The fixture saves a finding with the structured fields, so it needs a server that has them.
 

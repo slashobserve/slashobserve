@@ -8,12 +8,13 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from slashobserve_bench.loop_options import LoopOptions
+from slashobserve_bench.server import CONFIG_DIR, LABEL
 
 DATASET = "orca-bench/orca-bench"
 REPORT_PATH = "/app/report.md"
@@ -25,6 +26,16 @@ INSTRUCTION_TIME = re.compile(r"The current time is (?P<stamp>[A-Z][a-z]{2} \d{1
 TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}|\b\d{1,2}:\d{2}(?::\d{2})?\s*(?:UTC|Z)\b")
 TIMELINE_LINES_MAX = 8
 LINE_RUNES_MAX = 240
+PROMPT_LIMIT = 4000
+
+CODE_OFF = "off"
+CODE_SOURCE = "orca-code"
+CODE_HOST = "codeserver.orca.internal"
+CODE_PORT = 8080
+CODE_MOUNT = "/code"
+CODE_TOOLS = ("list_dir", "read_file", "grep")
+CODESERVER_IMAGE = "slashobserve-codeserver:local"
+CODESERVER_MEMORY = "256m"
 
 LOGS_UID = "logs"
 SPANS_UID = "traces"
@@ -58,6 +69,21 @@ class UnsupportedTask(Exception):
     pass
 
 
+@dataclass(frozen=True)
+class SourceNames:
+    option: str
+    setting: str
+    key: str
+    file: str
+    collection: str
+
+
+SOURCE_NAMES = {
+    "mcp": SourceNames("mcp", "SLASHOBSERVE_MCP_SOURCES_FILE", "mcpSources", "mcp-sources.yaml", "mcp-sources"),
+    "context": SourceNames("context", "SLASHOBSERVE_CONTEXT_SOURCES_FILE", "contextSources", "context-sources.yaml", "context-sources"),
+}
+
+
 class Options(LoopOptions):
     model_config = ConfigDict(extra="forbid")
 
@@ -69,12 +95,30 @@ class Options(LoopOptions):
     ledger_path: str | None = None
     wall_timeout_sec: int = Field(default=3300, ge=60)
     code_context: str | None = None
+    codeserver_image: str = CODESERVER_IMAGE
+    source_names: Literal["mcp", "context"] = "mcp"
 
     @model_validator(mode="after")
     def _cap_needs_ledger(self) -> "Options":
         if (self.spend_cap_usd is None) != (self.ledger_path is None):
             raise ValueError("spend_cap_usd and ledger_path go together")
         return self
+
+    @model_validator(mode="after")
+    def _code_context_shape(self) -> "Options":
+        if self.code_context is not None and self.code_context != CODE_OFF:
+            hook_parts(self.code_context)
+        return self
+
+    @property
+    def code_mode(self) -> Literal["codeserver", "hook", "off"]:
+        if self.code_context is None:
+            return "codeserver"
+        return "off" if self.code_context == CODE_OFF else "hook"
+
+    @property
+    def names(self) -> SourceNames:
+        return SOURCE_NAMES[self.source_names]
 
 
 def include_flags(tasks: Iterable[Task] = SUBSET) -> list[str]:
@@ -173,24 +217,129 @@ def as_of(task_toml: str, instruction: str) -> str:
     return _utc_text(moment)
 
 
-def question(instruction: str, as_of_utc: str) -> str:
+def code_note(mode: str) -> str | None:
+    if mode == "off":
+        return None
+    tools = f"{', '.join(CODE_TOOLS[:-1])} and {CODE_TOOLS[-1]}"
+    where = f"the MCP source `{CODE_SOURCE}` (tools {tools})" if mode == "codeserver" else "the code source registered for this run"
+    return (
+        f"The services' source code, with the definitions of the feature flags, can be read through {where}. "
+        "A fault may have been switched on by a feature flag: when the evidence points to one, name the flag by its key, spelled exactly as the source spells it."
+    )
+
+
+def question(instruction: str, as_of_utc: str, code: str | None = None, limit: int = PROMPT_LIMIT) -> str:
     notes = [
         f"The current time is {as_of_utc} (UTC). Times in the task above are US Eastern; the telemetry is stored in UTC, so convert them before querying and give every time in UTC.",
         f"Metrics are the datasource `{METRICS_UID}`, logs are `{LOGS_UID}` and spans are `{SPANS_UID}` (Jaeger span documents in OpenSearch).",
+        *([code] if code else []),
         "The Grafana and file instructions above do not apply: your answer is saved as a finding, and the report is written from it. When nothing was wrong, say so and set no_incident.",
     ]
-    return instruction.strip() + "\n\nNotes for this harness:\n" + "\n".join(f"- {note}" for note in notes) + "\n"
+    text = instruction.strip() + "\n\nNotes for this harness:\n" + "\n".join(f"- {note}" for note in notes) + "\n"
+    if len(text) > limit:
+        raise UnsupportedTask(f"the question is {len(text)} characters with the harness notes, over the server's {limit}")
+    return text
 
 
 def start_body(question_text: str, as_of_utc: str) -> dict[str, Any]:
     return {"kind": "investigate", "prompt": question_text, "as_of": as_of_utc}
 
 
-def load_code_context(path: str) -> Callable[..., None]:
+def hook_parts(path: str) -> tuple[str, str]:
     module, separator, name = path.partition(":")
     if not separator or not module or not name:
-        raise ValueError("code_context is <module>:<function>")
+        raise ValueError(f"code_context is <module>:<function>, or {CODE_OFF} to run without code")
+    return module, name
+
+
+def load_code_context(path: str) -> Callable[..., None]:
+    module, name = hook_parts(path)
     return getattr(importlib.import_module(module), name)
+
+
+def code_url() -> str:
+    return f"http://{CODE_HOST}:{CODE_PORT}/mcp"
+
+
+def code_sources_yaml(names: SourceNames) -> str:
+    return "\n".join(
+        [
+            f"{names.key}:",
+            f"  - uid: {CODE_SOURCE}",
+            "    name: OpenTelemetry Demo source code",
+            "    description: The source code of the task's OpenTelemetry Demo, read-only, with its feature flag definitions. List a directory, read a file or search the text of every service.",
+            f"    url: {json.dumps(code_url())}",
+            "    audience: everyone",
+            "    allowPrivate: true",
+            "    approve: [" + ", ".join(json.dumps(tool) for tool in CODE_TOOLS) + "]",
+            "",
+        ]
+    )
+
+
+def code_files(names: SourceNames) -> dict[str, str]:
+    return {names.file: code_sources_yaml(names)}
+
+
+def code_settings(names: SourceNames) -> tuple[tuple[str, str], ...]:
+    return ((names.setting, f"{CONFIG_DIR}/{names.file}"), ("SLASHOBSERVE_OUTBOUND_DOMAINS", CODE_HOST))
+
+
+def codeserver_args(name: str, network: str, code_dir: Path, image: str) -> list[str]:
+    return [
+        "run",
+        "-d",
+        "--name",
+        name,
+        "--network",
+        network,
+        "--network-alias",
+        CODE_HOST,
+        "--label",
+        LABEL,
+        "--read-only",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges:true",
+        "--memory",
+        CODESERVER_MEMORY,
+        "-v",
+        f"{code_dir.resolve()}:{CODE_MOUNT}:ro",
+        image,
+        "-root",
+        CODE_MOUNT,
+        "-addr",
+        f":{CODE_PORT}",
+    ]
+
+
+def code_tools_problem(tools: Iterable[dict[str, Any]]) -> str | None:
+    states = {tool.get("name"): tool.get("state") for tool in tools}
+    unapproved = [f"{name} is {states.get(name) or 'missing'}" for name in CODE_TOOLS if states.get(name) != "approved"]
+    return ", ".join(unapproved) or None
+
+
+def code_mismatch_hint(names: SourceNames) -> str:
+    other = SOURCE_NAMES["context" if names.option == "mcp" else "mcp"]
+    return (
+        f"the server was given {names.setting} with the key {names.key}; "
+        f"if the server image reads {other.setting} with the key {other.key}, pass --ak source_names={other.option}"
+    )
+
+
+def code_note_line(options: Options) -> str:
+    mode = options.code_mode
+    if mode == "off":
+        return f"code context: off, the run had no source code (--ak code_context={CODE_OFF})"
+    if mode == "hook":
+        return f"code context: registered through {options.code_context}"
+    names = options.names
+    return (
+        f"code context: the code server {options.codeserver_image} over a read-only copy of {CODE_DIR}, "
+        f"provisioned as the MCP source {CODE_SOURCE} with {', '.join(CODE_TOOLS)} approved, "
+        f"through {names.setting} with the key {names.key}"
+    )
 
 
 def _moment(value: str) -> datetime | None:
@@ -340,6 +489,7 @@ def main(argv: list[str] | None = None) -> int:
     fixture.add_argument("--task-dir", type=Path, required=True)
     fixture.add_argument("--template", type=Path, required=True)
     fixture.add_argument("--out", type=Path, required=True)
+    fixture.add_argument("--code", choices=("codeserver", "hook", "off"), default="codeserver", help="the code context of the trial the fixture is for")
     args = parser.parse_args(argv)
     if args.command == "include-flags":
         print("\n".join(include_flags()))
@@ -349,7 +499,7 @@ def main(argv: list[str] | None = None) -> int:
     template = json.loads(args.template.read_text(encoding="utf-8"))
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / f"{args.task_dir.name}.json").write_text(
-        json.dumps(replay_fixture(template, question(instruction, moment)), indent=2) + "\n", encoding="utf-8"
+        json.dumps(replay_fixture(template, question(instruction, moment, code_note(args.code))), indent=2) + "\n", encoding="utf-8"
     )
     return 0
 

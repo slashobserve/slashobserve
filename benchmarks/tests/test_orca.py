@@ -177,6 +177,97 @@ def test_code_context_is_a_module_and_function():
         orca.load_code_context("json")
 
 
+@pytest.mark.parametrize(
+    ("value", "mode"), [(None, "codeserver"), ("off", "off"), ("my.module:register", "hook")]
+)
+def test_code_context_picks_the_code_server_off_or_a_hook(value, mode):
+    assert orca.Options(code_context=value).code_mode == mode
+
+
+def test_a_code_context_that_is_neither_off_nor_a_hook_is_refused():
+    with pytest.raises(ValueError, match="<module>:<function>, or off"):
+        orca.Options(code_context="none")
+
+
+def test_source_names_default_to_the_new_ones_and_take_only_the_two_namings():
+    assert orca.Options().names.setting == "SLASHOBSERVE_MCP_SOURCES_FILE"
+    assert orca.Options(source_names="context").names.key == "contextSources"
+    with pytest.raises(ValueError):
+        orca.Options(source_names="both")
+
+
+@pytest.mark.parametrize(
+    ("option", "key", "setting", "file"),
+    [
+        ("mcp", "mcpSources", "SLASHOBSERVE_MCP_SOURCES_FILE", "mcp-sources.yaml"),
+        ("context", "contextSources", "SLASHOBSERVE_CONTEXT_SOURCES_FILE", "context-sources.yaml"),
+    ],
+)
+def test_the_code_source_is_provisioned_under_either_naming(option, key, setting, file):
+    names = orca.SOURCE_NAMES[option]
+    text = orca.code_files(names)[file]
+    assert text.splitlines()[:2] == [f"{key}:", "  - uid: orca-code"]
+    assert '    url: "http://codeserver.orca.internal:8080/mcp"' in text
+    assert "    allowPrivate: true" in text
+    assert '    approve: ["list_dir", "read_file", "grep"]' in text
+    assert orca.code_settings(names) == (
+        (setting, f"/etc/slashobserve/{file}"),
+        ("SLASHOBSERVE_OUTBOUND_DOMAINS", "codeserver.orca.internal"),
+    )
+
+
+def test_the_code_server_runs_read_only_on_the_trial_network(tmp_path):
+    args = orca.codeserver_args("code-1", "otel-0123456789ab_default", tmp_path, "slashobserve-codeserver:local")
+    assert args[:2] == ["run", "-d"]
+    pairs = list(zip(args, args[1:]))
+    assert ("--network", "otel-0123456789ab_default") in pairs
+    assert ("--network-alias", "codeserver.orca.internal") in pairs
+    assert ("--label", "slashobserve-bench") in pairs
+    assert ("-v", f"{tmp_path.resolve()}:/code:ro") in pairs
+    assert "--read-only" in args
+    assert args[-5:] == ["slashobserve-codeserver:local", "-root", "/code", "-addr", ":8080"]
+
+
+def test_code_tools_are_ready_only_when_all_three_are_approved():
+    approved = [{"name": name, "state": "approved"} for name in orca.CODE_TOOLS]
+    assert orca.code_tools_problem(approved) is None
+    assert orca.code_tools_problem(approved[:2] + [{"name": "grep", "state": "refused"}]) == "grep is refused"
+    assert orca.code_tools_problem([]) == "list_dir is missing, read_file is missing, grep is missing"
+
+
+def test_the_mismatch_hint_names_the_other_naming():
+    assert "pass --ak source_names=context" in orca.code_mismatch_hint(orca.SOURCE_NAMES["mcp"])
+    assert "pass --ak source_names=mcp" in orca.code_mismatch_hint(orca.SOURCE_NAMES["context"])
+
+
+def test_the_notes_say_which_code_context_applied():
+    assert orca.code_note_line(orca.Options()) == (
+        "code context: the code server slashobserve-codeserver:local over a read-only copy of /app/opentelemetry-demo, "
+        "provisioned as the MCP source orca-code with list_dir, read_file, grep approved, "
+        "through SLASHOBSERVE_MCP_SOURCES_FILE with the key mcpSources"
+    )
+    assert orca.code_note_line(orca.Options(code_context="x:y")) == "code context: registered through x:y"
+    assert orca.code_note_line(orca.Options(code_context="off")) == "code context: off, the run had no source code (--ak code_context=off)"
+
+
+def test_the_question_points_at_the_code_and_asks_for_the_flag_key():
+    text = orca.question("Task text.", "2026-04-18T18:05:00Z", orca.code_note("codeserver"))
+    assert "MCP source `orca-code` (tools list_dir, read_file and grep)" in text
+    assert "feature flag" in text
+    assert "spelled exactly as the source spells it" in text
+    assert "the code source registered for this run" in orca.code_note("hook")
+    assert orca.code_note("off") is None
+    assert "feature flag" not in orca.question("Task text.", "2026-04-18T18:05:00Z")
+
+
+def test_the_question_stays_within_the_server_prompt_limit():
+    note = orca.code_note("codeserver")
+    empty = len(orca.question("", "2026-04-18T18:05:00Z", note))
+    assert len(orca.question("x" * (orca.PROMPT_LIMIT - empty), "2026-04-18T18:05:00Z", note)) == orca.PROMPT_LIMIT
+    with pytest.raises(orca.UnsupportedTask, match="over the server's 4000"):
+        orca.question("x" * (orca.PROMPT_LIMIT - empty + 1), "2026-04-18T18:05:00Z", note)
+
+
 def test_replay_fixture_swaps_only_the_prompt():
     fixture = orca.replay_fixture({"prompt": "x", "turns": []}, "  question \n")
     assert fixture == {"prompt": "question", "turns": []}
@@ -197,7 +288,11 @@ def test_replay_fixture_command_writes_the_fixture_for_a_task_folder(tmp_path):
     assert orca.main(["replay-fixture", "--task-dir", str(task), "--template", str(template), "--out", str(tmp_path / "out")]) == 0
     fixture = json.loads((tmp_path / "out" / "abc.json").read_text())
     assert "2026-04-18T18:05:00Z" in fixture["prompt"]
+    assert "MCP source `orca-code`" in fixture["prompt"]
     assert fixture["turns"] == []
+    args = ["replay-fixture", "--task-dir", str(task), "--template", str(template), "--out", str(tmp_path / "off"), "--code", "off"]
+    assert orca.main(args) == 0
+    assert "feature flag" not in json.loads((tmp_path / "off" / "abc.json").read_text())["prompt"]
 
 
 def test_naive_task_time_is_eastern_like_the_instruction_time():
