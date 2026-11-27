@@ -1,4 +1,5 @@
 import type { components } from "@/api/schema.gen"
+import { addressProblem } from "@/lib/address-problem"
 
 export type DatasourceDraft = components["schemas"]["DatasourceDraft"]
 export type DatasourceConfig = components["schemas"]["DatasourceConfig"]
@@ -206,19 +207,6 @@ export type Problems = Record<string, string>
 const uidPattern = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/
 const maxHeaderNameCharacters = 256
 
-function urlProblem(address: string): string | undefined {
-  let protocol: string
-  try {
-    protocol = new URL(address).protocol
-  } catch {
-    return "Enter a full http or https URL, such as https://prometheus.example.com."
-  }
-  if (protocol !== "http:" && protocol !== "https:") {
-    return "The address must start with http:// or https://."
-  }
-  return undefined
-}
-
 function hostPortProblem(address: string): string | undefined {
   if (
     /^[^\s/:@]+:\d{1,5}$/.test(address) ||
@@ -257,7 +245,9 @@ export function validate(
     const problem = hostPortProblem(address)
     if (problem !== undefined) problems.address = problem
   } else if (values.type !== "") {
-    const problem = urlProblem(address)
+    const problem = addressProblem(address, {
+      example: "https://prometheus.example.com",
+    })
     if (problem !== undefined) problems.address = problem
   }
   const counts: [string, string, string][] = [

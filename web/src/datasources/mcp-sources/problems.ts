@@ -1,5 +1,6 @@
 import { ApiError, loadProblemText } from "@/api/errors"
 import type { StatusTone } from "@/components/status-label"
+import { addressProblem } from "@/lib/address-problem"
 
 import type { MCPSource, MCPTool } from "./queries"
 
@@ -52,36 +53,6 @@ export function trimSource(input: SourceInput): SourceInput {
   }
 }
 
-function urlProblem(url: string): string | undefined {
-  if (url === "") return "Enter the address of the MCP server."
-  if (new TextEncoder().encode(url).length > maxURLBytes) {
-    return `The address can be at most ${maxURLBytes} characters.`
-  }
-  let parsed: URL
-  try {
-    parsed = new URL(url)
-  } catch {
-    return "Enter a full https address, such as https://mcp.example.com/mcp."
-  }
-  if (parsed.protocol !== "https:") {
-    return "The address must start with https://."
-  }
-  if (parsed.username !== "" || parsed.password !== "") {
-    return "The address cannot hold a user name or password. Use the secret field."
-  }
-  if (parsed.search !== "" || parsed.hash !== "" || url.endsWith("?")) {
-    return "The address cannot hold a query or a # fragment. Use the secret field."
-  }
-  if (
-    !parsed.hostname.includes(".") ||
-    /^[\d.]+$/.test(parsed.hostname) ||
-    parsed.hostname.startsWith("[")
-  ) {
-    return "The address must use a public domain name, like mcp.example.com. localhost and IP addresses are refused."
-  }
-  return undefined
-}
-
 export function sourceProblems(
   raw: SourceInput,
   mode: "add" | "edit",
@@ -104,7 +75,26 @@ export function sourceProblems(
     problems.description =
       "The description must be on one line, without control or invisible characters."
   }
-  const url = urlProblem(input.url)
+  const url = addressProblem(input.url, {
+    example: "https://mcp.example.com/mcp",
+    https: true,
+    empty: "Enter the address of the MCP server.",
+    maxBytes: maxURLBytes,
+    publicHost: "mcp.example.com",
+    check: (parsed) => {
+      if (parsed.username !== "" || parsed.password !== "") {
+        return "The address cannot hold a user name or password. Use the secret field."
+      }
+      if (
+        parsed.search !== "" ||
+        parsed.hash !== "" ||
+        input.url.endsWith("?")
+      ) {
+        return "The address cannot hold a query or a # fragment. Use the secret field."
+      }
+      return undefined
+    },
+  })
   if (url !== undefined) problems.url = url
   if (input.secret !== "") {
     if (new TextEncoder().encode(input.secret).length > maxSecretBytes) {
