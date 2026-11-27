@@ -38,6 +38,8 @@ class ServerConfig:
     finding_grounding: str | None = None
     run_max_cost_usd: float | None = None
     replay_dir: Path | None = None
+    add_hosts: tuple[str, ...] = ()
+    extra_env: tuple[tuple[str, str], ...] = ()
 
 
 def new_key() -> str:
@@ -94,6 +96,7 @@ def server_env(config: ServerConfig, database_url: str) -> dict[str, str]:
         "SLASHOBSERVE_AGENT_RUN_MAX_COST_USD": config.run_max_cost_usd,
     }
     env.update({name: str(value) for name, value in optional.items() if value is not None})
+    env.update(dict(config.extra_env))
     if config.replay_dir is not None:
         env["SLASHOBSERVE_LLM_REPLAY_DIR"] = FIXTURES_DIR
     return env
@@ -144,6 +147,8 @@ def server_args(
     ]
     if config.replay_dir is not None:
         args += ["-v", f"{config.replay_dir.resolve()}:{FIXTURES_DIR}:ro"]
+    for host in config.add_hosts:
+        args += ["--add-host", host]
     if env_file is not None:
         args += ["--env-file", str(env_file)]
     for key, value in env.items():
@@ -191,10 +196,18 @@ def _ready(url: str) -> bool:
 
 
 class Stack:
-    def __init__(self, config: ServerConfig, datasources: str, logs_dir: Path, llm_key: str | None):
+    def __init__(
+        self,
+        config: ServerConfig,
+        datasources: str,
+        logs_dir: Path,
+        llm_key: str | None,
+        extra_files: dict[str, str] | None = None,
+    ):
         suffix = secrets.token_hex(4)
         self.config = config
         self.datasources = datasources
+        self.extra_files = dict(extra_files or {})
         self.logs_dir = logs_dir
         self.llm_key = llm_key
         self.postgres_name = f"slashobserve-bench-pg-{suffix}"
@@ -234,6 +247,7 @@ class Stack:
             "service-accounts.yaml": service_accounts_yaml(f"{CONFIG_DIR}/benchmark.key"),
             "datasources.yaml": self.datasources,
             "benchmark.key": self.key + "\n",
+            **self.extra_files,
         }
         for name, content in files.items():
             path = config_dir / name

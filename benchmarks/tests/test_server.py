@@ -100,6 +100,28 @@ def test_replay_fixtures_are_mounted_read_only(tmp_path):
     assert f"{tmp_path.resolve()}:{server.FIXTURES_DIR}:ro" in args
 
 
+def test_extra_hosts_and_settings_reach_the_server_container(tmp_path):
+    changed = config(add_hosts=("host.docker.internal:host-gateway",), extra_env=(("SLASHOBSERVE_OUTBOUND_DOMAINS", "host.docker.internal"),))
+    env = server.server_env(changed, "postgres://db")
+    assert env["SLASHOBSERVE_OUTBOUND_DOMAINS"] == "host.docker.internal"
+    args = server.server_args("name", changed, env, tmp_path, None)
+    assert args[args.index("--add-host") + 1] == "host.docker.internal:host-gateway"
+    plain = server.server_args("name", config(), server.server_env(config(), "postgres://db"), tmp_path, None)
+    assert "--add-host" not in plain
+    assert "SLASHOBSERVE_OUTBOUND_DOMAINS" not in server.server_env(config(), "postgres://db")
+
+
+def test_stack_writes_extra_config_files_beside_the_others(tmp_path):
+    stack = server.Stack(config(), server.datasources_yaml(STORES), tmp_path, None, {"mcp-sources.yaml": "mcpSources: []\n"})
+    config_dir = stack._write_config()
+    try:
+        assert (config_dir / "mcp-sources.yaml").read_text() == "mcpSources: []\n"
+        assert (config_dir / "mcp-sources.yaml").stat().st_mode & 0o044 == 0o044
+        assert (config_dir / "datasources.yaml").is_file()
+    finally:
+        stack._workdir.cleanup()
+
+
 def test_postgres_runs_in_memory_on_the_shared_network():
     args = server.postgres_args("pg", "o11y-bench-shared", "secret")
     assert args[args.index("--tmpfs") + 1] == "/var/lib/postgresql"
