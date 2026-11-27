@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -34,6 +35,30 @@ type BriefAnswer struct {
 	Reason  string         `json:"reason"`
 	Build   *BuildProgress `json:"build"`
 	Brief   *RunBrief      `json:"brief"`
+
+	AgentState *AgentState `json:"agent_state"`
+}
+
+const (
+	MaxAgentStateBytes = 256 << 10
+	MaxReportedSteps   = 20
+)
+
+type AgentState struct {
+	Session json.RawMessage `json:"session,omitempty"`
+	Carry   json.RawMessage `json:"carry,omitempty"`
+}
+
+type ReportedStep struct {
+	Phase   string `json:"phase"`
+	Tool    string `json:"tool"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
+type AgentReport struct {
+	State *AgentState
+	Steps []ReportedStep
 }
 
 type RunFinish struct {
@@ -57,6 +82,7 @@ type RunSessions interface {
 	NoteUsage(ctx context.Context, req revisions.Request, u revisions.Usage) (stop bool, err error)
 	Finish(ctx context.Context, req revisions.Request, in RunFinish) (RunFinished, error)
 	Progress(ctx context.Context, req revisions.Request) (*BuildProgress, error)
+	NoteAgent(ctx context.Context, req revisions.Request, in AgentReport) error
 }
 
 type RunWrites struct {

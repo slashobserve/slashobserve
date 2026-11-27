@@ -1,6 +1,7 @@
 package runsession
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -27,6 +28,8 @@ const (
 	conflictNote  = "The dashboard changed while you were revising it, so your build was discarded. Read the dashboard again and make the change again on its latest version."
 	outcomeFailed = "failed"
 	outcomeDone   = "succeeded"
+
+	maxStepToolRunes = 64
 )
 
 var (
@@ -364,7 +367,7 @@ func (sess *session) brief(ctx context.Context, why brief.Reason, health []datas
 		return tools.BriefAnswer{}, fmt.Errorf("render the brief: %w", err)
 	}
 	structured := brief.Structured(health, everyone, task, view, sess.req.Draft)
-	return tools.BriefAnswer{System: message.System, Message: message.User, Reason: string(why), Build: sess.state.Build, Brief: &structured}, nil
+	return tools.BriefAnswer{System: message.System, Message: message.User, Reason: string(why), Build: sess.state.Build, Brief: &structured, AgentState: sess.state.Agent}, nil
 }
 
 func (sess *session) settleBuildOnLatest(ctx context.Context) (current *brief.Revision, build *dashboards.Build, restarted bool, err error) {
@@ -390,6 +393,39 @@ func (sess *session) settleBuildOnLatest(ctx context.Context) (current *brief.Re
 		}
 		restarted = true
 	}
+}
+
+func (s *Service) NoteAgent(ctx context.Context, req revisions.Request, in tools.AgentReport) error {
+	err := s.with(ctx, req, func(_ context.Context, sess *session) error {
+		if in.State != nil {
+			sess.state.Agent = keptAgentState(*in.State)
+		}
+		for _, step := range in.Steps {
+			if message := claims.CleanText(step.Message, maxMessageRunes); message != "" {
+				tool := cmp.Or(claims.CleanText(step.Tool, maxStepToolRunes), stopTool)
+				sess.record(revisions.Step{At: time.Now(), Phase: step.Phase, Tool: tool, Status: step.Status, Message: message})
+			}
+		}
+		return nil
+	})
+	if errors.Is(err, errRunNotRunning) {
+		return tools.ErrRunEnded
+	}
+	return err
+}
+
+func keptAgentState(in tools.AgentState) *tools.AgentState {
+	var kept tools.AgentState
+	if !isNull(in.Session) {
+		kept.Session = in.Session
+	}
+	if !isNull(in.Carry) {
+		kept.Carry = in.Carry
+	}
+	if kept.Session == nil && kept.Carry == nil {
+		return nil
+	}
+	return &kept
 }
 
 func (s *Service) NoteUsage(ctx context.Context, req revisions.Request, u revisions.Usage) (stop bool, err error) {

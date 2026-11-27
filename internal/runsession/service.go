@@ -225,9 +225,11 @@ func (s *Service) create(ctx context.Context, q *dbsqlc.Queries, req revisions.R
 		return none, err
 	}
 	attempt := httpapi.Int32(req.Attempt)
-	if initial.Triage, err = priorTriage(ctx, q, id, attempt); err != nil {
+	before, err := priorSession(ctx, q, id, attempt)
+	if err != nil {
 		return none, err
 	}
+	initial.Triage, initial.Agent = before.Triage, before.carried()
 	initial.seedLedger()
 	raw, err := json.Marshal(initial)
 	if err != nil {

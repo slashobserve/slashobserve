@@ -319,6 +319,31 @@ describe("protocol", () => {
     ).toBeNull()
   })
 
+  test("a report carries the agent state and steps, and a brief returns the state", () => {
+    expect(
+      reportInput.safeParse({
+        run_id: "r1",
+        attempt: 1,
+        agent_state: { session: { turn: 3 }, carry: [1] },
+        steps: [{ phase: "query", tool: "triage", status: "ok", message: "m" }],
+      }).success
+    ).toBe(true)
+    expect(
+      reportInput.safeParse({
+        run_id: "r1",
+        attempt: 1,
+        steps: [{ phase: "think", status: "ok", message: "m" }],
+      }).success
+    ).toBe(false)
+    const parsed = briefAnswer.parse({
+      system: "",
+      message: "",
+      agent_state: { carry: { leads: ["c1"] } },
+    })
+    expect(parsed.agent_state?.carry).toEqual({ leads: ["c1"] })
+    expect(parsed.agent_state?.session).toBeUndefined()
+  })
+
   test("the run key reads the call side fields when the server sends them", () => {
     const meta = runMeta.parse({
       settled: null,

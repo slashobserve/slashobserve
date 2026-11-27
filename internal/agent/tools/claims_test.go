@@ -86,6 +86,13 @@ type fakeRunSessions struct {
 	finished       []RunFinish
 	finishedAs     RunFinished
 	progress       *BuildProgress
+	agentReports   []AgentReport
+	agentErr       error
+}
+
+func (f *fakeRunSessions) NoteAgent(_ context.Context, _ revisions.Request, in AgentReport) error {
+	f.agentReports = append(f.agentReports, in)
+	return f.agentErr
 }
 
 func (f *fakeRunSessions) Brief(_ context.Context, _ revisions.Request, reason string) (BriefAnswer, error) {
@@ -402,6 +409,47 @@ func TestReportRunFromAnOutsideAgentThatSendsNoneOfTheNewFieldsIsAsBefore(t *tes
 	}
 	if len(rs.noted) != 0 || len(live.texts) != 0 {
 		t.Fatalf("usage %v and text %v were sent without being asked", rs.noted, live.texts)
+	}
+}
+
+func TestReportRunPassesTheAgentStateAndStepsOn(t *testing.T) {
+	fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "running"}}}
+	rs := &fakeRunSessions{agentErr: ErrRunEnded}
+	input := `{"run_id":"` + runID + `","attempt":2,"agent_state":{"session":{"turn":3},"carry":[1]},` +
+		`"steps":[{"phase":"query","tool":"triage","status":"ok","message":"Swept 4 sources"}]}`
+
+	res, err := callClaimToolWith(t, Deps{Claims: fc, RunSessions: rs}, outsideClaimer, nameReportRun, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out := jsonOf(t, res); out["state"] != "running" {
+		t.Fatalf("answer = %v", out)
+	}
+	if len(rs.agentReports) != 1 {
+		t.Fatalf("agent reports = %+v", rs.agentReports)
+	}
+	got := rs.agentReports[0]
+	if string(got.State.Session) != `{"turn":3}` || string(got.State.Carry) != `[1]` || len(got.Steps) != 1 || got.Steps[0].Tool != "triage" {
+		t.Fatalf("agent report = %+v", got)
+	}
+}
+
+func TestReportRunRefusesAnAgentStateOverItsCapAndStepsItCannotRecord(t *testing.T) {
+	big := strings.Repeat("x", MaxAgentStateBytes)
+	tooMany := strings.TrimSuffix(strings.Repeat(`{"phase":"query","status":"ok","message":"m"},`, MaxReportedSteps+1), ",")
+	for name, extra := range map[string]string{
+		"state":    `"agent_state":{"session":"` + big + `"}`,
+		"count":    `"steps":[` + tooMany + `]`,
+		"phase":    `"steps":[{"phase":"think","status":"ok","message":"m"}]`,
+		"status":   `"steps":[{"phase":"query","status":"done","message":"m"}]`,
+		"too long": `"steps":[{"phase":"query","status":"ok","message":"` + strings.Repeat("m", 501) + `"}]`,
+	} {
+		rs := &fakeRunSessions{}
+		fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "running"}}}
+		res, err := callClaimToolWith(t, Deps{Claims: fc, RunSessions: rs}, outsideClaimer, nameReportRun, `{"run_id":"`+runID+`","attempt":2,`+extra+`}`)
+		if err != nil || !res.IsError || len(rs.agentReports) != 0 || len(fc.reports) != 0 {
+			t.Fatalf("%s: result %#v, err %v, reports %d", name, res.Content, err, len(rs.agentReports))
+		}
 	}
 }
 

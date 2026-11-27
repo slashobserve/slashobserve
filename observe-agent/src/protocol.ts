@@ -213,12 +213,19 @@ export const runBrief = z.object({
 })
 export type RunBrief = z.infer<typeof runBrief>
 
+export const agentState = z.object({
+  session: z.unknown().optional(),
+  carry: z.unknown().optional(),
+})
+export type AgentState = z.infer<typeof agentState>
+
 export const briefAnswer = z.object({
   system: z.string(),
   message: z.string(),
   reason: z.string().default(""),
   build: buildProgress.nullish(),
   brief: runBrief.nullish().catch(null),
+  agent_state: agentState.nullish().catch(null),
 })
 export type BriefAnswer = z.infer<typeof briefAnswer>
 
@@ -285,10 +292,34 @@ export const briefInput = z.strictObject({
 })
 export type BriefInput = z.infer<typeof briefInput>
 
+export const maxAgentStateBytes = 256 << 10
+export const maxReportedSteps = 20
+
+export const stepPhases = [
+  "discover",
+  "lint",
+  "query",
+  "save",
+  "write",
+  "ledger",
+  "repair",
+  "stage",
+] as const
+
+export const reportedStep = z.strictObject({
+  phase: z.enum(stepPhases),
+  tool: z.string().max(64).optional(),
+  status: z.enum(["ok", "error"]),
+  message: z.string().max(500),
+})
+export type ReportedStep = z.infer<typeof reportedStep>
+
 export const reportInput = z.strictObject({
   ...runRef,
   text: z.string().optional(),
   usage: usage.optional(),
+  agent_state: agentState.optional(),
+  steps: z.array(reportedStep).max(maxReportedSteps).optional(),
 })
 export type ReportInput = z.infer<typeof reportInput>
 

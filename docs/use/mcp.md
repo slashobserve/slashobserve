@@ -466,7 +466,7 @@ Some results also carry a note after the content, which an agent reads like any 
 
 ### Briefs, usage and live text
 
-`get_run_brief` takes `run_id`, `attempt`, an optional `claim_epoch` and an optional `reason` (`restart`, `output_limit`, `pending`, `conflict`, `continue`, `renewed`, `call_timeout`, `no_finding` or `no_answer`) and answers `system`, `message`, `reason`, `build` and `brief`.
+`get_run_brief` takes `run_id`, `attempt`, an optional `claim_epoch` and an optional `reason` (`restart`, `output_limit`, `pending`, `conflict`, `continue`, `renewed`, `call_timeout`, `no_finding` or `no_answer`) and answers `system`, `message`, `reason`, `build`, `brief` and `agent_state`.
 `message` is the first message of a model session.
 `brief` holds what `system` and `message` are written from, as fields, read in the same call:
 
@@ -477,6 +477,8 @@ Some results also carry a note after the content, which an agent reads like any 
 - `withheld`: true when the run must leave out data only Admins can read.
 - `guide`: `text`, the authoring guide with the sections of the configured datasource types, and `schema`, the ObserveSpec JSON Schema.
 - `draft`: the draft panel of a suggest run, or `null`.
+
+`agent_state` is what the agent last sent in `report_run`'s `agent_state`, or `null`.
 Calling it starts a session: it resets the read guard and pins the parent version the run's saves are checked against.
 The server may replace `reason`, with `conflict` after a rebase and with the resume reason when the run has a build.
 An agent that never calls it works from the claim answer and the `observe` prompt.
@@ -487,6 +489,11 @@ A request on the run's token after the run ended is answered with HTTP 409 and `
 
 - `text`, at most 4,000 characters: the end of what the model is writing, shown on the run as live text while the run is running and never stored.
 - `usage`: the agent's model use so far, cumulative, with `provider`, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `cost_usd`, `model_calls`, `failed_calls`, `retries`, `compactions`, `renewals`, `model_ms` and `max_save_output_tokens`.
+- `agent_state`: `{"session", "carry"}`, any JSON of the agent's own, at most 256 KiB in all, which replaces the state sent before.
+  The server keeps it with the run's session, never shows or logs it, and `get_run_brief` returns it.
+  `session` is for this attempt; `carry` is also copied to the next attempt of the run, so a retry starts with it.
+  A `null` part is left out.
+- `steps`: at most 20 steps of the agent's own, each with `phase` (`discover`, `lint`, `query`, `save`, `write`, `ledger`, `repair` or `stage`), an optional `tool` (at most 64 characters, `agent` when left out), `status` (`ok` or `error`) and `message` (at most 500 characters), recorded in the run's steps like the server's own.
 
 Its answer has, next to `state`, `stop` and `lease_until`, the run's `build` progress and `server_time`, the server's clock when it renewed the lease.
 `lease_until` minus `server_time` is how long the lease has left, so an agent can time it on its own clock from the moment it sent the report, whatever the difference between its clock and the server's.
@@ -2017,7 +2024,7 @@ Calls one approved tool of an MCP source and returns its text.
 | Tool | What it does |
 | ---- | ------------ |
 | `claim_run` | Takes the next run assigned to you, waiting up to `wait_seconds` (0 to 30). |
-| `report_run` | Keeps the lease, with an optional `note`, `text` and `usage`. |
+| `report_run` | Keeps the lease, with an optional `note`, `text`, `usage`, `agent_state` and `steps`. |
 | `finish_run` | Ends the run with `outcome` `succeeded` or `failed`. |
 | `release_run` | Puts a run you cannot work back in the queue, not failed. |
 | `get_run_brief` | Returns the system text and first message of a model session, and what they are written from as fields. |

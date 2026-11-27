@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"slices"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -29,6 +31,7 @@ const (
 	maxClaimWait     = 30
 	maxRunTextRunes  = 500
 	maxLiveTextRunes = 4000
+	maxStepToolRunes = 64
 
 	failureLiveTextAppend = "live_text_append_failed"
 	failureUsageNotNoted  = "usage_not_noted"
@@ -73,7 +76,13 @@ const (
 		`"claim_epoch":{"type":"integer","minimum":1,"description":"The claim_epoch from claim_run."},` +
 		`"note":{"type":"string","maxLength":500,"description":"One line on what you are doing, shown in the run's steps."},` +
 		`"text":{"type":"string","maxLength":4000,"description":"The end of what your model is writing, shown as live text while the run is running and never stored."},` +
-		`"usage":` + schemaRunUsage + `},` +
+		`"usage":` + schemaRunUsage + `,` +
+		`"agent_state":{"type":"object","properties":{"session":{"description":"For this attempt."},"carry":{"description":"Also for the next attempt."}},"additionalProperties":false,"description":"Your own state, at most 256 KiB, replacing the last; get_run_brief returns it."},` +
+		`"steps":{"type":"array","maxItems":20,"items":{"type":"object","properties":{` +
+		`"phase":{"type":"string","enum":["discover","lint","query","save","write","ledger","repair","stage"]},` +
+		`"tool":{"type":"string","maxLength":64},"status":{"type":"string","enum":["ok","error"]},` +
+		`"message":{"type":"string","maxLength":500}},"required":["phase","status","message"],"additionalProperties":false},` +
+		`"description":"Steps of your own for the run's steps."}},` +
 		`"required":["run_id","attempt"],"additionalProperties":false}`
 
 	schemaReleaseRun = `{"type":"object","properties":{` +
@@ -165,9 +174,11 @@ type runRefInput struct {
 
 type reportRunInput struct {
 	runRefInput
-	Note  string    `json:"note"`
-	Text  string    `json:"text"`
-	Usage *runUsage `json:"usage"`
+	Note       string         `json:"note"`
+	Text       string         `json:"text"`
+	Usage      *runUsage      `json:"usage"`
+	AgentState *AgentState    `json:"agent_state"`
+	Steps      []ReportedStep `json:"steps"`
 }
 
 type reportRunOut struct {
@@ -241,6 +252,9 @@ func (r *Registry) reportRun(ctx context.Context, input json.RawMessage) (Result
 	if res, ok := checkRunText("text", in.Text, maxLiveTextRunes); !ok {
 		return res, nil
 	}
+	if res, ok := checkAgentReport(in.AgentState, in.Steps); !ok {
+		return res, nil
+	}
 	return r.asClaimedRun(ctx, in.runRefInput, func(claimer claims.Claimer, req revisions.Request) (Result, error) {
 		answer, err := r.report(ctx, claimer, req, in)
 		if err != nil {
@@ -255,6 +269,12 @@ func (r *Registry) report(ctx context.Context, claimer claims.Claimer, req revis
 	answer, err := r.deps.Claims.Report(ctx, claimer, ref)
 	if err != nil || answer.Stop {
 		return reportRunOut{ReportAnswer: answer}, err
+	}
+	if in.AgentState != nil || len(in.Steps) > 0 {
+		err := r.deps.RunSessions.NoteAgent(ctx, req, AgentReport{State: in.AgentState, Steps: in.Steps})
+		if err != nil && !errors.Is(err, ErrRunEnded) {
+			return reportRunOut{}, err
+		}
 	}
 	if usage := in.Usage.reported(); usage != nil {
 		stop, err := r.noteUsage(ctx, req, *usage)
@@ -367,6 +387,30 @@ func checkRunRef(in runRefInput) (Result, bool) {
 	}
 	if in.ClaimEpoch < 0 {
 		return invalid("claim_epoch must be at least 1"), false
+	}
+	return Result{}, true
+}
+
+var reportedPhases = []string{PhaseDiscover, PhaseLint, PhaseQuery, PhaseSave, PhaseWrite, PhaseLedger, "repair", "stage"}
+
+func checkAgentReport(state *AgentState, steps []ReportedStep) (Result, bool) {
+	if state != nil && len(state.Session)+len(state.Carry) > MaxAgentStateBytes {
+		return invalid("agent_state must be at most %d bytes", MaxAgentStateBytes), false
+	}
+	if len(steps) > MaxReportedSteps {
+		return invalid("steps takes at most %d steps", MaxReportedSteps), false
+	}
+	for i, step := range steps {
+		switch {
+		case !slices.Contains(reportedPhases, step.Phase):
+			return invalid("steps[%d].phase must be one of %s", i, strings.Join(reportedPhases, ", ")), false
+		case step.Status != "ok" && step.Status != "error":
+			return invalid("steps[%d].status must be ok or error", i), false
+		case utf8.RuneCountInString(step.Tool) > maxStepToolRunes:
+			return invalid("steps[%d].tool must be at most %d characters", i, maxStepToolRunes), false
+		case utf8.RuneCountInString(step.Message) > maxRunTextRunes:
+			return invalid("steps[%d].message must be at most %d characters", i, maxRunTextRunes), false
+		}
 	}
 	return Result{}, true
 }
