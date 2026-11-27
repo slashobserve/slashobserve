@@ -3,6 +3,7 @@ package claims
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"math"
 	"time"
@@ -79,9 +80,13 @@ func (s *Service) Release(ctx context.Context, c Claimer, runID string, attempt 
 		return ReleaseAnswer{}, err
 	}
 	if !revisions.State(row.State).Terminal() {
-		// The next claim reuses this attempt number, so the tokens go before the run can be claimed again.
-		s.DropTokens(ctx, row)
-		s.runs.Release(ctx, row)
+		// The next claim reuses this attempt number, so the run is requeued only once its tokens are deleted.
+		if err := s.db.Queries().DeleteRunTokens(ctx, row.ID); err != nil {
+			return ReleaseAnswer{}, fmt.Errorf("delete the run's tokens before its release: %w", err)
+		}
+		if err := s.runs.Release(ctx, row); err != nil {
+			return ReleaseAnswer{}, err
+		}
 	}
 	stored, err := s.runs.GetByID(ctx, row.ID)
 	if err != nil {

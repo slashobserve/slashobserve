@@ -93,3 +93,47 @@ func TestReleaseOfARunThatEndedAnswersItsStateAndChangesNothing(t *testing.T) {
 		t.Fatalf("run = state %q attempts %d, want it left failed at attempt 1", ended.State, ended.Attempts)
 	}
 }
+
+func TestReleaseThatCannotDropTheRunsTokensIsAnErrorAndLeavesTheHold(t *testing.T) {
+	f := newFixture(t)
+	queued, _ := f.claimed(t)
+	f.d.Exec(t, "ALTER TABLE run_tokens RENAME TO run_tokens_away")
+
+	_, err := f.svc.Release(context.Background(), grantClaimer, queued.ID.String(), 1)
+
+	if err == nil || errors.Is(err, ErrNotYourRun) {
+		t.Fatalf("err = %v, want the failed token delete", err)
+	}
+	f.d.Exec(t, "ALTER TABLE run_tokens_away RENAME TO run_tokens")
+	if held := f.stored(t, queued.ID); held.State != string(revisions.StateRunning) || held.Attempts != 1 || !held.LeaseUntil.Valid {
+		t.Fatalf("run = state %q attempts %d lease %v, want it still running at attempt 1 under its lease", held.State, held.Attempts, held.LeaseUntil.Valid)
+	}
+	if n := f.tokenCount(t, queued.ID); n != 1 {
+		t.Fatalf("%d run tokens after the failed release, want the holder's one", n)
+	}
+}
+
+func TestReleaseThatCannotRequeueTheRunIsAnErrorAndTheNextCallReleasesIt(t *testing.T) {
+	f := newFixture(t)
+	queued, _ := f.claimed(t)
+	f.d.Exec(t, `CREATE FUNCTION refuse_requeue() RETURNS trigger LANGUAGE plpgsql AS
+		'BEGIN IF NEW.state = ''queued'' THEN RAISE EXCEPTION ''requeue refused''; END IF; RETURN NEW; END'`)
+	f.d.Exec(t, "CREATE TRIGGER refuse_requeue BEFORE UPDATE ON agent_requests FOR EACH ROW EXECUTE FUNCTION refuse_requeue()")
+
+	answer, err := f.svc.Release(context.Background(), grantClaimer, queued.ID.String(), 1)
+
+	if err == nil || errors.Is(err, ErrNotYourRun) {
+		t.Fatalf("answer = %+v, err = %v, want the failed release as an error", answer, err)
+	}
+	if held := f.stored(t, queued.ID); held.State != string(revisions.StateRunning) || held.Attempts != 1 {
+		t.Fatalf("run = state %q attempts %d, want it still running at attempt 1", held.State, held.Attempts)
+	}
+	f.d.Exec(t, "DROP TRIGGER refuse_requeue ON agent_requests")
+	again, err := f.svc.Release(context.Background(), grantClaimer, queued.ID.String(), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.State != string(revisions.StateQueued) {
+		t.Fatalf("second answer = %+v, want queued", again)
+	}
+}

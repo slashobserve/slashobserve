@@ -120,7 +120,7 @@ func (s *Service) offer(ctx context.Context, c Claimer, claimed revisions.Claime
 	session, err := s.openSession(ctx, c, claimed.Row)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "open run session; releasing the run", logattrs.Failure("run_session_failed", err, slog.String("agent_request_id", claimed.Row.ID.String()), slog.Int("attempt", int(claimed.Row.Attempts)))...)
-		s.runs.Release(ctx, claimed.Row)
+		_ = s.runs.Release(ctx, claimed.Row)
 		return Offer{}, err
 	}
 	run := offeredRun(claimed.Request)
