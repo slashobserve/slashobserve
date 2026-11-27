@@ -336,6 +336,7 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 		FinishedAt:   httpapi.FormatOptionalTime(optionalTime(row.FinishedAt)),
 		Build:        state.progressFor(requesterOf(row), caller),
 		BuildSavedAt: httpapi.FormatOptionalTime(optionalTime(row.BuildSavedAt)),
+		BuildState:   state.derived(),
 
 		QueuePosition:     position,
 		CancelRequestedAt: httpapi.FormatOptionalTime(optionalTime(row.CancelRequestedAt)),
@@ -527,6 +528,7 @@ func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, caller auth.Princip
 		FailureCode:  httpapi.OptionalString(row.FailureCode.String),
 		Build:        state.build,
 		BuildSavedAt: httpapi.FormatOptionalTime(optionalTime(row.BuildSavedAt)),
+		BuildState:   state.derived(),
 		ContinuesID:  optionalUUID(row.ContinuesID),
 		ContinuedBy:  state.continuedBy,
 		RetriedBy:    state.retriedBy,

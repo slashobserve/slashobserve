@@ -107,6 +107,23 @@ A proposal is a change to a dashboard that someone who can edit merges or discar
 | `merge` | `open` | `merged` | `proposal.merged` | editor |
 | `discard` | `open` | `discarded` | `proposal.discarded` | requester, editor |
 
+## Build
+
+A build is what the agent assembles for a run before it becomes a version; every run read returns its `build_state`, and `build.state` while the run holds one.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `none` | The run holds no build and none of the states below applies; a stopped build deleted after its 7 days also reads `none`. |
+| `building` | The run has not finished and the agent may still change the build. |
+| `stopped` | The run failed or was canceled and left a build with at least one panel; its requester can keep or continue it until `build.expires_at`. |
+| `stopped_empty` | The run failed or was canceled and left a build with no panels, which cannot be kept. |
+| `stale` | A stopped build whose dashboard has a newer version than the one it started from, so keeping it answers `version_conflict`. |
+| `kept` | The requester saved the stopped build as a version (`build_saved_at` is set). |
+| `moved` | Another run continues this one and took the build (`continued_by` names it). |
+| `committed` | The run finished and its build became the version in `result_version`. |
+| `proposed` | The run finished and its build became a proposal. |
+
 ## Dashboard health
 
 `GET /health` returns the `state` of each dashboard that has a problem.

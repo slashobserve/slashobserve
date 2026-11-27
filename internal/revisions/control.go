@@ -26,13 +26,14 @@ const (
 var ErrNotRequester = errors.New("only the person or key that asked can do this")
 
 type buildState struct {
+	state       BuildState
 	build       *buildProgressJSON
 	continuedBy *string
 	retriedBy   *string
 }
 
 func newBuildState(row dbsqlc.ListAgentRequestBuildStateRow) buildState {
-	var state buildState
+	state := buildState{state: buildStateOf(buildFactsOf(row))}
 	if row.Saves.Valid {
 		state.build = &buildProgressJSON{
 			Saves:         int(row.Saves.Int32),
@@ -40,6 +41,8 @@ func newBuildState(row dbsqlc.ListAgentRequestBuildStateRow) buildState {
 			PlannedPanels: int(row.PlannedPanels.Int32),
 			Title:         &row.Title,
 			UpdatedAt:     httpapi.FormatTime(row.UpdatedAt.Time),
+			State:         state.state,
+			ExpiresAt:     buildExpiry(row),
 		}
 	}
 	if row.ContinuedBy.Valid {

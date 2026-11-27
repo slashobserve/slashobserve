@@ -138,8 +138,12 @@ func (q *Queries) GetAgentRequestBuildView(ctx context.Context, agentRequestID p
 const listAgentRequestBuildState = `-- name: ListAgentRequestBuildState :many
 SELECT q.id::uuid AS id, b.saves, b.panels, b.planned_panels, coalesce(b.spec ->> 'title', '')::text AS title, b.updated_at,
   (SELECT c.id FROM agent_requests c WHERE c.continues_id = q.id) AS continued_by,
-  (SELECT t.id FROM agent_requests t WHERE t.retries_id = q.id) AS retried_by
+  (SELECT t.id FROM agent_requests t WHERE t.retries_id = q.id) AS retried_by,
+  b.base_version,
+  coalesce((SELECT d.latest_version FROM dashboards d WHERE d.id = b.dashboard_id), 0)::integer AS latest_version,
+  r.state AS run_state, r.result_kind, r.build_saved_at, r.finished_at
 FROM unnest($1::uuid[]) AS q(id)
+JOIN agent_requests r ON r.id = q.id
 LEFT JOIN agent_request_builds b ON b.agent_request_id = q.id
 `
 
@@ -152,6 +156,12 @@ type ListAgentRequestBuildStateRow struct {
 	UpdatedAt     pgtype.Timestamptz
 	ContinuedBy   pgtype.UUID
 	RetriedBy     pgtype.UUID
+	BaseVersion   pgtype.Int4
+	LatestVersion int32
+	RunState      string
+	ResultKind    string
+	BuildSavedAt  pgtype.Timestamptz
+	FinishedAt    pgtype.Timestamptz
 }
 
 func (q *Queries) ListAgentRequestBuildState(ctx context.Context, ids []pgtype.UUID) ([]ListAgentRequestBuildStateRow, error) {
@@ -172,6 +182,12 @@ func (q *Queries) ListAgentRequestBuildState(ctx context.Context, ids []pgtype.U
 			&i.UpdatedAt,
 			&i.ContinuedBy,
 			&i.RetriedBy,
+			&i.BaseVersion,
+			&i.LatestVersion,
+			&i.RunState,
+			&i.ResultKind,
+			&i.BuildSavedAt,
+			&i.FinishedAt,
 		); err != nil {
 			return nil, err
 		}

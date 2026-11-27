@@ -35,6 +35,7 @@ func statesReference() string {
 		observations.Machine.Doc("Observation", "An observation is a page of blocks in a folder, started by POST /observations or by an investigation."),
 		observations.BlockMachine.Doc("Observation block", "A block is one item on an observation's page: Markdown, a live panel, a frozen snapshot or an agent run."),
 		proposals.ProposalMachine.Doc("Proposal", "A proposal is a change to a dashboard that someone who can edit merges or discards, returned by `GET /api/v1/proposals/{id}`."),
+		revisions.BuildStates.Doc("Build", "A build is what the agent assembles for a run before it becomes a version; every run read returns its `build_state`, and `build.state` while the run holds one."),
 		health.ItemStates.Doc("Dashboard health", "`GET /health` returns the `state` of each dashboard that has a problem."),
 		health.RepairOutcomes.Doc("Health repair", "`GET /health` returns the `outcome` of a dashboard's latest repair beside the repair run's own `state`."),
 		webhooks.States.Doc("Webhook", "`GET /webhooks` returns the `state` of each webhook."),
@@ -92,6 +93,11 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 		schema, property string
 		want             []string
 	}{
+		{"AgentRequest", "build_state", revisions.BuildStates.Names()},
+		{"RequestSummary", "build_state", revisions.BuildStates.Names()},
+		{"Revision", "build_state", revisions.BuildStates.Names()},
+		{"AgentBuildProgress", "state", revisions.BuildStates.Names()},
+		{"BuildRefusal", "state", revisions.BuildStates.Names()},
 		{"HealthItem", "state", health.ItemStates.Names()},
 		{"HealthRepair", "outcome", health.RepairOutcomes.Names()},
 		{"Webhook", "state", webhooks.States.Names()},

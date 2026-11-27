@@ -43,8 +43,12 @@ WHERE b.agent_request_id = @agent_request_id;
 -- name: ListAgentRequestBuildState :many
 SELECT q.id::uuid AS id, b.saves, b.panels, b.planned_panels, coalesce(b.spec ->> 'title', '')::text AS title, b.updated_at,
   (SELECT c.id FROM agent_requests c WHERE c.continues_id = q.id) AS continued_by,
-  (SELECT t.id FROM agent_requests t WHERE t.retries_id = q.id) AS retried_by
+  (SELECT t.id FROM agent_requests t WHERE t.retries_id = q.id) AS retried_by,
+  b.base_version,
+  coalesce((SELECT d.latest_version FROM dashboards d WHERE d.id = b.dashboard_id), 0)::integer AS latest_version,
+  r.state AS run_state, r.result_kind, r.build_saved_at, r.finished_at
 FROM unnest(@ids::uuid[]) AS q(id)
+JOIN agent_requests r ON r.id = q.id
 LEFT JOIN agent_request_builds b ON b.agent_request_id = q.id;
 
 -- name: DeleteAgentRequestBuild :execrows

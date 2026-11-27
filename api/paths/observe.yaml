@@ -491,7 +491,7 @@ observe-id-build-save:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
         description: >-
-          The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base.
+          The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, each with the build's `state`, the request's `allowed_actions` and a `reason`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base.
           Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
           Or the request read data only Admins can query, such as the audit trail, and the build's folder is not one only Admins can read (`restricted_answer`, saying why).
         content:
@@ -500,6 +500,7 @@ observe-id-build-save:
               oneOf:
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/VersionConflict"
+                - $ref: "../openapi.yaml#/components/schemas/BuildRefusal"
                 - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
