@@ -62,6 +62,7 @@ SREGym runs the adapter as one of its registered agents, on the host beside its 
 The adapter answers the diagnosis stage only, never mitigates, and runs a fixed subset of ten SREGym-Lite problems.
 It needs a server image built from branch `agent-rca-accuracy` or later, because SREGym's kubectl MCP server speaks SSE and marks no tool read-only, and only from that branch does the server speak SSE and approve such a tool when the provisioning file names it.
 An older image cannot approve the kubectl tool, and the run then stops before the investigation, or works from telemetry alone with `--without-kubectl`.
+The diagnosis is built from the finding's ranked causes: each stated cause that follows no other is an origin with its component, mechanism and changed key and value, and its knock-ons and affected components are its scope, while an unconfirmed cause is left out because an extra suspect costs points.
 Read-only on the cluster is an instruction in the playbook and not enforced by the server, which is acceptable only because the benchmark cluster is thrown away after each run.
 Its diagnosis success rate compares only loosely with SREGym's published diagnosis numbers, and the adapter has not yet run against a cluster.
 The steps, what SREGym records and what a first run must confirm are in the SREGym section of [`benchmarks/README.md`](https://github.com/slashobserve/slashobserve/blob/main/benchmarks/README.md).

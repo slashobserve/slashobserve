@@ -77,8 +77,8 @@ KUBECTL_STEPS = (
 NO_KUBECTL_STEP = "The cluster's Kubernetes objects cannot be read in this run, so work from telemetry alone."
 ORIGIN_STEP = "Follow the failing path to the first component whose own configuration or state is wrong, and check that configuration before you conclude. A component that only suffers from another one is not the origin."
 ANSWER_STEPS = (
-    "Set root_cause.component to the origin as namespace/Kind/name, such as shop/Deployment/cart, and state in root_cause.summary what changed, with the concrete value: the selector, port, policy, env var, limit or secret and its wrong value.",
-    "Set impact to the components the fault affects, by name, and nothing else. Name no other component as a cause; put what you checked and excluded under ruled_out only.",
+    "Fill causes with one entry per origin. Its component has the kind (deployment, service, pod, config or other), the name exactly as the cluster spells it, written Kind/name for any other Kubernetes kind such as NetworkPolicy/deny-all, and the namespace. Its mechanism says what is wrong with the concrete value, and its trigger names the key that changed (the selector, port, policy, env var, limit or secret) with its wrong value.",
+    "List a component that only suffers from an origin under that cause's affected, or as a cause with knock_on_of set to the origin's index, never as an origin. Set impact to the affected components by name. Name no other component as a cause; put what you checked and excluded under ruled_out only.",
 )
 
 
@@ -251,7 +251,9 @@ def component_text(value: Any) -> str | None:
         kind, name, namespace = (str(value.get(key) or "").strip() for key in ("kind", "name", "namespace"))
         if not name:
             return None
-        text = f"{kind} {name}" if kind else name
+        if (found := COMPONENT.match(name)) is not None:
+            kind, name, namespace = found["kind"], found["name"], namespace or found["namespace"] or ""
+        text = f"{kind} {name}" if kind and kind != "other" else name
         return f"{text} in namespace {namespace}" if namespace else text
     if not isinstance(value, str) or not value.strip():
         return None
@@ -264,8 +266,10 @@ def component_text(value: Any) -> str | None:
 
 def _trigger_text(value: Any) -> str | None:
     if isinstance(value, dict):
-        parts = [f"{key} {item}" for key, item in value.items() if item not in (None, "", [], {})]
-        return ", ".join(parts) or None
+        key, item = (str(value.get(name) or "").strip() for name in ("key", "value"))
+        if not key:
+            return None
+        return f"{key} set to {item}" if item else key
     if isinstance(value, str) and value.strip():
         return value.strip()
     return None
@@ -284,14 +288,16 @@ class Cause:
     affected: tuple[str, ...]
 
     @classmethod
-    def from_entry(cls, entry: dict[str, Any]) -> "Cause":
-        affected = [component_text(item) for item in entry.get("affected") or () if item]
+    def from_entry(cls, entry: dict[str, Any], followers: Iterable[dict[str, Any]] = ()) -> "Cause":
+        origin = component_text(entry.get("component"))
+        scope = [*(entry.get("affected") or ()), *(part for follower in followers for part in (follower.get("component"), *(follower.get("affected") or ())))]
+        affected = [text for text in dict.fromkeys(component_text(item) for item in scope if item) if text and text != origin]
         mechanism = entry.get("mechanism") or entry.get("summary")
         return cls(
-            origin=component_text(entry.get("component")),
+            origin=origin,
             mechanism=mechanism.strip() if isinstance(mechanism, str) and mechanism.strip() else None,
             trigger=_trigger_text(entry.get("trigger")),
-            affected=tuple(item for item in affected if item),
+            affected=tuple(affected),
         )
 
     def lines(self) -> list[str]:
@@ -307,15 +313,31 @@ class Cause:
         return lines
 
 
+def _knock_on_of(entry: dict[str, Any]) -> int | None:
+    index = entry.get("knock_on_of")
+    if entry.get("relation") == "independent" or not isinstance(index, int) or isinstance(index, bool):
+        return None
+    return index
+
+
+def _from_causes(entries: list[Any]) -> list[Cause]:
+    stated = {index: entry for index, entry in enumerate(entries) if isinstance(entry, dict) and entry.get("stated", True) is not False}
+    origins = {index: entry for index, entry in stated.items() if _knock_on_of(entry) is None}
+    followers: dict[int, list[dict[str, Any]]] = {index: [] for index in origins}
+    for entry in stated.values():
+        if (parent := _knock_on_of(entry)) in followers:
+            followers[parent].append(entry)
+    return [Cause.from_entry(entry, followers[index]) for index, entry in origins.items()]
+
+
 def stated_causes(finding: dict[str, Any]) -> list[Cause]:
     entries = finding.get("causes")
     if isinstance(entries, list) and entries:
-        chosen = [entry for entry in entries if isinstance(entry, dict) and entry.get("stated", True) is not False]
+        causes = _from_causes(entries)
     elif isinstance(finding.get("root_cause"), dict):
-        chosen = [finding["root_cause"]]
+        causes = [Cause.from_entry(finding["root_cause"])]
     else:
-        chosen = []
-    causes = [Cause.from_entry(entry) for entry in chosen]
+        causes = []
     return [cause for cause in causes if cause.origin or cause.mechanism]
 
 

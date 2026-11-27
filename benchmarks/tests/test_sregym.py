@@ -225,13 +225,137 @@ def test_a_list_of_causes_wins_over_root_cause_and_skips_unstated_ones():
         "Root cause 1:\n"
         "Origin: Deployment frontend in namespace astronomy-shop.\n"
         "Mechanism: An env var shadows the cart address.\n"
-        "Changed value: key CART_ADDR, value cart:9999.\n"
+        "Changed value: CART_ADDR set to cart:9999.\n"
         "Affected: Deployment checkout in namespace astronomy-shop, cart.\n\n"
         "Root cause 2:\n"
         "Origin: StatefulSet kafka in namespace kafka.\n"
         "Mechanism: A poison message blocks the partition.\n\n"
         "Impact: search and frontend fail every nearby-hotel request."
     )
+
+
+def sregym_cause(component_kind, name, namespace, mechanism, **fields):
+    entry = {
+        "component": {"kind": component_kind, "name": name, "namespace": namespace},
+        "kind": "config_or_flag",
+        "mechanism": mechanism,
+        "trigger": None,
+        "onset": None,
+        "affected": [],
+        "relation": "independent",
+        "knock_on_of": None,
+        "evidence": {"facts": [], "trace_ids": [], "queries": []},
+        "estimate": None,
+        "confidence": 0.8,
+        "band": "high",
+        "stated": True,
+    }
+    return {**entry, **fields}
+
+
+GEO = sregym_cause(
+    "other",
+    "Service/geo",
+    "hotel-reservation",
+    "The Service selector matches no pod",
+    trigger={"kind": "config_value", "key": "spec.selector.app", "value": "geo-v2"},
+    affected=[{"kind": "deployment", "name": "frontend", "namespace": "hotel-reservation"}],
+)
+VALKEY = sregym_cause(
+    "deployment",
+    "cart",
+    "astronomy-shop",
+    "The cart pods still read the old Valkey password from their env",
+    trigger={"kind": "config_value", "key": "VALKEY_PASSWORD", "value": None},
+)
+SEARCH = sregym_cause(
+    "deployment",
+    "search",
+    "hotel-reservation",
+    "Search failed on its calls to geo",
+    kind="dependency",
+    relation="knock_on",
+    knock_on_of=0,
+    affected=[{"kind": "service", "name": "frontend", "namespace": "hotel-reservation"}, {"kind": "deployment", "name": "reservation", "namespace": "hotel-reservation"}],
+)
+SUSPECT = sregym_cause("deployment", "mongodb-geo", "hotel-reservation", "Mongo may be slow", confidence=0.2, band="low", stated=False)
+FLAGGED = sregym_cause(
+    "flag",
+    "adFailure",
+    None,
+    "The ad service fails every request",
+    trigger={"kind": "feature_flag", "key": "adFailure", "value": "on"},
+)
+@pytest.mark.parametrize(
+    ("case", "causes", "diagnosis"),
+    [
+        (
+            "one cause",
+            [GEO],
+            "Origin: Service geo in namespace hotel-reservation.\n"
+            "Mechanism: The Service selector matches no pod.\n"
+            "Changed value: spec.selector.app set to geo-v2.\n"
+            "Affected: deployment frontend in namespace hotel-reservation.",
+        ),
+        (
+            "two independent causes",
+            [GEO, VALKEY],
+            "Root cause 1:\n"
+            "Origin: Service geo in namespace hotel-reservation.\n"
+            "Mechanism: The Service selector matches no pod.\n"
+            "Changed value: spec.selector.app set to geo-v2.\n"
+            "Affected: deployment frontend in namespace hotel-reservation.\n\n"
+            "Root cause 2:\n"
+            "Origin: deployment cart in namespace astronomy-shop.\n"
+            "Mechanism: The cart pods still read the old Valkey password from their env.\n"
+            "Changed value: VALKEY_PASSWORD.",
+        ),
+        (
+            "a cause with a knock-on",
+            [GEO, SEARCH],
+            "Origin: Service geo in namespace hotel-reservation.\n"
+            "Mechanism: The Service selector matches no pod.\n"
+            "Changed value: spec.selector.app set to geo-v2.\n"
+            "Affected: deployment frontend in namespace hotel-reservation, deployment search in namespace hotel-reservation, "
+            "service frontend in namespace hotel-reservation, deployment reservation in namespace hotel-reservation.",
+        ),
+        (
+            "a stated and an unconfirmed cause",
+            [SUSPECT, VALKEY],
+            "Origin: deployment cart in namespace astronomy-shop.\n"
+            "Mechanism: The cart pods still read the old Valkey password from their env.\n"
+            "Changed value: VALKEY_PASSWORD.",
+        ),
+        (
+            "a flag trigger",
+            [FLAGGED],
+            "Origin: flag adFailure.\nMechanism: The ad service fails every request.\nChanged value: adFailure set to on.",
+        ),
+    ],
+)
+def test_diagnosis_names_origins_and_their_scope_from_the_causes(case, causes, diagnosis):
+    finding = {"markdown": "## Finding\nmongodb-geo looked fine.", "root_cause": None, "causes": causes, "impact": None, "ruled_out": ["mongodb-geo"], "no_incident": False}
+    assert sregym.render_diagnosis(finding) == diagnosis, case
+
+
+def test_an_unconfirmed_cause_is_left_out_entirely():
+    finding = {"markdown": "mongodb-geo", "causes": [GEO, SUSPECT, {**SEARCH, "knock_on_of": 1}], "impact": "frontend fails"}
+    text = sregym.render_diagnosis(finding)
+    assert "mongodb-geo" not in text
+    assert "search" not in text
+    assert "Root cause 1" not in text
+
+
+def test_the_trigger_is_its_key_and_value_only():
+    assert sregym._trigger_text({"kind": "config_value", "key": "PORT", "value": "8081"}) == "PORT set to 8081"
+    assert sregym._trigger_text({"kind": "deploy", "key": "v2", "value": None}) == "v2"
+    assert sregym._trigger_text({"kind": "deploy", "key": "", "value": "x"}) is None
+
+
+def test_no_incident_and_an_older_server_on_the_same_renderer():
+    assert sregym.render_diagnosis({"markdown": "Fine.", "causes": [], "root_cause": None, "no_incident": True}) == sregym.NO_FAULT
+    older = {key: value for key, value in STRUCTURED.items()}
+    assert sregym.render_diagnosis(older).startswith("Origin: Service geo in namespace hotel-reservation.\nMechanism: The Service selector is app=geo-v2")
 
 
 def test_a_string_trigger_is_written_as_given():

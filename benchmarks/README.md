@@ -454,10 +454,13 @@ The port-forwards read through the API server and create nothing in the cluster.
 ### The diagnosis
 
 SREGym's judge checks the originating component, the mechanism with its concrete changed value, and the scope, and both an extra suspect and a missed component cost points.
-The playbook asks for `root_cause.component` as `namespace/Kind/name` and the changed value in `root_cause.summary`, and the renderer writes that as the origin's kind, name and namespace, the mechanism and the finding's `impact`, and nothing else.
-`ruled_out`, `next_steps` and the Markdown are left out, because a component they mention could read as another suspect.
-A finding with a list of `causes` is written one cause after another, with each cause's component, mechanism (or summary), trigger and affected components, skipping any entry marked `stated: false`; those field names follow the planned ranked causes and must be checked when the server returns them.
-Without structured fields the Markdown is submitted as it is.
+The playbook asks for one entry of `causes` per origin, with the component's kind, name (as `Kind/name` for a Kubernetes kind the finding has no word for, such as a NetworkPolicy) and namespace, the mechanism with the concrete value, and the trigger's key and value, and for a component that only suffers from an origin as that cause's `affected` or as a knock-on.
+The renderer writes each stated cause that is not a knock-on as an origin: its kind, name and namespace, its mechanism, its trigger as the key and the value only, and as affected scope its `affected` components and the component and `affected` of each stated knock-on that follows it.
+A cause with `stated: false`, and a knock-on of one, is left out entirely, because an extra suspect costs points.
+The finding's `impact` follows, and nothing else: `ruled_out`, `next_steps` and the Markdown are left out, because a component they mention could read as another suspect.
+On an older server without `causes`, `root_cause.component` (`namespace/Kind/name`) and `root_cause.summary` give the origin and the mechanism.
+Without a stated cause or a root cause the Markdown is submitted as it is.
+The causes need a server image built from `agent-rca-accuracy` or later, which the kubectl tool needs anyway, and are scored only with `finding_grounding` set to `report` or `enforce`; with `off` every cause counts as stated.
 A finding with `no_incident` submits that no faulty component was found, and a run without a finding submits that no diagnosis was produced, so the attempt is scored as a miss and not lost.
 A run that stops before the investigation (no `diagnosis` stage, the tool not approved, a port-forward or the server failing) submits nothing, and SREGym records the attempt as incomplete.
 
