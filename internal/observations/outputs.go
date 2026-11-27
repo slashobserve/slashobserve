@@ -234,7 +234,7 @@ func (s *Service) madeDashboard(ctx context.Context, q *dbsqlc.Queries, by auth.
 	if err != nil {
 		return dashboards.Dashboard{}, dashboards.Version{}, false, err
 	}
-	return d, v, true, nil
+	return d.WithAccess(access), v, true, nil
 }
 
 func (s *Service) panelsSpec(parent dbsqlc.Observation, blocks []dbsqlc.ObservationBlock) (*spec.Dashboard, error) {

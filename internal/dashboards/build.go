@@ -287,6 +287,10 @@ func (s *Service) replayedCommit(ctx context.Context, by auth.Principal, request
 		if err := s.DiscardBuild(ctx, requestID, attempt); err != nil {
 			return Commit{}, false, err
 		}
+		dash, err = s.placed(ctx, by, dash)
+		if err != nil {
+			return Commit{}, false, err
+		}
 		return Commit{Dashboard: dash, Version: ver, Replayed: true}, true, nil
 	}
 	return s.proposedByRun(ctx, by, requestID, attempt)
@@ -382,8 +386,16 @@ func (s *Service) RebaseBuild(ctx context.Context, by auth.Principal, requestID 
 }
 
 func (s *Service) SaveStoppedBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
-	if dash, ver, found, err := s.store.savedByRequest(ctx, requestID, pgtype.UUID{}); err != nil || found {
-		return dash, ver, found, err
+	dash, ver, saved, err := s.store.savedByRequest(ctx, requestID, pgtype.UUID{})
+	if err != nil {
+		return Dashboard{}, Version{}, false, err
+	}
+	if saved {
+		dash, err = s.placed(ctx, by, dash)
+		if err != nil {
+			return Dashboard{}, Version{}, false, err
+		}
+		return dash, ver, true, nil
 	}
 	build, found, err := s.viewRow(ctx, requestID)
 	if err != nil {
