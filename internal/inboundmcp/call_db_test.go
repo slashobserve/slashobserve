@@ -102,3 +102,36 @@ func TestACallToASourceOffTheAllowlistIsReportedAsDown(t *testing.T) {
 		t.Error("the egress guard let a call reach a domain that is not allowed")
 	}
 }
+
+func (r *rig) stateOf(t *testing.T, uid string) (string, string) {
+	t.Helper()
+	source, err := r.service.Get(t.Context(), uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return source.State, source.Failure
+}
+
+func TestAFailedCallMarksTheSourceUnreachableAndTheNextGoodCallClearsIt(t *testing.T) {
+	r := newRig(t, readOnlyTool("search", "Search the code"))
+	r.approvedSource(t, "docs", "s3cret-value")
+	if state, _ := r.stateOf(t, "docs"); state != StateReady {
+		t.Fatalf("state after discovery = %q", state)
+	}
+
+	r.database.Exec(t, `DELETE FROM outbound_domains`)
+	if _, err := r.service.Call(accessFor(t, r.admin), "docs", "search", json.RawMessage(`{"query":"x"}`)); failureOf(t, err).Code != tools.ContextCodeSourceDown {
+		t.Fatalf("err = %v", err)
+	}
+	if state, failure := r.stateOf(t, "docs"); state != StateUnreachable || failure != FailureNotAllowed {
+		t.Fatalf("after a failed call the source is %q (%q), want unreachable", state, failure)
+	}
+
+	r.allow(t, fakeHost)
+	if _, err := r.service.Call(accessFor(t, r.admin), "docs", "search", json.RawMessage(`{"query":"x"}`)); err != nil {
+		t.Fatal(err)
+	}
+	if state, failure := r.stateOf(t, "docs"); state != StateReady || failure != "" {
+		t.Fatalf("after a good call the source is %q (%q), want ready", state, failure)
+	}
+}

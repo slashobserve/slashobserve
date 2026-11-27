@@ -1957,15 +1957,16 @@ components:
         state:
           type: string
           enum: [unchecked, unreachable, ready]
-          description: "`unchecked` until discovery runs, `unreachable` when the last discovery failed, `ready` otherwise."
+          description: "`unchecked` until discovery runs, `unreachable` when the last discovery failed or an agent's call could not reach the server since, `ready` otherwise."
         failure:
           type: string
           nullable: true
-          description: Why the last discovery failed, as a code such as `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
+          description: Why the last discovery failed, or why an agent's call could not reach the server since, as a code such as `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`. The next call the server answers clears it.
         checked_at:
           type: string
           format: date-time
           nullable: true
+          description: When the last discovery ran, or when an agent's call last moved the source between `ready` and `unreachable`.
         tools:
           $ref: "#/components/schemas/MCPSourceToolCounts"
         created_at:

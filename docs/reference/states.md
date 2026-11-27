@@ -229,8 +229,8 @@ This state is computed from stored fields on every read; nothing stores it.
 | State | When |
 | --- | --- |
 | `unchecked` | No discovery has run since the source was added or its address changed. |
-| `unreachable` | The last discovery failed; failure says why, such as the domain not being on the outbound allowlist, the secret being refused or the server not answering. |
-| `ready` | None of the above: the last discovery listed the server's tools. |
+| `unreachable` | The last discovery failed, or an agent's call could not reach the server since; failure says why, such as the domain not being on the outbound allowlist, the secret being refused or the server not answering. |
+| `ready` | None of the above: the last discovery listed the server's tools, or the server has answered an agent's call since it last failed. |
 
 ## Agent presence
 

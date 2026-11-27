@@ -5321,13 +5321,16 @@ export interface components {
             /** @description True when the MCP sources file set `allowPrivate`, so the source may be an `http` address that resolves to a private network. Only the file can set it, and it is never writable through the API. */
             private: boolean;
             /**
-             * @description `unchecked` until discovery runs, `unreachable` when the last discovery failed, `ready` otherwise.
+             * @description `unchecked` until discovery runs, `unreachable` when the last discovery failed or an agent's call could not reach the server since, `ready` otherwise.
              * @enum {string}
              */
             state: "unchecked" | "unreachable" | "ready";
-            /** @description Why the last discovery failed, as a code such as `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`. */
+            /** @description Why the last discovery failed, or why an agent's call could not reach the server since, as a code such as `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`. The next call the server answers clears it. */
             failure: string | null;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When the last discovery ran, or when an agent's call last moved the source between `ready` and `unreachable`.
+             */
             checked_at: string | null;
             tools: components["schemas"]["MCPSourceToolCounts"];
             /** Format: date-time */
