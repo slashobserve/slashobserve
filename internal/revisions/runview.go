@@ -257,18 +257,25 @@ func holdsSession(state State) bool {
 	return state == StateRunning || state == StateCanceling
 }
 
+func progressOf(row dbsqlc.AgentRequest, settled string) runProgressJSON {
+	return runProgressJSON{
+		Settled:          httpapi.OptionalString(settled),
+		CheckFailures:    int(row.CheckFailures),
+		CheckFailuresMax: maxCheckFailures,
+	}
+}
+
 func (s *Service) progress(ctx context.Context, row dbsqlc.AgentRequest) (*runProgressJSON, error) {
-	if !holdsSession(State(row.State)) {
-		return &runProgressJSON{}, nil
+	var settled string
+	if holdsSession(State(row.State)) {
+		var err error
+		settled, err = s.db.Queries().GetRunSessionSettled(ctx, dbsqlc.GetRunSessionSettledParams{AgentRequestID: row.ID, Attempt: row.Attempts})
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("read what a running agent request already settled: %w", err)
+		}
 	}
-	settled, err := s.db.Queries().GetRunSessionSettled(ctx, dbsqlc.GetRunSessionSettledParams{AgentRequestID: row.ID, Attempt: row.Attempts})
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		return &runProgressJSON{}, nil
-	case err != nil:
-		return nil, fmt.Errorf("read what a running agent request already settled: %w", err)
-	}
-	return &runProgressJSON{Settled: httpapi.OptionalString(settled)}, nil
+	out := progressOf(row, settled)
+	return &out, nil
 }
 
 func (s *Service) assignee(ctx context.Context, row dbsqlc.AgentRequest) (*assigneeJSON, error) {

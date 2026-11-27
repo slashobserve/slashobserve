@@ -333,6 +333,8 @@ A run you stopped shows "You stopped this run" instead.
 
 For `validation_exhausted` and `check_failed`, the reason names the panels that kept failing.
 A code not in the table shows the server's reason alone.
+A run can also fail with `check_failed` before the agent starts, when the server could not check the run's saved version, load its requester or check the requester's access three times in a row; the reason names which.
+`GET /api/v1/observe/{id}` counts those failures in `check_failures`, with the limit in `check_failures_max`, so a run that keeps going back to the queue can be told from one waiting for a worker.
 The states a run moves through, and what each allows, are in [States](../reference/states.md).
 
 ### Try a failed run again

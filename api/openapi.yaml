@@ -5091,6 +5091,8 @@ components:
         - build_saved_at
         - queue_position
         - settled
+        - check_failures
+        - check_failures_max
         - cancel_requested_at
         - canceled_by
         - can_cancel
@@ -5244,6 +5246,14 @@ components:
             `saved` (a version), `proposed` (a proposal), `finding` (an answer or finding), `suggested` (a panel suggestion)
             or `ended` (the agent stopped and the request is about to finish).
             Null while the agent is still working and for a queued or finished request, whose `result_kind` says what it produced.
+        check_failures:
+          type: integer
+          minimum: 0
+          description: How many times the server could not run a check it makes when a worker takes the request (its saved version, its requester, the requester's access). Each failure puts the request back in the queue, so a request that moves between `queued` and `running` with this count rising is waiting on the server, not on the agent.
+        check_failures_max:
+          type: integer
+          minimum: 1
+          description: The count of `check_failures` at which the request fails with the failure code `check_failed`; its `error` then names the check that could not run.
         cancel_requested_at:
           type: string
           format: date-time

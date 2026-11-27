@@ -141,7 +141,9 @@ type agentRequestJSON struct {
 }
 
 type runProgressJSON struct {
-	Settled *string `json:"settled"`
+	Settled          *string `json:"settled"`
+	CheckFailures    int     `json:"check_failures"`
+	CheckFailuresMax int     `json:"check_failures_max"`
 }
 
 type assigneeJSON struct {

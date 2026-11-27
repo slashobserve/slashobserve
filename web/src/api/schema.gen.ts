@@ -7032,6 +7032,10 @@ export interface components {
              * @enum {string|null}
              */
             settled: "saved" | "proposed" | "finding" | "suggested" | "ended" | null;
+            /** @description How many times the server could not run a check it makes when a worker takes the request (its saved version, its requester, the requester's access). Each failure puts the request back in the queue, so a request that moves between `queued` and `running` with this count rising is waiting on the server, not on the agent. */
+            check_failures: number;
+            /** @description The count of `check_failures` at which the request fails with the failure code `check_failed`; its `error` then names the check that could not run. */
+            check_failures_max: number;
             /**
              * Format: date-time
              * @description When the requester asked to cancel the request; null when they did not. A running request keeps running until its worker sees the flag, then ends `failed` with the `canceled` failure code and keeps its build.
