@@ -187,16 +187,19 @@ func (s *Service) with(ctx context.Context, req revisions.Request, fn func(ctx c
 
 func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Request, id pgtype.UUID) (*session, error) {
 	key := dbsqlc.GetRunSessionForUpdateParams{AgentRequestID: id, Attempt: httpapi.Int32(req.Attempt)}
-	raw, err := q.GetRunSessionForUpdate(ctx, key)
+	stored, err := q.GetRunSessionForUpdate(ctx, key)
 	created := errors.Is(err, pgx.ErrNoRows)
 	if created {
-		raw, err = s.create(ctx, q, req, id)
+		stored, err = s.create(ctx, q, req, id)
 	}
 	if err != nil {
 		return nil, err
 	}
-	sess := &session{s: s, q: q, req: req, id: id, loaded: raw}
-	if err := json.Unmarshal(raw, &sess.state); err != nil {
+	if int(stored.ClaimEpoch) != req.ClaimEpoch {
+		return nil, errRunNotRunning
+	}
+	sess := &session{s: s, q: q, req: req, id: id, loaded: stored.State}
+	if err := json.Unmarshal(stored.State, &sess.state); err != nil {
 		return nil, fmt.Errorf("decode run session: %w", err)
 	}
 	if created {
@@ -208,32 +211,33 @@ func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Req
 	return sess, nil
 }
 
-func (s *Service) create(ctx context.Context, q *dbsqlc.Queries, req revisions.Request, id pgtype.UUID) ([]byte, error) {
+func (s *Service) create(ctx context.Context, q *dbsqlc.Queries, req revisions.Request, id pgtype.UUID) (dbsqlc.GetRunSessionForUpdateRow, error) {
+	var none dbsqlc.GetRunSessionForUpdateRow
 	row, err := q.GetAgentRequestByID(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) || (err == nil && (revisions.State(row.State).Terminal() || int(row.ClaimEpoch) != req.ClaimEpoch)) {
-		return nil, errRunNotRunning
+		return none, errRunNotRunning
 	}
 	if err != nil {
-		return nil, fmt.Errorf("get run for its session: %w", err)
+		return none, fmt.Errorf("get run for its session: %w", err)
 	}
 	initial, err := s.initial(ctx, req, id)
 	if err != nil {
-		return nil, err
+		return none, err
 	}
 	attempt := httpapi.Int32(req.Attempt)
 	if initial.Triage, err = priorTriage(ctx, q, id, attempt); err != nil {
-		return nil, err
+		return none, err
 	}
 	initial.seedLedger()
 	raw, err := json.Marshal(initial)
 	if err != nil {
-		return nil, fmt.Errorf("encode run session: %w", err)
+		return none, fmt.Errorf("encode run session: %w", err)
 	}
 	if _, err := q.InsertRunSession(ctx, dbsqlc.InsertRunSessionParams{AgentRequestID: id, Attempt: attempt, State: raw}); err != nil {
-		return nil, fmt.Errorf("insert run session: %w", err)
+		return none, fmt.Errorf("insert run session: %w", err)
 	}
 	if err := q.DeleteOlderRunSessions(ctx, dbsqlc.DeleteOlderRunSessionsParams{AgentRequestID: id, Attempt: attempt}); err != nil {
-		return nil, fmt.Errorf("delete older run sessions: %w", err)
+		return none, fmt.Errorf("delete older run sessions: %w", err)
 	}
 	return q.GetRunSessionForUpdate(ctx, dbsqlc.GetRunSessionForUpdateParams{AgentRequestID: id, Attempt: attempt})
 }

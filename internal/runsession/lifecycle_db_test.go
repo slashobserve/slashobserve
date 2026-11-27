@@ -655,3 +655,43 @@ func TestBriefChecksDatasourceHealthOutsideTheSessionLock(t *testing.T) {
 		t.Fatalf("locking the session row during the health check = %v, want it free", probe.lockErr)
 	}
 }
+
+func TestACallOfAReleasedClaimLeavesTheSessionOfTheClaimThatReplacedIt(t *testing.T) {
+	r := newRig(t)
+	row := r.submit(revisions.SourcePrompt, "")
+	r.d.Exec(t, "UPDATE agent_requests SET assigned_kind = 'grant', assigned_id = $2 WHERE id = $1", row.ID, mustUUID(t, grantID))
+	first := r.claim(grantClaimant)
+	r.read(first.Request, 0)
+	r.runs.Release(context.Background(), first.Row)
+	second := r.claim(grantClaimant)
+	if second.Request.Attempt != first.Request.Attempt || second.Request.ClaimEpoch <= first.Request.ClaimEpoch {
+		t.Fatalf("second claim = attempt %d epoch %d after attempt %d epoch %d, want the same attempt under a later epoch",
+			second.Request.Attempt, second.Request.ClaimEpoch, first.Request.Attempt, first.Request.ClaimEpoch)
+	}
+	r.read(second.Request, 1)
+	session := func() string {
+		var state string
+		if err := r.d.SQLDB(t).QueryRow("SELECT state::text FROM run_sessions WHERE agent_request_id = $1", row.ID).Scan(&state); err != nil {
+			t.Fatal(err)
+		}
+		return state
+	}
+	before := session()
+
+	var dispatched dispatchCount
+	answer := r.call(first.Request, "list_metrics", `{"q":"late"}`, nil, dispatched.wrap(readOK))
+	stop, err := r.svc.NoteUsage(context.Background(), first.Request, revisions.Usage{ModelCalls: 9})
+
+	if !answer.IsError || dispatched.n != 0 {
+		t.Fatalf("call of the released claim = error %v after %d dispatches, want it refused before it ran", answer.IsError, dispatched.n)
+	}
+	if err != nil || !stop {
+		t.Fatalf("usage note of the released claim = stop %v, err %v, want stop", stop, err)
+	}
+	if after := session(); after != before {
+		t.Fatalf("the released claim rewrote the session of the claim that replaced it:\n%s\nwas\n%s", after, before)
+	}
+	if r.stored(second.Request).State != string(revisions.StateRunning) {
+		t.Fatal("the released claim ended the run")
+	}
+}
