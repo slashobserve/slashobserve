@@ -312,7 +312,7 @@ func TestABuildSaveNotesOnlyThePanelItSaved(t *testing.T) {
 }
 
 func TestBuildAdviceShrinksTheChangedPanelsToStayUnderTheBudget(t *testing.T) {
-	ctx := WithRun(reading(context.Background()), Run{Mode: ModeCreate, Build: true, RequestID: "build-advice-budget", Attempt: 1})
+	ctx := WithRun(reading(context.Background()), Run{Mode: ModeCreate, Build: true, RequestID: "build-advice-budget", ClaimEpoch: 1})
 	families := make([]datasource.Family, 80)
 	for i := range families {
 		families[i] = datasource.Family{Name: fmt.Sprintf("%s_%02d", strings.Repeat("f", 120), i)}

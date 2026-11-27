@@ -44,18 +44,19 @@ type creatorJSON struct {
 }
 
 type linkJSON struct {
-	ID           string              `json:"id"`
-	Prefix       string              `json:"prefix"`
-	Label        string              `json:"label"`
-	Variables    Mode                `json:"variables"`
-	Selections   map[string][]string `json:"selections"`
-	ExpiresAt    *string             `json:"expires_at"`
-	CreatedBy    creatorJSON         `json:"created_by"`
-	CreatedAt    string              `json:"created_at"`
-	LastViewedAt *string             `json:"last_viewed_at"`
-	Expired      bool                `json:"expired"`
-	Usable       bool                `json:"usable"`
-	State        string              `json:"state"`
+	ID             string              `json:"id"`
+	Prefix         string              `json:"prefix"`
+	Label          string              `json:"label"`
+	Variables      Mode                `json:"variables"`
+	Selections     map[string][]string `json:"selections"`
+	ExpiresAt      *string             `json:"expires_at"`
+	CreatedBy      creatorJSON         `json:"created_by"`
+	CreatedAt      string              `json:"created_at"`
+	LastViewedAt   *string             `json:"last_viewed_at"`
+	Expired        bool                `json:"expired"`
+	Usable         bool                `json:"usable"`
+	UnusableReason *string             `json:"unusable_reason"`
+	State          string              `json:"state"`
 }
 
 type listJSON struct {
@@ -206,18 +207,19 @@ func linkJSONOf(link Link) linkJSON {
 		selections = map[string][]string{}
 	}
 	return linkJSON{
-		ID:           link.ID,
-		Prefix:       link.Prefix,
-		Label:        link.Label,
-		Variables:    link.Mode,
-		Selections:   selections,
-		ExpiresAt:    optionalTime(link.ExpiresAt),
-		CreatedBy:    creatorJSON(link.CreatedBy),
-		CreatedAt:    httpapi.FormatTime(link.CreatedAt),
-		LastViewedAt: optionalTime(link.LastViewedAt),
-		Expired:      link.Expired,
-		Usable:       link.Usable,
-		State:        linkState(link.Expired),
+		ID:             link.ID,
+		Prefix:         link.Prefix,
+		Label:          link.Label,
+		Variables:      link.Mode,
+		Selections:     selections,
+		ExpiresAt:      optionalTime(link.ExpiresAt),
+		CreatedBy:      creatorJSON(link.CreatedBy),
+		CreatedAt:      httpapi.FormatTime(link.CreatedAt),
+		LastViewedAt:   optionalTime(link.LastViewedAt),
+		Expired:        link.Expired,
+		Usable:         link.Usable,
+		UnusableReason: httpapi.OptionalString(link.UnusableReason),
+		State:          linkState(link.Expired),
 	}
 }
 

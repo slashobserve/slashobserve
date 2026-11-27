@@ -51,6 +51,7 @@ const errorTexts: Record<string, string> = {
   domain_not_allowed: "The domain is not on the outbound allowlist",
   too_large: "The event is larger than 64 KiB",
   skipped_by_admin: "An Admin skipped this event",
+  expired: "The event was more than 24 hours old",
 }
 
 export function errorText(code: string | null): string {

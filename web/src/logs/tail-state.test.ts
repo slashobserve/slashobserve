@@ -147,9 +147,33 @@ describe("tailStatusText", () => {
     )
   })
 
-  it("says so when the tail has stopped", () => {
-    expect(tailStatusText(startedAt, 12, 1000, "documents", false)).toBe(
-      "Stopped. Streamed since 14:17:02, 12 documents received, kept the newest 1,000"
+  it.each(["connecting", "live"] as const)(
+    "reads as streaming while the tail is %s",
+    (connection) => {
+      expect(tailStatusText(startedAt, 2906, 1000, "lines", connection)).toBe(
+        "Streaming since 14:17:02, 2,906 lines received, keeping the newest 1,000"
+      )
+    }
+  )
+
+  it.each(["off", "failed"] as const)(
+    "says so when the tail has stopped (%s)",
+    (connection) => {
+      expect(tailStatusText(startedAt, 12, 1000, "documents", connection)).toBe(
+        "Stopped. Streamed since 14:17:02, 12 documents received, kept the newest 1,000"
+      )
+    }
+  )
+
+  it("says so while the tail restores a lost connection", () => {
+    expect(tailStatusText(startedAt, 12, 1000, "lines", "retrying")).toBe(
+      "Reconnecting. Streamed since 14:17:02, 12 lines received, keeping the newest 1,000"
+    )
+  })
+
+  it("says so while the tail is closed because the page is hidden", () => {
+    expect(tailStatusText(startedAt, 12, 1000, "lines", "suspended")).toBe(
+      "Paused while the page is hidden. Streamed since 14:17:02, 12 lines received, keeping the newest 1,000"
     )
   })
 })

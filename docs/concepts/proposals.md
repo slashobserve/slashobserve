@@ -147,6 +147,19 @@ Details of a connection in propose mode:
 | `changes` | What the proposal adds, changes, removes or moves compared with the version it builds on. |
 | `diff` | The same comparison field by field, in the shape of `GET /api/v1/dashboards/{id}/diff`, with the old and new value of each field. |
 | `conflicts` | The units that a merge cannot combine, listed while the proposal is open and behind. |
+| `mergeability` | What a merge would meet now: `current`, `behind_clean`, `behind_conflicting` or `blocked`; null once the proposal is merged or discarded. |
+
+`mergeability` answers whether a merge can go through before you try it.
+
+| Value | Meaning |
+| --- | --- |
+| `current` | The proposal builds on the latest version. |
+| `behind_clean` | The dashboard has newer versions, and a merge combines them without a choice. |
+| `behind_conflicting` | A merge needs a choice for each entry in `conflicts`. |
+| `blocked` | A conflict has the reason `invalid`: merged onto the latest version the change fails the checks, and no choice fixes that. |
+
+`allowed_actions` lists `merge` in all four, because it says who may merge, not whether the merge would succeed.
+A merge of a `blocked` proposal answers `409` with the code `version_conflict`, and the conflict in its `conflicts` list has the reason `invalid`; the author saves a new revision, or someone discards the proposal.
 
 Details of a merge:
 

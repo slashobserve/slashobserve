@@ -41,6 +41,10 @@ DELETE FROM mcp_sources WHERE uid = @uid;
 UPDATE mcp_sources SET checked_at = clock_timestamp(), failure = sqlc.narg('failure')
 WHERE id = @id;
 
+-- name: NoteMCPSourceReachability :exec
+UPDATE mcp_sources SET checked_at = clock_timestamp(), failure = sqlc.narg('failure')
+WHERE id = @id AND checked_at IS NOT NULL AND failure IS DISTINCT FROM sqlc.narg('failure');
+
 -- name: ListMCPSourceTools :many
 SELECT * FROM mcp_source_tools WHERE source_id = @source_id ORDER BY name COLLATE "C";
 

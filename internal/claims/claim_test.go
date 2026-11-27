@@ -119,6 +119,14 @@ func TestOfferedRunMapsARequest(t *testing.T) {
 	}
 }
 
+func TestOfferedRunCarriesTheClaimEpochBesideTheAttempt(t *testing.T) {
+	run := offeredRun(revisions.Request{ID: "r1", Source: revisions.SourcePrompt, Prompt: "why", Attempt: 1, ClaimEpoch: 3, DashboardID: "d1"})
+	encoded, err := json.Marshal(run)
+	if err != nil || !strings.Contains(string(encoded), `"attempt":1,"claim_epoch":3,`) {
+		t.Fatalf("encoded run = %s, err %v, want attempt 1 and claim_epoch 3", encoded, err)
+	}
+}
+
 func TestOfferedRunCarriesTheThreadContextOnlyWhenThereIsOne(t *testing.T) {
 	requester := auth.Principal{Kind: auth.KindUser, ID: "11111111-1111-4111-8111-111111111111", Name: "Ada"}
 	asked := offeredRun(revisions.Request{ID: "r1", Source: revisions.SourceComment, Prompt: "why", Attempt: 1, DashboardID: "d1", ThreadContext: "Ada: why did errors rise?", RequestedBy: requester})

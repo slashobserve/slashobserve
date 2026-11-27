@@ -289,7 +289,7 @@ func TestRevisionsCarryTheActionsTheCallerMayTake(t *testing.T) {
 	stopped := submit(t, svc, dash, "fails with a build")
 	claimed, _ := claimOne(t, svc)
 	if _, err := d.Queries().UpsertAgentRequestBuild(reading(context.Background()), dbsqlc.UpsertAgentRequestBuildParams{
-		AgentRequestID: claimed.ID, DashboardID: dash, BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, Spec: []byte(`{}`), Panels: 1, Attempt: claimed.Attempts,
+		AgentRequestID: claimed.ID, DashboardID: dash, BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, Spec: []byte(`{}`), Panels: 1, ClaimEpoch: claimed.ClaimEpoch,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -359,7 +359,7 @@ func TestAStoppedBuildOnAStarterDashboardIsNotOfferedKeepBuild(t *testing.T) {
 	stopped := submit(t, svc, dash, "fails with a build")
 	claimed, _ := claimOne(t, svc)
 	if _, err := d.Queries().UpsertAgentRequestBuild(reading(context.Background()), dbsqlc.UpsertAgentRequestBuildParams{
-		AgentRequestID: claimed.ID, DashboardID: dash, BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, Spec: []byte(`{}`), Panels: 1, Attempt: claimed.Attempts,
+		AgentRequestID: claimed.ID, DashboardID: dash, BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, Spec: []byte(`{}`), Panels: 1, ClaimEpoch: claimed.ClaimEpoch,
 	}); err != nil {
 		t.Fatal(err)
 	}

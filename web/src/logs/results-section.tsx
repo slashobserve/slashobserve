@@ -70,7 +70,7 @@ import { TailVolume } from "./tail-volume"
 import { unreadableKql } from "./query-problem"
 import { traceDatasourceFor } from "./trace-link"
 import { useElementSize } from "./use-element-size"
-import { tailRows } from "./use-live-tail"
+import { tailRows, type TailConnection } from "./use-live-tail"
 import { useLogsWorkspace } from "./workspace"
 
 const skeletonRows = [0, 1, 2, 3, 4]
@@ -161,12 +161,12 @@ function capitalized(text: string): string {
 function TailBody({
   buffer,
   noun,
-  streaming,
+  connection,
   results,
 }: {
   buffer: TailBuffer
   noun: string
-  streaming: boolean
+  connection: TailConnection
   results: Omit<
     ComponentProps<typeof LogsResults>,
     | "frames"
@@ -319,7 +319,7 @@ function TailBody({
           buffer.received,
           tailRows,
           noun,
-          streaming
+          connection
         )}
       </p>
       <TailVolume times={times} now={state.now} noun={noun} />
@@ -509,7 +509,7 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
           key={tail.buffer.startedAt}
           buffer={tail.buffer}
           noun={isSearchFamily(datasource.type) ? "documents" : "lines"}
-          streaming={tail.on}
+          connection={tail.connection}
           results={resultsProps()}
         />
       )
