@@ -12,6 +12,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/findings"
@@ -223,5 +224,47 @@ func TestOnlyDatasourceReadsFeedTheRecord(t *testing.T) {
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("unverified = %+v\nwant %+v", got, want)
+	}
+}
+
+func TestAFigureQuestionWithoutAnswersIsSentBackOnceUnderEnforce(t *testing.T) {
+	for _, c := range []struct {
+		task route.Task
+		mode grounding.Mode
+		sent bool
+	}{
+		{route.Measure, grounding.Enforce, true},
+		{route.Logs, grounding.Enforce, true},
+		{route.Traces, grounding.Enforce, true},
+		{route.Incident, grounding.Enforce, false},
+		{route.Full, grounding.Enforce, false},
+		{route.Measure, grounding.Report, false},
+	} {
+		s := groundingScript(t, c.mode)
+		s.sess.state.Task = c.task
+		s.queryLatency(&Turn{ID: "t1", Calls: 1})
+		first := s.admitSave(groundedFinding, &Turn{ID: "t2", Calls: 1})
+		if (first.answer != nil) != c.sent {
+			t.Errorf("%s/%s: sent back = %v, want %v", c.task.Name(), c.mode, first.answer != nil, c.sent)
+			continue
+		}
+		if len(first.unverified) != 0 {
+			t.Errorf("%s/%s: the missing answers were stored: %+v", c.task.Name(), c.mode, first.unverified)
+		}
+		if !c.sent {
+			continue
+		}
+		if !strings.Contains(string(first.answer.Content), "answers is empty") {
+			t.Errorf("%s: the send-back does not name answers: %s", c.task.Name(), first.answer.Content)
+		}
+		if second := s.admitSave(groundedFinding, &Turn{ID: "t3", Calls: 1}); second.answer != nil {
+			t.Errorf("%s: the second save was refused", c.task.Name())
+		}
+	}
+	s := groundingScript(t, grounding.Enforce)
+	s.sess.state.Task = route.Measure
+	s.queryLatency(&Turn{ID: "t1", Calls: 1})
+	if got := s.admitSave(`{"title":"Checkout","markdown":"Checkout is fine.","evidence":[]}`, &Turn{ID: "t2", Calls: 1}); got.answer != nil {
+		t.Errorf("a finding with no figure was sent back: %s", got.answer.Content)
 	}
 }

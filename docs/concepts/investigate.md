@@ -245,6 +245,7 @@ These are problems with the finding, handled like any other item of the check:
 - An entry's fact is not given in the Markdown or the impact, cited or written within 1% of its value.
 - The Markdown or the impact cites two facts of one quantity with values more than 1% apart: the same tool, statistic and field for the same labels, window and asked query, such as one peak read at two steps, or two durations of one trace.
 
+With `enforce`, a `measure`, `logs` or `traces` question (see [Task types](#task-types)) whose finding states a figure, cited or typed, but has no `answers` entry is also sent back once to list them; the item is only in the send-back, never stored, and the second save is accepted.
 The check runs on a finding saved in any run that can save one, so a question asked on Home or in a revision's chat is checked like an investigation, and a suggestion has none.
 
 With `report` or `enforce`, the investigate system text drops its two rules on giving one value per quantity at the precision the tool returned and on settling two different figures with one more read, because the server now enforces them, and ends instead with a short Facts section that says to cite facts, how the options work and to list `answers`.
