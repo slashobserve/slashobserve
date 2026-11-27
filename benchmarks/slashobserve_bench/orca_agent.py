@@ -15,7 +15,7 @@ from harbor.models.agent.context import AgentContext
 from slashobserve_bench import atif, orca
 from slashobserve_bench.api import ApiError, Client, RunTimeout, wait_for_terminal
 from slashobserve_bench.ledger import SpendLedger
-from slashobserve_bench.server import POSTGRES_IMAGE, ServerConfig, Stack, ensure_image
+from slashobserve_bench.server import POSTGRES_IMAGE, ServerConfig, Stack, StackError, ensure_image
 
 AGENT_NAME = "slashobserve"
 AGENT_VERSION = "0.1.0"
@@ -233,7 +233,7 @@ class OrcaAgent(BaseAgent):
         container_id, network = await self._locate(environment)
         provider, model = self._provider_and_model()
         mode = options.code_mode
-        question = orca.question(instruction, as_of, orca.code_note(mode))
+        question = orca.question(instruction, as_of, orca.code_note(mode), span_index=options.span_index)
         served = mode == "codeserver"
         config = ServerConfig(
             image=options.server_image,
@@ -251,13 +251,13 @@ class OrcaAgent(BaseAgent):
         )
         stack = Stack(
             config,
-            orca.datasources_yaml(endpoints),
+            orca.datasources_yaml(endpoints, options.span_index),
             self.logs_dir,
             self._llm_key(provider),
             extra_files=orca.code_files(options.names) if served else None,
         )
         notes = [
-            "traces: read through the OpenSearch datasource, because the trial's Jaeger is older than the 2.21 the Jaeger datasource needs",
+            orca.spans_note_line(options.span_index),
             "scores: judged outside the published ORCA-bench judge, so not comparable with leaderboard numbers",
         ]
         workdir = tempfile.TemporaryDirectory(prefix="orca-code-")
@@ -268,7 +268,10 @@ class OrcaAgent(BaseAgent):
                 await asyncio.to_thread(make_readable, code_dir)
                 code_server = CodeServer(options.codeserver_image, network, code_dir, self.logs_dir)
                 await asyncio.to_thread(code_server.start)
-            await stack.start()
+            try:
+                await stack.start()
+            except StackError as error:
+                raise StackError(f"{error}{orca.spans_mismatch_hint(options.span_index)}") from error
             client = Client(stack.base_url, stack.key)
             await asyncio.to_thread(self._code_context, client, network, code_dir)
             notes.append(orca.code_note_line(options))

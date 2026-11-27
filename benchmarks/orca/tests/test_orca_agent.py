@@ -55,6 +55,8 @@ class FakeStack:
         self.key = "sok_test"
 
     async def start(self):
+        if isinstance(FakeStack.fail, Exception):
+            raise FakeStack.fail
         if FakeStack.fail:
             raise RuntimeError(FakeStack.fail)
 
@@ -191,6 +193,36 @@ def test_run_starts_an_investigation_beside_the_trial_and_writes_the_report(setu
     assert (logs / "trajectory.json").exists()
     assert context.cost_usd == 0.5
     assert "code context: the code server slashobserve-codeserver:local" in (logs / "notes.txt").read_text()
+
+
+def test_by_default_the_span_index_answers_the_trace_tools(setup):
+    agent, environment, logs = setup
+    run(agent, environment)
+    assert "      spans: jaeger\n" in FakeStack.started.datasources
+    assert "fields:" not in FakeStack.started.datasources
+    assert "trace_slow_path" in FakeClient.body["prompt"]
+    assert "spans: jaeger, so the trace tools answer on it" in (logs / "notes.txt").read_text()
+
+
+def test_an_older_image_gets_plain_span_documents(setup):
+    agent, environment, logs = setup
+    agent.options = orca.Options(span_index=False)
+    run(agent, environment)
+    assert "spans:" not in FakeStack.started.datasources
+    assert "traceId: traceID" in FakeStack.started.datasources
+    assert "trace_slow_path" not in FakeClient.body["prompt"]
+    assert "plain documents" in (logs / "notes.txt").read_text()
+
+
+def test_a_server_that_does_not_start_names_the_span_index_option(setup):
+    agent, environment, _ = setup
+    FakeStack.fail = orca_agent.StackError("the server did not become ready within 120 seconds")
+    with pytest.raises(orca_agent.StackError, match="pass --ak span_index=false"):
+        run(agent, environment)
+    agent.options = orca.Options(span_index=False)
+    with pytest.raises(orca_agent.StackError) as raised:
+        run(agent, environment)
+    assert str(raised.value) == "the server did not become ready within 120 seconds"
 
 
 def test_by_default_the_code_server_serves_the_task_source_to_the_run(setup):

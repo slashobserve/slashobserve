@@ -48,6 +48,9 @@ Scores from it use a different judge than the leaderboard, so they are not compa
 By default each trial gives the agent the task's source code through the repository's read-only code server (`tools/codeserver`), provisioned as an MCP source, because the answer is usually a feature flag defined in that source.
 Build its image once with `docker build -f tools/codeserver/Dockerfile -t slashobserve-codeserver:local .` from the repository root, or pass `--ak code_context=off` to run without code.
 A server image built before MCP sources were renamed reads the older sources file setting and needs `--ak source_names=context`.
+
+The trial's spans are an OpenSearch index that the datasources file marks `spans: jaeger`, so the trace tools answer on it, and that needs a server image built from `agent-rca-accuracy` or later.
+An older image refuses the field and does not start; pass `--ak span_index=false` for it, and the spans are read as plain documents without the trace tools.
 The steps, the disk the snapshot needs and how to point the judge at a Claude model are in the ORCA-bench section of [`benchmarks/README.md`](https://github.com/slashobserve/slashobserve/blob/main/benchmarks/README.md).
 
 ## Run SREGym problems

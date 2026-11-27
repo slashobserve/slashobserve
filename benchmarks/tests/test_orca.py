@@ -2,6 +2,7 @@ import json
 import re
 
 import pytest
+import yaml
 
 from slashobserve_bench import orca
 
@@ -138,7 +139,63 @@ def test_datasources_read_metrics_logs_and_spans_without_jaeger():
     assert text.count('url: "http://opensearch:9200"') == 2
     assert 'index: "otel-logs-*"' in text
     assert 'index: "jaeger-main-jaeger-span-*"' in text
-    assert "timeField: startTimeMillis" in text
+
+
+def _entry(text, uid):
+    found = yaml.safe_load(text)["datasources"]
+    return next(entry for entry in found if entry["uid"] == uid)
+
+
+def test_by_default_the_span_index_is_a_trace_source():
+    text = orca.datasources_yaml(orca.Endpoints("http://prometheus:9090", "http://opensearch:9200"))
+    spans = _entry(text, orca.SPANS_UID)["opensearch"]
+    assert spans == {
+        "url": "http://opensearch:9200",
+        "index": "jaeger-main-jaeger-span-*",
+        "timeField": "startTimeMillis",
+        "spans": "jaeger",
+    }
+    assert _entry(text, orca.LOGS_UID)["opensearch"] == {"url": "http://opensearch:9200", "index": "otel-logs-*"}
+
+
+def test_an_older_image_reads_the_spans_as_plain_documents_without_the_spans_field():
+    text = orca.datasources_yaml(orca.Endpoints("http://prometheus:9090", "http://opensearch:9200"), span_index=False)
+    spans = _entry(text, orca.SPANS_UID)["opensearch"]
+    assert "spans" not in spans
+    assert "spans:" not in text
+    assert spans["timeField"] == "startTimeMillis"
+    assert spans["fields"] == {"message": "operationName", "service": "process.serviceName", "traceId": "traceID", "spanId": "spanID"}
+
+
+def test_span_index_is_an_option_that_defaults_on():
+    assert orca.Options().span_index is True
+    assert orca.Options(span_index="false").span_index is False
+    with pytest.raises(ValueError):
+        orca.Options(span_index="maybe")
+
+
+def test_the_question_sends_the_agent_to_the_trace_tools_on_a_span_index():
+    text = orca.question("Task text.", "2026-04-18T18:05:00Z")
+    for tool in orca.TRACE_TOOLS:
+        assert tool in text
+    assert "spans are `traces`, which answers the trace tools" in text
+    assert "logs_for_trace reads a trace's log lines from `logs`" in text
+    assert "from its top operation down to the deepest span that failed" in text
+    assert "all 32 hex characters" in text
+    assert "Query DSL" not in text
+
+
+def test_the_question_names_plain_span_documents_for_an_older_image():
+    text = orca.question("Task text.", "2026-04-18T18:05:00Z", span_index=False)
+    assert "spans are `traces` (Jaeger span documents in OpenSearch)." in text
+    assert "trace_stats" not in text
+
+
+def test_the_notes_say_how_the_spans_were_read():
+    assert "spans: jaeger, so the trace tools answer on it" in orca.spans_note_line(True)
+    assert "plain documents" in orca.spans_note_line(False)
+    assert "--ak span_index=false" in orca.spans_mismatch_hint(True)
+    assert orca.spans_mismatch_hint(False) == ""
 
 
 def test_subset_is_four_medium_four_hard_and_two_controls():
@@ -260,12 +317,13 @@ def test_the_question_points_at_the_code_and_asks_for_the_flag_key():
     assert "feature flag" not in orca.question("Task text.", "2026-04-18T18:05:00Z")
 
 
-def test_the_question_stays_within_the_server_prompt_limit():
+@pytest.mark.parametrize("span_index", [True, False])
+def test_the_question_stays_within_the_server_prompt_limit(span_index):
     note = orca.code_note("codeserver")
-    empty = len(orca.question("", "2026-04-18T18:05:00Z", note))
-    assert len(orca.question("x" * (orca.PROMPT_LIMIT - empty), "2026-04-18T18:05:00Z", note)) == orca.PROMPT_LIMIT
+    empty = len(orca.question("", "2026-04-18T18:05:00Z", note, span_index=span_index))
+    assert len(orca.question("x" * (orca.PROMPT_LIMIT - empty), "2026-04-18T18:05:00Z", note, span_index=span_index)) == orca.PROMPT_LIMIT
     with pytest.raises(orca.UnsupportedTask, match="over the server's 4000"):
-        orca.question("x" * (orca.PROMPT_LIMIT - empty + 1), "2026-04-18T18:05:00Z", note)
+        orca.question("x" * (orca.PROMPT_LIMIT - empty + 1), "2026-04-18T18:05:00Z", note, span_index=span_index)
 
 
 def test_replay_fixture_swaps_only_the_prompt():
@@ -293,6 +351,10 @@ def test_replay_fixture_command_writes_the_fixture_for_a_task_folder(tmp_path):
     args = ["replay-fixture", "--task-dir", str(task), "--template", str(template), "--out", str(tmp_path / "off"), "--code", "off"]
     assert orca.main(args) == 0
     assert "feature flag" not in json.loads((tmp_path / "off" / "abc.json").read_text())["prompt"]
+    assert "trace_error_origins" in fixture["prompt"]
+    args = ["replay-fixture", "--task-dir", str(task), "--template", str(template), "--out", str(tmp_path / "plain"), "--span-index", "false"]
+    assert orca.main(args) == 0
+    assert "trace_error_origins" not in json.loads((tmp_path / "plain" / "abc.json").read_text())["prompt"]
 
 
 def test_naive_task_time_is_eastern_like_the_instruction_time():

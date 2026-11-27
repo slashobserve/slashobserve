@@ -42,6 +42,8 @@ SPANS_UID = "traces"
 METRICS_UID = "prometheus"
 LOGS_INDEX = "otel-logs-*"
 SPANS_INDEX = "jaeger-main-jaeger-span-*"
+SPANS_TIME_FIELD = "startTimeMillis"
+TRACE_TOOLS = ("get_trace", "trace_stats", "compare_traces", "trace_error_origins", "trace_slow_path")
 
 
 @dataclass(frozen=True)
@@ -97,6 +99,7 @@ class Options(LoopOptions):
     code_context: str | None = None
     codeserver_image: str = CODESERVER_IMAGE
     source_names: Literal["mcp", "context"] = "mcp"
+    span_index: bool = True
 
     @model_validator(mode="after")
     def _cap_needs_ledger(self) -> "Options":
@@ -150,7 +153,29 @@ def otel_network(names: Iterable[str]) -> str:
     return found[0]
 
 
-def datasources_yaml(endpoints: Endpoints) -> str:
+def _spans_entry(opensearch: str, span_index: bool) -> list[str]:
+    head = [
+        f"  - uid: {SPANS_UID}",
+        "    type: opensearch",
+        "    name: Spans",
+        "    opensearch:",
+        f"      url: {opensearch}",
+        f"      index: {json.dumps(SPANS_INDEX)}",
+        f"      timeField: {SPANS_TIME_FIELD}",
+    ]
+    if span_index:
+        return [*head, "      spans: jaeger"]
+    return [
+        *head,
+        "      fields:",
+        "        message: operationName",
+        "        service: process.serviceName",
+        "        traceId: traceID",
+        "        spanId: spanID",
+    ]
+
+
+def datasources_yaml(endpoints: Endpoints, span_index: bool = True) -> str:
     prometheus, opensearch = json.dumps(endpoints.prometheus), json.dumps(endpoints.opensearch)
     return "\n".join(
         [
@@ -166,21 +191,37 @@ def datasources_yaml(endpoints: Endpoints) -> str:
             "    opensearch:",
             f"      url: {opensearch}",
             f"      index: {json.dumps(LOGS_INDEX)}",
-            f"  - uid: {SPANS_UID}",
-            "    type: opensearch",
-            "    name: Spans",
-            "    opensearch:",
-            f"      url: {opensearch}",
-            f"      index: {json.dumps(SPANS_INDEX)}",
-            "      timeField: startTimeMillis",
-            "      fields:",
-            "        message: operationName",
-            "        service: process.serviceName",
-            "        traceId: traceID",
-            "        spanId: spanID",
+            *_spans_entry(opensearch, span_index),
             "",
         ]
     )
+
+
+def spans_note(span_index: bool) -> str:
+    stores = f"Metrics are the datasource `{METRICS_UID}`, logs are `{LOGS_UID}` and spans are `{SPANS_UID}`"
+    if not span_index:
+        return f"{stores} (Jaeger span documents in OpenSearch)."
+    tools = f"{', '.join(TRACE_TOOLS[:-1])} and {TRACE_TOOLS[-1]}"
+    return (
+        f"{stores}, which answers the trace tools ({tools}); logs_for_trace reads a trace's log lines from `{LOGS_UID}`. "
+        "Use the trace tools to follow a failing request from its top operation down to the deepest span that failed, "
+        "and quote every trace id in full, all 32 hex characters."
+    )
+
+
+def spans_mismatch_hint(span_index: bool) -> str:
+    if not span_index:
+        return ""
+    return (
+        f"; the datasources file gives `{SPANS_UID}` spans: jaeger, which a server image older than agent-rca-accuracy refuses at start "
+        "as an unknown field (see server.log): pass --ak span_index=false for such an image"
+    )
+
+
+def spans_note_line(span_index: bool) -> str:
+    if span_index:
+        return f"traces: the OpenSearch index {SPANS_INDEX} with spans: jaeger, so the trace tools answer on it; the trial's Jaeger is older than the 2.21 the Jaeger datasource needs"
+    return "traces: read as plain documents through the OpenSearch datasource (--ak span_index=false), without the trace tools; the trial's Jaeger is older than the 2.21 the Jaeger datasource needs"
 
 
 def _utc_text(moment: datetime) -> str:
@@ -228,10 +269,10 @@ def code_note(mode: str) -> str | None:
     )
 
 
-def question(instruction: str, as_of_utc: str, code: str | None = None, limit: int = PROMPT_LIMIT) -> str:
+def question(instruction: str, as_of_utc: str, code: str | None = None, limit: int = PROMPT_LIMIT, span_index: bool = True) -> str:
     notes = [
         f"The current time is {as_of_utc} (UTC). Times in the task above are US Eastern; the telemetry is stored in UTC, so convert them before querying and give every time in UTC.",
-        f"Metrics are the datasource `{METRICS_UID}`, logs are `{LOGS_UID}` and spans are `{SPANS_UID}` (Jaeger span documents in OpenSearch).",
+        spans_note(span_index),
         *([code] if code else []),
         "The Grafana and file instructions above do not apply: your answer is saved as a finding, and the report is written from it. When nothing was wrong, say so and set no_incident.",
     ]
@@ -490,6 +531,7 @@ def main(argv: list[str] | None = None) -> int:
     fixture.add_argument("--template", type=Path, required=True)
     fixture.add_argument("--out", type=Path, required=True)
     fixture.add_argument("--code", choices=("codeserver", "hook", "off"), default="codeserver", help="the code context of the trial the fixture is for")
+    fixture.add_argument("--span-index", choices=("true", "false"), default="true", help="the span_index option of the trial the fixture is for")
     args = parser.parse_args(argv)
     if args.command == "include-flags":
         print("\n".join(include_flags()))
@@ -499,7 +541,7 @@ def main(argv: list[str] | None = None) -> int:
     template = json.loads(args.template.read_text(encoding="utf-8"))
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / f"{args.task_dir.name}.json").write_text(
-        json.dumps(replay_fixture(template, question(instruction, moment, code_note(args.code))), indent=2) + "\n", encoding="utf-8"
+        json.dumps(replay_fixture(template, question(instruction, moment, code_note(args.code), span_index=args.span_index == "true")), indent=2) + "\n", encoding="utf-8"
     )
     return 0
 

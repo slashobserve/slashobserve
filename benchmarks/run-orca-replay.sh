@@ -5,6 +5,7 @@ orca_checkout="${1:?usage: benchmarks/run-orca-replay.sh <ORCA-bench checkout> [
 bench_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 package="${2:-$(PYTHONPATH="$bench_dir" uv run --locked --project "$bench_dir/orca" python -c 'from slashobserve_bench import orca; print(orca.SUBSET[0].package)')}"
 image="${SLASHOBSERVE_SERVER_IMAGE:-slashobserve-server:local}"
+span_index="${SLASHOBSERVE_SPAN_INDEX:-true}"
 job="orca-replay-${package}-$(date -u +%Y%m%d-%H%M%S)"
 workdir="$(mktemp -d)"
 fixtures="$workdir/fixtures"
@@ -15,7 +16,7 @@ uv run --locked --project "$bench_dir/orca" harbor download "orca-bench/$package
 task_dir="$(dirname "$(find "$workdir/task" -name instruction.md -print -quit)")"
 
 PYTHONPATH="$bench_dir" uv run --locked --project "$bench_dir/orca" python -m slashobserve_bench.orca replay-fixture \
-  --task-dir "$task_dir" --template "$bench_dir/fixtures/orca-answer.json" --out "$fixtures"
+  --task-dir "$task_dir" --template "$bench_dir/fixtures/orca-answer.json" --out "$fixtures" --span-index "$span_index"
 mv "$fixtures/$(basename "$task_dir").json" "$fixtures/$package.json"
 
 "$bench_dir/orca/run-orca.sh" "$orca_checkout" --yes \
@@ -23,6 +24,7 @@ mv "$fixtures/$(basename "$task_dir").json" "$fixtures/$package.json"
   --ak "server_image=$image" --ak "replay_dir=$fixtures" \
   --ak "codeserver_image=${SLASHOBSERVE_CODESERVER_IMAGE:-slashobserve-codeserver:local}" \
   --ak "source_names=${SLASHOBSERVE_SOURCE_NAMES:-mcp}" \
+  --ak "span_index=$span_index" \
   --disable-verification --n-concurrent 1 \
   --jobs-dir "$bench_dir/jobs" --job-name "$job"
 

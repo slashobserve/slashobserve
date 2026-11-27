@@ -259,9 +259,10 @@ It runs on Harbor 0.20.0 with a patched `Task.checksum`, while o11y-bench pins H
 3. `run` waits for `/tmp/env-ready`, reads the store URLs from `/tmp/env-ports`, and finds the trial's network by inspecting the main container from the host.
 4. It copies `/app/opentelemetry-demo` out of the main container and starts the code server over that copy on the trial's network, then a throwaway Postgres and the server image on the same network, beside the main container and not inside it.
    The datasources are `prometheus`, `logs` (OpenSearch `otel-logs-*`) and `traces` (OpenSearch `jaeger-main-jaeger-span-*`).
-   The trial's Jaeger is 2.12.0, and the Jaeger datasource needs 2.21 or later, so spans are read through OpenSearch.
+   The trial's Jaeger is 2.12.0, and the Jaeger datasource needs 2.21 or later, so spans are read through OpenSearch (see [Spans](#spans)).
 5. It starts an `investigate` run with the task text and a short note as the question, and `as_of` set from `metadata.current` in the task's `task.toml`, or from "The current time is ... ET" in the task text when the metadata lacks it.
    The data is from April 2026 and the clocks are real, so the note gives the current time in UTC and says the task's times are US Eastern.
+   It names the datasources, and with a span index it says that `traces` answers the trace tools and asks the agent to follow a failing request with them from its top operation down to the deepest failing span, quoting trace ids in full.
    When the run has source code, the note also says where to read it and the feature flag definitions, that a fault may have been switched on by a flag, and that a flag is named by its key exactly as the source spells it.
    The question, notes included, must fit the server's 4000 character prompt limit; a longer one fails the trial before any container starts.
 6. It writes `/app/report.md` from the run's finding, in the four sections the benchmark asks for: Summary, Timeline, 5 Whys and Remediation.
@@ -277,8 +278,23 @@ It runs on Harbor 0.20.0 with a patched `Task.checksum`, while o11y-bench pins H
 | `codeserver.log` | The code server's log, when the trial started one. |
 | `notes.txt` | How traces were read, which code context applied, and the judge caveat. |
 
-The options are those of o11y-bench without `network`, plus `code_context`, `codeserver_image` (default `slashobserve-codeserver:local`) and `source_names` (`mcp`, the default, or `context`), and `wall_timeout_sec` defaults to 3300 under the task's 3600 second agent timeout.
+The options are those of o11y-bench without `network`, plus `code_context`, `codeserver_image` (default `slashobserve-codeserver:local`), `source_names` (`mcp`, the default, or `context`) and `span_index` (`true`, the default, or `false`), and `wall_timeout_sec` defaults to 3300 under the task's 3600 second agent timeout.
 Leaderboard rules forbid a timeout or resource override, so leave Harbor's at their defaults.
+
+### Spans
+
+The `traces` entry of the datasources file sets `spans: jaeger` and `timeField: startTimeMillis`, which makes the span index a trace source.
+`get_trace`, `trace_stats`, `compare_traces`, `trace_error_origins` and `trace_slow_path` then answer on it, and the question tells the agent to use them.
+`logs_for_trace` reads a trace's log lines from `logs`, whose trace id and span id fields the server finds by name.
+
+The server image under test must understand that field, so it must be built from `agent-rca-accuracy` or later.
+The datasources file rejects unknown fields, so an older image refuses `spans` and does not start; the trial then fails, names `--ak span_index=false` and keeps the reason in `agent/server.log`.
+With `span_index=false` the entry has no `spans` field, the spans are plain documents with the operation name as the message and `traceID` and `spanID` as the trace and span id roles, the trace tools do not answer, and the question only names the datasource.
+
+Not verified against a real trial:
+
+- That ORCA-bench's collector writes `otel-logs-*` in the OpenSearch exporter's default mapping, with the ids at `traceId` and `spanId`, which the server finds without a `fields` override; read one document's fields with `logs` before trusting `logs_for_trace`.
+- That the Jaeger 2.12.0 of the trial writes span documents in the shape the server reads, which was checked against Jaeger 2.21.
 
 ### Source code
 
@@ -345,7 +361,7 @@ benchmarks/run-orca-replay.sh /path/to/ORCA-bench
 
 The script downloads one task's package, writes a replay fixture for its question from `fixtures/orca-answer.json`, runs it with `--model replay/replay` and verification off, and prints the path of `agent/report.md`.
 No model is called, but the snapshot must already be staged, because the trial needs the demo's data.
-The trial starts the code server like any other, so build its image first; `SLASHOBSERVE_CODESERVER_IMAGE` and `SLASHOBSERVE_SOURCE_NAMES` set `codeserver_image` and `source_names`, and the fixture's question carries the code note to match.
+The trial starts the code server like any other, so build its image first; `SLASHOBSERVE_CODESERVER_IMAGE`, `SLASHOBSERVE_SOURCE_NAMES` and `SLASHOBSERVE_SPAN_INDEX` set `codeserver_image`, `source_names` and `span_index`, and the fixture's question carries the code and spans notes to match.
 Run it by hand on a machine that has the snapshot; it is not part of any test.
 The fixture saves a finding with the structured fields, so it needs a server that has them.
 
