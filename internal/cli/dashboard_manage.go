@@ -194,24 +194,18 @@ func (a *app) dashboardDiffCommand() *cobra.Command {
 				return explainMissingDiffVersion(cmd.Context(), c, id, from, to, err)
 			}
 			out := a.output()
-			if a.json {
-				out.body(data)
+			return render(out, data, func(diff versionDiff) error {
+				if len(diff.Changes) == 0 {
+					out.line("No changes between version %d and %d", diff.From, diff.To)
+					return nil
+				}
+				rows := make([][]string, 0, len(diff.Changes))
+				for _, change := range diff.Changes {
+					rows = append(rows, []string{text(change.Op), text(change.Path), diffValue(change.From), diffValue(change.To)})
+				}
+				out.table([]string{"OP", "PATH", "FROM", "TO"}, rows)
 				return nil
-			}
-			diff, err := decode[versionDiff](data)
-			if err != nil {
-				return err
-			}
-			if len(diff.Changes) == 0 {
-				out.line("No changes between version %d and %d", diff.From, diff.To)
-				return nil
-			}
-			rows := make([][]string, 0, len(diff.Changes))
-			for _, change := range diff.Changes {
-				rows = append(rows, []string{text(change.Op), text(change.Path), diffValue(change.From), diffValue(change.To)})
-			}
-			out.table([]string{"OP", "PATH", "FROM", "TO"}, rows)
-			return nil
+			})
 		},
 	}
 	cmd.Flags().IntVar(&from, "from", 0, "the older version, by default the one before --to")

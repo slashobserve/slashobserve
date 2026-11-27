@@ -76,20 +76,14 @@ func (a *app) runAnnotate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(created createdAnnotation) error {
+		where := "on every dashboard"
+		if created.DashboardID != nil {
+			where = "on dashboard " + text(*created.DashboardID)
+		}
+		out.confirm("Added annotation %s at %s %s", text(created.ID), when(created.TimeFrom), where)
 		return nil
-	}
-	created, err := decode[createdAnnotation](data)
-	if err != nil {
-		return err
-	}
-	where := "on every dashboard"
-	if created.DashboardID != nil {
-		where = "on dashboard " + text(*created.DashboardID)
-	}
-	out.confirm("Added annotation %s at %s %s", text(created.ID), when(created.TimeFrom), where)
-	return nil
+	})
 }
 
 func futureWarning(at *string, now time.Time) string {

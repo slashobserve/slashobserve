@@ -200,33 +200,23 @@ func (a *app) webhooksDeliveriesCommand() *cobra.Command {
 }
 
 func (a *app) runWebhooksList(cmd *cobra.Command, _ []string) error {
-	c, err := a.newClient()
-	if err != nil {
-		return err
-	}
-	data, err := c.get(cmd.Context(), "webhooks", nil)
+	data, err := a.fetch(cmd.Context(), "webhooks", nil)
 	if err != nil {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(list webhookList) error {
+		if len(list.Webhooks) == 0 {
+			out.notice("No webhooks yet")
+			return nil
+		}
+		rows := make([][]string, 0, len(list.Webhooks))
+		for _, w := range list.Webhooks {
+			rows = append(rows, []string{text(w.ID), text(w.Name), text(w.URL), strconv.Itoa(len(w.EventTypes)), webhookStatus(w)})
+		}
+		out.table([]string{"ID", "NAME", "URL", "EVENTS", "STATUS"}, rows)
 		return nil
-	}
-	list, err := decode[webhookList](data)
-	if err != nil {
-		return err
-	}
-	if len(list.Webhooks) == 0 {
-		out.notice("No webhooks yet")
-		return nil
-	}
-	rows := make([][]string, 0, len(list.Webhooks))
-	for _, w := range list.Webhooks {
-		rows = append(rows, []string{text(w.ID), text(w.Name), text(w.URL), strconv.Itoa(len(w.EventTypes)), webhookStatus(w)})
-	}
-	out.table([]string{"ID", "NAME", "URL", "EVENTS", "STATUS"}, rows)
-	return nil
+	})
 }
 
 func (a *app) runWebhooksAdd(cmd *cobra.Command, _ []string) error {
@@ -299,17 +289,11 @@ func (a *app) patchWebhook(cmd *cobra.Command, id string, body map[string]any, v
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(updated webhookView) error {
+		out.confirm("%s webhook %s", verb, text(updated.ID))
+		printWebhook(out, updated)
 		return nil
-	}
-	updated, err := decode[webhookView](data)
-	if err != nil {
-		return err
-	}
-	out.confirm("%s webhook %s", verb, text(updated.ID))
-	printWebhook(out, updated)
-	return nil
+	})
 }
 
 func (a *app) runWebhooksTest(cmd *cobra.Command, args []string) error {
@@ -361,17 +345,11 @@ func (a *app) runWebhooksSkip(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(skipped webhookSkip) error {
+		out.confirm("Skipped %s on webhook %s", text(skipped.Skipped.EventType), text(skipped.Webhook.ID))
+		printWebhook(out, skipped.Webhook)
 		return nil
-	}
-	skipped, err := decode[webhookSkip](data)
-	if err != nil {
-		return err
-	}
-	out.confirm("Skipped %s on webhook %s", text(skipped.Skipped.EventType), text(skipped.Webhook.ID))
-	printWebhook(out, skipped.Webhook)
-	return nil
+	})
 }
 
 func (a *app) runWebhooksRotate(cmd *cobra.Command, args []string) error {
@@ -426,42 +404,30 @@ func (a *app) runWebhooksDeliveries(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(page webhookDeliveries) error {
+		if len(page.Deliveries) == 0 {
+			out.notice("No deliveries yet")
+			return nil
+		}
+		rows := make([][]string, 0, len(page.Deliveries))
+		for _, d := range page.Deliveries {
+			rows = append(rows, []string{when(d.AttemptedAt), text(d.EventType), text(d.Outcome), statusCell(d.StatusCode), fmt.Sprintf("%d ms", d.DurationMs), orDash(d.ErrorCode)})
+		}
+		out.table([]string{"WHEN", "EVENT", "OUTCOME", "STATUS", "DURATION", "ERROR"}, rows)
+		pageFooter(out, len(page.Deliveries), nil, page.NextCursor)
 		return nil
-	}
-	page, err := decode[webhookDeliveries](data)
-	if err != nil {
-		return err
-	}
-	if len(page.Deliveries) == 0 {
-		out.notice("No deliveries yet")
-		return nil
-	}
-	rows := make([][]string, 0, len(page.Deliveries))
-	for _, d := range page.Deliveries {
-		rows = append(rows, []string{when(d.AttemptedAt), text(d.EventType), text(d.Outcome), statusCell(d.StatusCode), fmt.Sprintf("%d ms", d.DurationMs), orDash(d.ErrorCode)})
-	}
-	out.table([]string{"WHEN", "EVENT", "OUTCOME", "STATUS", "DURATION", "ERROR"}, rows)
-	pageFooter(out, len(page.Deliveries), nil, page.NextCursor)
-	return nil
+	})
 }
 
 func (a *app) printWebhookWithSecret(data []byte, verb string) error {
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(created webhookWithSecret) error {
+		out.confirm("%s webhook %s", verb, text(created.Webhook.ID))
+		printWebhook(out, created.Webhook)
+		out.fields([][2]string{{"Secret", text(created.Secret)}})
+		out.notice("The secret is shown only now; copy it. Rotate it with `observe webhooks rotate-secret` to get a new one.")
 		return nil
-	}
-	created, err := decode[webhookWithSecret](data)
-	if err != nil {
-		return err
-	}
-	out.confirm("%s webhook %s", verb, text(created.Webhook.ID))
-	printWebhook(out, created.Webhook)
-	out.fields([][2]string{{"Secret", text(created.Secret)}})
-	out.notice("The secret is shown only now; copy it. Rotate it with `observe webhooks rotate-secret` to get a new one.")
-	return nil
+	})
 }
 
 func printWebhook(out *output, w webhookView) {

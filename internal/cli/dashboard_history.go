@@ -76,21 +76,15 @@ func (a *app) dashboardRevisionsCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if a.json {
-				out.body(data)
+			return render(out, data, func(list revisionListBody) error {
+				rows := make([][]string, 0, len(list.Revisions))
+				for _, r := range list.Revisions {
+					rows = append(rows, []string{text(r.ID), text(r.State), text(r.Intent), versionText(r.BaseVersion), versionText(r.ResultVer), firstLine(r.Prompt)})
+				}
+				out.table([]string{"ID", "STATE", "INTENT", "BASE", "SAVED", "PROMPT"}, rows)
+				pageFooter(out, len(list.Revisions), nil, list.NextCursor)
 				return nil
-			}
-			list, err := decode[revisionListBody](data)
-			if err != nil {
-				return err
-			}
-			rows := make([][]string, 0, len(list.Revisions))
-			for _, r := range list.Revisions {
-				rows = append(rows, []string{text(r.ID), text(r.State), text(r.Intent), versionText(r.BaseVersion), versionText(r.ResultVer), firstLine(r.Prompt)})
-			}
-			out.table([]string{"ID", "STATE", "INTENT", "BASE", "SAVED", "PROMPT"}, rows)
-			pageFooter(out, len(list.Revisions), nil, list.NextCursor)
-			return nil
+			})
 		},
 	}
 	addPageFlags(cmd, &page, maxDashboardPage)
@@ -135,29 +129,19 @@ func (a *app) dashboardViewersCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			c, err := a.newClient()
-			if err != nil {
-				return err
-			}
-			data, err := c.get(cmd.Context(), "dashboards/"+id+"/viewers", nil)
+			data, err := a.fetch(cmd.Context(), "dashboards/"+id+"/viewers", nil)
 			if err != nil {
 				return err
 			}
 			out := a.output()
-			if a.json {
-				out.body(data)
+			return render(out, data, func(list viewerListBody) error {
+				rows := make([][]string, 0, len(list.Viewers))
+				for _, v := range list.Viewers {
+					rows = append(rows, []string{text(v.Name)})
+				}
+				out.table([]string{"NAME"}, rows)
 				return nil
-			}
-			list, err := decode[viewerListBody](data)
-			if err != nil {
-				return err
-			}
-			rows := make([][]string, 0, len(list.Viewers))
-			for _, v := range list.Viewers {
-				rows = append(rows, []string{text(v.Name)})
-			}
-			out.table([]string{"NAME"}, rows)
-			return nil
+			})
 		},
 	}
 }
@@ -181,20 +165,14 @@ func (a *app) dashboardTagsCommand() *cobra.Command {
 				return err
 			}
 			out := a.output()
-			if a.json {
-				out.body(data)
+			return render(out, data, func(list tagListBody) error {
+				rows := make([][]string, 0, len(list.Tags))
+				for _, t := range list.Tags {
+					rows = append(rows, []string{text(t.Tag), strconv.Itoa(t.Dashboards)})
+				}
+				out.table([]string{"TAG", "DASHBOARDS"}, rows)
 				return nil
-			}
-			list, err := decode[tagListBody](data)
-			if err != nil {
-				return err
-			}
-			rows := make([][]string, 0, len(list.Tags))
-			for _, t := range list.Tags {
-				rows = append(rows, []string{text(t.Tag), strconv.Itoa(t.Dashboards)})
-			}
-			out.table([]string{"TAG", "DASHBOARDS"}, rows)
-			return nil
+			})
 		},
 	}
 	cmd.Flags().BoolVar(&a.excludeAudit, "exclude-audit", false, "leave out the dashboards in the built-in Audit folder")

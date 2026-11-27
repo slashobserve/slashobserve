@@ -147,21 +147,15 @@ func (a *app) runSavedSearchesList(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(page savedSearchListBody) error {
+		rows := make([][]string, 0, len(page.SavedSearches))
+		for _, s := range page.SavedSearches {
+			rows = append(rows, []string{text(s.ID), text(s.Kind), text(s.Title), text(s.Folder.Title), text(s.DatasourceUID), when(s.UpdatedAt)})
+		}
+		out.table([]string{"ID", "KIND", "TITLE", "FOLDER", "DATASOURCE", "UPDATED"}, rows)
+		pageFooter(out, len(page.SavedSearches), nil, page.NextCursor)
 		return nil
-	}
-	page, err := decode[savedSearchListBody](data)
-	if err != nil {
-		return err
-	}
-	rows := make([][]string, 0, len(page.SavedSearches))
-	for _, s := range page.SavedSearches {
-		rows = append(rows, []string{text(s.ID), text(s.Kind), text(s.Title), text(s.Folder.Title), text(s.DatasourceUID), when(s.UpdatedAt)})
-	}
-	out.table([]string{"ID", "KIND", "TITLE", "FOLDER", "DATASOURCE", "UPDATED"}, rows)
-	pageFooter(out, len(page.SavedSearches), nil, page.NextCursor)
-	return nil
+	})
 }
 
 func (a *app) savedSearchesSaveCommand() *cobra.Command {
@@ -270,21 +264,15 @@ func (a *app) runSavedSearchesSave(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(saved savedSearchRow) error {
+		if saved.Replayed {
+			out.notice("Search %s was already saved", text(saved.ID))
+		} else {
+			out.notice("Saved search %s", text(saved.ID))
+		}
+		out.line("%s", text(saved.URL))
 		return nil
-	}
-	saved, err := decode[savedSearchRow](data)
-	if err != nil {
-		return err
-	}
-	if saved.Replayed {
-		out.notice("Search %s was already saved", text(saved.ID))
-	} else {
-		out.notice("Saved search %s", text(saved.ID))
-	}
-	out.line("%s", text(saved.URL))
-	return nil
+	})
 }
 
 func (a *app) savedSearchesUpdateCommand() *cobra.Command {

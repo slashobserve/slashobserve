@@ -133,21 +133,15 @@ func (a *app) proposalsList(cmd *cobra.Command, dashboardID string, query url.Va
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(page proposalListBody) error {
+		rows := make([][]string, 0, len(page.Proposals))
+		for _, p := range page.Proposals {
+			rows = append(rows, []string{text(p.ID), text(p.State), strconv.Itoa(p.Revision), behindText(p.Behind), text(p.Title)})
+		}
+		out.table([]string{"ID", "STATE", "REVISION", "BEHIND", "TITLE"}, rows)
+		pageFooter(out, len(page.Proposals), nil, page.NextCursor)
 		return nil
-	}
-	page, err := decode[proposalListBody](data)
-	if err != nil {
-		return err
-	}
-	rows := make([][]string, 0, len(page.Proposals))
-	for _, p := range page.Proposals {
-		rows = append(rows, []string{text(p.ID), text(p.State), strconv.Itoa(p.Revision), behindText(p.Behind), text(p.Title)})
-	}
-	out.table([]string{"ID", "STATE", "REVISION", "BEHIND", "TITLE"}, rows)
-	pageFooter(out, len(page.Proposals), nil, page.NextCursor)
-	return nil
+	})
 }
 
 func behindText(behind bool) string {

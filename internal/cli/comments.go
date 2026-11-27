@@ -393,17 +393,11 @@ func (a *app) runCommentsAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(created threadMessageEnvelope) error {
+		out.line("Started thread %s on %s:%s", text(created.Thread.ID), text(created.Thread.Target.Kind), text(created.Thread.Target.ID))
+		reportRun(out, created.Message)
 		return nil
-	}
-	created, err := decode[threadMessageEnvelope](data)
-	if err != nil {
-		return err
-	}
-	out.line("Started thread %s on %s:%s", text(created.Thread.ID), text(created.Thread.Target.Kind), text(created.Thread.Target.ID))
-	reportRun(out, created.Message)
-	return nil
+	})
 }
 
 func setID(payload map[string]any, key, value string) error {
@@ -553,16 +547,10 @@ func (a *app) runCommentsEdit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(edited threadMessageEnvelope) error {
+		out.confirm("Edited comment %s", text(edited.Message.ID))
 		return nil
-	}
-	edited, err := decode[threadMessageEnvelope](data)
-	if err != nil {
-		return err
-	}
-	out.confirm("Edited comment %s", text(edited.Message.ID))
-	return nil
+	})
 }
 
 func (a *app) commentsDeleteCommand() *cobra.Command {
@@ -663,32 +651,22 @@ func (a *app) commentsPeopleCommand() *cobra.Command {
 				return err
 			}
 			query := url.Values{"target": {target}, "q": {search}, "limit": {strconv.Itoa(limit)}}
-			c, err := a.newClient()
-			if err != nil {
-				return err
-			}
-			data, err := c.get(cmd.Context(), "threads/mentionable", query)
+			data, err := a.fetch(cmd.Context(), "threads/mentionable", query)
 			if err != nil {
 				return err
 			}
 			out := a.output()
-			if a.json {
-				out.body(data)
+			return render(out, data, func(page mentionablePeople) error {
+				rows := make([][]string, 0, len(page.People))
+				for _, p := range page.People {
+					rows = append(rows, []string{text(p.Name), text(p.Email), "@[" + text(p.Name) + "](user:" + p.ID + ")"})
+				}
+				out.table([]string{"NAME", "EMAIL", "MENTION"}, rows)
+				if page.More {
+					out.notice("more people match: narrow the list with --search or raise --limit")
+				}
 				return nil
-			}
-			page, err := decode[mentionablePeople](data)
-			if err != nil {
-				return err
-			}
-			rows := make([][]string, 0, len(page.People))
-			for _, p := range page.People {
-				rows = append(rows, []string{text(p.Name), text(p.Email), "@[" + text(p.Name) + "](user:" + p.ID + ")"})
-			}
-			out.table([]string{"NAME", "EMAIL", "MENTION"}, rows)
-			if page.More {
-				out.notice("more people match: narrow the list with --search or raise --limit")
-			}
-			return nil
+			})
 		},
 	}
 	cmd.Flags().StringVar(&on, "on", "", "the target, as <kind>:<id>")
@@ -813,14 +791,8 @@ func (a *app) runCommentsReopen(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(reopened threadEnvelope) error {
+		out.confirm("Reopened thread %s", text(reopened.Thread.ID))
 		return nil
-	}
-	reopened, err := decode[threadEnvelope](data)
-	if err != nil {
-		return err
-	}
-	out.confirm("Reopened thread %s", text(reopened.Thread.ID))
-	return nil
+	})
 }

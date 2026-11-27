@@ -193,16 +193,10 @@ func (a *app) runMCPSourcesList(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		if a.json {
-			a.output().body(data)
+		return render(a.output(), data, func(source mcpSource) error {
+			a.output().fields(mcpSourcesFields(source))
 			return nil
-		}
-		source, err := decode[mcpSource](data)
-		if err != nil {
-			return err
-		}
-		a.output().fields(mcpSourcesFields(source))
-		return nil
+		})
 	}
 	data, err := c.get(cmd.Context(), "mcp-sources", nil)
 	if err != nil {

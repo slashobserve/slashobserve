@@ -237,22 +237,16 @@ func (a *app) runAuditSearch(cmd *cobra.Command, _ []string) error {
 		return a.underlined(err)
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(page auditEventList) error {
+		out.queryWarnings(page.Warnings)
+		if len(page.Events) == 0 {
+			out.notice("No audit events match in the window.")
+			return nil
+		}
+		out.table(auditHeaders, auditRows(page.Events))
+		pageFooter(out, len(page.Events), nil, page.NextCursor)
 		return nil
-	}
-	page, err := decode[auditEventList](data)
-	if err != nil {
-		return err
-	}
-	out.queryWarnings(page.Warnings)
-	if len(page.Events) == 0 {
-		out.notice("No audit events match in the window.")
-		return nil
-	}
-	out.table(auditHeaders, auditRows(page.Events))
-	pageFooter(out, len(page.Events), nil, page.NextCursor)
-	return nil
+	})
 }
 
 var auditHeaders = []string{"WHEN", "WHO", "VIA", "ACTION", "OUTCOME", "TARGET", "ID"}
@@ -326,42 +320,32 @@ func (a *app) runAuditShow(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	c, err := a.newClient()
-	if err != nil {
-		return err
-	}
-	data, err := c.get(cmd.Context(), "audit/events/"+id, nil)
+	data, err := a.fetch(cmd.Context(), "audit/events/"+id, nil)
 	if err != nil {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
-		return nil
-	}
-	d, err := decode[auditEventDetail](data)
-	if err != nil {
-		return err
-	}
-	e := d.Event
-	out.fields([][2]string{
-		{"id", e.ID}, {"when", auditWhen(e.OccurredAt)}, {"action", text(e.Action)}, {"outcome", auditOutcome(e)},
-		{"status", auditStatus(e.Status)}, {"who", auditWho(e)}, {"initiator", text(e.Initiator)}, {"via", auditVia(e)},
-		{"route", orDash(e.Route)}, {"target", auditTarget(e)}, {"client ip", orDash(e.ClientIP)},
-		{"request", orDash(e.RequestID)}, {"run", orDash(e.RunID)},
-	})
-	for _, related := range []struct {
-		title  string
-		events []auditEvent
-	}{{"Same request", d.SameRequest}, {"Same agent run", d.SameRun}} {
-		if len(related.events) < 2 {
-			continue
+	return render(out, data, func(d auditEventDetail) error {
+		e := d.Event
+		out.fields([][2]string{
+			{"id", e.ID}, {"when", auditWhen(e.OccurredAt)}, {"action", text(e.Action)}, {"outcome", auditOutcome(e)},
+			{"status", auditStatus(e.Status)}, {"who", auditWho(e)}, {"initiator", text(e.Initiator)}, {"via", auditVia(e)},
+			{"route", orDash(e.Route)}, {"target", auditTarget(e)}, {"client ip", orDash(e.ClientIP)},
+			{"request", orDash(e.RequestID)}, {"run", orDash(e.RunID)},
+		})
+		for _, related := range []struct {
+			title  string
+			events []auditEvent
+		}{{"Same request", d.SameRequest}, {"Same agent run", d.SameRun}} {
+			if len(related.events) < 2 {
+				continue
+			}
+			out.line("")
+			out.line("%s:", related.title)
+			out.table(auditHeaders, auditRows(related.events))
 		}
-		out.line("")
-		out.line("%s:", related.title)
-		out.table(auditHeaders, auditRows(related.events))
-	}
-	return nil
+		return nil
+	})
 }
 
 func auditStatus(status *int) string {
@@ -400,25 +384,19 @@ func (a *app) runAuditFacets(cmd *cobra.Command, args []string) error {
 		return a.underlined(err)
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(facets auditFacets) error {
+		out.queryWarnings(facets.Warnings)
+		if len(facets.Values) == 0 {
+			out.notice("No audit events with %s match in the window.", text(facets.Field))
+			return nil
+		}
+		rows := make([][]string, 0, len(facets.Values))
+		for _, v := range facets.Values {
+			rows = append(rows, []string{strconv.FormatInt(v.Count, 10), text(v.Value)})
+		}
+		out.table([]string{"COUNT", strings.ToUpper(text(facets.Field))}, rows)
 		return nil
-	}
-	facets, err := decode[auditFacets](data)
-	if err != nil {
-		return err
-	}
-	out.queryWarnings(facets.Warnings)
-	if len(facets.Values) == 0 {
-		out.notice("No audit events with %s match in the window.", text(facets.Field))
-		return nil
-	}
-	rows := make([][]string, 0, len(facets.Values))
-	for _, v := range facets.Values {
-		rows = append(rows, []string{strconv.FormatInt(v.Count, 10), text(v.Value)})
-	}
-	out.table([]string{"COUNT", strings.ToUpper(text(facets.Field))}, rows)
-	return nil
+	})
 }
 
 func (a *app) auditHistogramCommand() *cobra.Command {
@@ -449,22 +427,16 @@ func (a *app) runAuditHistogram(cmd *cobra.Command, _ []string) error {
 		return a.underlined(err)
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(h auditHistogram) error {
+		out.queryWarnings(h.Warnings)
+		rows := make([][]string, 0, len(h.Buckets))
+		for _, b := range h.Buckets {
+			rows = append(rows, []string{auditWhen(b.Time), strconv.FormatInt(b.Count, 10)})
+		}
+		out.table([]string{"FROM", "COUNT"}, rows)
+		out.notice("%d events, one bucket per %s.", h.Total, time.Duration(h.StepMs)*time.Millisecond)
 		return nil
-	}
-	h, err := decode[auditHistogram](data)
-	if err != nil {
-		return err
-	}
-	out.queryWarnings(h.Warnings)
-	rows := make([][]string, 0, len(h.Buckets))
-	for _, b := range h.Buckets {
-		rows = append(rows, []string{auditWhen(b.Time), strconv.FormatInt(b.Count, 10)})
-	}
-	out.table([]string{"FROM", "COUNT"}, rows)
-	out.notice("%d events, one bucket per %s.", h.Total, time.Duration(h.StepMs)*time.Millisecond)
-	return nil
+	})
 }
 
 func (a *app) auditAggregateCommand() *cobra.Command {
@@ -493,48 +465,42 @@ func (a *app) runAuditAggregate(cmd *cobra.Command, _ []string) error {
 		return a.underlined(err)
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
-		return nil
-	}
-	agg, err := decode[auditAggregation](data)
-	if err != nil {
-		return err
-	}
-	out.queryWarnings(agg.Warnings)
-	headers := make([]string, 0, len(agg.Levels)+1+len(agg.Metrics))
-	for _, l := range agg.Levels {
-		headers = append(headers, strings.ToUpper(text(l.Name)))
-	}
-	headers = append(headers, "DOC_COUNT")
-	for _, m := range agg.Metrics {
-		name := m.Name
-		if m.Key != nil {
-			name += "[" + *m.Key + "]"
+	return render(out, data, func(agg auditAggregation) error {
+		out.queryWarnings(agg.Warnings)
+		headers := make([]string, 0, len(agg.Levels)+1+len(agg.Metrics))
+		for _, l := range agg.Levels {
+			headers = append(headers, strings.ToUpper(text(l.Name)))
 		}
-		headers = append(headers, strings.ToUpper(text(name)))
-	}
-	rows := make([][]string, 0, len(agg.Rows))
-	for _, r := range agg.Rows {
-		row := make([]string, 0, len(headers))
-		for _, k := range r.Keys {
-			row = append(row, orDash(k))
-		}
-		row = append(row, strconv.FormatInt(r.DocCount, 10))
-		for _, v := range r.Values {
-			if v == nil {
-				row = append(row, "-")
-				continue
+		headers = append(headers, "DOC_COUNT")
+		for _, m := range agg.Metrics {
+			name := m.Name
+			if m.Key != nil {
+				name += "[" + *m.Key + "]"
 			}
-			row = append(row, strconv.FormatFloat(*v, 'g', -1, 64))
+			headers = append(headers, strings.ToUpper(text(name)))
 		}
-		rows = append(rows, row)
-	}
-	out.table(headers, rows)
-	if agg.Truncated {
-		out.notice("The rows stop at the server's limit and more exist; use a larger interval, a smaller size or a shorter window.")
-	}
-	return nil
+		rows := make([][]string, 0, len(agg.Rows))
+		for _, r := range agg.Rows {
+			row := make([]string, 0, len(headers))
+			for _, k := range r.Keys {
+				row = append(row, orDash(k))
+			}
+			row = append(row, strconv.FormatInt(r.DocCount, 10))
+			for _, v := range r.Values {
+				if v == nil {
+					row = append(row, "-")
+					continue
+				}
+				row = append(row, strconv.FormatFloat(*v, 'g', -1, 64))
+			}
+			rows = append(rows, row)
+		}
+		out.table(headers, rows)
+		if agg.Truncated {
+			out.notice("The rows stop at the server's limit and more exist; use a larger interval, a smaller size or a shorter window.")
+		}
+		return nil
+	})
 }
 
 func (a *app) auditFieldsCommand() *cobra.Command {
@@ -547,30 +513,20 @@ func (a *app) auditFieldsCommand() *cobra.Command {
 }
 
 func (a *app) runAuditFields(cmd *cobra.Command, _ []string) error {
-	c, err := a.newClient()
-	if err != nil {
-		return err
-	}
-	data, err := c.get(cmd.Context(), "audit/fields", nil)
+	data, err := a.fetch(cmd.Context(), "audit/fields", nil)
 	if err != nil {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(list auditFieldList) error {
+		rows := make([][]string, 0, len(list.Fields))
+		for _, f := range list.Fields {
+			aliases := strings.Join(f.Aliases, ", ")
+			rows = append(rows, []string{text(f.Name), orDash(&aliases), text(f.Type), text(f.Description)})
+		}
+		out.table([]string{"FIELD", "ALIASES", "TYPE", "DESCRIPTION"}, rows)
 		return nil
-	}
-	list, err := decode[auditFieldList](data)
-	if err != nil {
-		return err
-	}
-	rows := make([][]string, 0, len(list.Fields))
-	for _, f := range list.Fields {
-		aliases := strings.Join(f.Aliases, ", ")
-		rows = append(rows, []string{text(f.Name), orDash(&aliases), text(f.Type), text(f.Description)})
-	}
-	out.table([]string{"FIELD", "ALIASES", "TYPE", "DESCRIPTION"}, rows)
-	return nil
+	})
 }
 
 func (a *app) auditExportCommand() *cobra.Command {

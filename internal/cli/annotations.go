@@ -73,21 +73,15 @@ func (a *app) annotationsListCommand() *cobra.Command {
 				return err
 			}
 			out := a.output()
-			if a.json {
-				out.body(data)
+			return render(out, data, func(listed annotationListBody) error {
+				rows := make([][]string, 0, len(listed.Annotations))
+				for _, n := range listed.Annotations {
+					rows = append(rows, []string{text(n.ID), when(n.TimeFrom), orDash(n.DashboardID), tagsText(n.Tags), truncate(text(n.Text), annotationTextColumn)})
+				}
+				out.table([]string{"ID", "TIME", "DASHBOARD", "TAGS", "TEXT"}, rows)
+				pageFooter(out, len(listed.Annotations), nil, listed.NextCursor)
 				return nil
-			}
-			listed, err := decode[annotationListBody](data)
-			if err != nil {
-				return err
-			}
-			rows := make([][]string, 0, len(listed.Annotations))
-			for _, n := range listed.Annotations {
-				rows = append(rows, []string{text(n.ID), when(n.TimeFrom), orDash(n.DashboardID), tagsText(n.Tags), truncate(text(n.Text), annotationTextColumn)})
-			}
-			out.table([]string{"ID", "TIME", "DASHBOARD", "TAGS", "TEXT"}, rows)
-			pageFooter(out, len(listed.Annotations), nil, listed.NextCursor)
-			return nil
+			})
 		},
 	}
 	addPageFlags(cmd, &page, maxAnnotationPage)

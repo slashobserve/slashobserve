@@ -146,21 +146,15 @@ func (a *app) runList(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(page dashboardList) error {
+		rows := make([][]string, 0, len(page.Dashboards))
+		for _, d := range page.Dashboards {
+			rows = append(rows, []string{text(d.ID), text(d.Title), strconv.Itoa(d.LatestVersion), strconv.Itoa(d.ViewCount), when(d.UpdatedAt), text(d.UpdatedBy.Name), text(d.Folder.Title)})
+		}
+		out.table([]string{"ID", "TITLE", "VERSION", "VIEWS", "UPDATED", "UPDATED BY", "FOLDER"}, rows)
+		pageFooter(out, len(page.Dashboards), page.TotalCount, page.NextCursor)
 		return nil
-	}
-	page, err := decode[dashboardList](data)
-	if err != nil {
-		return err
-	}
-	rows := make([][]string, 0, len(page.Dashboards))
-	for _, d := range page.Dashboards {
-		rows = append(rows, []string{text(d.ID), text(d.Title), strconv.Itoa(d.LatestVersion), strconv.Itoa(d.ViewCount), when(d.UpdatedAt), text(d.UpdatedBy.Name), text(d.Folder.Title)})
-	}
-	out.table([]string{"ID", "TITLE", "VERSION", "VIEWS", "UPDATED", "UPDATED BY", "FOLDER"}, rows)
-	pageFooter(out, len(page.Dashboards), page.TotalCount, page.NextCursor)
-	return nil
+	})
 }
 
 func (a *app) showCommand() *cobra.Command {
@@ -318,25 +312,19 @@ func (a *app) runVersions(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
-		return nil
-	}
-	page, err := decode[versionList](data)
-	if err != nil {
-		return err
-	}
-	rows := make([][]string, 0, len(page.Versions))
-	for _, v := range page.Versions {
-		parent := "-"
-		if v.ParentVersion != nil {
-			parent = strconv.Itoa(*v.ParentVersion)
+	return render(out, data, func(page versionList) error {
+		rows := make([][]string, 0, len(page.Versions))
+		for _, v := range page.Versions {
+			parent := "-"
+			if v.ParentVersion != nil {
+				parent = strconv.Itoa(*v.ParentVersion)
+			}
+			rows = append(rows, []string{strconv.Itoa(v.Version), parent, text(v.Actor.Label), when(v.CreatedAt), text(v.Summary)})
 		}
-		rows = append(rows, []string{strconv.Itoa(v.Version), parent, text(v.Actor.Label), when(v.CreatedAt), text(v.Summary)})
-	}
-	out.table([]string{"VERSION", "PARENT", "AUTHOR", "CREATED", "SUMMARY"}, rows)
-	pageFooter(out, len(page.Versions), nil, page.NextCursor)
-	return nil
+		out.table([]string{"VERSION", "PARENT", "AUTHOR", "CREATED", "SUMMARY"}, rows)
+		pageFooter(out, len(page.Versions), nil, page.NextCursor)
+		return nil
+	})
 }
 
 func appendPanelRows(rows [][]string, p shownPanel) [][]string {

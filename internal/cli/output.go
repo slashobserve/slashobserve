@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -71,6 +73,26 @@ func (o *output) body(data []byte) {
 	if len(data) == 0 || data[len(data)-1] != '\n' {
 		_, _ = fmt.Fprintln(o.out)
 	}
+}
+
+func render[T any](out *output, data []byte, show func(T) error) error {
+	if out.json {
+		out.body(data)
+		return nil
+	}
+	value, err := decode[T](data)
+	if err != nil {
+		return err
+	}
+	return show(value)
+}
+
+func (a *app) fetch(ctx context.Context, path string, query url.Values) ([]byte, error) {
+	c, err := a.newClient()
+	if err != nil {
+		return nil, err
+	}
+	return c.get(ctx, path, query)
 }
 
 func (o *output) line(format string, args ...any) {

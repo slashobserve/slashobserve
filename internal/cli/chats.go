@@ -99,33 +99,27 @@ func (a *app) chatsListCommand() *cobra.Command {
 				return err
 			}
 			out := a.output()
-			if a.json {
-				out.body(data)
-				return nil
-			}
-			list, err := decode[chatListBody](data)
-			if err != nil {
-				return err
-			}
-			rows := make([][]string, 0, len(list.Chats))
-			for _, chat := range list.Chats {
-				state := "-"
-				if chat.LastTurn != nil {
-					state = requestStateWord(chat.LastTurn.State)
+			return render(out, data, func(list chatListBody) error {
+				rows := make([][]string, 0, len(list.Chats))
+				for _, chat := range list.Chats {
+					state := "-"
+					if chat.LastTurn != nil {
+						state = requestStateWord(chat.LastTurn.State)
+					}
+					row := []string{text(chat.ID)}
+					if opts.everyone() {
+						row = append(row, text(chat.Owner.Name))
+					}
+					rows = append(rows, append(row, pinnedWord(chat.PinnedAt), state, strconv.Itoa(chat.Turns), when(chat.LastTurnAt), chat.dashboardLabel(), firstLine(chat.Title)))
 				}
-				row := []string{text(chat.ID)}
+				header := []string{"ID", "PINNED", "LAST TURN", "TURNS", "ASKED", "DASHBOARD", "TITLE"}
 				if opts.everyone() {
-					row = append(row, text(chat.Owner.Name))
+					header = []string{"ID", "OWNER", "PINNED", "LAST TURN", "TURNS", "ASKED", "DASHBOARD", "TITLE"}
 				}
-				rows = append(rows, append(row, pinnedWord(chat.PinnedAt), state, strconv.Itoa(chat.Turns), when(chat.LastTurnAt), chat.dashboardLabel(), firstLine(chat.Title)))
-			}
-			header := []string{"ID", "PINNED", "LAST TURN", "TURNS", "ASKED", "DASHBOARD", "TITLE"}
-			if opts.everyone() {
-				header = []string{"ID", "OWNER", "PINNED", "LAST TURN", "TURNS", "ASKED", "DASHBOARD", "TITLE"}
-			}
-			out.table(header, rows)
-			pageFooter(out, len(list.Chats), nil, list.NextCursor)
-			return nil
+				out.table(header, rows)
+				pageFooter(out, len(list.Chats), nil, list.NextCursor)
+				return nil
+			})
 		},
 	}
 	addPageFlags(cmd, &page, maxChatPage)
@@ -193,50 +187,40 @@ func (a *app) chatsShowCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			c, err := a.newClient()
-			if err != nil {
-				return err
-			}
-			data, err := c.get(cmd.Context(), "chats/"+id, nil)
+			data, err := a.fetch(cmd.Context(), "chats/"+id, nil)
 			if err != nil {
 				return err
 			}
 			out := a.output()
-			if a.json {
-				out.body(data)
+			return render(out, data, func(detail chatDetailBody) error {
+				out.fields([][2]string{
+					{"Chat", text(detail.Chat.ID)},
+					{"Owner", text(detail.Chat.Owner.Name)},
+					{"Title", firstLine(detail.Chat.Title)},
+					{"Dashboard", orDash(detail.Chat.DashboardID)},
+					{"Dashboard title", orDash(detail.Chat.DashboardTitle)},
+					{"Observation", orDash(detail.Chat.ObservationID)},
+					{"Pinned", orDash(detail.Chat.PinnedAt)},
+				})
+				rows := make([][]string, 0, len(detail.Turns))
+				for _, turn := range detail.Turns {
+					rows = append(rows, []string{text(turn.ID), requestStateWord(turn.State), firstLine(turn.Prompt)})
+				}
+				out.line("")
+				out.table([]string{"REQUEST", "STATE", "PROMPT"}, rows)
+				for _, turn := range detail.Turns {
+					switch {
+					case turn.Anchor != nil:
+						out.line("Request %s points at %s", text(turn.ID), anchorText(turn.Anchor))
+					case turn.BlockID != nil:
+						out.line("Request %s is about block %s", text(turn.ID), text(*turn.BlockID))
+					}
+					if turn.SharedThread != nil {
+						out.line("Request %s is shared in thread %s", text(turn.ID), text(*turn.SharedThread))
+					}
+				}
 				return nil
-			}
-			detail, err := decode[chatDetailBody](data)
-			if err != nil {
-				return err
-			}
-			out.fields([][2]string{
-				{"Chat", text(detail.Chat.ID)},
-				{"Owner", text(detail.Chat.Owner.Name)},
-				{"Title", firstLine(detail.Chat.Title)},
-				{"Dashboard", orDash(detail.Chat.DashboardID)},
-				{"Dashboard title", orDash(detail.Chat.DashboardTitle)},
-				{"Observation", orDash(detail.Chat.ObservationID)},
-				{"Pinned", orDash(detail.Chat.PinnedAt)},
 			})
-			rows := make([][]string, 0, len(detail.Turns))
-			for _, turn := range detail.Turns {
-				rows = append(rows, []string{text(turn.ID), requestStateWord(turn.State), firstLine(turn.Prompt)})
-			}
-			out.line("")
-			out.table([]string{"REQUEST", "STATE", "PROMPT"}, rows)
-			for _, turn := range detail.Turns {
-				switch {
-				case turn.Anchor != nil:
-					out.line("Request %s points at %s", text(turn.ID), anchorText(turn.Anchor))
-				case turn.BlockID != nil:
-					out.line("Request %s is about block %s", text(turn.ID), text(*turn.BlockID))
-				}
-				if turn.SharedThread != nil {
-					out.line("Request %s is shared in thread %s", text(turn.ID), text(*turn.SharedThread))
-				}
-			}
-			return nil
 		},
 	}
 }

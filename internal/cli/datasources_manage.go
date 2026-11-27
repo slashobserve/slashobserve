@@ -316,18 +316,12 @@ func (a *app) sendDatasource(cmd *cobra.Command, verb string, send func(*client)
 	if err != nil {
 		return err
 	}
-	if a.json {
-		a.output().body(data)
+	return render(a.output(), data, func(cfg datasourceConfig) error {
+		out := a.output()
+		out.line("%s datasource %s", verb, text(cfg.UID))
+		out.line("Check it now: observe datasources recheck %s", text(cfg.UID))
 		return nil
-	}
-	cfg, err := decode[datasourceConfig](data)
-	if err != nil {
-		return err
-	}
-	out := a.output()
-	out.line("%s datasource %s", verb, text(cfg.UID))
-	out.line("Check it now: observe datasources recheck %s", text(cfg.UID))
-	return nil
+	})
 }
 
 func (a *app) datasourcesTestCommand() *cobra.Command {
@@ -405,35 +399,25 @@ func (a *app) datasourcesRemoveCommand() *cobra.Command {
 }
 
 func (a *app) runDatasourcesGet(cmd *cobra.Command, args []string) error {
-	c, err := a.newClient()
+	data, err := a.fetch(cmd.Context(), "datasources/"+url.PathEscape(args[0])+"/config", nil)
 	if err != nil {
 		return err
 	}
-	data, err := c.get(cmd.Context(), "datasources/"+url.PathEscape(args[0])+"/config", nil)
-	if err != nil {
-		return err
-	}
-	if a.json {
-		a.output().body(data)
-		return nil
-	}
-	cfg, err := decode[datasourceConfig](data)
-	if err != nil {
-		return err
-	}
-	pairs := [][2]string{{"UID", text(cfg.UID)}, {"Type", text(cfg.Type)}, {"Name", text(cfg.Name)}, {"Audience", text(cfg.Audience)}, {"Address", text(cfg.Address)}}
-	for _, optional := range [][2]string{{"Username", cfg.Username}, {"Database", cfg.Database}, {"Tenant", cfg.TenantID}, {"Scrape interval", cfg.Scrape}, {"Index", cfg.Index}, {"Time field", cfg.TimeField}, {"Query language", cfg.Language}, {"Spans", cfg.Spans}} {
-		if optional[1] != "" {
-			pairs = append(pairs, [2]string{optional[0], text(optional[1])})
+	return render(a.output(), data, func(cfg datasourceConfig) error {
+		pairs := [][2]string{{"UID", text(cfg.UID)}, {"Type", text(cfg.Type)}, {"Name", text(cfg.Name)}, {"Audience", text(cfg.Audience)}, {"Address", text(cfg.Address)}}
+		for _, optional := range [][2]string{{"Username", cfg.Username}, {"Database", cfg.Database}, {"Tenant", cfg.TenantID}, {"Scrape interval", cfg.Scrape}, {"Index", cfg.Index}, {"Time field", cfg.TimeField}, {"Query language", cfg.Language}, {"Spans", cfg.Spans}} {
+			if optional[1] != "" {
+				pairs = append(pairs, [2]string{optional[0], text(optional[1])})
+			}
 		}
-	}
-	credentials := "none"
-	if len(cfg.SecretsSet) > 0 {
-		credentials = text(strings.Join(cfg.SecretsSet, ", "))
-	}
-	pairs = append(pairs, [2]string{"Credentials set", credentials}, [2]string{"Updated", when(cfg.UpdatedAt)})
-	a.output().fields(pairs)
-	return nil
+		credentials := "none"
+		if len(cfg.SecretsSet) > 0 {
+			credentials = text(strings.Join(cfg.SecretsSet, ", "))
+		}
+		pairs = append(pairs, [2]string{"Credentials set", credentials}, [2]string{"Updated", when(cfg.UpdatedAt)})
+		a.output().fields(pairs)
+		return nil
+	})
 }
 
 func (a *app) runDatasourcesRemove(cmd *cobra.Command, args []string) error {
