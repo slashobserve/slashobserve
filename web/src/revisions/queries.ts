@@ -4,6 +4,7 @@ import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { dashboardKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
+import { followCursor } from "@/lib/follow-cursor"
 
 export type Revision = components["schemas"]["Revision"]
 export type RevisionStatusValue = Revision["status"]
@@ -21,13 +22,18 @@ export function revisionsQuery(id: string) {
   return queryOptions({
     queryKey: dashboardKeys.revisions(id),
     queryFn: ({ signal }) =>
-      api
-        .GET("/dashboards/{id}/revisions", {
-          params: { path: { id }, query: { limit: pageSize } },
-          signal,
-        })
-        .then(unwrap)
-        .then((body) => body.revisions),
+      followCursor((cursor) =>
+        api
+          .GET("/dashboards/{id}/revisions", {
+            params: { path: { id }, query: { limit: pageSize, cursor } },
+            signal,
+          })
+          .then(unwrap)
+          .then((body) => ({
+            items: body.revisions,
+            next: body.next_cursor ?? null,
+          }))
+      ),
     refetchInterval: (query) =>
       query.state.data?.some((revision) => isActive(revision.status))
         ? safetyPollMs

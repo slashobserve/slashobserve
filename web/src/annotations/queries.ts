@@ -11,6 +11,7 @@ import { unwrap } from "@/api/errors"
 import { annotationKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import type { PanelSource } from "@/dashboards/panel-source"
+import { followCursor } from "@/lib/follow-cursor"
 import { resolveTime, timeOptionsFor } from "@/lib/time"
 
 export type Annotation = components["schemas"]["Annotation"]
@@ -102,19 +103,22 @@ export function annotationActivityQuery(dashboardId: string) {
   return queryOptions({
     queryKey: annotationKeys.activity(dashboardId),
     queryFn: ({ signal }) =>
-      api
-        .GET("/annotations", {
-          params: {
-            query: { dashboard_id: dashboardId, limit: activityLimit },
-          },
-          signal,
-        })
-        .then(unwrap)
-        .then((body) =>
-          body.annotations.filter(
-            (annotation) => annotation.dashboard_id === dashboardId
-          )
-        ),
+      followCursor((cursor) =>
+        api
+          .GET("/annotations", {
+            params: {
+              query: { dashboard_id: dashboardId, limit: activityLimit, cursor },
+            },
+            signal,
+          })
+          .then(unwrap)
+          .then((body) => ({
+            items: body.annotations.filter(
+              (annotation) => annotation.dashboard_id === dashboardId
+            ),
+            next: body.next_cursor ?? null,
+          }))
+      ),
     staleTime: 15_000,
   })
 }
