@@ -3173,7 +3173,7 @@ components:
     Proposal:
       type: object
       additionalProperties: false
-      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, close_reason, merged_version, behind, latest_version, allowed_actions, spec, changes, diff, conflicts]
+      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, close_reason, merged_version, behind, latest_version, allowed_actions, spec, changes, diff, conflicts, mergeability]
       description: A proposed change to a dashboard with its head revision's document and what it changes.
       properties:
         id:
@@ -3280,6 +3280,16 @@ components:
             $ref: "#/components/schemas/MergeConflict"
           description: >-
             While the proposal is open and behind, the units that both it and the newer versions changed, which a merge needs a choice for; empty otherwise.
+        mergeability:
+          type: string
+          enum: [current, behind_clean, behind_conflicting, blocked]
+          nullable: true
+          description: >-
+            What a merge would meet now, computed on every read from `behind` and `conflicts`; null once the proposal is merged or discarded.
+            `current` builds on the latest version, `behind_clean` merges onto newer versions without a choice,
+            `behind_conflicting` needs a choice for each conflict, and `blocked` has a conflict whose reason is `invalid`,
+            which no choice resolves: a merge answers 409 `version_conflict` until the author saves a new revision.
+            `allowed_actions` still lists `merge` in every one of them. See docs/reference/states.md.
     ProposalChange:
       type: object
       additionalProperties: false

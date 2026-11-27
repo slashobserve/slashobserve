@@ -1369,6 +1369,7 @@ Returns a proposal with these fields:
 
 - Its `spec` and its `changes`.
 - The `conflicts` a merge would hit while it is open and behind the dashboard.
+- Its `mergeability` while it is open: `current`, `behind_clean`, `behind_conflicting` (send a choice per conflict) or `blocked` (a conflict has the reason `invalid`, so no merge succeeds until the author saves a new revision).
 - The `allowed_actions` of the caller.
 - The field-by-field `diff`.
   The diff is left out, with the step saying so, when it would take the result over 128 KiB.
