@@ -17,7 +17,7 @@ var version = "dev"
 
 func main() {
 	root := flag.String("root", "", "directory to serve, read-only")
-	addr := flag.String("addr", listenDefault(), "listen address, default from CODESERVER_ADDR or :8080")
+	addr := flag.String("addr", listenDefault(), "listen address, default from CODESERVER_ADDR or 127.0.0.1:8080")
 	healthcheck := flag.Bool("healthcheck", false, "probe the server on -addr and exit")
 	flag.Parse()
 	if *healthcheck {
@@ -37,7 +37,7 @@ func listenDefault() string {
 	if v := os.Getenv("CODESERVER_ADDR"); v != "" {
 		return v
 	}
-	return ":8080"
+	return "127.0.0.1:8080"
 }
 
 func run(dir, addr string) error {

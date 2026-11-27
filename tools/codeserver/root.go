@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -56,7 +57,11 @@ func (r *Root) clean(rel string) (string, error) {
 	if strings.HasPrefix(rel, "/") || filepath.IsAbs(rel) {
 		return "", errAbsolute
 	}
-	return path.Clean(rel), nil
+	cleaned := path.Clean(rel)
+	if slices.Contains(strings.Split(cleaned, "/"), ".git") {
+		return "", errNotFound
+	}
+	return cleaned, nil
 }
 
 func (r *Root) Stat(rel string) (fs.FileInfo, error) {
