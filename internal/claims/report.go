@@ -69,6 +69,27 @@ func (s *Service) Report(ctx context.Context, c Claimer, in ReportInput) (Report
 	return ReportAnswer{State: string(revisions.StateRunning), LeaseUntil: &until}, nil
 }
 
+type ReleaseAnswer struct {
+	State string `json:"state"`
+}
+
+func (s *Service) Release(ctx context.Context, c Claimer, runID string, attempt int) (ReleaseAnswer, error) {
+	row, err := s.claimedRun(ctx, c, runID, attempt)
+	if err != nil {
+		return ReleaseAnswer{}, err
+	}
+	if !revisions.State(row.State).Terminal() {
+		// The next claim reuses this attempt number, so the tokens go before the run can be claimed again.
+		s.DropTokens(ctx, row)
+		s.runs.Release(ctx, row)
+	}
+	stored, err := s.runs.GetByID(ctx, row.ID)
+	if err != nil {
+		return ReleaseAnswer{}, err
+	}
+	return ReleaseAnswer{State: stored.State}, nil
+}
+
 func (s *Service) ClaimedRun(ctx context.Context, c Claimer, runID string, attempt int) (revisions.Request, error) {
 	row, err := s.claimedRun(ctx, c, runID, attempt)
 	if err != nil {

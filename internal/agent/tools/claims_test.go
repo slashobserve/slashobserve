@@ -33,13 +33,22 @@ func callClaimToolWith(t *testing.T, deps Deps, claimer *claims.Claimer, name, i
 	return New(deps).Call(ctx, name, []byte(input))
 }
 
+type releasedRun struct {
+	by      claims.Claimer
+	runID   string
+	attempt int
+}
+
 type fakeClaims struct {
-	req       revisions.Request
-	runErr    error
-	reports   []claims.ReportInput
-	answers   []claims.ReportAnswer
-	offer     claims.Offer
-	claimedBy claims.Claimer
+	req        revisions.Request
+	runErr     error
+	reports    []claims.ReportInput
+	answers    []claims.ReportAnswer
+	offer      claims.Offer
+	claimedBy  claims.Claimer
+	released   []releasedRun
+	releasedAs claims.ReleaseAnswer
+	releaseErr error
 }
 
 func (f *fakeClaims) Claim(_ context.Context, c claims.Claimer, _ time.Duration) (claims.Offer, error) {
@@ -55,6 +64,11 @@ func (f *fakeClaims) Report(_ context.Context, _ claims.Claimer, in claims.Repor
 	f.reports = append(f.reports, in)
 	answer := f.answers[min(len(f.reports), len(f.answers))-1]
 	return answer, nil
+}
+
+func (f *fakeClaims) Release(_ context.Context, c claims.Claimer, runID string, attempt int) (claims.ReleaseAnswer, error) {
+	f.released = append(f.released, releasedRun{by: c, runID: runID, attempt: attempt})
+	return f.releasedAs, f.releaseErr
 }
 
 type fakeRunSessions struct {
@@ -155,6 +169,10 @@ func TestClaimToolsRejectABadInput(t *testing.T) {
 		"finish unknown field":   {nameFinishRun, `{"run_id":"` + runID + `","attempt":1,"outcome":"failed","why":"x"}`},
 		"finish unknown usage":   {nameFinishRun, `{"run_id":"` + runID + `","attempt":1,"outcome":"failed","usage":{"tokens":1}}`},
 		"finish bad usage type":  {nameFinishRun, `{"run_id":"` + runID + `","attempt":1,"outcome":"failed","usage":{"model":3}}`},
+		"release bad uuid":       {nameReleaseRun, `{"run_id":"nope","attempt":1}`},
+		"release attempt zero":   {nameReleaseRun, `{"run_id":"` + runID + `","attempt":0}`},
+		"release without run":    {nameReleaseRun, `{"attempt":1}`},
+		"release unknown field":  {nameReleaseRun, `{"run_id":"` + runID + `","attempt":1,"outcome":"failed"}`},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -175,6 +193,7 @@ func TestClaimToolsRefuseACallerThatIsNotAClaimer(t *testing.T) {
 		nameReportRun:   `{"run_id":"` + runID + `","attempt":1}`,
 		nameFinishRun:   `{"run_id":"` + runID + `","attempt":1,"outcome":"failed"}`,
 		nameGetRunBrief: `{"run_id":"` + runID + `","attempt":1}`,
+		nameReleaseRun:  `{"run_id":"` + runID + `","attempt":1}`,
 	} {
 		t.Run(tool, func(t *testing.T) {
 			res, err := callClaimTool(t, nil, tool, input)
@@ -240,7 +259,7 @@ func TestAFinishRefusedForRemovalsInProposeModeIsAToolErrorNamingThem(t *testing
 
 func TestClaimToolsAreMCPOnlyAndNeverOfferedInARun(t *testing.T) {
 	byName := toolsByName(t)
-	for _, name := range []string{nameClaimRun, nameReportRun, nameFinishRun, nameGetRunBrief} {
+	for _, name := range []string{nameClaimRun, nameReportRun, nameFinishRun, nameGetRunBrief, nameReleaseRun} {
 		tool, ok := byName[name]
 		if !ok {
 			t.Fatalf("%s is not registered", name)
@@ -256,15 +275,45 @@ func TestClaimToolsAreMCPOnlyAndNeverOfferedInARun(t *testing.T) {
 	}
 }
 
-func TestOnlyTheFourClaimToolsAreClaimTools(t *testing.T) {
+func TestOnlyTheFiveClaimToolsAreClaimTools(t *testing.T) {
 	var got []string
 	for _, tool := range New(Deps{}).List() {
 		if tool.Claim {
 			got = append(got, tool.Name)
 		}
 	}
-	if strings.Join(got, ",") != "claim_run,finish_run,get_run_brief,report_run" {
+	if strings.Join(got, ",") != "claim_run,finish_run,get_run_brief,release_run,report_run" {
 		t.Fatalf("claim tools = %v", got)
+	}
+}
+
+func TestReleaseRunHandsTheHoldersRunBackAndAnswersItsState(t *testing.T) {
+	fc := &fakeClaims{releasedAs: claims.ReleaseAnswer{State: "queued"}}
+
+	res, err := callClaimToolWith(t, Deps{Claims: fc}, outsideClaimer, nameReleaseRun, `{"run_id":"`+runID+`","attempt":2}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if out := jsonOf(t, res); !reflect.DeepEqual(out, map[string]any{"state": "queued"}) {
+		t.Fatalf("answer = %v, want only the queued state", out)
+	}
+	want := []releasedRun{{by: *outsideClaimer, runID: runID, attempt: 2}}
+	if !reflect.DeepEqual(fc.released, want) {
+		t.Fatalf("released = %+v, want %+v", fc.released, want)
+	}
+}
+
+func TestReleaseRunOfARunThatIsNotTheCallersIsNotYourRun(t *testing.T) {
+	fc := &fakeClaims{releaseErr: claims.ErrNotYourRun}
+
+	res, err := callClaimToolWith(t, Deps{Claims: fc}, outsideClaimer, nameReleaseRun, `{"run_id":"`+runID+`","attempt":2}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if code := errorCode(t, res); code != codeNotYourRun {
+		t.Fatalf("code %q, want %q", code, codeNotYourRun)
 	}
 }
 
