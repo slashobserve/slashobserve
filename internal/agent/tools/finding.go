@@ -127,6 +127,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
+	in = renderedFinding(ctx, in)
 	run, _ := RunFrom(ctx)
 	principal, _ := auth.FromContext(ctx)
 	requestID, err := optionalUUID(run.RequestID)
@@ -175,6 +176,37 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 		out.Note = noteStructuredDropped
 	}
 	return success(stepSavedAnswer, out), nil
+}
+
+func renderedFinding(ctx context.Context, in findingInput) findingInput {
+	ledger, ok := factsOf(ctx)
+	if !ok {
+		return in
+	}
+	render := func(text string) string {
+		out, _ := ledger.Render(text)
+		return out
+	}
+	in.Title, in.Markdown, in.Impact = render(in.Title), render(in.Markdown), render(in.Impact)
+	if in.RootCause != nil {
+		cause := *in.RootCause
+		cause.Summary = render(cause.Summary)
+		in.RootCause = &cause
+	}
+	in.RuledOut = renderedAll(in.RuledOut, render)
+	in.NextSteps = renderedAll(in.NextSteps, render)
+	return in
+}
+
+func renderedAll(texts []string, render func(string) string) []string {
+	if len(texts) == 0 {
+		return texts
+	}
+	out := make([]string, len(texts))
+	for i, text := range texts {
+		out[i] = render(text)
+	}
+	return out
 }
 
 func (r *Registry) findingURL(f findings.Finding) string {

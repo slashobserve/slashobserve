@@ -152,6 +152,21 @@ The run keeps each fact with its value at full precision, its kind (number, dura
 The ledger holds the newest 400 facts, so the oldest are dropped first, and it is stored with the run's session, never logged and never returned by the API.
 Every read also records the trace and span ids its result showed.
 
+The finding cites a fact with a placeholder in place of the figure, `{{f3}}`, in its Markdown, title, impact, root cause summary, ruled-out items and next steps.
+The server writes the value into the text before the finding is stored, so the saved and shown finding holds the number and nobody downstream sees a placeholder.
+A placeholder takes options after colons, in any order:
+
+| Option | What it does |
+| --- | --- |
+| none | The value exactly as the read returned it, with its unit: `{{f3}}` is `1312.75 ms`. |
+| `ms`, `s`, `us`, `min` | A duration in another unit; a value with no unit is taken as seconds, as Prometheus writes durations: `{{f3:s}}` is `1.31275 s`. |
+| `%` | A ratio as a percent: `{{f4:%}}` of 0.4167 is `41.67%`. |
+| `1` to `9` | That many significant figures, refused when the shown value would be more than 1% from the fact: `{{f3:s:3}}` is `1.31 s`. |
+| `bare` | No unit after the number. |
+
+A trace id fact takes no option and renders as the whole id.
+A placeholder naming a fact the run does not hold, or an option that does not fit the fact or would move the value by more than 1%, is a problem with the finding: with `enforce` it is sent back once naming the id, and when the finding is saved anyway, an unknown fact is written as `[figure not read]`, a broken option is ignored, and the item is stored with the finding.
+
 With `report`, the items that did not pass are stored with the finding and nothing else changes.
 With `enforce`, the first save with such items is sent back once with a line per item that says "read it, correct it, or remove it".
 The agent may read past its call limit to do that, and the send-back is not counted as a rejected save.

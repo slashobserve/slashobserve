@@ -45,6 +45,8 @@ function subjectOf(kind: UnverifiedKind, count: number): string {
       return "the root cause component"
     case "onset":
       return "the onset time"
+    case "fact":
+      return count === 1 ? "1 cited fact" : `${count} cited facts`
   }
 }
 
@@ -58,7 +60,10 @@ export function unverifiedLine(finding: RunFinding): string {
     subjects.length > 1
       ? `${subjects.slice(0, -1).join(", ")} and ${subjects.at(-1)}`
       : (subjects[0] ?? "")
-  const plural = subjects.length > 1 || (counts.get("figure") ?? 0) > 1
+  const plural =
+    subjects.length > 1 ||
+    (counts.get("figure") ?? 0) > 1 ||
+    (counts.get("fact") ?? 0) > 1
   const items = finding.unverified.map((item) => item.text).join(", ")
   const sentence = `${subject} ${plural ? "were" : "was"} not found in what the agent read: ${items}`
   return sentence.charAt(0).toUpperCase() + sentence.slice(1)

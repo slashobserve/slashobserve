@@ -5720,8 +5720,8 @@ components:
       properties:
         kind:
           type: string
-          enum: [figure, component, onset]
-          description: A figure from the Markdown or the impact, the root cause component, or the onset time.
+          enum: [figure, component, onset, fact]
+          description: A figure from the Markdown or the impact, the root cause component, the onset time, or a fact the agent cited that the run did not hold or that it asked to show more than 1% away from its value.
         text:
           type: string
           maxLength: 120

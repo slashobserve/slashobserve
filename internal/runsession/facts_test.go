@@ -52,6 +52,67 @@ func TestAReadShowsItsFactIDsAndTheSessionKeepsThemAcrossAStore(t *testing.T) {
 	}
 }
 
+func sendBackMessage(t *testing.T, a admitted) string {
+	t.Helper()
+	if a.answer == nil || !a.answer.IsError {
+		t.Fatal("the save was admitted, want it sent back")
+	}
+	var refusal struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(a.answer.Content, &refusal); err != nil {
+		t.Fatal(err)
+	}
+	return refusal.Message
+}
+
+func TestACleanCitationIsAdmittedWithTheLedgerForTheSave(t *testing.T) {
+	s := groundingScript(t, grounding.Enforce)
+	s.readAnswer("measure_window", `{"datasource":"prom","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1})
+
+	got := s.admitSave(`{"markdown":"Checkout p99 peaked at {{f1:ms}}."}`, &Turn{ID: "t2", Calls: 1})
+	if got.answer != nil || got.unverified != nil {
+		t.Fatalf("a clean save was refused or flagged: %+v %+v", got.answer, got.unverified)
+	}
+	if rendered, problems := got.ledger.Render("{{f1:ms:3}}"); rendered != "523 ms" || problems != nil {
+		t.Errorf("the save's ledger rendered %q, %+v", rendered, problems)
+	}
+}
+
+func TestAnUnknownFactIsSentBackOnceAndTheSecondSaveStillSaves(t *testing.T) {
+	s := groundingScript(t, grounding.Enforce)
+	s.readAnswer("measure_window", `{"datasource":"prom","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1})
+	const save = `{"markdown":"Checkout p99 peaked at {{f12}}."}`
+
+	message := sendBackMessage(t, s.admitSave(save, &Turn{ID: "t2", Calls: 1}))
+	if !strings.Contains(message, `cited fact "{{f12}}": f12 is not a fact this run read`) {
+		t.Errorf("the send-back does not name the id:\n%s", message)
+	}
+	if s.sess.state.Guard.Rejections != 0 {
+		t.Errorf("rejections = %d, want the send-back not counted", s.sess.state.Guard.Rejections)
+	}
+
+	second := s.admitSave(save, &Turn{ID: "t3", Calls: 1})
+	if second.answer != nil {
+		t.Fatalf("the second save was refused: %s", second.answer.Content)
+	}
+	if len(second.unverified) != 1 || second.unverified[0].Kind != "fact" || second.unverified[0].Text != "{{f12}}" {
+		t.Errorf("unverified = %+v, want the cited fact", second.unverified)
+	}
+	if rendered, _ := second.ledger.Render("{{f12}}"); rendered != grounding.UnreadMarker {
+		t.Errorf("the unknown fact renders as %q", rendered)
+	}
+}
+
+func TestReportRecordsABrokenCitationWithoutSendingItBack(t *testing.T) {
+	s := groundingScript(t, grounding.Report)
+	s.readAnswer("measure_window", `{"datasource":"prom","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1})
+	got := s.admitSave(`{"markdown":"Checkout p99 peaked at {{f1:1}}."}`, &Turn{ID: "t2", Calls: 1})
+	if got.answer != nil || len(got.unverified) != 1 || got.unverified[0].Text != "{{f1:1}}" {
+		t.Errorf("report = %+v, %+v", got.answer, got.unverified)
+	}
+}
+
 func TestWithGroundingOffAReadIsReturnedAsTheToolGaveIt(t *testing.T) {
 	s := groundingScript(t, grounding.Off)
 	if answer := s.readAnswer("measure_window", `{"datasource":"prom","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1}); string(answer.Content) != measured {

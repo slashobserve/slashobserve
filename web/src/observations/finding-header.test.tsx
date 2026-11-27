@@ -122,6 +122,21 @@ describe("the line for items the agent did not read", () => {
     ).toBe("2 figures were not found in what the agent read: 523 ms, 41%")
   })
 
+  it("counts cited facts", () => {
+    expect(
+      unverifiedLine(
+        finding({
+          unverified: [
+            { kind: "fact", text: "{{f9}}" },
+            { kind: "fact", text: "{{f3:1}}" },
+          ],
+        })
+      )
+    ).toBe(
+      "2 cited facts were not found in what the agent read: {{f9}}, {{f3:1}}"
+    )
+  })
+
   it("names one figure, the component and the onset", () => {
     expect(
       unverifiedLine(

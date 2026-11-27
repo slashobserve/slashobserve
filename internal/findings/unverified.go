@@ -11,6 +11,8 @@ const (
 	UnverifiedFigure    = "figure"
 	UnverifiedComponent = "component"
 	UnverifiedOnset     = "onset"
+	UnverifiedFact      = "fact"
+	UnverifiedTraceID   = "trace_id"
 )
 
 type Unverified struct {
