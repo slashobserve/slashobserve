@@ -65,8 +65,16 @@ func rcaState(liveLinks, revision, newest int) RCAState {
 	return RCAPublished
 }
 
-func allowedRCAActions(state RCAState, abilities folders.Abilities) []RCAAction {
-	return RCAMachine.Allowed(state, canObservation(abilities, false))
+func allowedRCAActions(state RCAState, folder folders.Folder, abilities folders.Abilities) []RCAAction {
+	return slices.DeleteFunc(RCAMachine.Allowed(state, canObservation(abilities, false)), func(a RCAAction) bool {
+		switch a {
+		case RCAShare:
+			return folder.Personal || folder.AdminsOnly
+		case RCAUnshare:
+			return folder.Personal
+		}
+		return false
+	})
 }
 
 type RCARefusal struct {
@@ -88,15 +96,12 @@ func named[A ~string](actions []A) []string {
 	return out
 }
 
-func withdrawable(state RCAState, abilities folders.Abilities) error {
-	allowed := allowedRCAActions(state, abilities)
-	if slices.Contains(allowed, RCAWithdraw) {
-		return nil
-	}
-	if !slices.Contains(allowedRCAActions(RCAPublished, abilities), RCAWithdraw) {
-		return folders.ErrForbidden
-	}
-	return &RCARefusal{Code: CodeRCAShared, Cause: ErrRCAShared, State: string(state), Allowed: named(allowed)}
+func mayWithdraw(abilities folders.Abilities) bool {
+	return slices.Contains(RCAMachine.Allowed(RCAPublished, canObservation(abilities, false)), RCAWithdraw)
+}
+
+func refusedWithdraw(state RCAState, folder folders.Folder, abilities folders.Abilities) error {
+	return &RCARefusal{Code: CodeRCAShared, Cause: ErrRCAShared, State: string(state), Allowed: named(allowedRCAActions(state, folder, abilities))}
 }
 
 func refusedPublish(err error, state State, allowed []Action) error {

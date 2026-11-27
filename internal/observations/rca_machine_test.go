@@ -52,6 +52,7 @@ func TestAnRCARevisionStateComesFromItsLinksAndTheNewestRevision(t *testing.T) {
 }
 
 func TestAnRCARevisionOffersWithdrawOnlyWhileItHasNoLiveLink(t *testing.T) {
+	shared := folders.Folder{}
 	cases := []struct {
 		name      string
 		state     RCAState
@@ -67,23 +68,38 @@ func TestAnRCARevisionOffersWithdrawOnlyWhileItHasNoLiveLink(t *testing.T) {
 		{"manager on a shared one", RCAShared, managing, []RCAAction{RCAShare, RCAUnshare}},
 	}
 	for _, c := range cases {
-		if got := allowedRCAActions(c.state, c.abilities); !slices.Equal(got, c.want) {
+		if got := allowedRCAActions(c.state, shared, c.abilities); !slices.Equal(got, c.want) {
+			t.Errorf("%s: %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+func TestShareIsLeftOutWhereTheShareRouteRefusesIt(t *testing.T) {
+	adminsOnly, personal := folders.Folder{AdminsOnly: true}, folders.Folder{Personal: true}
+	cases := []struct {
+		name   string
+		state  RCAState
+		folder folders.Folder
+		want   []RCAAction
+	}{
+		{"a folder only Admins can read", RCAPublished, adminsOnly, []RCAAction{RCAWithdraw}},
+		{"an older revision there", RCASuperseded, adminsOnly, []RCAAction{RCAWithdraw}},
+		{"a revision shared before the folder was closed", RCAShared, adminsOnly, []RCAAction{RCAUnshare}},
+		{"a personal folder", RCAPublished, personal, []RCAAction{RCAWithdraw}},
+		{"a link left in a personal folder", RCAShared, personal, []RCAAction{}},
+	}
+	for _, c := range cases {
+		if got := allowedRCAActions(c.state, c.folder, managing); !slices.Equal(got, c.want) {
 			t.Errorf("%s: %v, want %v", c.name, got, c.want)
 		}
 	}
 }
 
 func TestWithdrawingASharedRevisionIsRefusedWithItsStateAndOpenMoves(t *testing.T) {
-	if err := withdrawable(RCASuperseded, editing); err != nil {
-		t.Errorf("an editor withdrawing an unshared revision: %v", err)
+	if !mayWithdraw(editing) || mayWithdraw(commenting) || mayWithdraw(viewing) {
+		t.Errorf("withdraw: editor %v, commenter %v, viewer %v", mayWithdraw(editing), mayWithdraw(commenting), mayWithdraw(viewing))
 	}
-	if err := withdrawable(RCAPublished, commenting); !errors.Is(err, folders.ErrForbidden) {
-		t.Errorf("a commenter withdrawing: %v, want forbidden", err)
-	}
-	if err := withdrawable(RCAShared, viewing); !errors.Is(err, folders.ErrForbidden) {
-		t.Errorf("a viewer withdrawing a shared revision: %v, want forbidden", err)
-	}
-	err := withdrawable(RCAShared, managing)
+	err := refusedWithdraw(RCAShared, folders.Folder{}, managing)
 	var refusal *RCARefusal
 	if !errors.As(err, &refusal) || !errors.Is(err, ErrRCAShared) {
 		t.Fatalf("a manager withdrawing a shared revision: %v", err)
@@ -93,6 +109,12 @@ func TestWithdrawingASharedRevisionIsRefusedWithItsStateAndOpenMoves(t *testing.
 	}
 	if refusal.Error() != ErrRCAShared.Error() {
 		t.Errorf("message %q changed", refusal.Error())
+	}
+	if closed := refusedWithdraw(RCAShared, folders.Folder{AdminsOnly: true}, managing); !errors.As(closed, &refusal) || !slices.Equal(refusal.Allowed, []string{"unshare"}) {
+		t.Errorf("in a folder only Admins can read: %+v", refusal)
+	}
+	if editor := refusedWithdraw(RCAShared, folders.Folder{}, editing); !errors.As(editor, &refusal) || len(refusal.Allowed) != 0 || refusal.Allowed == nil {
+		t.Errorf("an editor's refusal: %+v", refusal)
 	}
 }
 
@@ -143,7 +165,7 @@ func TestAnRCARefusalAnswers409WithStateAndAllowedActions(t *testing.T) {
 		code  string
 		state string
 	}{
-		{withdrawable(RCAShared, managing), "rca_shared", "shared"},
+		{refusedWithdraw(RCAShared, folders.Folder{}, managing), "rca_shared", "shared"},
 		{refusedPublish(ErrRCALimit, StateOpen, []Action{ActionPublish}), "rca_limit", "open"},
 		{refusedPublish(&RCAUnchangedError{Revision: 2}, StateResolved, []Action{}), "rca_unchanged", "resolved"},
 		{refusedPublish(ErrObservationChanged, StateOpen, []Action{ActionPublish}), "observation_changed", "open"},

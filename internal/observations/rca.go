@@ -227,7 +227,7 @@ func (s *Service) Publish(ctx context.Context, by auth.Principal, observationID 
 		return RCA{}, refusedPublish(err, State(row.State), observationOf(row, folder, abilities, viewer, pgtype.UUID{}, 0).AllowedActions)
 	}
 	rca.RevisionState = RCAPublished
-	rca.AllowedActions = allowedRCAActions(RCAPublished, abilities)
+	rca.AllowedActions = allowedRCAActions(RCAPublished, folder, abilities)
 	return rca, nil
 }
 
@@ -324,7 +324,7 @@ func (s *Service) panelFailure(ctx context.Context, observationID pgtype.UUID, b
 }
 
 func (s *Service) ListRCAs(ctx context.Context, by auth.Principal, observationID pgtype.UUID) ([]RCASummary, error) {
-	_, _, abilities, err := s.open(ctx, by, observationID)
+	_, folder, abilities, err := s.open(ctx, by, observationID)
 	if err != nil {
 		return nil, err
 	}
@@ -342,7 +342,7 @@ func (s *Service) ListRCAs(ctx context.Context, by auth.Principal, observationID
 			Summary:        r.Summary.String,
 			State:          State(r.ObservationState),
 			RevisionState:  state,
-			AllowedActions: allowedRCAActions(state, abilities),
+			AllowedActions: allowedRCAActions(state, folder, abilities),
 			Actor:          actorOf(r.CreatedByKind, r.CreatedByID, r.CreatedByName, r.Origin, r.OriginClient, r.RunID),
 			CreatedAt:      r.CreatedAt.Time.UTC(),
 		}
@@ -355,8 +355,8 @@ func (s *Service) WithdrawRCA(ctx context.Context, by auth.Principal, observatio
 		return ErrRevisionNotFound
 	}
 	err := s.write(ctx, by, observationID, pgtype.UUID{}, func(q *dbsqlc.Queries, row dbsqlc.Observation, abilities folders.Abilities, who actor.Actor) error {
-		if err := withdrawable(RCAPublished, abilities); err != nil {
-			return err
+		if !mayWithdraw(abilities) {
+			return folders.ErrForbidden
 		}
 		rcaID, err := q.LockRCAByRevision(ctx, dbsqlc.LockRCAByRevisionParams{ObservationID: observationID, Revision: httpapi.Int32(revision)})
 		switch {
@@ -373,8 +373,13 @@ func (s *Service) WithdrawRCA(ctx context.Context, by auth.Principal, observatio
 		if err != nil {
 			return fmt.Errorf("read the newest RCA revision: %w", err)
 		}
-		if err := withdrawable(rcaState(int(links), revision, int(next.Revision)-1), abilities); err != nil {
-			return err
+		state := rcaState(int(links), revision, int(next.Revision)-1)
+		if _, open := RCAMachine.Find(state, RCAWithdraw); !open {
+			folder, _, err := s.locate(ctx, by, row.FolderID)
+			if err != nil {
+				return err
+			}
+			return refusedWithdraw(state, folder, abilities)
 		}
 		if _, err := q.DeleteRCA(ctx, rcaID); err != nil {
 			return fmt.Errorf("delete RCA revision: %w", err)
@@ -390,7 +395,7 @@ func (s *Service) WithdrawRCA(ctx context.Context, by auth.Principal, observatio
 }
 
 func (s *Service) GetRCA(ctx context.Context, by auth.Principal, observationID pgtype.UUID, revision int) (RCA, error) {
-	_, _, abilities, err := s.open(ctx, by, observationID)
+	_, folder, abilities, err := s.open(ctx, by, observationID)
 	if err != nil {
 		return RCA{}, err
 	}
@@ -412,7 +417,7 @@ func (s *Service) GetRCA(ctx context.Context, by auth.Principal, observationID p
 		return RCA{}, fmt.Errorf("read the newest RCA revision: %w", err)
 	}
 	rca.RevisionState = rcaState(int(links), revision, int(next.Revision)-1)
-	rca.AllowedActions = allowedRCAActions(rca.RevisionState, abilities)
+	rca.AllowedActions = allowedRCAActions(rca.RevisionState, folder, abilities)
 	return rca, nil
 }
 

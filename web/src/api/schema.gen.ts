@@ -8742,7 +8742,7 @@ export interface components {
             summary: string | null;
             observation_state: components["schemas"]["ObservationState"];
             state: components["schemas"]["RCARevisionState"];
-            /** @description The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links. */
+            /** @description The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links. `share` is left out in a folder only Admins can read and in My Dashboards, where a public link cannot be created. */
             allowed_actions: components["schemas"]["RCARevisionAction"][];
             /** Format: date-time */
             from: string | null;
@@ -8761,7 +8761,7 @@ export interface components {
             summary: string | null;
             observation_state: components["schemas"]["ObservationState"];
             state: components["schemas"]["RCARevisionState"];
-            /** @description The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links. */
+            /** @description The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links. `share` is left out in a folder only Admins can read and in My Dashboards, where a public link cannot be created. */
             allowed_actions: components["schemas"]["RCARevisionAction"][];
             created_by: components["schemas"]["Actor"];
             /** Format: date-time */

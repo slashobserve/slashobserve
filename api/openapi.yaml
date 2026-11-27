@@ -8371,7 +8371,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RCARevisionAction"
-          description: The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links.
+          description: The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links. `share` is left out in a folder only Admins can read and in My Dashboards, where a public link cannot be created.
         from:
           type: string
           format: date-time
@@ -8413,7 +8413,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RCARevisionAction"
-          description: The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links.
+          description: The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links. `share` is left out in a folder only Admins can read and in My Dashboards, where a public link cannot be created.
         created_by:
           $ref: "#/components/schemas/Actor"
         created_at:
