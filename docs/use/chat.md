@@ -165,6 +165,9 @@ Before that, when the agent answered a question instead of building, the box rea
 The follow-up continues the same chat, below the earlier turns.
 In a chat with no dashboard, while the latest turn still runs, the box is disabled and the note under it reads "Wait for the answer, or cancel the run, then ask a follow-up."
 An empty follow-up says "Describe the change you want first." on a dashboard and "Ask a question or describe a dashboard first." without one.
+A message that got no answer, because the connection dropped or the server failed, is safe to send again, edited or not: the box sends it with the same message id, so the server never starts a second run for it.
+When you edited it and the first message had in fact arrived, the box keeps your edit, shows the first message in the conversation and says "Your first message was sent. Send again to post this edit."
+The same holds for a comment in a thread.
 What a follow-up is about comes from the chat, so while the chat cannot be read the page shows "Could not load this request" with **Retry** and no box.
 
 A follow-up starts a fresh run that sees the datasources, your new message and the earlier turns of the conversation as context.

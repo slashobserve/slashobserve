@@ -107,6 +107,7 @@ export type SentMessage = {
   run: NonNullable<Message["run"]> | null
   runRefusal: NonNullable<Message["run_refusal"]> | null
   to: ThreadSent["to"]
+  replayed: boolean
 }
 
 type ThreadSent = components["schemas"]["ThreadSent"]
@@ -118,6 +119,7 @@ function sentMessage(body: ThreadSent): SentMessage {
     to: body.to,
     run: body.message.run ?? null,
     runRefusal: body.message.run_refusal ?? null,
+    replayed: body.replayed,
   }
 }
 

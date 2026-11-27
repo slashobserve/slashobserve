@@ -14,6 +14,7 @@ import {
   agentFailedText,
   agentWaitMs,
   nothingSentText,
+  supersededText,
   useComposer,
   type SentResult,
 } from "./use-composer"
@@ -187,7 +188,7 @@ describe("Composer in a chat", () => {
     expect(await box()).toHaveValue("")
   })
 
-  it("continues an open chat in place with a new client id per message", async () => {
+  it("continues an open chat in place with a new client id per delivered message", async () => {
     const fetch = stubCreate()
     const { user, onSent } = renderComposer({ chatId: "c1" })
     await user.type(await box(), "one{Enter}")
@@ -563,5 +564,174 @@ describe("Composer in a chat", () => {
       ).toBeVisible()
       expect(posts).toEqual([])
     })
+  })
+})
+
+type Answer = Response | Error
+
+function stubAnswers(...answers: Answer[]) {
+  const bodies: Record<string, unknown>[] = []
+  const fetch = vi.fn(async (request: Request) => {
+    if (request.method !== "POST") {
+      return reply({ service_accounts: [], connected: [], available: true })
+    }
+    bodies.push((await request.clone().json()) as Record<string, unknown>)
+    const answer = answers.shift() ?? reply({}, 500)
+    if (answer instanceof Error) throw answer
+    return answer
+  })
+  vi.stubGlobal("fetch", fetch)
+  return bodies
+}
+
+function reply(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  })
+}
+
+function created(prompt: string) {
+  return reply({ request: { id: "r1", prompt } }, 202)
+}
+
+function posted(replayed: boolean) {
+  return reply(
+    {
+      thread: { id: "t1" },
+      message: { id: "m1", thread_id: "t1", body: "first" },
+      to: "everyone",
+      replayed,
+    },
+    replayed ? 200 : 201
+  )
+}
+
+const lost = () => new TypeError("Failed to fetch")
+const broken = () => reply({ error: "boom", code: "internal" }, 503)
+const reused = () =>
+  reply({ error: "client id reused", code: "client_id_reused" }, 422)
+
+function ThreadComposer({ onSent }: { onSent: (sent: SentResult) => void }) {
+  const model = useComposer({
+    subject: { kind: "dashboard", id: dashboardId },
+    place: { kind: "thread", threadId: "t1", agent: null, agentOff: true },
+    gate: ungated,
+    onSent,
+  })
+  return (
+    <Composer
+      model={model}
+      layout="page"
+      label="Message the agent"
+      placeholder="Reply"
+    />
+  )
+}
+
+function renderThread() {
+  const queryClient = testQueryClient()
+  const onSent = vi.fn<(sent: SentResult) => void>()
+  const invalidate = vi.spyOn(queryClient, "invalidateQueries")
+  const result = renderWithProviders(<ThreadComposer onSent={onSent} />, {
+    queryClient,
+    route: { path: "/", url: "/" },
+  })
+  return { ...result, onSent, invalidate }
+}
+
+describe("client ids", () => {
+  beforeEach(() => toasts.error.mockReset())
+
+  async function chatFailed() {
+    await waitFor(() => expect(toasts.error).toHaveBeenCalled())
+    toasts.error.mockReset()
+  }
+
+  it("keeps the id after a send whose outcome is unknown, even after an edit", async () => {
+    const bodies = stubAnswers(broken(), created("second"))
+    const { user, onSent } = renderComposer({ chatId: "c1" })
+    const field = await box()
+    await user.type(field, "first{Enter}")
+    await chatFailed()
+    await user.clear(field)
+    await user.type(field, "first, again{Enter}")
+    await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
+    expect(bodies).toHaveLength(2)
+    expect(bodies[1].client_id).toBe(bodies[0].client_id)
+  })
+
+  it("keeps the id across a lost answer and its one resend", async () => {
+    const bodies = stubAnswers(lost(), lost(), created("first"))
+    const { user, onSent } = renderComposer({ chatId: "c1" })
+    const field = await box()
+    await user.type(field, "first{Enter}")
+    await chatFailed()
+    await user.type(field, "{Enter}")
+    await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
+    expect(new Set(bodies.map((body) => body.client_id)).size).toBe(1)
+  })
+
+  it("says the first message was sent when the chat refuses the reused id, keeps the edit and sends it only when asked", async () => {
+    const bodies = stubAnswers(broken(), reused(), created("edited"))
+    const { user, onSent } = renderComposer({ chatId: "c1" })
+    const field = await box()
+    await user.type(field, "first{Enter}")
+    await chatFailed()
+    await user.clear(field)
+    await user.type(field, "edited{Enter}")
+    expect(await screen.findByText(supersededText)).toBeVisible()
+    expect(field).toHaveValue("edited")
+    expect(onSent).not.toHaveBeenCalled()
+    expect(bodies).toHaveLength(2)
+    await user.type(field, "{Enter}")
+    await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
+    expect(bodies[2]).toMatchObject({ prompt: "edited" })
+    expect(bodies[2].client_id).not.toBe(bodies[0].client_id)
+  })
+
+  it("takes a fresh id in another chat", async () => {
+    const bodies = stubAnswers(broken(), created("first"))
+    const { user, onSent } = renderComposer({ chatId: "c1", movableChat: true })
+    await user.type(await box(), "first{Enter}")
+    await chatFailed()
+    await user.click(screen.getByRole("button", { name: "Open another chat" }))
+    await user.type(await box(), "{Enter}")
+    await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
+    expect(bodies[1]).toMatchObject({ chat_id: "another-chat" })
+    expect(bodies[1].client_id).not.toBe(bodies[0].client_id)
+  })
+
+  it("refetches the thread and keeps the edit when a reply replays the first body", async () => {
+    const bodies = stubAnswers(broken(), posted(true), posted(false))
+    const { user, onSent, invalidate } = renderThread()
+    const field = await box()
+    await user.type(field, "first{Enter}")
+    await screen.findByRole("alert")
+    await user.clear(field)
+    await user.type(field, "edited{Enter}")
+    expect(await screen.findByText(supersededText)).toBeVisible()
+    expect(field).toHaveValue("edited")
+    expect(onSent).not.toHaveBeenCalled()
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: ["threads", `dashboard:${dashboardId}`],
+    })
+    expect(bodies[1].client_id).toBe(bodies[0].client_id)
+    await user.type(field, "{Enter}")
+    await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
+    expect(bodies[2]).toMatchObject({ body: "edited" })
+    expect(bodies[2].client_id).not.toBe(bodies[0].client_id)
+  })
+
+  it("treats a replay of the same body as sent", async () => {
+    stubAnswers(broken(), posted(true))
+    const { user, onSent } = renderThread()
+    const field = await box()
+    await user.type(field, "first{Enter}")
+    await screen.findByRole("alert")
+    await user.type(field, "{Enter}")
+    await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
+    expect(screen.queryByText(supersededText)).toBeNull()
+    expect(field).toHaveValue("")
   })
 })
