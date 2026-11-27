@@ -329,15 +329,19 @@ func TestRunErrorMessageIsCappedAtWholeCharacters(t *testing.T) {
 	}
 }
 
-func TestRunKeepsTheDashboardOfARemovedFile(t *testing.T) {
+func TestRunKeepsTheDashboardOfARemovedFileAndClearsItsError(t *testing.T) {
 	r := newRig(t)
 	r.write(t, "team/a.json", specJSON("Team A", "up"))
 	saved := entry(t, r.run(t), "team/a.json")
+	r.write(t, "team/a.json", specJSON("Team A", brokenQuery))
+	if failed := entry(t, r.run(t), "team/a.json"); failed.LastError == "" {
+		t.Fatalf("a failing change left no last_error: %+v", failed)
+	}
 	r.remove(t, "team/a.json")
 
 	kept := entry(t, r.run(t), "team/a.json")
-	if kept.DashboardID != saved.DashboardID {
-		t.Fatalf("kept %+v, saved %+v", kept, saved)
+	if kept.DashboardID != saved.DashboardID || kept.LastError != "" {
+		t.Fatalf("kept %+v, saved %+v; want the same dashboard with its error cleared", kept, saved)
 	}
 	if dash, _ := r.latest(t, saved.DashboardID); dash.Title != "Team A" {
 		t.Fatalf("title %q", dash.Title)

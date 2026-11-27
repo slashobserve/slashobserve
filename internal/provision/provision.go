@@ -159,7 +159,16 @@ func (p *Provisioner) provisionAll(ctx context.Context, requested bool) error {
 		return err
 	}
 	for _, r := range rows {
-		if !present[r.Path] && !p.gone[r.Path] {
+		if present[r.Path] {
+			continue
+		}
+		if r.LastError != "" {
+			delete(p.logged, r.Path)
+			if err := p.store.dashboardFailed(ctx, r.Path, ""); err != nil {
+				return err
+			}
+		}
+		if !p.gone[r.Path] {
 			p.gone[r.Path] = true
 			p.logger.InfoContext(ctx, "a provisioned file is gone; its dashboard stays", slog.String("path", r.Path), slog.String("dashboard_id", r.DashboardID.String()))
 		}
