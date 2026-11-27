@@ -16,8 +16,8 @@ async function main(): Promise<number> {
   const base = new McpClient(mcpUrl(env.serverUrl), env.token)
   const controller = new AbortController()
   const stop = (): void => controller.abort()
-  process.once("SIGTERM", stop)
-  process.once("SIGINT", stop)
+  process.on("SIGTERM", stop)
+  process.on("SIGINT", stop)
   log("info", "observe-agent started", { version, slots: env.slots })
   const work = claimLoop(
     new ClaimClient(base),
