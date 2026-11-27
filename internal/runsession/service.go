@@ -98,6 +98,7 @@ type Service struct {
 	logger             *slog.Logger
 	inFlight           slots
 	runLocks           runLocks
+	sweeper            Sweeper
 }
 
 func New(c Config) *Service {
@@ -207,11 +208,14 @@ func (s *Service) create(ctx context.Context, q *dbsqlc.Queries, req revisions.R
 	if err != nil {
 		return nil, err
 	}
+	attempt := httpapi.Int32(req.Attempt)
+	if initial.Triage, err = priorTriage(ctx, q, id, attempt); err != nil {
+		return nil, err
+	}
 	raw, err := json.Marshal(initial)
 	if err != nil {
 		return nil, fmt.Errorf("encode run session: %w", err)
 	}
-	attempt := httpapi.Int32(req.Attempt)
 	if _, err := q.InsertRunSession(ctx, dbsqlc.InsertRunSessionParams{AgentRequestID: id, Attempt: attempt, State: raw}); err != nil {
 		return nil, fmt.Errorf("insert run session: %w", err)
 	}

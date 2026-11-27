@@ -187,6 +187,36 @@ func TestFindingGroundingIsOffUnlessSet(t *testing.T) {
 	}
 }
 
+func TestInvestigationBriefIsOnUnlessSetOff(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		set     map[string]string
+		want    bool
+		wantErr bool
+	}{
+		{name: "unset", want: true},
+		{name: "on", set: map[string]string{envAgentInvestigationBrief: "on"}, want: true},
+		{name: "off", set: map[string]string{envAgentInvestigationBrief: "off"}, want: false},
+		{name: "a boolean", set: map[string]string{envAgentInvestigationBrief: "false"}, wantErr: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, err := Load(envOf(llmEnv(tt.set)))
+			if tt.wantErr {
+				if err == nil || !strings.Contains(err.Error(), envAgentInvestigationBrief+": must be on or off") {
+					t.Fatalf("Load error = %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.Agent.InvestigationBrief != tt.want {
+				t.Fatalf("InvestigationBrief = %v, want %v", cfg.Agent.InvestigationBrief, tt.want)
+			}
+		})
+	}
+}
+
 func TestAgentInvestigationCallsMaxSetting(t *testing.T) {
 	const message = envAgentInvestigationMax + ": must be a whole number from the value of " + envAgentInvestigationCalls
 	tests := []struct {

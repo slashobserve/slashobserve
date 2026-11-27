@@ -82,6 +82,32 @@ How the agent reads and answers:
 - It reads durations and rates at the series' native step in a short range around the event.
 - It takes a baseline such as typical or normal from the question's whole window without the event's own span, read at an aggregate or coarser step.
 
+### The preflight brief
+
+Before the first model call of an investigation, the server sweeps the datasources the requester's run may read and writes what it found into the agent's first message, in a `<triage>` block.
+It is on by default; `SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF` set to `off` turns it off.
+A plain question, a chat question and a dashboard build or revision do not sweep.
+
+The sweep calls no model.
+It reads through the same tools, access checks and limits as the agent, never reads the audit datasource or any datasource only Admins can query, and stops after 40 reads or 20 seconds, whichever comes first.
+It reads:
+
+- The service map: on each store, the label or field that names a service and the services seen.
+- Request rate, error rate and p95 latency per service over the last 1 hour, 6 hours and 24 hours, each against the same length just before it, from span-metric or HTTP server metrics on Prometheus, otherwise span counts on Tempo or ClickHouse, otherwise error-level log lines on Loki; each line says which.
+- The onset of each service whose errors or latency moved: the first step above twice the baseline's median error ratio and at least 1 point more, or 1.5 times its median p95 latency and at least 5 ms more, that stays there for 3 steps, read at 120 steps per window.
+- Failing requests counted at their deepest erroring span with `trace_error_origins`, with one example trace id per group.
+- Log patterns on Loki that are new or grew in the window, at every level, for up to 3 services that moved.
+- Change events: annotations in the window and the day before, deploy, rollout, version and restart lines in Loki, and feature flag evaluations in Loki log records and in Tempo span events (`feature_flag.evaluation`, with `feature_flag.key` and its variant), with the first time each variant was seen.
+
+The server groups what moved into numbered candidates, `c1`, `c2` and so on, in onset order, each with the change events of the 30 minutes before its onset.
+A service whose errors start later than another's and that relays that service's errors in the traces is listed as its knock-on, not as a candidate of its own, and errors present before the window at a similar level are listed as background.
+The block also says what was skipped and why, such as a store that failed or the read budget running out.
+It is at most 6 KiB; the lines cut first are the skipped steps, then the background, log patterns, per-service rates, service lists, evidence lines, signal lines and last the latest candidates.
+
+The block is a starting point, not evidence: the agent is told to test each candidate with its own reads, and every figure in the finding still comes from a read of the run.
+The sweep runs once per run: the block and its duration are kept with the run session, so a shortened conversation, a restart or another server reuses it, and the run's steps show one line with the number of reads and the time it took.
+The block is sent to the LLM provider like any tool result and never written to the server's logs.
+
 ### The hypothesis ledger
 
 With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` set to `true`, the built-in agent also gets `note_hypotheses`, and an investigation that opens an observation is told in its prompt to use it.

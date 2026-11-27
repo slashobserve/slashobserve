@@ -36,6 +36,7 @@ type Task struct {
 	Loop          bool
 	Facts         bool
 	Hypotheses    string
+	Triage        string
 }
 
 type View struct {

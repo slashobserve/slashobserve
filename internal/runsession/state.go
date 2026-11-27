@@ -44,6 +44,8 @@ type State struct {
 	Loop   bool                   `json:"loop,omitempty"`
 
 	Grounding *grounding.Record `json:"grounding,omitempty"`
+
+	Triage *Triage `json:"triage,omitempty"`
 }
 
 type Settled struct {

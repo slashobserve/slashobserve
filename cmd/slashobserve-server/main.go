@@ -26,6 +26,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/actions"
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/agent/triage"
 	"github.com/slashobserve/slashobserve/internal/agentsview"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/assets"
@@ -350,6 +351,12 @@ func logDatasources(cfg config.Config, logger *slog.Logger) {
 	logger.Info("datasources configured", slog.Int("count", len(cfg.Datasources)))
 }
 
+func sweepBeforeInvestigations(on bool, runs *runsession.Service, reg *tools.Registry, datasources *datasource.Registry) {
+	if on {
+		runs.SweepWith(triage.Service{Tools: reg, Datasources: datasources, Limits: triage.DefaultLimits})
+	}
+}
+
 func run() error {
 	cfg, err := config.Load(os.LookupEnv)
 	if err != nil {
@@ -547,6 +554,7 @@ func run() error {
 		Logger:         logger,
 		LedgerTool:     cfg.Agent.InvestigationLoop,
 	})
+	sweepBeforeInvestigations(cfg.Agent.InvestigationBrief, runSessions, toolRegistry, registry)
 
 	broker := events.NewBroker(database.Listen, logger)
 	go broker.Run(ctx)

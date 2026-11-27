@@ -157,6 +157,7 @@ const (
 	envAgentInvestigationLoop  = "SLASHOBSERVE_AGENT_INVESTIGATION_LOOP"
 	envAgentInvestigationMax   = "SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX"
 	envAgentFindingGrounding   = "SLASHOBSERVE_AGENT_FINDING_GROUNDING"
+	envAgentInvestigationBrief = "SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF"
 	envAgentRunMaxCostUSD      = "SLASHOBSERVE_AGENT_RUN_MAX_COST_USD"
 
 	envProvisionDir = "SLASHOBSERVE_PROVISION_DIR"
@@ -171,7 +172,7 @@ var serverEnvNames = []string{
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
-	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentRunMaxCostUSD, envAgentSessionRenewKiB, envAgentWorkers, envAgentInvestigationCalls, envAgentInvestigationLoop, envAgentInvestigationMax, envAgentFindingGrounding,
+	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentRunMaxCostUSD, envAgentSessionRenewKiB, envAgentWorkers, envAgentInvestigationCalls, envAgentInvestigationLoop, envAgentInvestigationMax, envAgentFindingGrounding, envAgentInvestigationBrief,
 	envProvisionDir, envMetrics, envSecretKey, envServiceAccountsFile, envMCPSourcesFile,
 }
 
@@ -205,6 +206,7 @@ type Agent struct {
 	InvestigationCallsMax int
 	FindingGrounding      grounding.Mode
 	MaxRunCostUSD         float64
+	InvestigationBrief    bool
 }
 
 type Config struct {
@@ -736,6 +738,9 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 		errs = append(errs, fmt.Errorf("%s: %w", envAgentFindingGrounding, err))
 	}
 	cfg.Agent.FindingGrounding = mode
+	if cfg.Agent.InvestigationBrief, err = loadOnOff(lookup, envAgentInvestigationBrief, true); err != nil {
+		errs = append(errs, err)
+	}
 	if err := loadRunMaxCost(lookup, cfg); err != nil {
 		errs = append(errs, err)
 	}
@@ -908,6 +913,19 @@ func HTTPAddr(lookup func(string) (string, bool)) (string, error) {
 		return addr, fmt.Errorf("%s: port must be a number between 1 and 65535, got %q", envHTTPAddr, port)
 	}
 	return addr, nil
+}
+
+func loadOnOff(lookup func(string) (string, bool), key string, def bool) (bool, error) {
+	switch v := get(lookup, key); v {
+	case "":
+		return def, nil
+	case "off":
+		return false, nil
+	case "on":
+		return true, nil
+	default:
+		return def, fmt.Errorf("%s: must be on or off, got %q", key, v)
+	}
 }
 
 func loadBool(lookup func(string) (string, bool), key string, def bool) (bool, error) {

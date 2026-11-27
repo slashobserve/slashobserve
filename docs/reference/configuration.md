@@ -295,6 +295,7 @@ See [LLM providers](../connect/llm-providers.md) for how the settings combine.
 | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | `12` | Model calls an investigation makes, `6` to `60`. |
 | `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` | `false` | Gives investigations of the built-in agent a hypothesis ledger, stages, and a call limit that grows with progress. |
 | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX` | the value of `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | The most model calls a growing investigation limit can reach, from `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` to `60`. |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF` | `on` | Sweeps the datasources before an investigation's first model call and gives the agent the result as a starting point: `on` or `off`. |
 | `SLASHOBSERVE_AGENT_FINDING_GROUNDING` | `off` | Numbers what reads return as facts and checks a run's finding against what the run read: `off`, `report` or `enforce`. |
 | `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` | `256` | Session size that triggers shortening, `32` to `4096` KiB. |
 | `SLASHOBSERVE_LLM_PRICES_FILE` | the built-in table | YAML file of model prices. |
@@ -391,6 +392,13 @@ It must be at least `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` and at most `60`, a
 Unset, it equals `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`, so the limit never grows.
 Without the loop setting it has no effect.
 The cost cap `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` and the run timeout still end an investigation at any limit.
+
+### Details of `SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF`
+
+With `on`, the server reads every datasource the run may read before an investigation's first model call, with no model, in at most 40 reads and 20 seconds, and puts the service map, the per-service rates on a 1 hour, 6 hour and 24 hour ladder, the onsets, error origins, changed log patterns and change events into the agent's first message as numbered candidates.
+The sweep runs once per investigation and is kept with the run session.
+A plain question, a chat question and dashboard builds do not sweep, and any other value than `on` or `off` stops the server at start-up.
+See [The preflight brief](../concepts/investigate.md#the-preflight-brief).
 
 ### Details of `SLASHOBSERVE_AGENT_FINDING_GROUNDING`
 
