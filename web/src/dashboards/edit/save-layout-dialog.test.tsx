@@ -90,6 +90,7 @@ describe("SaveLayoutDialog", () => {
         envelope: {} as never,
         version: 3,
         mergedFrom: null,
+        warning: null,
       })
     })
 

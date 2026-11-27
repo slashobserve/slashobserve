@@ -918,7 +918,6 @@ var knownFailures = []knownFailure{
 	{ErrInvalidCursor, http.StatusBadRequest, "invalid_request", "cursor is not valid"},
 	{ErrCursorOrder, http.StatusBadRequest, "invalid_request", ErrCursorOrder.Error()},
 	{ErrNothingToUpdate, http.StatusBadRequest, "invalid_request", ErrNothingToUpdate.Error()},
-	{folders.ErrMoveIntoPersonal, http.StatusConflict, "personal_folder", moveIntoPersonalMessage},
 	{folders.ErrForbidden, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage},
 	{folders.ErrNoAccess, http.StatusNotFound, "not_found", ErrNotFound.Error()},
 }
@@ -935,6 +934,8 @@ func abortKnown(c *gin.Context, err error) bool {
 	var refusal *lifecycle.Refusal
 	var badSpec *dashboards.InvalidSpecError
 	switch {
+	case errors.Is(err, folders.ErrMoveIntoPersonal):
+		folders.AbortPersonalFolder(c, moveIntoPersonalMessage)
 	case folders.AbortRestricted(c, err):
 	case errors.As(err, &badSpec):
 		httpapi.AbortInvalidSpec(c, "spec is invalid", badSpec.Issues)

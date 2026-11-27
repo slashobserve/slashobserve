@@ -38,6 +38,14 @@ function folder(extra: Partial<Folder> = {}): Folder {
     restricted: false,
     admins_only: false,
     audit: false,
+    kind: "open",
+    allowed_actions: [
+      "create_in",
+      "move_into",
+      "rename",
+      "set_permissions",
+      "delete",
+    ],
     dashboard_count: 1,
     grantees: [],
     grantee_count: 0,
@@ -252,6 +260,7 @@ describe("FolderPage", () => {
       folder({
         dashboard_count: 0,
         level: "view",
+        allowed_actions: [],
         permissions: {
           comment: false,
           edit: false,
@@ -385,10 +394,50 @@ describe("FolderPage", () => {
     expect(onSettings).toHaveBeenCalledWith(false)
   })
 
+  it("shows only the settings cards for the actions the server allows", async () => {
+    mockServer(folder({ allowed_actions: ["create_in", "move_into"] }), [
+      checkout,
+    ])
+    const { host } = renderFolderPage(true)
+
+    const panel = await within(host).findByRole("complementary", {
+      name: "Folder settings",
+    })
+    expect(
+      within(panel).getByText(/Only folder Admins can change it/)
+    ).toBeInTheDocument()
+    expect(within(panel).queryByLabelText("Folder name")).toBeNull()
+    expect(
+      within(panel).queryByRole("heading", { name: "Delete folder" })
+    ).toBeNull()
+  })
+
+  it("says what General is instead of offering its settings", async () => {
+    mockServer(
+      folder({
+        title: "General",
+        general: true,
+        kind: "general",
+        allowed_actions: ["create_in", "move_into"],
+      }),
+      [checkout]
+    )
+    const { host } = renderFolderPage(true)
+
+    const panel = await within(host).findByRole("complementary", {
+      name: "Folder settings",
+    })
+    expect(
+      within(panel).getByText(/General holds dashboards/)
+    ).toBeInTheDocument()
+    expect(within(panel).queryByLabelText("Folder name")).toBeNull()
+  })
+
   it("offers no settings button to someone who cannot manage the folder", async () => {
     mockServer(
       folder({
         level: "view",
+        allowed_actions: [],
         permissions: {
           comment: false,
           edit: false,

@@ -228,16 +228,17 @@ func (p *Provisioner) provisionFile(ctx context.Context, f specfiles.File, row d
 	}
 	summary := summaryPrefix + f.Path
 	if found {
-		latest, err := p.dashboards.LatestVersion(ctx, row.DashboardID)
+		_, latest, err := p.dashboards.Get(ctx, row.DashboardID)
 		if err != nil {
 			return p.fail(ctx, f, found, err)
 		}
 		res, err := p.dashboards.Save(ctx, Principal, dashboards.SaveInput{
-			DashboardID: row.DashboardID,
-			Parent:      latest,
-			Spec:        raw,
-			Summary:     summary,
-			InTxSaved:   binding(f.Path, sum, row.FolderTitle),
+			DashboardID:     row.DashboardID,
+			Parent:          latest.Number,
+			Spec:            raw,
+			Summary:         summary,
+			ReplacedVersion: versionReplaced(latest.VersionMeta),
+			InTxSaved:       binding(f.Path, sum, row.FolderTitle),
 		})
 		if err != nil {
 			return p.fail(ctx, f, found, err)
@@ -263,6 +264,13 @@ func (p *Provisioner) provisionFile(ctx context.Context, f specfiles.File, row d
 	p.saved(ctx, f, dash.ID, ver.Number)
 	p.saves++
 	return false, nil
+}
+
+func versionReplaced(latest dashboards.VersionMeta) int {
+	if latest.Author.ID == Principal.ID {
+		return 0
+	}
+	return latest.Number
 }
 
 func binding(path, sum, folder string) func(context.Context, *dbsqlc.Queries, dashboards.Dashboard, dashboards.Version) error {

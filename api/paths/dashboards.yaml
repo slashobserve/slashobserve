@@ -606,7 +606,7 @@ dashboards-id-versions-version-restore:
                 description: A blank or missing summary uses the default `Restore version {version}`.
     responses:
       "201":
-        description: The new version, with `restored_from` naming the restored one.
+        description: The new version, with `restored_from` naming the restored one, and a `warning` when a file writes the dashboard.
         headers:
           Location:
             required: true
@@ -615,7 +615,7 @@ dashboards-id-versions-version-restore:
         content:
           application/json:
             schema:
-              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+              $ref: "../openapi.yaml#/components/schemas/DashboardVersionSaved"
       "400":
         $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":

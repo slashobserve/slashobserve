@@ -55,6 +55,8 @@ function folder(id: string, title: string, extra: Partial<Folder> = {}) {
     title,
     general: false,
     personal: false,
+    kind: "open",
+    allowed_actions: ["create_in", "move_into"],
     permissions: { edit: true },
     ...extra,
   } as Folder
@@ -87,7 +89,11 @@ afterEach(() => {
 describe("DetailsDialog folder", () => {
   it("shows the folder the dashboard is in and the shared folders it can move to", async () => {
     open([
-      folder(mine, "My Dashboards", { personal: true }),
+      folder(mine, "My Dashboards", {
+        personal: true,
+        kind: "personal",
+        allowed_actions: ["create_in"],
+      }),
       folder(ops, "Ops"),
       folder(shop, "Shop"),
     ])
@@ -146,7 +152,14 @@ describe("DetailsDialog folder", () => {
 
   it("says Published when the dashboard leaves a personal folder", async () => {
     open(
-      [folder(mine, "My Dashboards", { personal: true }), folder(shop, "Shop")],
+      [
+        folder(mine, "My Dashboards", {
+          personal: true,
+          kind: "personal",
+          allowed_actions: ["create_in"],
+        }),
+        folder(shop, "Shop"),
+      ],
       {
         id: mine,
         personal: true,

@@ -232,7 +232,7 @@ func optionalTime(t *time.Time) *string {
 }
 
 func abortAdminsOnly(c *gin.Context, err error) {
-	body := gin.H{"error": err.Error(), "code": folders.CodeAdminsOnlyFolder}
+	body := gin.H{"error": err.Error(), "code": folders.CodeAdminsOnlyFolder, "allowed_actions": folders.AdminsOnlyActions(httpapi.Caller(c).Role)}
 	if datasource := adminsOnlyDatasource(err); datasource != "" {
 		body["datasource"] = datasource
 	}
@@ -252,7 +252,7 @@ func (h *Handler) refuse(c *gin.Context, err error) bool {
 	case errors.Is(err, folders.ErrForbidden):
 		c.AbortWithStatusJSON(http.StatusForbidden, forbidden.BodyOf(err))
 	case errors.Is(err, ErrPersonalFolder):
-		httpapi.AbortError(c, http.StatusConflict, "personal_folder", err.Error())
+		folders.AbortPersonalFolder(c, err.Error())
 	case errors.Is(err, ErrAdminsOnly):
 		abortAdminsOnly(c, err)
 	case errors.Is(err, ErrUserScoped):

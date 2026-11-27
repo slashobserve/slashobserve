@@ -269,6 +269,7 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
         </p>
         <p>In folder {created.dashboard.folder.title}.</p>
         {result?.folder_note ? <p>{result.folder_note}</p> : null}
+        {result?.warning ? <p>{result.warning}</p> : null}
       </div>
     )
   } else if (importError || notReadyReason || existing) {

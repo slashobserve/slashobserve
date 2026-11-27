@@ -17,6 +17,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/imports"
@@ -244,5 +245,32 @@ func TestTheRoutesRefuseWithBusyBeforeReadingTheBody(t *testing.T) {
 		if rec.Code != http.StatusTooManyRequests {
 			t.Errorf("%s: status = %d, want 429 before the body is read: %s", c.path, rec.Code, rec.Body)
 		}
+	}
+}
+
+func TestAnUpdateFromGrafanaAnswersTheWarningOfWhatManagesTheDashboard(t *testing.T) {
+	warningOf := func(managedBy folders.ManagedBy) (string, bool) {
+		rec := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rec)
+		ctx.Request = httptest.NewRequest(http.MethodPost, "/api/v1/imports", nil)
+		imports.RespondImported(ctx, imports.Imported{Record: imports.Record{ID: "i1"}, Dashboard: dashboards.Dashboard{ID: "d1", ManagedBy: managedBy}, Updated: true})
+		var body map[string]json.RawMessage
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || rec.Code != http.StatusOK {
+			t.Fatalf("status %d (%v): %s", rec.Code, err, rec.Body)
+		}
+		raw, has := body["warning"]
+		var warning string
+		if has {
+			if err := json.Unmarshal(raw, &warning); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return warning, has
+	}
+	if got, has := warningOf(folders.ManagedByWorkspace); has {
+		t.Errorf("an update of a workspace dashboard answers warning %q, want no warning key", got)
+	}
+	if got, _ := warningOf(folders.ManagedByApply); got != folders.ManagedByApply.EditWarning() {
+		t.Errorf("an update of an applied dashboard answers warning %q, want the apply warning", got)
 	}
 }

@@ -1,7 +1,7 @@
 -- name: FolderFacts :many
 SELECT f.id, f.title, f.general, f.personal, f.admins_only,
   coalesce(f.owner_id = sqlc.narg('user_id')::uuid, false)::boolean AS owner,
-  (f.admins_only OR EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id))::boolean AS restricted,
+  EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id)::boolean AS listed,
   ARRAY(
     SELECT p.level FROM folder_permissions p
     WHERE p.folder_id = f.id AND (p.user_id = sqlc.narg('user_id')::uuid OR p.group_name = ANY(@groups::text[]))
@@ -15,8 +15,18 @@ ORDER BY NOT f.personal, f.general, lower(f.title), f.id;
 SELECT folder_id FROM dashboards WHERE id = @id;
 
 -- name: DashboardPlacement :one
-SELECT d.folder_id, EXISTS (SELECT 1 FROM starter_content s WHERE s.ref = d.id)::boolean AS provisioned
+SELECT d.folder_id,
+  EXISTS (SELECT 1 FROM starter_content s WHERE s.ref = d.id)::boolean AS provisioned,
+  EXISTS (SELECT 1 FROM provisioned_dashboards p WHERE p.dashboard_id = d.id)::boolean AS from_file,
+  EXISTS (SELECT 1 FROM applied_dashboards a WHERE a.dashboard_id = d.id)::boolean AS applied
 FROM dashboards d WHERE d.id = @id;
+
+-- name: DashboardManagersAmong :many
+SELECT d.id,
+  EXISTS (SELECT 1 FROM starter_content s WHERE s.ref = d.id)::boolean AS provisioned,
+  EXISTS (SELECT 1 FROM provisioned_dashboards p WHERE p.dashboard_id = d.id)::boolean AS from_file,
+  EXISTS (SELECT 1 FROM applied_dashboards a WHERE a.dashboard_id = d.id)::boolean AS applied
+FROM dashboards d WHERE d.id = ANY(@ids::uuid[]);
 
 -- name: ListFolderDetails :many
 SELECT f.id, f.title, f.general, f.created_by_kind, f.created_by_id, f.created_by_name,

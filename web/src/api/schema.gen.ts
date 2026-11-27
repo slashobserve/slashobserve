@@ -223,14 +223,14 @@ export interface paths {
         post?: never;
         /**
          * Remove a deactivated person and their My Dashboards.
-         * @description Admin only, from a person's session; service-account keys cannot. Only a deactivated person can be removed; an active one answers 409 with code not_deactivated. Deleted with them: their My Dashboards folder and the dashboards, observations, findings and saved searches in it (counted in personal_items), their saved prompts, stars, views, inbox state and folder grants. Kept under their stored name: dashboards, versions, observations, comments, proposals and activity in shared folders, and the service accounts and keys they created. A new sign-in with the same identity-provider account afterwards makes a new person.
+         * @description Admin only, from a person's session; service-account keys cannot. Only a deactivated person can be removed; an active one answers 409 with code not_deactivated and the person's `state` and `allowed_actions`. Deleted with them: their My Dashboards folder and the dashboards, observations, findings and saved searches in it (counted in personal_items), their saved prompts, stars, views, inbox state and folder grants. Kept under their stored name: dashboards, versions, observations, comments, proposals and activity in shared folders, and the service accounts and keys they created. A new sign-in with the same identity-provider account afterwards makes a new person.
          */
         delete: operations["removePerson"];
         options?: never;
         head?: never;
         /**
          * Set or clear the role an Admin chose for a person.
-         * @description A role value sets the chosen role and null clears it, after which the role is computed again from the server settings, the identity provider's groups and the default. A role decided by SLASHOBSERVE_ADMIN_EMAILS, by being the first person, or by an identity-provider group is locked and answers 409 with code role_locked. Lowering the last Admin answers 409 with code last_admin. Service accounts cannot call this endpoint.
+         * @description A role value sets the chosen role and null clears it, after which the role is computed again from the server settings, the identity provider's groups and the default. A role decided by SLASHOBSERVE_ADMIN_EMAILS, by being the first person, or by an identity-provider group is locked and answers 409 with code role_locked. Lowering the last Admin answers 409 with code last_admin. Both refusals carry the person's `state` and `allowed_actions`. Service accounts cannot call this endpoint.
          */
         patch: operations["updatePersonRole"];
         trace?: never;
@@ -270,7 +270,7 @@ export interface paths {
         put?: never;
         /**
          * Stop a person from signing in or acting, and keep what they made.
-         * @description Admin only, from a person's session; service-account keys cannot. Deletes every session of the person and disconnects every MCP client they connected in the same transaction, and refuses their next sign-in. Their dashboards, observations, comments and folder grants stay; queued agent runs they requested fail when claimed, and webhooks they own stop. Service-account keys they created keep working, because a key acts as its service account. Deactivating a deactivated person answers 200 and changes nothing. Deactivating yourself answers 409 with code cannot_deactivate_self, and the last active Admin answers 409 with code last_admin.
+         * @description Admin only, from a person's session; service-account keys cannot. Deletes every session of the person and disconnects every MCP client they connected in the same transaction, and refuses their next sign-in. Their dashboards, observations, comments and folder grants stay; queued agent runs they requested fail when claimed, and webhooks they own stop. Service-account keys they created keep working, because a key acts as its service account. Deactivating a deactivated person answers 200 and changes nothing. Deactivating yourself answers 409 with code cannot_deactivate_self, and the last active Admin answers 409 with code last_admin; both carry the person's `state` and `allowed_actions`.
          */
         post: operations["deactivatePerson"];
         delete?: never;
@@ -295,6 +295,26 @@ export interface paths {
          * @description Admin only, from a person's session; service-account keys cannot. The person can sign in again at once with the role the rules give them; the MCP clients they had connected stay disconnected. Reactivating an active person answers 200 and changes nothing.
          */
         post: operations["reactivatePerson"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the server's scheduled jobs with their state.
+         * @description Admin only, and an Admin service-account key can call it too. Every job the servers registered, ordered by name, each with its `state` and its last run. A job whose last run did not finish is `interrupted`, and once another server takes over its lease its `last_outcome` is `interrupted` too. The list changes nothing: jobs run on their schedule, and only `dashboard_health` can be started by hand.
+         */
+        get: operations["listJobs"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -525,7 +545,7 @@ export interface paths {
         };
         /**
          * List workspace activity, newest first.
-         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every dashboard proposal opened, updated, merged or discarded, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `title` (the first 80 characters of the text on one line, empty when the text has no characters to show), `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.updated` carries `tags`; `annotation.deleted` carries the same fields as `annotation.created`, never more of the text than the `title`; `public_link.created` and `public_link.revoked` carry `object` (`kind`, `dashboard` or `observation`, and `id`), `title`, `prefix` and `expires_at` when set, never the token; `access_request.opened` carries `object` (`kind`, `dashboard` or `observation`, and `id`) and `title`, never the note, and its actor is the requester; `access_request.granted` carries `object`, `title` and `requested_by` (`kind`, `id` and `name`), and its actor is whoever changed the access that let the requester comment; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, `saved_search.updated` also `changed`, the parts that changed out of `title`, `query`, `filters` and `range` (absent on an event from before it was recorded, which was always a rename), and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `observation.created`, `observation.resolved`, `observation.reopened` and `observation.deleted` carry `title`; `observation.updated` carries `title` and, when the title changed, `from_title`, the title before; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` and `observation.rca_withdrawn` carry `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`, and `observation.block_added` also carries the block's `state` (`live` or `requested`); `proposal.opened` and `proposal.updated` carry `title`, `revision` and `base_version`; `proposal.merged` carries `title`, `revision` and `version` (null when the change was already in the dashboard and no version was saved); `proposal.discarded` carries `title` and `revision`; `run.queued` carries `intent` and `continues_id` when the run continues another; `run.started` carries `intent` and `attempt`; `run.succeeded` carries `intent` and `result_version` when a version was saved, and, for a health repair that saved a version, also `dashboard_title` and `panels_repaired`, the number of panels the repair prompt named whose queries the saved version changed and no longer lists as unverified; `run.failed` carries `intent` and `failure_code`; `run.canceled` carries `intent`; `run.canceling` carries `intent`; `run.released` carries `intent` and `attempt`; `run.kept` carries `intent` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding, annotation, observation or proposal it is on), `title` (the dashboard or observation title at that time, empty when there is none) and, on a dashboard, `version` and `panel_id` when set; `thread.replied`, `thread.edited` and `thread.deleted` carry `object` and `message_id`, and `thread.deleted` names the thread's first message when the whole thread was deleted; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Administrative events have no folder and only an Admin reader sees them, in the list, the stream and webhooks, whatever their actor's role is now. `user.role_changed` carries `name`, `from_role`, `to_role`, `manual`, false when an override was cleared, and `source` (`admin_emails`, `first_user`, `group` or `default`) when the sign-in policy changed the role and no Admin did; `user.signed_out_everywhere` and `user.deactivated` carry `name`, `sessions` and `grants`; `user.reactivated` and `user.removed` carry `name`; `user.invited` carries `email` and `role`, `user.invite_updated` carries `email` and `role` as `{from, to}`, and `user.invite_withdrawn` carries `email`, and the target id of these three is the invite; `service_account.created` carries `name`, `role` and `takes_runs`; `service_account.updated` carries `name` and `role` or `takes_runs` as `{from, to}`; `service_account.deleted` carries `name`; `service_account.key_created` and `service_account.key_revoked` carry `name`, `key_id`, `key_name` and, on create, `expires_at`, never the key; `webhook.created`, `webhook.updated`, `webhook.secret_rotated` and `webhook.deleted` carry `name` and `host`, `webhook.created` also `event_types`, and `webhook.updated` carries `changes`, an object with `{from, to}` for each of `name`, `enabled`, `event_types` and `host` that changed, and `url_changed` when the address changed at all, never the address path or the secret; `mcp_client.connected` carries `client`, `person_id`, `person_name` and `mode`; `mcp_client.disconnected` also carries `reason`, one of `person`, `admin`, `client`, `code_reuse` or `refresh_reuse`; `outbound_domain.added` and `outbound_domain.removed` carry `domain`, and their target id is a UUID derived from the domain; `grafana_connection.created`, `grafana_connection.updated` and `grafana_connection.deleted` carry `name` and `host`, `grafana_connection.updated` carries `changes`, an object with `{from, to}` for each of `name` and `host` that changed, and `token_changed` when the token did, never the token. `datasource.created`, `datasource.updated`, `datasource.audience_changed` and `datasource.deleted` carry `uid`, `type`, `name` and `host` (the address's host and port, never its path), `datasource.updated` carries `changes`, an object with `{from, to}` for each of `name` and `host` that changed, and `address_changed`, `settings_changed` and `credentials_changed` when they did, never a credential, and `datasource.audience_changed` carries the audience before and after as `from` and `to` (`everyone` or `admins`); a change of the audience and of anything else records both events. Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
+         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every dashboard proposal opened, updated, merged or discarded, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create), `restored_from` (only on a restore) and `replaced_version` (only when a file in the provisioning directory replaced a version that the provisioner did not save, or `observe dashboards apply` replaced a version that no apply saved; that version can be restored); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `title` (the first 80 characters of the text on one line, empty when the text has no characters to show), `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.updated` carries `tags`; `annotation.deleted` carries the same fields as `annotation.created`, never more of the text than the `title`; `public_link.created` and `public_link.revoked` carry `object` (`kind`, `dashboard` or `observation`, and `id`), `title`, `prefix` and `expires_at` when set, never the token; `access_request.opened` carries `object` (`kind`, `dashboard` or `observation`, and `id`) and `title`, never the note, and its actor is the requester; `access_request.granted` carries `object`, `title` and `requested_by` (`kind`, `id` and `name`), and its actor is whoever changed the access that let the requester comment; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, `saved_search.updated` also `changed`, the parts that changed out of `title`, `query`, `filters` and `range` (absent on an event from before it was recorded, which was always a rename), and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `observation.created`, `observation.resolved`, `observation.reopened` and `observation.deleted` carry `title`; `observation.updated` carries `title` and, when the title changed, `from_title`, the title before; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` and `observation.rca_withdrawn` carry `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`, and `observation.block_added` also carries the block's `state` (`live` or `requested`); `proposal.opened` and `proposal.updated` carry `title`, `revision` and `base_version`; `proposal.merged` carries `title`, `revision` and `version` (null when the change was already in the dashboard and no version was saved); `proposal.discarded` carries `title` and `revision`; `run.queued` carries `intent` and `continues_id` when the run continues another; `run.started` carries `intent` and `attempt`; `run.succeeded` carries `intent` and `result_version` when a version was saved, and, for a health repair that saved a version, also `dashboard_title` and `panels_repaired`, the number of panels the repair prompt named whose queries the saved version changed and no longer lists as unverified; `run.failed` carries `intent` and `failure_code`; `run.canceled` carries `intent`; `run.canceling` carries `intent`; `run.released` carries `intent` and `attempt`; `run.kept` carries `intent` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding, annotation, observation or proposal it is on), `title` (the dashboard or observation title at that time, empty when there is none) and, on a dashboard, `version` and `panel_id` when set; `thread.replied`, `thread.edited` and `thread.deleted` carry `object` and `message_id`, and `thread.deleted` names the thread's first message when the whole thread was deleted; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Administrative events have no folder and only an Admin reader sees them, in the list, the stream and webhooks, whatever their actor's role is now. `user.role_changed` carries `name`, `from_role`, `to_role`, `manual`, false when an override was cleared, and `source` (`admin_emails`, `first_user`, `group` or `default`) when the sign-in policy changed the role and no Admin did; `user.signed_out_everywhere` and `user.deactivated` carry `name`, `sessions` and `grants`; `user.reactivated` and `user.removed` carry `name`; `user.invited` carries `email` and `role`, `user.invite_updated` carries `email` and `role` as `{from, to}`, and `user.invite_withdrawn` carries `email`, and the target id of these three is the invite; `service_account.created` carries `name`, `role` and `takes_runs`; `service_account.updated` carries `name` and `role` or `takes_runs` as `{from, to}`; `service_account.deleted` carries `name`; `service_account.key_created` and `service_account.key_revoked` carry `name`, `key_id`, `key_name` and, on create, `expires_at`, never the key; `webhook.created`, `webhook.updated`, `webhook.secret_rotated` and `webhook.deleted` carry `name` and `host`, `webhook.created` also `event_types`, and `webhook.updated` carries `changes`, an object with `{from, to}` for each of `name`, `enabled`, `event_types` and `host` that changed, and `url_changed` when the address changed at all, never the address path or the secret; `mcp_client.connected` carries `client`, `person_id`, `person_name` and `mode`; `mcp_client.disconnected` also carries `reason`, one of `person`, `admin`, `client`, `code_reuse` or `refresh_reuse`; `outbound_domain.added` and `outbound_domain.removed` carry `domain`, and their target id is a UUID derived from the domain; `grafana_connection.created`, `grafana_connection.updated` and `grafana_connection.deleted` carry `name` and `host`, `grafana_connection.updated` carries `changes`, an object with `{from, to}` for each of `name` and `host` that changed, and `token_changed` when the token did, never the token. `datasource.created`, `datasource.updated`, `datasource.audience_changed` and `datasource.deleted` carry `uid`, `type`, `name` and `host` (the address's host and port, never its path), `datasource.updated` carries `changes`, an object with `{from, to}` for each of `name` and `host` that changed, and `address_changed`, `settings_changed` and `credentials_changed` when they did, never a credential, and `datasource.audience_changed` carries the audience before and after as `from` and `to` (`everyone` or `admins`); a change of the audience and of anything else records both events. Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
          */
         get: operations["listActivity"];
         put?: never;
@@ -2526,7 +2546,7 @@ export interface paths {
         put?: never;
         /**
          * Cancel a queued or running agent request.
-         * @description Only the principal that made the request may call it; no editor and no administrator may cancel another principal's request. Someone else gets 403 `forbidden` on a revision they can see, and 404 on a new-dashboard request or a suggestion request. A queued request becomes `canceled` at once: `status` `failed` with the failure code `canceled`. A running request with a live worker is `canceling` (`status` stays `running`) until its worker sees the cancel flag, within about 5 seconds plus the time the in-flight model or tool call takes to return; it then ends `canceled`. A running request whose worker is gone, because its lease expired, ends `canceled` at once, and no worker picks a canceling request up again. The build is kept, so the requester can still save it or continue it. A run that saved its version before the cancel took effect ends `succeeded`, because a saved version always wins. Canceling a request that is already canceled answers 200 with the request; any other finished request answers 409 `request_finished`.
+         * @description Only the principal that made the request may call it; no editor and no administrator may cancel another principal's request. Someone else gets 403 `forbidden` on a revision they can see, and 404 on a new-dashboard request or a suggestion request. A queued request becomes `canceled` at once: `status` `failed` with the failure code `canceled`. A running request with a live worker is `canceling` (`status` stays `running`) until its worker sees the cancel flag, within about 5 seconds plus the time the in-flight model or tool call takes to return; it then ends `canceled`. A running request whose worker is gone, because its lease expired, ends `canceled` at once, and no worker picks a canceling request up again. The build is kept, so the requester can still save it or continue it. A run that saved its version before the cancel took effect ends `succeeded`, because a saved version always wins. Canceling a request that is already canceled answers 200 with the request; any other finished request answers 409 `request_finished` with its `state` and the `allowed_actions` the caller has.
          */
         post: operations["cancelObserveRequest"];
         delete?: never;
@@ -2548,7 +2568,7 @@ export interface paths {
         put?: never;
         /**
          * Continue a stopped agent request in a new request that takes over its build.
-         * @description The new request copies the stopped request's intent, dashboard, comment, panel, prompt and base version, records `continues_id`, and takes the build, so the agent continues from the panels already built with its own model-call budget. The stopped request gains `continued_by` and can no longer be saved or continued. A request is continuable when it is `failed`, its build was not saved, it still has its build, and nothing continues it yet; otherwise the call answers 409 `not_continuable`. Continue and `POST /observe/{id}/build/save` on the same request are exclusive: Continue after a save answers 409 `not_continuable`, and a save after Continue answers 404 `not_found` because the build moved to the new request. Only the principal that made the request may call it, with the same access as starting a run; someone else gets 403 `forbidden` on a revision they can see and 404 on a new-dashboard request. The new request keeps the stopped request's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one. A revision whose dashboard has a newer version than the build's base answers 409 `version_conflict` with `latest_version`. The new request counts against the same caps as `POST /observe`, and is assigned to the same agent as the stopped one. The optional `note` is stored on the new request as `continue_note` and given to the agent in every seed of that run, including its restarts. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description The new request copies the stopped request's intent, dashboard, comment, panel, prompt and base version, records `continues_id`, and takes the build, so the agent continues from the panels already built with its own model-call budget. The stopped request gains `continued_by` and can no longer be saved or continued. A request is continuable when it is `failed`, its build was not saved, it still has its build, and nothing continues it yet; otherwise the call answers 409 `not_continuable` with its `state`, the `allowed_actions` the caller has and, when the state alone does not say why, a `reason`: `no_build`, `kept`, `continued`, `retried`, `investigation`, or `lost_race` when another continue, retry or save took the build while the call ran. Continue and `POST /observe/{id}/build/save` on the same request are exclusive: Continue after a save answers 409 `not_continuable`, and a save after Continue answers 404 `not_found` because the build moved to the new request. Only the principal that made the request may call it, with the same access as starting a run; someone else gets 403 `forbidden` on a revision they can see and 404 on a new-dashboard request. The new request keeps the stopped request's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one. A revision whose dashboard has a newer version than the build's base answers 409 `version_conflict` with `latest_version`. The new request counts against the same caps as `POST /observe`, and is assigned to the same agent as the stopped one. The optional `note` is stored on the new request as `continue_note` and given to the agent in every seed of that run, including its restarts. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["continueObserveRequest"];
         delete?: never;
@@ -2570,7 +2590,7 @@ export interface paths {
         put?: never;
         /**
          * Start a finished agent request again as a new request.
-         * @description Anyone who can see the request and may start that kind of request can call it, not only the requester; being someone else is never a reason to refuse, except that a caller who reads the request `redacted` may not start its words again. The new request is the caller's: its `requested_by` is the caller, not the original requester, and it counts against the caller's caps like `POST /observe`. The original request is left as it was. An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version. A comment or suggestion request cannot be retried, and neither can a request that something continues. An ask from an observation thread whose answer was saved as an observation starts again in that thread for a caller who can comment on the thread's observation; anyone else gets a private ask of their own about the saved observation, with no thread and nothing posted in it. A failed or stopped request can be retried once by its requester: the new request is its `retried_by`, and a second call, including one racing the first or a continue, is refused instead of queuing a duplicate. Anyone else's retry is a request of their own and leaves the original retryable. A request that is not finished, one of those, or one the caller reads `redacted`, answers 409 `invalid_transition` with its `state` and the `allowed_actions` the caller has. A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`. A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`. The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing. The new request keeps the original's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one, because only an Admin may set `as_of`. Retrying a request that succeeded queues a new request on every call. Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
+         * @description Anyone who can see the request and may start that kind of request can call it, not only the requester; being someone else is never a reason to refuse, except that a caller who reads the request `redacted` may not start its words again. The new request is the caller's: its `requested_by` is the caller, not the original requester, and it counts against the caller's caps like `POST /observe`. The original request is left as it was. An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version. A comment or suggestion request cannot be retried, and neither can a request that something continues. An ask from an observation thread whose answer was saved as an observation starts again in that thread for a caller who can comment on the thread's observation; anyone else gets a private ask of their own about the saved observation, with no thread and nothing posted in it. A failed or stopped request can be retried once by its requester: the new request is its `retried_by`, and a second call, including one racing the first or a continue, is refused instead of queuing a duplicate. Anyone else's retry is a request of their own and leaves the original retryable. A request that is not finished, one of those, or one the caller reads `redacted`, answers 409 `invalid_transition` with its `state`, the `allowed_actions` the caller has and the `reason` `continued` or `retried` when that is why. A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`. A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`. The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing. The new request keeps the original's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one, because only an Admin may set `as_of`. Retrying a request that succeeded queues a new request on every call. Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
          */
         post: operations["retryObserveRequest"];
         delete?: never;
@@ -4276,7 +4296,7 @@ export interface paths {
         };
         /**
          * List the MCP clients the signed-in person has connected.
-         * @description Newest first, live connections only: a disconnected or expired one is not listed. `client.name` is the name the client registered under and is not verified, and null when it registered none. `redirect_host` and `local` describe the client's first registered redirect URI. `last_used_at` is null until the client first uses an access token. Only signed-in people may call it: a service-account key gets 403 `forbidden`.
+         * @description Newest first, live connections only: a disconnected or expired one is not listed unless `include_ended=true` asks for it. `client.name` is the name the client registered under and is not verified, and null when it registered none. `redirect_host` and `local` describe the client's first registered redirect URI. `last_used_at` is null until the client first uses an access token. Only signed-in people may call it: a service-account key gets 403 `forbidden`.
          */
         get: operations["listMyGrants"];
         put?: never;
@@ -4483,8 +4503,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the open Comment access requests on folders the caller manages.
-         * @description Lists the open requests on dashboards and observations whose folder the caller may manage, newest first, at most 100. Grant one by giving the requester Comment on the folder (`PUT /folders/{id}/permissions`) or by raising their role; this list changes nothing. An object in General (`folder.general`) cannot be granted that way, because General takes no entry: raise the requester's role or move the object to another folder.
+         * List the open Comment access requests on folders the caller manages, or the caller's own requests.
+         * @description Lists the open requests on dashboards and observations whose folder the caller may manage, newest first, at most 100. With `scope=mine` it lists the caller's own requests instead, each with its `state`, newest first, at most 100. Grant one by giving the requester Comment on the folder (`PUT /folders/{id}/permissions`) or by raising their role; this list changes nothing. An object in General (`folder.general`) cannot be granted that way, because General takes no entry: raise the requester's role or move the object to another folder.
          */
         get: operations["listAccessRequests"];
         put?: never;
@@ -4506,6 +4526,10 @@ export interface components {
         Error: {
             error: string;
             code: string;
+            /** @description Present on a refusal that depends on the state of the object the request names, such as a person's `role_locked`, `last_admin`, `cannot_deactivate_self` and `not_deactivated`; the state the object is in. */
+            state?: string;
+            /** @description Present with `state`; the actions the caller may take on the object now, as in the object's own `allowed_actions`. Also present with `general_folder`, `personal_folder` and `admins_only_folder`: what the caller may do with the folder the refusal is about, each a `FolderAction`, as on the folder's own `allowed_actions`. For `personal_folder` that is the caller's My Dashboards, and for `admins_only_folder` a folder only Admins can read. */
+            allowed_actions?: string[];
             /** @description Present with `admins_only_folder` when the content reads an Admins-only datasource, so it cannot leave its folder and public links are not available for it; the uid of that datasource. */
             datasource?: string;
             /** @description Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`. The `error` message names the field and says what to change. On a `too_many_streams` refusal of an event stream, whose limit was reached: `per_caller` for the caller's own open streams or `server_capacity` for the server process's. On a `restricted_answer` refusal of a move, a copy, a save or a folder change it says whether waiting helps: `permanent` when the content holds an answer that read Admin-only data, or the run that writes read such data, and `run_in_flight` when an agent run about the content has not ended, so the same request can succeed once the run ends. */
@@ -4699,6 +4723,13 @@ export interface components {
             token: string;
         };
         Person: {
+            /**
+             * @description Where the person is in the person lifecycle of `docs/reference/states.md`. An invited email is listed by `GET /invites` and a removed person is not listed.
+             * @enum {string}
+             */
+            state: "active" | "deactivated";
+            /** @description What the caller may do to this person now: `set_role` is left out while `role_locked` is true, `deactivate` for the caller's own entry, and every action for a service-account key, which cannot change people. `invite` and `withdraw` belong to an invite and are never listed for a person. */
+            allowed_actions: ("invite" | "withdraw" | "set_role" | "sign_out" | "deactivate" | "reactivate" | "remove")[];
             /** Format: uuid */
             id: string;
             name: string;
@@ -4771,10 +4802,15 @@ export interface components {
              */
             expires_at: string;
             /**
-             * @description Always `active` in the list, which leaves out revoked and expired connections. See `docs/reference/states.md`.
+             * @description Always `active` unless the list was asked for ended connections with `include_ended=true`; then `revoked`, `expired` (the refresh token went unused for 30 days) or `aged_out` (the 90 day limit) says why one ended. See `docs/reference/states.md`.
              * @enum {string}
              */
-            state: "revoked" | "active";
+            state: "revoked" | "active" | "expired" | "aged_out";
+            /**
+             * @description How a `revoked` connection was ended, by its person, an admin, the client itself, a newer connection of the same client, or the reuse of a refresh token or an authorization code; null in every other state.
+             * @enum {string|null}
+             */
+            revoked_reason: "person" | "admin" | "client" | "replaced" | "refresh_reuse" | "code_reuse" | null;
             /**
              * @description How the agent's changes land. direct is the default; with propose its dashboard writes become proposals that someone who can edit merges. The connection's person sets it with `PATCH /api/v1/me/grants/{id}`.
              * @enum {string}
@@ -5007,6 +5043,13 @@ export interface components {
             admins_only: boolean;
             /** @description True for the Audit folder, the one the server made to hold the starter dashboards over the audit trail, whatever it is now called. False for every other folder, and for all of them when the Audit folder was deleted, which the server does not recreate. The field cannot be set. */
             audit: boolean;
+            /**
+             * @description What the folder is, decided in this order: `general`, `personal` (the caller's My Dashboards), `audit` (the Audit folder, whoever reads it), `admins_only`, `restricted` (it lists people or groups), else `open`. `general`, `personal`, `restricted`, `admins_only` and `audit` stay as they were; `docs/reference/states.md` lists the kinds.
+             * @enum {string}
+             */
+            kind: "general" | "personal" | "audit" | "admins_only" | "restricted" | "open";
+            /** @description What the caller may do with this folder now: `create_in` (create a dashboard, an observation or a saved search in it), `move_into` (move one into it), `rename`, `set_permissions` and `delete`. General never offers `rename`, `set_permissions` or `delete`, and a personal folder offers only `create_in`. `delete` still needs the folder to be empty, and a move or a save is still refused when the folder may not hold that content. */
+            allowed_actions: components["schemas"]["FolderAction"][];
             /** @description All dashboards in the folder, including ones the caller cannot see when the caller manages it. */
             dashboard_count: number;
             /** @description The names of up to 5 listed people, then groups. */
@@ -5019,6 +5062,8 @@ export interface components {
             /** @description The caller's level on this folder and on every dashboard in it, the higher of what their role gives and their highest matching entry. Admins have `admin` on every folder except other people's personal folders, and a personal folder's owner has `edit`. */
             level: components["schemas"]["FolderLevel"];
         };
+        /** @enum {string} */
+        FolderAction: "create_in" | "move_into" | "rename" | "set_permissions" | "delete";
         FolderPermissionEntry: {
             /** @enum {string} */
             kind: "user" | "group";
@@ -5610,6 +5655,11 @@ export interface components {
         };
         /** @description A request for Comment access to a dashboard or observation. */
         AccessRequest: {
+            /**
+             * @description Where the request stands, computed on read: `open` while it waits, `granted` once the requester can comment, `dismissed` when someone who can grant it marked it done in their inbox without granting it, and `expired` 30 days after it was asked. The managed list holds only `open` requests; the requester's own list (`scope=mine`) holds all four. A dismissed or expired request can be asked again.
+             * @enum {string}
+             */
+            state: "open" | "granted" | "dismissed" | "expired";
             /** Format: uuid */
             id: string;
             object: {
@@ -5664,6 +5714,11 @@ export interface components {
              */
             reason: "proposal" | "requested_block" | "mention" | "reply" | "run_failed" | "repaired" | "proposal_closed" | "access_request" | null;
             unread: boolean;
+            /**
+             * @description Where the item stands for the caller: `done` once they marked it done, else `unread` while `unread` is true, else `read`. The `open` filter lists `unread` and `read` items, the `unread` filter `unread` ones and the `done` filter `done` ones. See docs/reference/states.md.
+             * @enum {string}
+             */
+            state: "done" | "unread" | "read";
             /** @description The title of the dashboard, observation or proposal the event is about, or null when it has none, no longer exists, or the caller can no longer read it. */
             target_title: string | null;
             /** @description The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, or the note of an `access_request`, as plain text of at most 200 characters; null for other items, and for a comment in a thread the caller can no longer read. */
@@ -5769,6 +5824,11 @@ export interface components {
             permissions: components["schemas"]["Permissions"];
             /** @description True for a starter dashboard the server keeps current with each release, such as those in the Audit folder. Its `permissions.edit` is false, every change to its content answers 409 `provisioned`, and duplicating it makes an ordinary editable dashboard. */
             provisioned: boolean;
+            /**
+             * @description What writes the dashboard's content. `starter` is the same dashboards as `provisioned: true`. `file` is bound to a file in the server's provisioning directory: a save works, and a change to that file replaces it, leaving it in the version history. The value stays after the file is removed. `apply` was last written by `observe dashboards apply`: a save works, and applying its file again after the file changes replaces it, leaving it in the version history. `workspace` is every other dashboard: people edit it in the app, and no file and no release writes it.
+             * @enum {string}
+             */
+            managed_by: "starter" | "file" | "apply" | "workspace";
         };
         HomeDashboard: {
             /**
@@ -5815,6 +5875,11 @@ export interface components {
             permissions: components["schemas"]["Permissions"];
             /** @description True for a starter dashboard the server keeps current with each release. Its `permissions.edit` is false, so a list never offers to move or change it. */
             provisioned: boolean;
+            /**
+             * @description What writes the dashboard's content, with the values and meanings of `managed_by` on `GET /dashboards/{id}`.
+             * @enum {string}
+             */
+            managed_by: "starter" | "file" | "apply" | "workspace";
         };
         VersionMeta: {
             version: number;
@@ -5903,6 +5968,8 @@ export interface components {
             dashboard: components["schemas"]["DashboardSummary"];
             version: components["schemas"]["Version"];
             merged_from?: components["schemas"]["MergedFrom"];
+            /** @description Present when the save or restore went to a dashboard whose `managed_by` is `file` or `apply`. It says what replaces this version, which stays in the version history. That is a change to the provisioning file, or applying the file again after it changes. */
+            warning?: string;
             /**
              * @description What the save did: `created` made the new version from the request, `merged` made it by merging a stale save onto the latest version, and `replayed` made no version because the request repeats one that exists (the answer also has `Idempotent-Replay: true`).
              * @enum {string}
@@ -5984,6 +6051,8 @@ export interface components {
             latest_version: number;
             /** @description What the caller may do now. `update` means saving again to add a revision and has no route of its own; `merge` needs Edit on the dashboard and a connection that is not in propose mode; `discard` is for the author or someone who may merge. See docs/reference/states.md. */
             allowed_actions: ("update" | "merge" | "discard")[];
+            /** @description Only on the answer to a merge that saved a version of a dashboard whose `managed_by` is `file` or `apply`. It is the `warning` of a save to that dashboard. */
+            warning?: string;
         };
         /** @description A proposed change to a dashboard with its head revision's document and what it changes. */
         Proposal: {
@@ -6758,6 +6827,11 @@ export interface components {
              */
             build_saved_at: string | null;
             /**
+             * @description What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
+             * @enum {string}
+             */
+            build_state?: "none" | "building" | "stopped" | "stopped_empty" | "stale" | "kept" | "moved" | "committed" | "proposed";
+            /**
              * Format: uuid
              * @description The stopped request this one continues.
              */
@@ -6807,8 +6881,16 @@ export interface components {
             /** @description The version the proposal is judged inside. */
             base_version: number;
             prompt: string;
-            /** @enum {string} */
+            /**
+             * @description Computed from `state`; kept for clients that read it.
+             * @enum {string}
+             */
             status: "queued" | "running" | "succeeded" | "failed";
+            /**
+             * @description Where the suggestion is in its life, the same six states every run has. A suggestion cannot be canceled, so it is never `canceling` or `canceled`.
+             * @enum {string}
+             */
+            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
             steps: components["schemas"]["AgentStep"][];
             /** @description The proposed panel, set only when the status is `succeeded`. It is not saved anywhere; the client decides whether to apply it. */
             panel: {
@@ -6941,6 +7023,36 @@ export interface components {
             title: string | null;
             /** Format: date-time */
             updated_at: string;
+            /**
+             * @description The build's state, the same value as the request's `build_state`; see `docs/reference/states.md`.
+             * @enum {string}
+             */
+            state?: "none" | "building" | "stopped" | "stopped_empty" | "stale" | "kept" | "moved" | "committed" | "proposed";
+            /**
+             * Format: date-time
+             * @description When the server deletes the build of a finished request, 7 days after it finished; null while the request has not finished.
+             */
+            expires_at?: string | null;
+        };
+        /** @description Why a stopped build cannot be saved now, with the build's state and what the caller may still do with the request. */
+        BuildRefusal: {
+            error: string;
+            /** @enum {string} */
+            code: "build_running" | "build_empty" | "build_not_savable";
+            /** @description The same text as `error`. */
+            message: string;
+            /**
+             * @description The build's state; see `docs/reference/states.md`.
+             * @enum {string}
+             */
+            state: "none" | "building" | "stopped" | "stopped_empty" | "stale" | "kept" | "moved" | "committed" | "proposed";
+            /** @description The actions the caller may take on the request now, as in the request's `allowed_actions`. */
+            allowed_actions: string[];
+            /**
+             * @description `run_not_finished` with `build_running`, `no_panels` with `build_empty` and `no_stopped_build` with `build_not_savable`.
+             * @enum {string}
+             */
+            reason: "run_not_finished" | "no_panels" | "no_stopped_build";
         };
         AgentBuild: {
             /** Format: uuid */
@@ -7065,8 +7177,30 @@ export interface components {
              * @description When the requester saved the stopped build of a `failed` request as a version; null otherwise. The request stays `failed` with its `failure_code`.
              */
             build_saved_at: string | null;
+            /**
+             * @description What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
+             * @enum {string}
+             */
+            build_state?: "none" | "building" | "stopped" | "stopped_empty" | "stale" | "kept" | "moved" | "committed" | "proposed";
+            /** @description The reply this request owes the comment thread it was asked in. */
+            reply?: {
+                /**
+                 * @description `not_owed` for a request not asked in a thread, `owed` until the reply is posted, `replied` once it is, and `abandoned` when it could not be posted within 24 hours after the request finished; see `docs/reference/states.md`.
+                 * @enum {string}
+                 */
+                state: "not_owed" | "owed" | "replied" | "abandoned";
+            };
             /** @description 1-based place among queued requests in claim order, null unless queued. The worker skips a request whose dashboard already has a running revision, so the order can shift. */
             queue_position: number | null;
+            /**
+             * @description What a `running` or `canceling` request has already settled, before its state changes: `saved` (a version), `proposed` (a proposal), `finding` (an answer or finding), `suggested` (a panel suggestion) or `ended` (the agent stopped and the request is about to finish). Null while the agent is still working and for a queued or finished request, whose `result_kind` says what it produced.
+             * @enum {string|null}
+             */
+            settled: "saved" | "proposed" | "finding" | "suggested" | "ended" | null;
+            /** @description How many times the server could not run a check it makes when a worker takes the request (its saved version, its requester, the requester's access). Each failure puts the request back in the queue, so a request that moves between `queued` and `running` with this count rising is waiting on the server, not on the agent. */
+            check_failures: number;
+            /** @description The count of `check_failures` at which the request fails with the failure code `check_failed`; its `error` then names the check that could not run. */
+            check_failures_max: number;
             /**
              * Format: date-time
              * @description When the requester asked to cancel the request; null when they did not. A running request keeps running until its worker sees the flag, then ends `failed` with the `canceled` failure code and keeps its build.
@@ -7302,6 +7436,11 @@ export interface components {
              * @description When the requester saved the stopped build of a `failed` request as a version; null otherwise.
              */
             build_saved_at: string | null;
+            /**
+             * @description What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
+             * @enum {string}
+             */
+            build_state?: "none" | "building" | "stopped" | "stopped_empty" | "stale" | "kept" | "moved" | "committed" | "proposed";
             /** @enum {string} */
             kind: "build" | "investigate";
             /** @description The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none. */
@@ -7370,6 +7509,27 @@ export interface components {
             state: string;
             /** @description The actions the caller may take in that state, as in the object's own `allowed_actions`. */
             allowed_actions: string[];
+        };
+        /** @description The answer to a cancel, continue or retry the request's state or history does not allow. */
+        RunRefusal: {
+            error: string;
+            /**
+             * @description `request_finished` for a cancel, `not_continuable` for a continue and `invalid_transition` for a retry.
+             * @enum {string}
+             */
+            code: "request_finished" | "not_continuable" | "invalid_transition";
+            /**
+             * @description The state the request is in.
+             * @enum {string}
+             */
+            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
+            /** @description The actions the caller may take now, as in the request's own `allowed_actions`. */
+            allowed_actions: string[];
+            /**
+             * @description Why the action is refused when the state alone does not say; absent otherwise. `no_build`: the request left no build. `kept`: its build was saved as a version. `continued`: another request already continues it. `retried`: it was already retried. `investigation`: an investigation has no build to continue. `lost_race`: another continue, retry or save took the build while this call ran.
+             * @enum {string}
+             */
+            reason?: "no_build" | "kept" | "continued" | "retried" | "investigation" | "lost_race";
         };
         AgentRequestEnvelope: {
             request: components["schemas"]["AgentRequest"];
@@ -7902,6 +8062,8 @@ export interface components {
             import: components["schemas"]["ImportRecord"];
             /** @description Why the dashboard is not in the requested folder, or null when it is where the request or the source asked. */
             folder_note: string | null;
+            /** @description Present when `update_dashboard` saved a version of a dashboard whose `managed_by` is `file` or `apply`. It is the `warning` of a save to that dashboard. */
+            warning?: string;
         };
         DatasourcesUnresolved: {
             error: string;
@@ -8418,6 +8580,35 @@ export interface components {
              * @description When the repair finished, else when it started, else when it was queued.
              */
             updated_at: string;
+        };
+        ScheduledJob: {
+            name: string;
+            /**
+             * @description Computed on read; see `docs/reference/states.md`. `interrupted` means the last run did not finish, because its server crashed or shut down.
+             * @enum {string}
+             */
+            state: "running" | "interrupted" | "due" | "waiting";
+            /** @description The interval between runs. */
+            every_seconds: number;
+            /** Format: date-time */
+            next_run_at: string;
+            /** Format: date-time */
+            last_started_at: string | null;
+            /**
+             * Format: date-time
+             * @description When a run last recorded an outcome; older than `last_started_at` while a run is in flight or after one that did not finish.
+             */
+            last_finished_at: string | null;
+            /**
+             * @description The outcome of the last run that recorded one, or `interrupted` once a server took over the lease of a run that crashed. Null before the first outcome.
+             * @enum {string|null}
+             */
+            last_outcome: "succeeded" | "failed" | "interrupted" | null;
+            /** @description The `key=value` summary of the last failure, never the error's own text; null when the last outcome was not a failure. */
+            last_error: string | null;
+        };
+        ScheduledJobList: {
+            jobs: components["schemas"]["ScheduledJob"][];
         };
         HealthJob: {
             /** Format: date-time */
@@ -9841,6 +10032,29 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listJobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every scheduled job. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduledJobList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
         };
     };
@@ -11914,14 +12128,14 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The new version, with `restored_from` naming the restored one. */
+            /** @description The new version, with `restored_from` naming the restored one, and a `warning` when a file writes the dashboard. */
             201: {
                 headers: {
                     Location: string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DashboardWithVersion"];
+                    "application/json": components["schemas"]["DashboardVersionSaved"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -16091,13 +16305,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request already finished and was not canceled (`request_finished`). */
+            /** @description The request already finished and was not canceled (`request_finished`, with its `state` and the `allowed_actions` the caller has). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["RunRefusal"];
                 };
             };
             500: components["responses"]["Internal"];
@@ -16140,13 +16354,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request cannot be continued: `not_continuable`, `assignee_unavailable` when the agent it was assigned to is a revoked, expired or foreign grant or a service account that no longer takes runs, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. */
+            /** @description The request cannot be continued: `not_continuable` with its `state`, the `allowed_actions` the caller has and a `reason`, `assignee_unavailable` when the agent it was assigned to is a revoked, expired or foreign grant or a service account that no longer takes runs, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"] | components["schemas"]["VersionConflict"];
+                    "application/json": components["schemas"]["RunRefusal"] | components["schemas"]["Error"] | components["schemas"]["VersionConflict"];
                 };
             };
             /** @description Too many agent requests are queued or running (`too_many_requests` for the caller, `agent_busy` for the instance, `too_many_revisions` for the dashboard). */
@@ -16194,13 +16408,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request cannot be retried now (`invalid_transition`), or the agent it was assigned to cannot take it again (`assignee_unavailable`). */
+            /** @description The request cannot be retried now (`invalid_transition`, with a `reason` when it was already continued or retried), or the agent it was assigned to cannot take it again (`assignee_unavailable`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvalidTransition"] | components["schemas"]["Error"];
+                    "application/json": components["schemas"]["RunRefusal"] | components["schemas"]["Error"];
                 };
             };
             /** @description The panel an investigation was about no longer exists (`unknown_panel`). */
@@ -16266,13 +16480,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the request read data only Admins can query, such as the audit trail, and the build's folder is not one only Admins can read (`restricted_answer`, saying why). */
+            /** @description The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, each with the build's `state`, the request's `allowed_actions` and a `reason`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the request read data only Admins can query, such as the audit trail, and the build's folder is not one only Admins can read (`restricted_answer`, saying why). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"] | components["schemas"]["VersionConflict"] | components["schemas"]["RestrictedContentError"];
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["VersionConflict"] | components["schemas"]["BuildRefusal"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             500: components["responses"]["Internal"];
@@ -20235,6 +20449,8 @@ export interface operations {
             query?: {
                 limit?: number;
                 cursor?: string;
+                /** @description With true the list also holds connections that were revoked, expired or aged out in the last 30 days, each with its `state` and `revoked_reason`. */
+                include_ended?: boolean;
             };
             header?: never;
             path?: never;
@@ -20318,6 +20534,8 @@ export interface operations {
             query?: {
                 limit?: number;
                 cursor?: string;
+                /** @description With true the list also holds connections that were revoked, expired or aged out in the last 30 days, each with its `state` and `revoked_reason`. */
+                include_ended?: boolean;
             };
             header?: never;
             path?: never;
@@ -20641,7 +20859,10 @@ export interface operations {
     };
     listAccessRequests: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description `managed` lists the open requests the caller can grant. `mine` lists the requests the caller made, in any state, on objects the caller can still see, so the requester can tell a request that is still waiting from one that was dismissed, expired or granted. */
+                scope?: "managed" | "mine";
+            };
             header?: never;
             path?: never;
             cookie?: never;

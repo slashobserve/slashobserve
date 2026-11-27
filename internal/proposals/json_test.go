@@ -77,3 +77,26 @@ func TestProposalJSONKeepsTheAuthorFieldsBesideTheActor(t *testing.T) {
 		t.Fatal("actor is missing")
 	}
 }
+
+func TestTheMergeAnswerCarriesTheWarningOfTheSaveOnlyWhenThereIsOne(t *testing.T) {
+	keys := func(p Proposal) map[string]json.RawMessage {
+		raw, err := json.Marshal(NewMergedJSON(p))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &got); err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	if _, has := keys(Proposal{})["warning"]; has {
+		t.Error("a merge with nothing to warn about has a warning key")
+	}
+	if got := string(keys(Proposal{Warning: "w"})["warning"]); got != `"w"` {
+		t.Errorf("the merge answer carries warning %s, want the warning of the save", got)
+	}
+	if got := keys(Proposal{Item: Item{ID: "p1"}, Warning: "w"}); string(got["id"]) != `"p1"` {
+		t.Errorf("the merge answer lost the proposal: %v", got)
+	}
+}

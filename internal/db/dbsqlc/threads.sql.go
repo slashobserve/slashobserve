@@ -1333,7 +1333,7 @@ func (q *Queries) SetThreadStatus(ctx context.Context, arg SetThreadStatusParams
 }
 
 const shareRunInThread = `-- name: ShareRunInThread :execrows
-UPDATE agent_requests SET thread_message_id = $1, thread_replied_at = NULL WHERE id = $2 AND thread_message_id IS NULL
+UPDATE agent_requests SET thread_message_id = $1, thread_replied_at = NULL, thread_reply_abandoned_at = NULL WHERE id = $2 AND thread_message_id IS NULL
 `
 
 type ShareRunInThreadParams struct {
@@ -1518,7 +1518,7 @@ func (q *Queries) UserMentionNames(ctx context.Context, ids []pgtype.UUID) ([]Us
 }
 
 const withdrawRunShares = `-- name: WithdrawRunShares :exec
-UPDATE agent_requests SET thread_message_id = NULL, thread_replied_at = NULL WHERE id = ANY($1::uuid[])
+UPDATE agent_requests SET thread_message_id = NULL, thread_replied_at = NULL, thread_reply_abandoned_at = NULL WHERE id = ANY($1::uuid[])
 `
 
 func (q *Queries) WithdrawRunShares(ctx context.Context, ids []pgtype.UUID) error {

@@ -38,6 +38,8 @@ paths:
     $ref: "./paths/users.yaml#/users-id-deactivate"
   /users/{id}/reactivate:
     $ref: "./paths/users.yaml#/users-id-reactivate"
+  /jobs:
+    $ref: "./paths/jobs.yaml#/jobs"
   /invites:
     $ref: "./paths/invites.yaml#/invites"
   /invites/{id}:
@@ -429,6 +431,17 @@ components:
           type: string
         code:
           type: string
+        state:
+          type: string
+          description: Present on a refusal that depends on the state of the object the request names, such as a person's `role_locked`, `last_admin`, `cannot_deactivate_self` and `not_deactivated`; the state the object is in.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+          description: >-
+            Present with `state`; the actions the caller may take on the object now, as in the object's own `allowed_actions`.
+            Also present with `general_folder`, `personal_folder` and `admins_only_folder`: what the caller may do with the folder the refusal is about, each a `FolderAction`, as on the folder's own `allowed_actions`.
+            For `personal_folder` that is the caller's My Dashboards, and for `admins_only_folder` a folder only Admins can read.
         datasource:
           type: string
           description: >-
@@ -841,7 +854,21 @@ components:
         - deactivated_at
         - deactivated_by
         - personal_items
+        - state
+        - allowed_actions
       properties:
+        state:
+          type: string
+          enum: [active, deactivated]
+          description: Where the person is in the person lifecycle of `docs/reference/states.md`. An invited email is listed by `GET /invites` and a removed person is not listed.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+            enum: [invite, withdraw, set_role, sign_out, deactivate, reactivate, remove]
+          description: >-
+            What the caller may do to this person now: `set_role` is left out while `role_locked` is true, `deactivate` for the caller's own entry, and every action for a service-account key, which cannot change people.
+            `invite` and `withdraw` belong to an invite and are never listed for a person.
         id:
           type: string
           format: uuid
@@ -914,7 +941,7 @@ components:
     ConnectedAgent:
       type: object
       additionalProperties: false
-      required: [id, client, person, created_at, last_used_at, expires_at, state, mode, presence, last_seen_at]
+      required: [id, client, person, created_at, last_used_at, expires_at, state, revoked_reason, mode, presence, last_seen_at]
       properties:
         id:
           type: string
@@ -962,8 +989,13 @@ components:
           description: When the connection ends and the person must approve it again.
         state:
           type: string
-          enum: [revoked, active]
-          description: Always `active` in the list, which leaves out revoked and expired connections. See `docs/reference/states.md`.
+          enum: [revoked, active, expired, aged_out]
+          description: Always `active` unless the list was asked for ended connections with `include_ended=true`; then `revoked`, `expired` (the refresh token went unused for 30 days) or `aged_out` (the 90 day limit) says why one ended. See `docs/reference/states.md`.
+        revoked_reason:
+          type: string
+          nullable: true
+          enum: [person, admin, client, replaced, refresh_reuse, code_reuse]
+          description: How a `revoked` connection was ended, by its person, an admin, the client itself, a newer connection of the same client, or the reuse of a refresh token or an authorization code; null in every other state.
         mode:
           type: string
           enum: [direct, propose]
@@ -1364,7 +1396,7 @@ components:
     Folder:
       type: object
       additionalProperties: false
-      required: [id, title, general, personal, restricted, admins_only, audit, dashboard_count, grantees, grantee_count, created_by, permissions, level]
+      required: [id, title, general, personal, restricted, admins_only, audit, kind, allowed_actions, dashboard_count, grantees, grantee_count, created_by, permissions, level]
       properties:
         id:
           type: string
@@ -1388,6 +1420,20 @@ components:
         audit:
           type: boolean
           description: True for the Audit folder, the one the server made to hold the starter dashboards over the audit trail, whatever it is now called. False for every other folder, and for all of them when the Audit folder was deleted, which the server does not recreate. The field cannot be set.
+        kind:
+          type: string
+          enum: [general, personal, audit, admins_only, restricted, open]
+          description: >-
+            What the folder is, decided in this order: `general`, `personal` (the caller's My Dashboards), `audit` (the Audit folder, whoever reads it), `admins_only`, `restricted` (it lists people or groups), else `open`.
+            `general`, `personal`, `restricted`, `admins_only` and `audit` stay as they were; `docs/reference/states.md` lists the kinds.
+        allowed_actions:
+          type: array
+          description: >-
+            What the caller may do with this folder now: `create_in` (create a dashboard, an observation or a saved search in it), `move_into` (move one into it), `rename`, `set_permissions` and `delete`.
+            General never offers `rename`, `set_permissions` or `delete`, and a personal folder offers only `create_in`.
+            `delete` still needs the folder to be empty, and a move or a save is still refused when the folder may not hold that content.
+          items:
+            $ref: "#/components/schemas/FolderAction"
         dashboard_count:
           type: integer
           description: All dashboards in the folder, including ones the caller cannot see when the caller manages it.
@@ -1411,6 +1457,9 @@ components:
           description: The caller's level on this folder and on every dashboard in it, the higher of what their role gives and their highest matching entry. Admins have `admin` on every folder except other people's personal folders, and a personal folder's owner has `edit`.
           allOf:
             - $ref: "#/components/schemas/FolderLevel"
+    FolderAction:
+      type: string
+      enum: [create_in, move_into, rename, set_permissions, delete]
     FolderPermissionEntry:
       type: object
       additionalProperties: false
@@ -2511,9 +2560,15 @@ components:
     AccessRequest:
       type: object
       additionalProperties: false
-      required: [id, object, folder, requested_by, note, created_at]
+      required: [id, object, folder, requested_by, note, created_at, state]
       description: A request for Comment access to a dashboard or observation.
       properties:
+        state:
+          type: string
+          enum: [open, granted, dismissed, expired]
+          description: >-
+            Where the request stands, computed on read: `open` while it waits, `granted` once the requester can comment, `dismissed` when someone who can grant it marked it done in their inbox without granting it, and `expired` 30 days after it was asked.
+            The managed list holds only `open` requests; the requester's own list (`scope=mine`) holds all four. A dismissed or expired request can be asked again.
         id:
           type: string
           format: uuid
@@ -2567,7 +2622,7 @@ components:
     InboxItem:
       type: object
       additionalProperties: false
-      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread, target_title, excerpt, question]
+      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread, state, target_title, excerpt, question]
       description: An activity event as `listActivity` returns it, with why it is in the inbox and whether it is unread.
       properties:
         seq:
@@ -2609,6 +2664,13 @@ components:
           description: The first rule the event matches, or null in the `everything` view when it matches none.
         unread:
           type: boolean
+        state:
+          type: string
+          enum: [done, unread, read]
+          description: >-
+            Where the item stands for the caller: `done` once they marked it done, else `unread` while `unread` is true, else `read`.
+            The `open` filter lists `unread` and `read` items, the `unread` filter `unread` ones and the `done` filter `done` ones.
+            See docs/reference/states.md.
         target_title:
           type: string
           nullable: true
@@ -2770,7 +2832,7 @@ components:
     DashboardSummary:
       type: object
       additionalProperties: false
-      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator, folder, permissions, provisioned]
+      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator, folder, permissions, provisioned, managed_by]
       properties:
         id:
           type: string
@@ -2801,6 +2863,15 @@ components:
         provisioned:
           type: boolean
           description: True for a starter dashboard the server keeps current with each release, such as those in the Audit folder. Its `permissions.edit` is false, every change to its content answers 409 `provisioned`, and duplicating it makes an ordinary editable dashboard.
+        managed_by:
+          type: string
+          enum: [starter, file, apply, workspace]
+          description: >-
+            What writes the dashboard's content.
+            `starter` is the same dashboards as `provisioned: true`.
+            `file` is bound to a file in the server's provisioning directory: a save works, and a change to that file replaces it, leaving it in the version history. The value stays after the file is removed.
+            `apply` was last written by `observe dashboards apply`: a save works, and applying its file again after the file changes replaces it, leaving it in the version history.
+            `workspace` is every other dashboard: people edit it in the app, and no file and no release writes it.
     HomeDashboard:
       type: object
       additionalProperties: false
@@ -2835,7 +2906,7 @@ components:
     DashboardListItem:
       type: object
       additionalProperties: false
-      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, view_count, folder, permissions, provisioned]
+      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, view_count, folder, permissions, provisioned, managed_by]
       properties:
         id:
           type: string
@@ -2883,6 +2954,10 @@ components:
         provisioned:
           type: boolean
           description: True for a starter dashboard the server keeps current with each release. Its `permissions.edit` is false, so a list never offers to move or change it.
+        managed_by:
+          type: string
+          enum: [starter, file, apply, workspace]
+          description: What writes the dashboard's content, with the values and meanings of `managed_by` on `GET /dashboards/{id}`.
     VersionMeta:
       type: object
       additionalProperties: false
@@ -3053,6 +3128,12 @@ components:
           $ref: "#/components/schemas/Version"
         merged_from:
           $ref: "#/components/schemas/MergedFrom"
+        warning:
+          type: string
+          description: >-
+            Present when the save or restore went to a dashboard whose `managed_by` is `file` or `apply`.
+            It says what replaces this version, which stays in the version history.
+            That is a change to the provisioning file, or applying the file again after it changes.
         outcome:
           type: string
           enum: [replayed, merged, created]
@@ -3213,6 +3294,9 @@ components:
             What the caller may do now. `update` means saving again to add a revision and has no route of its own;
             `merge` needs Edit on the dashboard and a connection that is not in propose mode; `discard` is for the author or someone who may merge.
             See docs/reference/states.md.
+        warning:
+          type: string
+          description: Only on the answer to a merge that saved a version of a dashboard whose `managed_by` is `file` or `apply`. It is the `warning` of a save to that dashboard.
     Proposal:
       type: object
       additionalProperties: false
@@ -4656,6 +4740,10 @@ components:
           format: date-time
           nullable: true
           description: When the requester saved the stopped build of a `failed` request as a version; null otherwise.
+        build_state:
+          type: string
+          enum: [none, building, stopped, stopped_empty, stale, kept, moved, committed, proposed]
+          description: What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
         continues_id:
           type: string
           format: uuid
@@ -4725,6 +4813,7 @@ components:
         - base_version
         - prompt
         - status
+        - state
         - steps
         - panel
         - error
@@ -4757,6 +4846,11 @@ components:
         status:
           type: string
           enum: [queued, running, succeeded, failed]
+          description: Computed from `state`; kept for clients that read it.
+        state:
+          type: string
+          enum: [queued, running, canceling, succeeded, failed, canceled]
+          description: "Where the suggestion is in its life, the same six states every run has. A suggestion cannot be canceled, so it is never `canceling` or `canceled`."
         steps:
           type: array
           maxItems: 2000
@@ -5031,6 +5125,42 @@ components:
         updated_at:
           type: string
           format: date-time
+        state:
+          type: string
+          enum: [none, building, stopped, stopped_empty, stale, kept, moved, committed, proposed]
+          description: The build's state, the same value as the request's `build_state`; see `docs/reference/states.md`.
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the server deletes the build of a finished request, 7 days after it finished; null while the request has not finished.
+    BuildRefusal:
+      type: object
+      additionalProperties: false
+      required: [error, code, message, state, allowed_actions, reason]
+      description: Why a stopped build cannot be saved now, with the build's state and what the caller may still do with the request.
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [build_running, build_empty, build_not_savable]
+        message:
+          type: string
+          description: The same text as `error`.
+        state:
+          type: string
+          enum: [none, building, stopped, stopped_empty, stale, kept, moved, committed, proposed]
+          description: The build's state; see `docs/reference/states.md`.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+          description: The actions the caller may take on the request now, as in the request's `allowed_actions`.
+        reason:
+          type: string
+          enum: [run_not_finished, no_panels, no_stopped_build]
+          description: "`run_not_finished` with `build_running`, `no_panels` with `build_empty` and `no_stopped_build` with `build_not_savable`."
     AgentBuild:
       type: object
       additionalProperties: false
@@ -5145,6 +5275,9 @@ components:
         - build
         - build_saved_at
         - queue_position
+        - settled
+        - check_failures
+        - check_failures_max
         - cancel_requested_at
         - canceled_by
         - can_cancel
@@ -5284,11 +5417,42 @@ components:
           format: date-time
           nullable: true
           description: When the requester saved the stopped build of a `failed` request as a version; null otherwise. The request stays `failed` with its `failure_code`.
+        build_state:
+          type: string
+          enum: [none, building, stopped, stopped_empty, stale, kept, moved, committed, proposed]
+          description: What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
+        reply:
+          type: object
+          additionalProperties: false
+          required: [state]
+          description: The reply this request owes the comment thread it was asked in.
+          properties:
+            state:
+              type: string
+              enum: [not_owed, owed, replied, abandoned]
+              description: "`not_owed` for a request not asked in a thread, `owed` until the reply is posted, `replied` once it is, and `abandoned` when it could not be posted within 24 hours after the request finished; see `docs/reference/states.md`."
         queue_position:
           type: integer
           minimum: 1
           nullable: true
           description: 1-based place among queued requests in claim order, null unless queued. The worker skips a request whose dashboard already has a running revision, so the order can shift.
+        settled:
+          type: string
+          nullable: true
+          enum: [saved, proposed, finding, suggested, ended]
+          description: >-
+            What a `running` or `canceling` request has already settled, before its state changes:
+            `saved` (a version), `proposed` (a proposal), `finding` (an answer or finding), `suggested` (a panel suggestion)
+            or `ended` (the agent stopped and the request is about to finish).
+            Null while the agent is still working and for a queued or finished request, whose `result_kind` says what it produced.
+        check_failures:
+          type: integer
+          minimum: 0
+          description: How many times the server could not run a check it makes when a worker takes the request (its saved version, its requester, the requester's access). Each failure puts the request back in the queue, so a request that moves between `queued` and `running` with this count rising is waiting on the server, not on the agent.
+        check_failures_max:
+          type: integer
+          minimum: 1
+          description: The count of `check_failures` at which the request fails with the failure code `check_failed`; its `error` then names the check that could not run.
         cancel_requested_at:
           type: string
           format: date-time
@@ -5669,6 +5833,10 @@ components:
           format: date-time
           nullable: true
           description: When the requester saved the stopped build of a `failed` request as a version; null otherwise.
+        build_state:
+          type: string
+          enum: [none, building, stopped, stopped_empty, stale, kept, moved, committed, proposed]
+          description: What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
         kind:
           type: string
           enum: [build, investigate]
@@ -5770,6 +5938,36 @@ components:
           items:
             type: string
           description: The actions the caller may take in that state, as in the object's own `allowed_actions`.
+    RunRefusal:
+      type: object
+      additionalProperties: false
+      required: [error, code, state, allowed_actions]
+      description: The answer to a cancel, continue or retry the request's state or history does not allow.
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [request_finished, not_continuable, invalid_transition]
+          description: "`request_finished` for a cancel, `not_continuable` for a continue and `invalid_transition` for a retry."
+        state:
+          type: string
+          enum: [queued, running, canceling, succeeded, failed, canceled]
+          description: The state the request is in.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+          description: The actions the caller may take now, as in the request's own `allowed_actions`.
+        reason:
+          type: string
+          enum: [no_build, kept, continued, retried, investigation, lost_race]
+          description: >-
+            Why the action is refused when the state alone does not say; absent otherwise.
+            `no_build`: the request left no build. `kept`: its build was saved as a version.
+            `continued`: another request already continues it. `retried`: it was already retried.
+            `investigation`: an investigation has no build to continue.
+            `lost_race`: another continue, retry or save took the build while this call ran.
     AgentRequestEnvelope:
       type: object
       additionalProperties: false
@@ -6824,6 +7022,9 @@ components:
           type: string
           nullable: true
           description: Why the dashboard is not in the requested folder, or null when it is where the request or the source asked.
+        warning:
+          type: string
+          description: Present when `update_dashboard` saved a version of a dashboard whose `managed_by` is `file` or `apply`. It is the `warning` of a save to that dashboard.
     DatasourcesUnresolved:
       type: object
       additionalProperties: false
@@ -7776,6 +7977,51 @@ components:
           type: string
           format: date-time
           description: When the repair finished, else when it started, else when it was queued.
+    ScheduledJob:
+      type: object
+      additionalProperties: false
+      required: [name, state, every_seconds, next_run_at, last_started_at, last_finished_at, last_outcome, last_error]
+      properties:
+        name:
+          type: string
+        state:
+          type: string
+          enum: [running, interrupted, due, waiting]
+          description: Computed on read; see `docs/reference/states.md`. `interrupted` means the last run did not finish, because its server crashed or shut down.
+        every_seconds:
+          type: integer
+          minimum: 1
+          description: The interval between runs.
+        next_run_at:
+          type: string
+          format: date-time
+        last_started_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_finished_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When a run last recorded an outcome; older than `last_started_at` while a run is in flight or after one that did not finish.
+        last_outcome:
+          type: string
+          nullable: true
+          enum: [succeeded, failed, interrupted]
+          description: The outcome of the last run that recorded one, or `interrupted` once a server took over the lease of a run that crashed. Null before the first outcome.
+        last_error:
+          type: string
+          nullable: true
+          description: The `key=value` summary of the last failure, never the error's own text; null when the last outcome was not a failure.
+    ScheduledJobList:
+      type: object
+      additionalProperties: false
+      required: [jobs]
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduledJob"
     HealthJob:
       type: object
       additionalProperties: false

@@ -24,6 +24,7 @@ import {
   composerMode,
   readerNote,
   useLatestFolderTitle,
+  useLatestEditNote,
   useLatestPermissions,
   useLatestProvisioned,
 } from "@/dashboards/permissions"
@@ -272,6 +273,7 @@ export function ActivityFeed({
   const provisioned = useLatestProvisioned(dashboardId)
   const mode = composerMode(permissions, provisioned)
   const note = readerNote(mode, folderTitle ?? "this folder")
+  const editNote = useLatestEditNote(dashboardId)
   const gateInput: GateInput = {
     canComment: permissions.comment,
     agentAvailable: agent.data?.available,
@@ -484,13 +486,18 @@ export function ActivityFeed({
           notice={
             mode === "comment-only" || mode === "provisioned" ? (
               <RoleNote>{note}</RoleNote>
-            ) : noModel && madeBy !== null ? (
-              <ExternalAgentNote
-                dashboardId={apiId}
-                title={spec.title}
-                clientName={clientName}
-              />
-            ) : null
+            ) : (
+              <>
+                {editNote === null ? null : <RoleNote>{editNote}</RoleNote>}
+                {noModel && madeBy !== null ? (
+                  <ExternalAgentNote
+                    dashboardId={apiId}
+                    title={spec.title}
+                    clientName={clientName}
+                  />
+                ) : null}
+              </>
+            )
           }
         />
       )}

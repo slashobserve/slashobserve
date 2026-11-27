@@ -9,6 +9,8 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 
 	"github.com/slashobserve/slashobserve/api/apitest"
+	"github.com/slashobserve/slashobserve/internal/accessrequests"
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -19,12 +21,15 @@ import (
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
 	"github.com/slashobserve/slashobserve/internal/mcpauth"
 	"github.com/slashobserve/slashobserve/internal/observations"
+	"github.com/slashobserve/slashobserve/internal/observeagent"
 	"github.com/slashobserve/slashobserve/internal/presence"
 	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/public"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/scheduler"
 	"github.com/slashobserve/slashobserve/internal/server"
 	"github.com/slashobserve/slashobserve/internal/threads"
+	"github.com/slashobserve/slashobserve/internal/users"
 	"github.com/slashobserve/slashobserve/internal/webhooks"
 )
 
@@ -41,6 +46,9 @@ func statesReference() string {
 		observations.BlockMachine.Doc("Observation block", "A block is one item on an observation's page: Markdown, a live panel, a frozen snapshot or an agent run."),
 		observations.RCAMachine.Doc("RCA revision", "An RCA revision is one published copy of an observation, returned by `GET /observations/{id}/rcas`; its state is computed on read from the newer revisions and the live public links, never stored."),
 		proposals.ProposalMachine.Doc("Proposal", "A proposal is a change to a dashboard that someone who can edit merges or discards, returned by `GET /api/v1/proposals/{id}`."),
+		revisions.BuildStates.Doc("Build", "A build is what the agent assembles for a run before it becomes a version; every run read returns its `build_state`, and `build.state` while the run holds one."),
+		revisions.ReplyStates.Doc("Thread reply", "A run asked in a comment thread owes that thread one reply when it ends; `GET /observe/{id}` returns its `reply.state`."),
+		folders.ManagedByStates.Doc("Dashboard managed by", "`GET /dashboards/{id}` and each item of `GET /dashboards` return `managed_by`: what writes the dashboard's content."),
 		proposals.MergeabilityStates.Doc("Proposal mergeability", "`GET /proposals/{id}` returns the `mergeability` of an open proposal, which says what a merge would meet on the dashboard's latest version, and null once the proposal is merged or discarded."),
 		health.ItemStates.Doc("Dashboard health", "`GET /health` returns the `state` of each dashboard that has a problem."),
 		health.RepairOutcomes.Doc("Health repair", "`GET /health` returns the `outcome` of a dashboard's latest repair beside the repair run's own `state`."),
@@ -50,12 +58,18 @@ func statesReference() string {
 		dashboards.SaveOutcomes.Doc("Dashboard save", "`POST /dashboards/{id}/versions` and `PATCH /dashboards/{id}/panels` return the `outcome` of the save, and so do the `update_dashboard` and `update_panels` tools."),
 		public.LinkStates.Doc("Public link", "`GET /dashboards/{id}/public-links` returns the `state` of each link."),
 		folders.Confinements.Doc("Content confined to Admins-only folders", "`GET /observations/{id}` returns `confined` with a `reason` while an answer or a run keeps the observation in folders only Admins can read, and leaves it out otherwise; a `restricted_answer` refusal carries the same `reason`."),
+		folders.Kinds.Doc("Folder", "`GET /folders` and `GET /folders/{id}` return the `kind` of each folder, and its `allowed_actions` say what the caller may do with it."),
+		activity.InboxItemStates.Doc("Inbox item", "`GET /inbox` returns the `state` of each item for the person reading it."),
 		grafanaconn.SyncMachine.Doc("Grafana import", "A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /grafana/{id}/imports/{sync_id}`; its moves write server log lines with these names, not activity events, because a Grafana connection is Admin only."),
 		grafanaconn.TestStates.Doc("Grafana connection test", "`GET /grafana` returns the `test.state` of each connection."),
 		inboundmcp.ToolMachine.Doc("MCP source tool", "An MCP source tool is one tool of an MCP server an Admin registered, returned by `GET /api/v1/mcp-sources/{uid}/tools`; discovery moves it between `offered`, `changed`, `gone` and `refused`, and an Admin approves or revokes it."),
 		inboundmcp.SourceStates.Doc("MCP source", "`GET /api/v1/mcp-sources` returns the `state` of each MCP source."),
+		observeagent.SupervisorMachine.Doc("Built-in agent supervisor", "The server starts the built-in agent as the `observe-agent` process and restarts it when it exits; each move writes a server log line with the state under the key `agent_state`, not an activity event."),
 		dashboards.VerificationStates.Doc("Panel and variable verification", "`GET /dashboards/{id}` returns the panels and variables of a version that are not verified in `unverified`, each with the `reason` the save kept it."),
 		presence.States.Doc("Agent presence", "Whether an outside agent is taking runs: derived from when it last asked for work and the runs it holds."),
+		users.PersonMachine.Doc("Person", "A person is someone who signs in, returned by `GET /users` with `state` and `allowed_actions`; an invited email is listed by `GET /invites` until its first sign-in."),
+		scheduler.States.Doc("Scheduled job", "`GET /jobs` returns the `state` of each scheduled job to an Admin."),
+		accessrequests.States.Doc("Access request", "`GET /access-requests` returns the `state` of each request for Comment access; the list of requests you can grant holds only open ones, and `scope=mine` returns your own in every state."),
 		datasource.HealthStates.Doc("Datasource health", "`GET /datasources` and `POST /datasources/{uid}/recheck` return the `health_state` of each datasource, from the last check the answering server ran."),
 		server.PhaseMachine.Doc("Server process", "A server process moves through these phases from start to exit: `GET /readyz` returns the current one as `phase`, the `slashobserve_server_phase` series is 1 for it, and each move writes one server log line with the name in the Event column and the new phase as its `phase` attribute, not an activity event."),
 	)
@@ -99,6 +113,14 @@ func enumOf(t *testing.T, doc *openapi3.T, schema, property string) []string {
 	return out
 }
 
+func folderActions() []string {
+	out := make([]string, len(folders.Actions))
+	for i, a := range folders.Actions {
+		out[i] = string(a)
+	}
+	return out
+}
+
 func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 	doc := apitest.Load(t)
 	failureKinds := make([]string, len(datasource.FailureKinds))
@@ -109,6 +131,13 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 		schema, property string
 		want             []string
 	}{
+		{"AgentRequest", "build_state", revisions.BuildStates.Names()},
+		{"RequestSummary", "build_state", revisions.BuildStates.Names()},
+		{"Revision", "build_state", revisions.BuildStates.Names()},
+		{"AgentBuildProgress", "state", revisions.BuildStates.Names()},
+		{"BuildRefusal", "state", revisions.BuildStates.Names()},
+		{"DashboardSummary", "managed_by", folders.ManagedByStates.Names()},
+		{"DashboardListItem", "managed_by", folders.ManagedByStates.Names()},
 		{"HealthItem", "state", health.ItemStates.Names()},
 		{"HealthRepair", "outcome", health.RepairOutcomes.Names()},
 		{"Webhook", "state", webhooks.States.Names()},
@@ -118,7 +147,12 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 		{"PublicLink", "state", public.LinkStates.Names()},
 		{"PublicLink", "unusable_reason", public.UnusableReasons},
 		{"Confined", "reason", folders.Confinements.Names()},
+		{"Folder", "kind", folders.Kinds.Names()},
+		{"Folder", "allowed_actions", folderActions()},
+		{"InboxItem", "state", activity.InboxItemStates.Names()},
 		{"MCPSource", "state", inboundmcp.SourceStates.Names()},
+		{"AccessRequest", "state", accessrequests.States.Names()},
+		{"ScheduledJob", "state", scheduler.States.Names()},
 		{"DatasourceStatus", "health_state", datasource.HealthStates.Names()},
 		{"DatasourceStatus", "failure_kind", failureKinds},
 		{"DatasourceTestResult", "failure_kind", failureKinds},
@@ -152,6 +186,15 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 
 func TestRunStateEnumsMatchTheMachine(t *testing.T) {
 	doc := apitest.Load(t)
+	replyStates := doc.Components.Schemas["AgentRequest"].Value.Properties["reply"].Value.Properties["state"].Value.Enum
+	if len(replyStates) != len(revisions.ReplyStates.Names()) {
+		t.Errorf("AgentRequest.reply.state enum = %v, want %v", replyStates, revisions.ReplyStates.Names())
+	}
+	for i, name := range revisions.ReplyStates.Names() {
+		if i < len(replyStates) && replyStates[i] != name {
+			t.Errorf("AgentRequest.reply.state enum = %v, want %v", replyStates, revisions.ReplyStates.Names())
+		}
+	}
 	var states, kinds, offered []string
 	for _, s := range revisions.RunMachine.States {
 		states = append(states, string(s))
@@ -250,6 +293,21 @@ func TestObservationEnumsMatchTheMachines(t *testing.T) {
 		if got := enumOf(t, doc, c.schema, c.property); !slices.Equal(got, c.want) {
 			t.Errorf("%s.%s enum = %v, want %v", c.schema, c.property, got, c.want)
 		}
+	}
+}
+
+func TestPersonEnumsMatchTheMachine(t *testing.T) {
+	doc := apitest.Load(t)
+	var offered []string
+	for _, a := range users.PersonMachine.Offered() {
+		offered = append(offered, string(a))
+	}
+	listed := []string{string(users.StateActive), string(users.StateDeactivated)}
+	if got := enumOf(t, doc, "Person", "state"); !slices.Equal(got, listed) {
+		t.Errorf("Person.state enum = %v, want %v", got, listed)
+	}
+	if got := enumOf(t, doc, "Person", "allowed_actions"); !slices.Equal(got, offered) {
+		t.Errorf("Person.allowed_actions enum = %v, want %v", got, offered)
 	}
 }
 

@@ -261,7 +261,8 @@ func (q *Queries) InboxUnreadCount(ctx context.Context, arg InboxUnreadCountPara
 const listInbox = `-- name: ListInbox :many
 SELECT a.seq, a.xid, a.type, a.target_kind, a.target_id, a.dashboard_id, a.folder_id, a.actor_kind, a.actor_id, a.actor_name, a.origin, a.origin_client, a.run_id, a.data, a.created_at, a.finding_id, a.saved_search_id, a.observation_id,
        coalesce(n.reason, '')::text AS reason,
-       coalesce(st.unread, ic.user_id IS NULL OR (a.xid, a.seq) > (ic.read_xid, ic.read_seq))::boolean AS unread
+       coalesce(st.unread, ic.user_id IS NULL OR (a.xid, a.seq) > (ic.read_xid, ic.read_seq))::boolean AS unread,
+       coalesce(st.done, false)::boolean AS done
 FROM activity a
 CROSS JOIN LATERAL (SELECT inbox_reason(a, $1::uuid, $2::uuid[], $3::text) AS reason OFFSET 0) n
 LEFT JOIN inbox_cursors ic ON ic.user_id = $1::uuid
@@ -306,6 +307,7 @@ type ListInboxRow struct {
 	Activity Activity
 	Reason   string
 	Unread   bool
+	Done     bool
 }
 
 // The horizon and the scan must share this statement's snapshot; never move the horizon into a function or another query.
@@ -354,6 +356,7 @@ func (q *Queries) ListInbox(ctx context.Context, arg ListInboxParams) ([]ListInb
 			&i.Activity.ObservationID,
 			&i.Reason,
 			&i.Unread,
+			&i.Done,
 		); err != nil {
 			return nil, err
 		}

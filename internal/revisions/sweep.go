@@ -3,6 +3,7 @@ package revisions
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -44,8 +45,10 @@ func (s *Service) retryThreadReplies(ctx context.Context, q *dbsqlc.Queries, sav
 	if s.threads == nil {
 		return nil
 	}
+	after := s.replies.start()
 	rows, err := q.ListRunsAwaitingReply(ctx, dbsqlc.ListRunsAwaitingReplyParams{
 		Terminal: stateNames(RunMachine.Terminal), WithinSeconds: ReplyRetryFor.Seconds(), MaxRows: ReplyRetryBatch,
+		AfterFinishedAt: after.finishedAt, AfterID: after.id,
 	})
 	if err != nil {
 		return fmt.Errorf("list runs awaiting a thread reply: %w", err)
@@ -53,7 +56,21 @@ func (s *Service) retryThreadReplies(ctx context.Context, q *dbsqlc.Queries, sav
 	for _, row := range rows {
 		s.runEnded(ctx, savepoint, row)
 	}
+	s.replies.visited(rows, ReplyRetryBatch)
 	return nil
+}
+
+func (s *Service) abandonThreadReplies(ctx context.Context, q *dbsqlc.Queries) (int64, error) {
+	if s.threads == nil {
+		return 0, nil
+	}
+	abandoned, err := q.AbandonThreadReplies(ctx, dbsqlc.AbandonThreadRepliesParams{
+		Terminal: stateNames(RunMachine.Terminal), WithinSeconds: ReplyRetryFor.Seconds(),
+	})
+	if err != nil {
+		return 0, fmt.Errorf("abandon thread replies past their window: %w", err)
+	}
+	return abandoned, nil
 }
 
 func stateNames(states []State) []string {
@@ -65,10 +82,24 @@ func stateNames(states []State) []string {
 }
 
 func (s *Service) Sweep(ctx context.Context) error {
-	return s.db.InTxWithSavepoints(ctx, func(q *dbsqlc.Queries, savepoint db.Savepoint) error {
+	var abandoned int64
+	err := s.db.InTxWithSavepoints(ctx, func(q *dbsqlc.Queries, savepoint db.Savepoint) error {
 		if err := q.LockAgentRequestClaims(ctx); err != nil {
 			return fmt.Errorf("lock agent request claims: %w", err)
 		}
-		return s.sweep(ctx, q, savepoint)
+		if err := s.sweep(ctx, q, savepoint); err != nil {
+			return err
+		}
+		var err error
+		abandoned, err = s.abandonThreadReplies(ctx, q)
+		return err
 	})
+	if err != nil {
+		return err
+	}
+	if abandoned > 0 {
+		s.metrics.ThreadRepliesAbandoned(int(abandoned))
+		s.logger.WarnContext(ctx, "gave up posting thread replies of finished agent requests", slog.Int64("replies", abandoned), slog.String("reply_state", string(ReplyAbandoned)))
+	}
+	return nil
 }

@@ -247,7 +247,7 @@ func (s *Service) Restore(ctx context.Context, by auth.Principal, id pgtype.UUID
 	if err != nil {
 		return Dashboard{}, Version{}, err
 	}
-	return withAccess(dash, access), ver, nil
+	return dash.WithAccess(access), ver, nil
 }
 
 func (s *Service) restore(ctx context.Context, by auth.Principal, id pgtype.UUID, from, parent int, summary string) (Dashboard, Version, error) {
@@ -389,19 +389,20 @@ type ListPage struct {
 	Total      int
 }
 
-func (s *Service) markProvisioned(ctx context.Context, items []ListItem, levels folders.Levels) error {
+func (s *Service) placeEach(ctx context.Context, items []ListItem, levels folders.Levels) error {
 	ids := make([]string, len(items))
 	for i, item := range items {
 		ids[i] = item.ID
 	}
-	provisioned, err := s.store.provisionedAmong(ctx, ids)
+	managers, err := s.store.managersAmong(ctx, ids)
 	if err != nil {
 		return err
 	}
 	for i := range items {
-		access := folders.DashboardAccess{Abilities: levels.Of(items[i].Folder.ID), Provisioned: provisioned[items[i].ID]}
-		items[i].Abilities = access.Shown()
-		items[i].Provisioned = access.Provisioned
+		access := managers[items[i].ID]
+		access.Folder = items[i].Folder
+		access.Abilities = levels.Of(access.Folder.ID)
+		items[i].Dashboard = items[i].WithAccess(access)
 	}
 	return nil
 }
@@ -465,7 +466,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Li
 	if err != nil {
 		return ListPage{}, err
 	}
-	if err := s.markProvisioned(ctx, items, levels); err != nil {
+	if err := s.placeEach(ctx, items, levels); err != nil {
 		return ListPage{}, err
 	}
 	page := ListPage{Items: items}
@@ -626,6 +627,7 @@ func (s *Service) moveOnce(ctx context.Context, by auth.Principal, id, folderID 
 		return Dashboard{}, Version{}, err
 	}
 	dash.Abilities = abilities
+	dash.ManagedBy = source.ManagedBy()
 	s.logger.InfoContext(ctx, "dashboard moved",
 		slog.String("actor_id", by.ID), slog.String("dashboard_id", dash.ID), slog.String("folder_id", target.ID.String()))
 	return dash, ver, nil
