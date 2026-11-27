@@ -52,7 +52,7 @@ func TestTheHTTPRunReadCountsAdmissionCheckFailuresAgainstTheirCeiling(t *testin
 	if string(fields["check_failures"]) != "2" || string(fields["check_failures_max"]) != "3" || string(fields["settled"]) != "null" {
 		t.Errorf("check_failures %s of %s, settled %s; want 2 of 3 and null", fields["check_failures"], fields["check_failures_max"], fields["settled"])
 	}
-	if !checksExhausted(dbsqlc.AgentRequest{CheckFailures: int32(progress.CheckFailuresMax - 1)}) || checksExhausted(dbsqlc.AgentRequest{CheckFailures: int32(progress.CheckFailuresMax - 2)}) {
+	if progress.CheckFailuresMax != maxCheckFailures || !checksExhausted(dbsqlc.AgentRequest{CheckFailures: maxCheckFailures - 1}) || checksExhausted(dbsqlc.AgentRequest{CheckFailures: maxCheckFailures - 2}) {
 		t.Error("check_failures_max is not the count at which a run fails with check_failed")
 	}
 }

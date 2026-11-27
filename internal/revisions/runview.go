@@ -202,6 +202,15 @@ func (r *RunDesk) answer(ctx context.Context, row dbsqlc.AgentRequest, caller au
 }
 
 func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, readOnly bool) (agentRequestJSON, error) {
+	out, err := r.renderShared(ctx, row, caller, readOnly)
+	if err != nil || !r.httpOnlyFields {
+		return out, err
+	}
+	out.runProgressJSON, err = r.service.progress(ctx, row)
+	return out, err
+}
+
+func (r *RunDesk) renderShared(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, readOnly bool) (agentRequestJSON, error) {
 	view := r.service.viewOf(ctx, row, caller)
 	if view == viewNone {
 		return agentRequestJSON{}, ErrRequestNotFound
@@ -242,11 +251,6 @@ func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller au
 	}
 	if findingShown(view, row) && r.opts.Finding != nil {
 		if err := r.attachFinding(ctx, caller, row, &out); err != nil {
-			return agentRequestJSON{}, err
-		}
-	}
-	if r.httpOnlyFields {
-		if out.runProgressJSON, err = r.service.progress(ctx, row); err != nil {
 			return agentRequestJSON{}, err
 		}
 	}
