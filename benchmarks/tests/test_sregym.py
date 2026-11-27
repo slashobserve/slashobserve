@@ -487,13 +487,14 @@ def test_run_options_default_to_what_sregym_exports():
 
 def test_run_options_override_the_defaults():
     options = _options(
-        ["--model", "replay/replay", "--out", "/tmp/o", "--investigation-loop", "true", "--investigation-calls", "30", "--without-kubectl", "--prometheus-url", "http://kind-control-plane:32000"],
+        ["--model", "replay/replay", "--out", "/tmp/o", "--investigation-loop", "true", "--investigation-calls", "30", "--investigation-brief", "off", "--without-kubectl", "--prometheus-url", "http://kind-control-plane:32000"],
         SREGYM_ENV,
     )
     assert options.model == "replay/replay"
     assert options.out == "/tmp/o"
     assert options.investigation_loop is True
     assert options.investigation_calls == 30
+    assert options.investigation_brief == "off"
     assert options.without_kubectl is True
     assert options.prometheus_url == "http://kind-control-plane:32000"
 

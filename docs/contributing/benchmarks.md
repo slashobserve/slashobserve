@@ -39,7 +39,7 @@ Set `SLASHOBSERVE_SERVER_IMAGE` to use another image than `slashobserve-server:l
 A real run spends tokens, so start with one task and a cost cap.
 Every one of the 64 o11y-bench tasks runs, the Grafana API and dashboard tasks included.
 Every adapter starts the server with `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `enforce` unless `finding_grounding` is given, because only with grounding on does the server score a finding's causes and mark the unconfirmed ones, and an older image's default is `off`.
-The adapters also always send the investigation loop, `true` unless given, and its ceiling, 40 unless given, which are the defaults of an image with task types, so a run on an older image behaves the same as far as that image has the settings.
+The adapters also always send the investigation loop, `true` unless given, its ceiling, 40 unless given, and the preflight sweep (`SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF`), `on` unless `investigation_brief` is given, which are the defaults of an image with task types, so a run on an older image behaves the same as far as that image has the settings.
 The call limit and the reasoning effort are sent only when given, because unset they depend on the image and on the run: one limit per task type and `high` effort for an investigation on Anthropic on an image with task types, and 12 calls and the provider's effort on an older one.
 The results file and each trial's notes record what was sent, and `server default` for a setting that was not.
 For a real model, a subset of tasks, the options, the spend cap and how the Grafana tasks run, read [`benchmarks/README.md`](https://github.com/slashobserve/slashobserve/blob/main/benchmarks/README.md) in the repository.

@@ -156,8 +156,9 @@ def test_options_come_from_agent_kwargs(tmp_path):
 
 
 def test_loop_settings_come_from_agent_kwargs(tmp_path):
-    agent = orca_agent.OrcaAgent(logs_dir=tmp_path, model_name="replay/replay", investigation_loop="true", finding_grounding="report")
+    agent = orca_agent.OrcaAgent(logs_dir=tmp_path, model_name="replay/replay", investigation_loop="true", finding_grounding="report", investigation_brief="off")
     assert agent.options.investigation_loop is True
+    assert agent.options.investigation_brief == "off"
     assert agent.options.finding_grounding == "report"
 
 
@@ -199,7 +200,7 @@ def test_the_loop_settings_are_always_sent_and_noted(setup):
     agent, environment, logs = setup
     run(agent, environment)
     config = FakeStack.started.config
-    assert (config.investigation_calls, config.investigation_loop, config.investigation_calls_max, config.finding_grounding) == (None, True, 40, "enforce")
+    assert (config.investigation_calls, config.investigation_loop, config.investigation_calls_max, config.finding_grounding, config.investigation_brief) == (None, True, 40, "enforce", "on")
     assert "investigation loop: true, calls max 40, calls server default" in (logs / "notes.txt").read_text()
 
 

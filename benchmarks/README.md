@@ -98,7 +98,7 @@ Every development run uses these ten, so results stay comparable; change the lis
 ### Options
 
 The adapter cannot read the server's defaults from outside, and they differ between images (see [Server defaults](#server-defaults)), so it does not rely on them.
-The loop, its ceiling and finding grounding are always sent, with the adapter's defaults when they are not given, and those match the defaults of an image with task types.
+The loop, its ceiling, the preflight sweep and finding grounding are always sent, with the adapter's defaults when they are not given, and those match the defaults of an image with task types.
 `investigation_calls` is sent only when given, because unset it means one limit per task type on an image with task types, which one number cannot express.
 A given `--ak` value always wins over the adapter's default.
 The results file records under `settings` exactly what was sent, and `server default` for a setting that was not sent, so a job that leaves an option unset agrees with one that sets the adapter's default; a job whose trials disagree on them is refused.
@@ -113,6 +113,7 @@ The results file records under `settings` exactly what was sent, and `server def
 | `investigation_loop` | `true` | `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`: `true` or `false`, always sent. |
 | `investigation_calls_max` | `40`, or `investigation_calls` when that is higher | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`, 6 to 60, always sent; the adapter refuses a value below `investigation_calls`, or below 12 when that is unset, because an older image starts at 12 and refuses a lower ceiling. |
 | `finding_grounding` | `enforce` | `SLASHOBSERVE_AGENT_FINDING_GROUNDING`: `off`, `report` or `enforce`, always sent. |
+| `investigation_brief` | `on` | `SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF`: `on` or `off`, always sent; the preflight sweep of the datasources before an investigation's first model call, which `off` leaves out for a baseline. |
 | `run_max_cost_usd` | unset | `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD`: the server fails a run with `budget_exhausted` once its cost reaches it. The server refuses to start with it set when the model has no price, the replay model included. |
 | `spend_cap_usd`, `ledger_path` | unset | The job cap and its ledger file, which go together; see below. |
 | `wall_timeout_sec` | 540 | How long a trial may take from the start of `run`, server start-up included, under Harbor's 600 second agent timeout. |
@@ -130,12 +131,13 @@ An image built from `agent-investigation-core` or later (an image with task type
 | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | by task type: `measure` 16, `logs` 20, `traces` 20, `incident` 30, `inventory` 12, `explain` 12, and 30 for a question no rule sorts | 12 |
 | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX` | 40, or the calls setting when higher | the calls setting |
 | `SLASHOBSERVE_AGENT_FINDING_GROUNDING` | `enforce` | `off` |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF` | `on` | no sweep, and the setting is ignored |
 | `SLASHOBSERVE_LLM_EFFORT` | on `anthropic`, `high` for an investigation and a question about a dashboard or an observation, `medium` for other runs | the provider's default |
 
 v0.1.5 has none of the loop, ceiling and grounding settings and ignores them when they are sent.
 What omitting an option means:
 
-- `investigation_loop`, `investigation_calls_max` and `finding_grounding`: the adapter sends `true`, 40 and `enforce`, so both kinds of image run with them, as far as the image has the setting.
+- `investigation_loop`, `investigation_calls_max`, `investigation_brief` and `finding_grounding`: the adapter sends `true`, 40, `on` and `enforce`, so both kinds of image run with them, as far as the image has the setting.
 - `investigation_calls`: nothing is sent, so an image with task types gives each investigation its task type's limit and an older image gives 12; the results file records `server default`, and each attempt's `call_limit` is the limit the run ended with when the server returns it.
 - `llm_effort`: nothing is sent, so the server picks the effort per run as in the table; the results file records `server default`.
 

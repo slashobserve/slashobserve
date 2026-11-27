@@ -42,8 +42,10 @@ def test_loop_settings_are_accepted_from_the_command_line(tmp_path):
         investigation_calls="20",
         investigation_calls_max="40",
         finding_grounding="report",
+        investigation_brief="off",
     )
     assert instance._options.investigation_loop is True
+    assert instance._options.investigation_brief == "off"
     assert instance._options.investigation_calls_max == 40
     assert instance._options.finding_grounding == "report"
     unset = bench_agent.SlashObserveAgent(logs_dir=tmp_path, model_name="replay/replay")

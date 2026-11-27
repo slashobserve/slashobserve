@@ -90,6 +90,7 @@ def test_one_attempt_per_task(tmp_path):
         "investigation_loop": True,
         "investigation_calls_max": 40,
         "finding_grounding": "enforce",
+        "investigation_brief": "on",
         "llm_effort": "server default",
         "run_max_cost_usd": 0.5,
         "wall_timeout_sec": None,
@@ -250,9 +251,9 @@ def test_unset_loop_settings_record_what_the_adapter_sent(tmp_path):
 
 def test_the_older_baseline_is_recorded_as_given(tmp_path):
     job = write_job(tmp_path)
-    write_trial(job, "task-a", "AAA", 1.0, kwargs={"investigation_calls": "12", "investigation_loop": "false", "finding_grounding": "off", "llm_effort": "medium"})
+    write_trial(job, "task-a", "AAA", 1.0, kwargs={"investigation_calls": "12", "investigation_loop": "false", "finding_grounding": "off", "investigation_brief": "off", "llm_effort": "medium"})
     settings = build_from([job])["settings"]
-    assert (settings["investigation_calls"], settings["investigation_loop"], settings["finding_grounding"], settings["llm_effort"]) == (12, False, "off", "medium")
+    assert (settings["investigation_calls"], settings["investigation_loop"], settings["finding_grounding"], settings["investigation_brief"], settings["llm_effort"]) == (12, False, "off", "off", "medium")
 
 
 def test_jobs_that_set_the_defaults_explicitly_agree_with_jobs_that_leave_them_unset(tmp_path):

@@ -75,8 +75,9 @@ def test_loop_settings_reach_the_server_only_when_given():
     assert env["SLASHOBSERVE_AGENT_FINDING_GROUNDING"] == "enforce"
     off = server.server_env(config(investigation_loop=False), "postgres://db")
     assert off["SLASHOBSERVE_AGENT_INVESTIGATION_LOOP"] == "false"
+    assert server.server_env(config(investigation_brief="off"), "postgres://db")["SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF"] == "off"
     bare = server.server_env(config(), "postgres://db")
-    for name in ("INVESTIGATION_LOOP", "INVESTIGATION_CALLS_MAX", "FINDING_GROUNDING"):
+    for name in ("INVESTIGATION_LOOP", "INVESTIGATION_CALLS_MAX", "FINDING_GROUNDING", "INVESTIGATION_BRIEF"):
         assert f"SLASHOBSERVE_AGENT_{name}" not in bare
 
 

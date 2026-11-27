@@ -36,6 +36,7 @@ class ServerConfig:
     investigation_loop: bool | None = None
     investigation_calls_max: int | None = None
     finding_grounding: str | None = None
+    investigation_brief: str | None = None
     run_max_cost_usd: float | None = None
     replay_dir: Path | None = None
     add_hosts: tuple[str, ...] = ()
@@ -93,6 +94,7 @@ def server_env(config: ServerConfig, database_url: str) -> dict[str, str]:
         "SLASHOBSERVE_AGENT_INVESTIGATION_LOOP": None if config.investigation_loop is None else str(config.investigation_loop).lower(),
         "SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX": config.investigation_calls_max,
         "SLASHOBSERVE_AGENT_FINDING_GROUNDING": config.finding_grounding,
+        "SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF": config.investigation_brief,
         "SLASHOBSERVE_AGENT_RUN_MAX_COST_USD": config.run_max_cost_usd,
     }
     env.update({name: str(value) for name, value in optional.items() if value is not None})
