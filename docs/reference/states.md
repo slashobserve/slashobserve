@@ -52,6 +52,23 @@ A comment thread is a conversation on a dashboard, an observation, an annotation
 | `resolve` | `open` | `resolved` | `thread.resolved` | requester, editor, server |
 | `reopen` | `resolved` | `open` | `thread.reopened` | commenter |
 
+## Thread's agent
+
+A thread's agent is the one a plain reply asks, returned as `agent` by `GET /threads`; its moves are made by sending a message and are recorded as the audit action `thread.agent_set`, not as activity events.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `none` | No message has asked an agent yet, or the thread's agent can no longer take runs; a plain reply asks nobody. | `set_agent` |
+| `following` | The thread has an agent and a plain reply asks it. | `set_agent`, `turn_agent_off` |
+| `off` | The thread keeps its agent, but a message was sent to everyone, so a plain reply asks nobody until the agent is set again. | `set_agent` |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `open` | - | `none` | `thread.opened` | commenter |
+| `set_agent` | `none`, `following`, `off` | `following` | `thread.agent_set` | commenter |
+| `turn_agent_off` | `following` | `off` | `thread.agent_set` | commenter |
+| `clear_agent` | `following`, `off` | `none` | `thread.agent_set` | server |
+
 ## Observation
 
 An observation is a page of blocks in a folder, started by POST /observations or by an investigation.

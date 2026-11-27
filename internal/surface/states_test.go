@@ -32,6 +32,7 @@ func statesReference() string {
 	return lifecycle.Render(
 		revisions.RunMachine.Doc("Run", "A run is one agent request, started by `POST /observe`, a comment, a prompt, an investigation or a suggestion."),
 		threads.ThreadMachine.Doc("Comment thread", "A comment thread is a conversation on a dashboard, an observation, an annotation or a proposal, returned by `GET /threads` and by every route that opens, replies to, resolves or reopens one."),
+		threads.AgentMachine.Doc("Thread's agent", "A thread's agent is the one a plain reply asks, returned as `agent` by `GET /threads`; its moves are made by sending a message and are recorded as the audit action `thread.agent_set`, not as activity events."),
 		observations.Machine.Doc("Observation", "An observation is a page of blocks in a folder, started by POST /observations or by an investigation."),
 		observations.BlockMachine.Doc("Observation block", "A block is one item on an observation's page: Markdown, a live panel, a frozen snapshot or an agent run."),
 		observations.RCAMachine.Doc("RCA revision", "An RCA revision is one published copy of an observation, returned by `GET /observations/{id}/rcas`; its state is computed on read from the newer revisions and the live public links, never stored."),
@@ -103,6 +104,9 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 	}
 	var offered []string
 	for _, a := range threads.ThreadMachine.Offered() {
+		offered = append(offered, string(a))
+	}
+	for _, a := range threads.AgentMachine.Offered() {
 		offered = append(offered, string(a))
 	}
 	cases = append(cases, struct {

@@ -6142,8 +6142,8 @@ export interface components {
             panel_present: boolean;
             /** @enum {string} */
             status: "open" | "resolved";
-            /** @description What the caller may do with the thread now; empty for a caller who may not comment, and without `resolve` for a caller who can only comment on a thread someone else started. See `docs/reference/states.md`. */
-            allowed_actions: ("reply" | "resolve" | "reopen")[];
+            /** @description What the caller may do with the thread now; empty for a caller who may not comment, and without `resolve` for a caller who can only comment on a thread someone else started. `set_agent` (a message that mentions an agent or is sent to the agent) and `turn_agent_off` (a message sent to everyone, listed only while the agent's `state` is `following`) are the moves of the thread's agent. See `docs/reference/states.md`. */
+            allowed_actions: ("reply" | "resolve" | "reopen" | "set_agent" | "turn_agent_off")[];
             /** @description Whether the thread holds a message from someone else, or an agent run's reply, that the caller has not read since they last opened it, answered in it or joined; always false for a service-account key. `POST /api/v1/threads/{thread_id}/read` clears it. */
             unread: boolean;
             /** Format: date-time */
@@ -6170,10 +6170,15 @@ export interface components {
              * @description The observation block an anchored thread points into; null otherwise, or once the block is deleted.
              */
             block_id: string | null;
-            /** @description The thread's agent, the one a plain reply asks; null until a message asks an agent, and cleared when that agent can no longer take runs. */
+            /** @description The thread's agent, the one a plain reply asks; null until a message asks an agent, and cleared when that agent can no longer take runs. A null agent is the `none` state of `docs/reference/states.md`. */
             agent: {
                 /** @enum {string} */
                 kind: "builtin" | "grant" | "service_account";
+                /**
+                 * @description `following` while a plain reply asks the agent, and `off` after a message was sent to everyone, which is when `agent_off` is true.
+                 * @enum {string}
+                 */
+                state: "following" | "off";
                 /**
                  * Format: uuid
                  * @description The grant or service account; null for the built-in agent.
