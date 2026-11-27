@@ -4480,8 +4480,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the open Comment access requests on folders the caller manages.
-         * @description Lists the open requests on dashboards and observations whose folder the caller may manage, newest first, at most 100. Grant one by giving the requester Comment on the folder (`PUT /folders/{id}/permissions`) or by raising their role; this list changes nothing. An object in General (`folder.general`) cannot be granted that way, because General takes no entry: raise the requester's role or move the object to another folder.
+         * List the open Comment access requests on folders the caller manages, or the caller's own requests.
+         * @description Lists the open requests on dashboards and observations whose folder the caller may manage, newest first, at most 100. With `scope=mine` it lists the caller's own requests instead, each with its `state`, newest first, at most 100. Grant one by giving the requester Comment on the folder (`PUT /folders/{id}/permissions`) or by raising their role; this list changes nothing. An object in General (`folder.general`) cannot be granted that way, because General takes no entry: raise the requester's role or move the object to another folder.
          */
         get: operations["listAccessRequests"];
         put?: never;
@@ -5600,6 +5600,11 @@ export interface components {
         };
         /** @description A request for Comment access to a dashboard or observation. */
         AccessRequest: {
+            /**
+             * @description Where the request stands, computed on read: `open` while it waits, `granted` once the requester can comment, `dismissed` when someone who can grant it marked it done in their inbox without granting it, and `expired` 30 days after it was asked. The managed list holds only `open` requests; the requester's own list (`scope=mine`) holds all four. A dismissed or expired request can be asked again.
+             * @enum {string}
+             */
+            state: "open" | "granted" | "dismissed" | "expired";
             /** Format: uuid */
             id: string;
             object: {
@@ -20553,7 +20558,10 @@ export interface operations {
     };
     listAccessRequests: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description `managed` lists the open requests the caller can grant. `mine` lists the requests the caller made, in any state, on objects the caller can still see, so the requester can tell a request that is still waiting from one that was dismissed, expired or granted. */
+                scope?: "managed" | "mine";
+            };
             header?: never;
             path?: never;
             cookie?: never;

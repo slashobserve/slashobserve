@@ -2508,9 +2508,15 @@ components:
     AccessRequest:
       type: object
       additionalProperties: false
-      required: [id, object, folder, requested_by, note, created_at]
+      required: [id, object, folder, requested_by, note, created_at, state]
       description: A request for Comment access to a dashboard or observation.
       properties:
+        state:
+          type: string
+          enum: [open, granted, dismissed, expired]
+          description: >-
+            Where the request stands, computed on read: `open` while it waits, `granted` once the requester can comment, `dismissed` when someone who can grant it marked it done in their inbox without granting it, and `expired` 30 days after it was asked.
+            The managed list holds only `open` requests; the requester's own list (`scope=mine`) holds all four. A dismissed or expired request can be asked again.
         id:
           type: string
           format: uuid

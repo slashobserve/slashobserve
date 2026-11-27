@@ -266,3 +266,15 @@ A person is someone who signs in, returned by `GET /users` with `state` and `all
 | `deactivate` | `active` | `deactivated` | `user.deactivated` | admin |
 | `reactivate` | `deactivated` | `active` | `user.reactivated` | admin |
 | `remove` | `deactivated` | `removed` | `user.removed` | admin |
+
+## Access request
+
+`GET /access-requests` returns the `state` of each request for Comment access; the list of requests you can grant holds only open ones, and `scope=mine` returns your own in every state.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `open` | Asked in the last 30 days, not granted, and nobody who can grant it marked it done in their inbox. |
+| `granted` | The requester got Comment access after asking. |
+| `dismissed` | Someone who can grant it marked it done in their inbox without granting it; the requester may ask again. |
+| `expired` | Nobody granted or dismissed it within 30 days; the requester may ask again. |

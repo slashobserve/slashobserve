@@ -9,6 +9,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 
 	"github.com/slashobserve/slashobserve/api/apitest"
+	"github.com/slashobserve/slashobserve/internal/accessrequests"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/health"
@@ -47,6 +48,7 @@ func statesReference() string {
 		inboundmcp.SourceStates.Doc("MCP source", "`GET /api/v1/mcp-sources` returns the `state` of each MCP source."),
 		presence.States.Doc("Agent presence", "Whether an outside agent is taking runs: derived from when it last asked for work and the runs it holds."),
 		users.PersonMachine.Doc("Person", "A person is someone who signs in, returned by `GET /users` with `state` and `allowed_actions`; an invited email is listed by `GET /invites` until its first sign-in."),
+		accessrequests.States.Doc("Access request", "`GET /access-requests` returns the `state` of each request for Comment access; the list of requests you can grant holds only open ones, and `scope=mine` returns your own in every state."),
 	)
 }
 
@@ -101,6 +103,7 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 		{"ConnectedAgent", "state", mcpauth.GrantStates.Names()},
 		{"PublicLink", "state", public.LinkStates.Names()},
 		{"MCPSource", "state", inboundmcp.SourceStates.Names()},
+		{"AccessRequest", "state", accessrequests.States.Names()},
 	}
 	var offered []string
 	for _, a := range threads.ThreadMachine.Offered() {
