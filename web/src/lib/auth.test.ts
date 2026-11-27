@@ -49,6 +49,28 @@ describe("sessionEnded", () => {
     expect(auth.sessionEnded()).toBe(false)
   })
 
+  it("is false after leaving on purpose without the sign-out request", async () => {
+    const auth = await import("./auth")
+    responses.push({ status: 200, body: signedIn })
+    await auth.getSession()
+    auth.leaveSession()
+    responses.push({ status: 200, body: signedOut })
+    await auth.getSession()
+    expect(auth.sessionEnded()).toBe(false)
+    expect(auth.signedInPrincipalId()).toBeUndefined()
+  })
+
+  it("keeps the signed-in principal while a check fails", async () => {
+    const auth = await import("./auth")
+    responses.push({ status: 200, body: signedIn })
+    await auth.getSession()
+    auth.invalidateSession()
+    responses.push({ status: 500, body: null })
+    await expect(auth.getSession()).rejects.toThrow()
+    expect(auth.signedInPrincipalId()).toBe("u1")
+    expect(auth.sessionEnded()).toBe(false)
+  })
+
   it("is false after signing out on purpose", async () => {
     const auth = await import("./auth")
     responses.push({ status: 200, body: signedIn })
