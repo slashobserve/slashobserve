@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useNavigate, useSearch } from "@tanstack/react-router"
 
+import { AskedFrom, AskProblem } from "@/ask/ask-result"
 import { loadProblemText } from "@/api/errors"
 import { AskField } from "@/ask/ask-field"
 import type { InputMode } from "@/ask/input-mode"
@@ -464,40 +465,18 @@ function TraceSearchWorkspace({
               <span className="text-xs text-muted-foreground">
                 or press Ctrl+Enter or Cmd+Enter
               </span>
-              {search.ask !== undefined ? (
-                <span className="min-w-0 truncate text-xs text-muted-foreground">
-                  From: {search.ask}
-                </span>
-              ) : null}
-              {answered || ask.problem !== null ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="narrow:h-11"
-                  onClick={askAgain}
-                >
-                  Write again
-                </Button>
-              ) : null}
+              <AskedFrom
+                question={search.ask}
+                onWriteAgain={
+                  answered || ask.problem !== null ? askAgain : undefined
+                }
+              />
             </div>
           </>
         )}
         {ask.problem !== null ? (
-          <div
-            role="alert"
-            className="flex flex-col items-start gap-1 border-t px-4 py-2.5 text-[13px]"
-          >
-            {ask.problem.kind === "cannot_translate" ? (
-              <>
-                <StatusLabel tone="critical">
-                  I could not turn that into a query.
-                </StatusLabel>
-                <p className="text-muted-foreground">{ask.problem.reason}</p>
-              </>
-            ) : (
-              <StatusLabel tone="critical">{ask.problem.text}</StatusLabel>
-            )}
+          <div className="border-t px-4 py-2.5">
+            <AskProblem problem={ask.problem} />
           </div>
         ) : null}
       </section>

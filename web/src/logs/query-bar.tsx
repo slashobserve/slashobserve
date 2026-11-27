@@ -11,14 +11,13 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
+import { AskAnswer, AskedFrom, AskProblem } from "@/ask/ask-result"
 import { exploreKeys } from "@/api/keys"
 import { AskField } from "@/ask/ask-field"
 import { askModeLabel, nextMode, type InputMode } from "@/ask/input-mode"
 import { useAsk } from "@/ask/use-ask"
 import { useInputModeShortcut } from "@/ask/use-input-mode-shortcut"
-import { AgentMark } from "@/components/agent-mark"
 import { StatusLabel } from "@/components/status-label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -520,34 +519,9 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
           </div>
         ) : null}
         {shown === "ask" && ask.answer !== null ? (
-          <div className="flex flex-col gap-1">
-            {ask.answer.explanation !== "" ? (
-              <p className="flex items-start gap-2 text-[13px] text-muted-foreground">
-                <AgentMark size={20} className="text-primary" />
-                <span className="min-w-0">{ask.answer.explanation}</span>
-              </p>
-            ) : null}
-            {ask.answer.warnings.map((warning) => (
-              <p key={warning} className="text-xs">
-                <StatusLabel tone="warning">{warning}</StatusLabel>
-              </p>
-            ))}
-          </div>
+          <AskAnswer answer={ask.answer} />
         ) : null}
-        {ask.problem !== null ? (
-          <Alert variant="destructive">
-            <AlertDescription className="flex flex-col items-start gap-1">
-              {ask.problem.kind === "cannot_translate" ? (
-                <>
-                  <p>I could not turn that into a query.</p>
-                  <p className="text-muted-foreground">{ask.problem.reason}</p>
-                </>
-              ) : (
-                <p>{ask.problem.text}</p>
-              )}
-            </AlertDescription>
-          </Alert>
-        ) : null}
+        {ask.problem !== null ? <AskProblem problem={ask.problem} /> : null}
         {labelsShown && editorShown ? (
           <div
             ref={labelsRef}
@@ -716,20 +690,7 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
               ) : null}
             </span>
             {shown !== "ask" && ask.fromQuestion !== null ? (
-              <>
-                <span className="min-w-0 truncate text-xs text-muted-foreground">
-                  From: {ask.fromQuestion}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="narrow:h-11"
-                  onClick={askAgain}
-                >
-                  Write again
-                </Button>
-              </>
+              <AskedFrom question={ask.fromQuestion} onWriteAgain={askAgain} />
             ) : null}
             {shown === "ask" ? (
               <Button
