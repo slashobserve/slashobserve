@@ -365,6 +365,29 @@ func TestAdmitRefusesARepeatedSaveAndMarksARepairPhase(t *testing.T) {
 	}
 }
 
+func TestAForgottenSaveCanBeSentAgainUnchanged(t *testing.T) {
+	s := New(tools.ModeRevise)
+	call := jsonCall("update_panels", `{"n":1}`)
+	s.BeginTurn(false)
+	if adm := s.Admit(0, call); adm.Verdict != Dispatch {
+		t.Fatalf("first save = %+v", adm)
+	}
+	s.ForgetSave(call)
+	s.BeginTurn(false)
+	if adm := s.Admit(0, call); adm.Verdict != Dispatch {
+		t.Fatalf("resent save = %+v", adm)
+	}
+	s.BeginTurn(false)
+	if adm := s.Admit(0, call); adm.Verdict != Refuse {
+		t.Fatalf("third save = %+v", adm)
+	}
+	s.ForgetSave(jsonCall("update_panels", `{"n":2}`))
+	s.BeginTurn(false)
+	if adm := s.Admit(0, call); adm.Verdict != Refuse {
+		t.Fatalf("a forgotten other save freed this one: %+v", adm)
+	}
+}
+
 func TestSettleCountsARepairOnlyWhenARejectedSaveIsFollowedByAnAcceptedOne(t *testing.T) {
 	rejected := func(s *State) {
 		t.Helper()
