@@ -36,10 +36,14 @@ func GroupColumn(attribute string) (string, bool) {
 	if m == nil {
 		return "", false
 	}
-	if m[1] == "resource" {
-		return "ResourceAttributes['" + m[2] + "']", true
+	return attributeColumn(m[1], m[2]), true
+}
+
+func attributeColumn(scope, key string) string {
+	if scope == "resource" {
+		return "ResourceAttributes[" + quoteString(key) + "]"
 	}
-	return "SpanAttributes['" + m[2] + "']", true
+	return "SpanAttributes[" + quoteString(key) + "]"
 }
 
 func DurationQuantilesQuery(expr, column string) string {

@@ -23,9 +23,20 @@ func TestGroupColumnMapsAttributesToColumns(t *testing.T) {
 			t.Errorf("GroupColumn(%q) = %q, %v; want %q", attribute, got, ok, want)
 		}
 	}
-	for _, bad := range []string{"", "span.a'b", "Duration); DROP", "span.", "event.name", "SpanAttributes['x']"} {
+	for _, bad := range []string{"", "span.a'b", `span.a\'b`, `resource.a\b`, "Duration); DROP", "span.", "event.name", "SpanAttributes['x']"} {
 		if got, ok := GroupColumn(bad); ok {
 			t.Errorf("GroupColumn(%q) = %q, want a refusal", bad, got)
+		}
+	}
+}
+
+func TestGroupColumnEscapesTheKeyItQuotes(t *testing.T) {
+	for key, want := range map[string]string{
+		"http.route": `SpanAttributes['http.route']`,
+		`a'b\c`:      `SpanAttributes['a\'b\\c']`,
+	} {
+		if got := attributeColumn("span", key); got != want {
+			t.Errorf("attributeColumn(%q) = %s, want %s", key, got, want)
 		}
 	}
 }
