@@ -368,6 +368,34 @@ func TestLogsTailPrintsOnlyNewLinesAndStopsCleanly(t *testing.T) {
 	}
 }
 
+func TestLogsTailNoticesWhenAPollReturnsTheLimit(t *testing.T) {
+	full := tailFrame([2]any{t0ms, "a"}, [2]any{t0ms + 1000, "b"})
+	f := newLogsFake(t, full)
+	c, err := (&app{version: "test"}).clientFor(mustParseURL(t, f.server.URL), "k")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		keep   int
+		notice bool
+	}{{2, true}, {3, false}} {
+		var stdout, stderr strings.Builder
+		tail := &logTail{out: &output{out: &stdout, err: &stderr}}
+		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+		err := tail.follow(ctx, c, "loki", exploreRequest{Query: "q", Kind: "range", From: "now-1h", To: "now", Limit: tc.keep}, tc.keep, 10*time.Millisecond)
+		cancel()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := strings.Contains(stderr.String(), "--limit"); got != tc.notice {
+			t.Fatalf("keep %d: stderr %q", tc.keep, stderr.String())
+		}
+		if strings.Contains(stdout.String(), "--limit") {
+			t.Fatalf("notice on stdout %q", stdout.String())
+		}
+	}
+}
+
 func TestLogsTailJSONPrintsOneObjectPerLine(t *testing.T) {
 	var stdout strings.Builder
 	tail := &logTail{out: &output{out: &stdout, err: io.Discard}, json: true}

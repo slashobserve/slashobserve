@@ -14,7 +14,7 @@ import (
 
 func figureTexts(text string) []string {
 	var out []string
-	for _, f := range Figures(text) {
+	for _, f := range UncitedFigures(text, "") {
 		out = append(out, f.Text)
 	}
 	return out
@@ -38,7 +38,7 @@ func TestFiguresAreTakenFromProseAndNotFromTimesCodeLinksOrSmallCounts(t *testin
 	}
 	for _, c := range cases {
 		if got := figureTexts(c.text); !slices.Equal(got, c.want) {
-			t.Errorf("Figures(%q) = %q, want %q", c.text, got, c.want)
+			t.Errorf("figures of %q = %q, want %q", c.text, got, c.want)
 		}
 	}
 }
@@ -55,9 +55,9 @@ func TestTheWrittenPrecisionOfAFigure(t *testing.T) {
 		{"40%", 1},
 	}
 	for _, c := range cases {
-		got := Figures(c.text)
+		got := scan(blank(c.text))
 		if len(got) != 1 || got[0].Step != c.step {
-			t.Errorf("Figures(%q) = %+v, want one figure with step %v", c.text, got, c.step)
+			t.Errorf("figures of %q = %+v, want one figure with step %v", c.text, got, c.step)
 		}
 	}
 }
@@ -108,7 +108,7 @@ func TestARealFindingPassesOnReadRoundedAndDerivedValues(t *testing.T) {
 		"root_cause": map[string]any{"component": "checkout service", "kind": "dependency", "summary": "s"},
 		"onset":      "2026-11-20T10:05:00Z",
 	})
-	if got := r.Check(in); len(got) != 0 {
+	if got := Unverified(r.Review(in, "")); len(got) != 0 {
 		t.Errorf("unverified = %+v, want none", got)
 	}
 }
@@ -127,7 +127,7 @@ func TestFiguresNamesAndTimesTheRunNeverReadAreListed(t *testing.T) {
 		{Kind: findings.UnverifiedComponent, Text: "cartservice"},
 		{Kind: findings.UnverifiedOnset, Text: "2026-11-19T22:00:00Z"},
 	}
-	if got := r.Check(in); !slices.Equal(got, want) {
+	if got := Unverified(r.Review(in, "")); !slices.Equal(got, want) {
 		t.Errorf("unverified = %+v\nwant %+v", got, want)
 	}
 }
@@ -144,7 +144,7 @@ func TestAPercentagePassesOnlyAsARatioOrChangeOfReadValues(t *testing.T) {
 		"the share is 0.041 of all": true,
 	}
 	for text, ok := range cases {
-		if got := len(r.Check(finding(text, nil))) == 0; got != ok {
+		if got := len(Unverified(r.Review(finding(text, nil), ""))) == 0; got != ok {
 			t.Errorf("%q verified = %t, want %t", text, got, ok)
 		}
 	}
@@ -156,7 +156,7 @@ func TestAComponentPassesOnANameFromDiscoveryAndAnOnsetJustOutsideARangeInSlack(
 		"root_cause": map[string]any{"component": "flagd", "kind": "config_or_flag", "summary": "s"},
 		"onset":      "2026-11-20T08:59:30Z",
 	})
-	if got := r.Check(in); len(got) != 0 {
+	if got := Unverified(r.Review(in, "")); len(got) != 0 {
 		t.Errorf("unverified = %+v, want none", got)
 	}
 }
@@ -191,16 +191,8 @@ func TestValuesAreRoundedToThreeSignificantFigures(t *testing.T) {
 func TestOffRecordsNothing(t *testing.T) {
 	r := NewRecord(Off)
 	r.AddRead([]byte(`{"v":1}`), []string{"checkout"}, nil)
-	if r != nil || r.Check(finding("12,345 errors", nil)) != nil {
+	if r != nil || Unverified(r.Review(finding("12,345 errors", nil), "")) != nil {
 		t.Error("an off record holds or checks something")
-	}
-}
-
-func TestTheSendBackListsEachItemWithWhatToDo(t *testing.T) {
-	got := SendBack([]findings.Unverified{{Kind: findings.UnverifiedFigure, Text: "37%"}, {Kind: findings.UnverifiedComponent, Text: "cartservice"}})
-	want := sendBackLead + "\n- figure \"37%\": read it, correct it, or remove it\n- component, not a name this run saw, \"cartservice\": read it, correct it, or remove it"
-	if got != want {
-		t.Errorf("SendBack =\n%s\nwant\n%s", got, want)
 	}
 }
 
@@ -218,7 +210,7 @@ func TestParseMode(t *testing.T) {
 func TestOnlyRealMonthNamesMakeADate(t *testing.T) {
 	text := "Orders declined 37% and errors decreased 45, marginally 80 above, across 12 separate pods, since Dec 3 and 4 Sept. 2026."
 	if got, want := figureTexts(text), []string{"37%", "45", "80", "12"}; !slices.Equal(got, want) {
-		t.Errorf("Figures = %q, want %q", got, want)
+		t.Errorf("figures = %q, want %q", got, want)
 	}
 }
 
@@ -237,14 +229,14 @@ func TestTheToleranceIsAtMostATenthOfTheFigure(t *testing.T) {
 		r := NewRecord(Report)
 		raw, _ := json.Marshal(map[string]float64{"v": c.read})
 		r.AddRead(raw, nil, nil)
-		if got := len(r.Check(finding(c.text, nil))) == 0; got != c.ok {
+		if got := len(Unverified(r.Review(finding(c.text, nil), ""))) == 0; got != c.ok {
 			t.Errorf("%q on a read of %v verified = %t, want %t", c.text, c.read, got, c.ok)
 		}
 	}
 }
 
 func verified(r *Record, text string) bool {
-	return len(r.Check(finding(text, nil))) == 0
+	return len(Unverified(r.Review(finding(text, nil), ""))) == 0
 }
 
 func recordOf(reads ...string) *Record {
@@ -326,7 +318,7 @@ func TestTheRecordKeepsTheSameValuesWhateverTheMapOrder(t *testing.T) {
 func TestAnOnsetPassesOnATimeAResultShowed(t *testing.T) {
 	r := recordOf(`{"anchor":"x","before":[{"time":"2026-11-20T10:05:12Z","body":"timeout"}]}`)
 	for onset, ok := range map[string]bool{"2026-11-20T10:05:00Z": true, "2026-11-20T12:00:00Z": false} {
-		got := len(r.Check(finding("Nothing numeric.", map[string]any{"onset": onset}))) == 0
+		got := len(Unverified(r.Review(finding("Nothing numeric.", map[string]any{"onset": onset}), ""))) == 0
 		if got != ok {
 			t.Errorf("onset %s verified = %t, want %t", onset, got, ok)
 		}
@@ -355,7 +347,7 @@ func TestAComponentMatchesAWholeNameOrItsTokens(t *testing.T) {
 		"cartservice":           false,
 	} {
 		in := finding("Nothing numeric.", map[string]any{"root_cause": map[string]any{"component": component, "kind": "dependency", "summary": "s"}})
-		if got := len(r.Check(in)) == 0; got != ok {
+		if got := len(Unverified(r.Review(in, ""))) == 0; got != ok {
 			t.Errorf("component %q verified = %t, want %t", component, got, ok)
 		}
 	}
@@ -371,7 +363,7 @@ func TestDiscoveredNamesAreNeverEvicted(t *testing.T) {
 	raw, _ := json.Marshal(labels)
 	r.AddRead(raw, nil, nil)
 	in := finding("Nothing numeric.", map[string]any{"root_cause": map[string]any{"component": "flagd", "kind": "config_or_flag", "summary": "s"}})
-	if got := r.Check(in); len(got) != 0 {
+	if got := Unverified(r.Review(in, "")); len(got) != 0 {
 		t.Errorf("unverified = %+v, want the discovered name kept", got)
 	}
 }

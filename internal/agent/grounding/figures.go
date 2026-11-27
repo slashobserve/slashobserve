@@ -73,17 +73,6 @@ func blankWith(text string, spans ...*regexp.Regexp) string {
 	return text
 }
 
-func Figures(text string) []Figure {
-	var out []Figure
-	for _, f := range scan(blank(text)) {
-		if f.Unit == "" && f.Step >= 1 && f.Value <= 10 {
-			continue
-		}
-		out = append(out, f)
-	}
-	return out
-}
-
 func valuesIn(text string) []float64 {
 	var out []float64
 	for _, f := range scan(blank(text)) {

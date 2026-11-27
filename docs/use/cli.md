@@ -726,6 +726,7 @@ Details by datasource:
 
 `--tail` keeps asking every 2 seconds and prints only the lines it has not printed, with every label, until Ctrl-C, which exits 0.
 Each poll asks from the newest line printed so far, so a line indexed late with an older time is not printed.
+When a poll returns `--limit` lines, the newer ones may have been skipped, and `--tail` says so on standard error; raise `--limit` or narrow the query.
 The command exits after 3 failed polls in a row.
 With `--json`, `--tail` prints one JSON object per line with `time`, `level`, `labels` and `line`.
 
