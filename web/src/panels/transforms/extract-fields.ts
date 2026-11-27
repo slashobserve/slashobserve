@@ -129,13 +129,17 @@ function extractFrame(
   if (source === undefined) return copyFrame(frame)
   const rows = rowCount(frame)
   const names: string[] = []
+  const seen = new Set<string>()
   const parsed: (Row | null)[] = []
   for (let i = 0; i < rows; i++) {
     const cell = source.values[i]
     const row = typeof cell === "string" ? parse(cell) : null
     parsed.push(row)
     for (const name of row?.keys() ?? []) {
-      if (!names.includes(name)) names.push(name)
+      if (!seen.has(name)) {
+        seen.add(name)
+        names.push(name)
+      }
     }
   }
   const kept = options.replace

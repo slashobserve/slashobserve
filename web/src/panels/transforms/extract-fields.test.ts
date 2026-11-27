@@ -45,6 +45,13 @@ describe("extractFields json", () => {
     expect(Object.keys(out)).toEqual(["Time", "line", "level", "ms"])
   })
 
+  it("adds each key once, in the order first seen", () => {
+    const out = run(['{"b":1,"a":2}', '{"a":3,"c":4,"b":5}'], {
+      format: "json",
+    })
+    expect(Object.keys(out)).toEqual(["Time", "line", "b", "a", "c"])
+  })
+
   it("reads paths with dots and indexes under their alias", () => {
     const out = run(['{"a":{"b":[{"c":1},{"c":2}]},"s":"x"}'], {
       format: "json",

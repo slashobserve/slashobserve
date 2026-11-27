@@ -109,6 +109,16 @@ describe("table panel", () => {
     ).toEqual(["route", "requests"])
   })
 
+  it("sorts text in natural order", async () => {
+    show(
+      tableOf({ sortBy: "host" }),
+      frameOf(text("host", ["web-10", "web-2", "web-1"]))
+    )
+    await waitFor(() =>
+      expect(cellsOf("host")).toEqual(["web-1", "web-2", "web-10"])
+    )
+  })
+
   it("sorts by sortBy and sortDesc, and cycles the sort from the header", async () => {
     show(tableOf({ sortBy: "requests", sortDesc: true }))
     await waitFor(() => expect(cellsOf("route")).toHaveLength(3))
