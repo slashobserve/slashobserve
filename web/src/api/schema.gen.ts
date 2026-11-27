@@ -8285,13 +8285,13 @@ export interface components {
              */
             last_viewed_at: string | null;
             expired: boolean;
-            /** @description False when the link is expired or the dashboard's latest version reads the viewer's identity. */
+            /** @description Whether the public address opens the dashboard now. False in each case `unusable_reason` names. */
             usable: boolean;
             /**
-             * @description Why the link does not open, set whenever `usable` is false and null otherwise: `expired` when its expiry time has passed, `user_scoped` when the dashboard's latest version reads the viewer's identity. An expired link reports `expired` whatever the dashboard reads.
+             * @description Why the link does not open, set whenever `usable` is false and null otherwise, the first that applies: `expired` when its expiry time has passed, `admins_only_folder` when the dashboard is in a folder only Admins can read, `user_scoped` when the dashboard's latest version reads the viewer's identity, and `restricted_datasource` when it reads a datasource only Admins can query.
              * @enum {string|null}
              */
-            unusable_reason: "expired" | "user_scoped" | null;
+            unusable_reason: "expired" | "admins_only_folder" | "user_scoped" | "restricted_datasource" | null;
             /**
              * @description Computed from `expired`. See `docs/reference/states.md`.
              * @enum {string}

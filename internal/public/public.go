@@ -1,6 +1,7 @@
 package public
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -38,8 +39,10 @@ const (
 )
 
 const (
-	reasonExpired    = "expired"
-	reasonUserScoped = "user_scoped"
+	reasonExpired              = "expired"
+	reasonAdminsOnlyFolder     = "admins_only_folder"
+	reasonUserScoped           = "user_scoped"
+	reasonRestrictedDatasource = "restricted_datasource"
 )
 
 var (
@@ -295,8 +298,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 	if err != nil {
 		return Created{}, err
 	}
-	link.Usable = true
-	return Created{Link: link, Token: token, URL: links.Public(s.publicURL, token)}, nil
+	return Created{Link: judged(link, false, s.dashboardReason(d), s.now()), Token: token, URL: links.Public(s.publicURL, token)}, nil
 }
 
 func (s *Service) insertLink(ctx context.Context, by auth.Principal, params dbsqlc.CreatePublicLinkParams) (dbsqlc.CreatePublicLinkRow, error) {
@@ -335,14 +337,15 @@ func (s *Service) insertLink(ctx context.Context, by auth.Principal, params dbsq
 }
 
 func (s *Service) List(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) ([]Link, error) {
-	if err := s.manage(ctx, by, dashboardID); err != nil {
+	folder, err := s.managed(ctx, by, dashboardID)
+	if err != nil {
 		return nil, err
 	}
 	_, d, err := s.latest(ctx, dashboardID)
 	if err != nil {
 		return nil, err
 	}
-	usesUser := queryproxy.DashboardUsesUser(d)
+	hidden := s.dashboardReason(d)
 	rows, err := s.db.Queries().ListPublicLinks(ctx, dbsqlc.ListPublicLinksParams{DashboardID: dashboardID, Now: pgtype.Timestamptz{Time: s.now(), Valid: true}})
 	if err != nil {
 		return nil, err
@@ -354,7 +357,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, dashboardID pgtyp
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, judged(link, usesUser, now))
+		out = append(out, judged(link, folder.AdminsOnly, hidden, now))
 	}
 	return out, nil
 }
@@ -392,7 +395,7 @@ func (s *Service) Resolve(ctx context.Context, token string) (Resolved, error) {
 		return Resolved{}, err
 	}
 	r := Resolved{LinkID: row.ID, DashboardID: row.DashboardID, Version: int(row.LatestVersion), Mode: Mode(row.Variables), ExpiresAt: timeOf(row.ExpiresAt)}
-	if row.AdminsOnly || expired(r.ExpiresAt, s.now()) {
+	if linkReason(r.ExpiresAt, row.AdminsOnly, s.now()) != "" {
 		return Resolved{}, ErrNotFound
 	}
 	if err := json.Unmarshal(row.Selections, &r.Selections); err != nil {
@@ -413,7 +416,7 @@ func (s *Service) View(ctx context.Context, token string) (View, error) {
 	if err != nil {
 		return View{}, err
 	}
-	if queryproxy.DashboardUsesUser(d) || queryproxy.DashboardUsesRestricted(d, s.registry) {
+	if s.dashboardReason(d) != "" {
 		return View{}, ErrNotFound
 	}
 	shown, err := publicSpec(d)
@@ -430,20 +433,31 @@ func (s *Service) View(ctx context.Context, token string) (View, error) {
 	return View{Resolved: r, Title: d.Title, Spec: shown, Datasources: referencedDatasources(d, types)}, nil
 }
 
-func judged(link Link, latestUsesUser bool, now time.Time) Link {
-	link.Usable, link.UnusableReason = usable(link, latestUsesUser, now)
-	link.Expired = link.UnusableReason == reasonExpired
-	return link
+func linkReason(expiresAt *time.Time, adminsOnlyFolder bool, now time.Time) string {
+	switch {
+	case expired(expiresAt, now):
+		return reasonExpired
+	case adminsOnlyFolder:
+		return reasonAdminsOnlyFolder
+	}
+	return ""
 }
 
-func usable(link Link, latestUsesUser bool, now time.Time) (bool, string) {
+func (s *Service) dashboardReason(latest *spec.Dashboard) string {
 	switch {
-	case expired(link.ExpiresAt, now):
-		return false, reasonExpired
-	case latestUsesUser:
-		return false, reasonUserScoped
+	case queryproxy.DashboardUsesUser(latest):
+		return reasonUserScoped
+	case queryproxy.DashboardUsesRestricted(latest, s.registry):
+		return reasonRestrictedDatasource
 	}
-	return true, ""
+	return ""
+}
+
+func judged(link Link, adminsOnlyFolder bool, dashboardReason string, now time.Time) Link {
+	link.UnusableReason = cmp.Or(linkReason(link.ExpiresAt, adminsOnlyFolder, now), dashboardReason)
+	link.Usable = link.UnusableReason == ""
+	link.Expired = link.UnusableReason == reasonExpired
+	return link
 }
 
 func expired(expiresAt *time.Time, now time.Time) bool {
