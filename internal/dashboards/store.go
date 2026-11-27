@@ -106,6 +106,7 @@ type newVersion struct {
 	unverified     Unverified
 	folder         folders.Folder
 	mergedProposal pgtype.UUID
+	replaced       int
 	before         func(ctx context.Context, q *dbsqlc.Queries) (stayedPut bool, err error)
 	inTx           func(q *dbsqlc.Queries, dash Dashboard, ver Version) error
 }
@@ -414,7 +415,7 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 		TargetID: in.dashboardID,
 		Owner:    activity.OnDashboard(in.dashboardID),
 		Actor:    versionActor(meta),
-		Data:     versionActivityData(in.spec.Title, meta),
+		Data:     versionActivityData(in.spec.Title, meta, in.replaced),
 	}
 	if _, err := activity.Append(ctx, q, entry, &ev); err != nil {
 		return VersionMeta{}, err
@@ -434,20 +435,22 @@ func versionActivityType(meta VersionMeta) string {
 }
 
 type versionActivityFields struct {
-	Version       int    `json:"version"`
-	ParentVersion *int   `json:"parent_version,omitempty"`
-	RestoredFrom  *int   `json:"restored_from,omitempty"`
-	Title         string `json:"title"`
-	Summary       string `json:"summary"`
+	Version         int    `json:"version"`
+	ParentVersion   *int   `json:"parent_version,omitempty"`
+	RestoredFrom    *int   `json:"restored_from,omitempty"`
+	ReplacedVersion int    `json:"replaced_version,omitempty"`
+	Title           string `json:"title"`
+	Summary         string `json:"summary"`
 }
 
-func versionActivityData(title string, meta VersionMeta) versionActivityFields {
+func versionActivityData(title string, meta VersionMeta, replaced int) versionActivityFields {
 	return versionActivityFields{
-		Version:       meta.Number,
-		ParentVersion: meta.ParentVersion,
-		RestoredFrom:  meta.RestoredFrom,
-		Title:         title,
-		Summary:       meta.Summary,
+		Version:         meta.Number,
+		ParentVersion:   meta.ParentVersion,
+		RestoredFrom:    meta.RestoredFrom,
+		ReplacedVersion: replaced,
+		Title:           title,
+		Summary:         meta.Summary,
 	}
 }
 

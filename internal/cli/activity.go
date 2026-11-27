@@ -48,19 +48,20 @@ type activityActor struct {
 }
 
 type activityData struct {
-	raw           json.RawMessage
-	Version       int      `json:"version"`
-	RestoredFrom  int      `json:"restored_from"`
-	Title         string   `json:"title"`
-	Kind          string   `json:"kind"`
-	BlockKind     string   `json:"block_kind"`
-	State         string   `json:"state"`
-	Tags          []string `json:"tags"`
-	Changed       []string `json:"changed"`
-	ResultVersion int      `json:"result_version"`
-	Revision      int      `json:"revision"`
-	FailureCode   string   `json:"failure_code"`
-	Object        struct {
+	raw             json.RawMessage
+	Version         int      `json:"version"`
+	RestoredFrom    int      `json:"restored_from"`
+	ReplacedVersion int      `json:"replaced_version"`
+	Title           string   `json:"title"`
+	Kind            string   `json:"kind"`
+	BlockKind       string   `json:"block_kind"`
+	State           string   `json:"state"`
+	Tags            []string `json:"tags"`
+	Changed         []string `json:"changed"`
+	ResultVersion   int      `json:"result_version"`
+	Revision        int      `json:"revision"`
+	FailureCode     string   `json:"failure_code"`
+	Object          struct {
 		Kind string `json:"kind"`
 	} `json:"object"`
 	ResolvedByVersion int `json:"resolved_by_version"`
@@ -437,7 +438,11 @@ func describeDashboard(e activityEvent) (string, bool) {
 	case "dashboard.created":
 		return "created " + quotedTitle(d.Title), true
 	case "dashboard.version_created":
-		return fmt.Sprintf("saved version %d of %s", d.Version, quotedTitle(d.Title)), true
+		saved := fmt.Sprintf("saved version %d of %s", d.Version, quotedTitle(d.Title))
+		if d.ReplacedVersion > 0 {
+			saved += fmt.Sprintf(" from its file, replacing version %d", d.ReplacedVersion)
+		}
+		return saved, true
 	case "dashboard.restored":
 		return fmt.Sprintf("restored version %d of %s as version %d", d.RestoredFrom, quotedTitle(d.Title), d.Version), true
 	case "dashboard.moved":

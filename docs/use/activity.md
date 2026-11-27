@@ -414,6 +414,7 @@ To see more of the change, read the object through its own endpoint, which check
 - **Dashboard versions.**
   `dashboard.created`, `dashboard.version_created` and `dashboard.restored` have `version`, `title` and `summary`.
   They also have `parent_version`, except on a create, and `restored_from` on a restore.
+  A version that a [provisioning file](../operate/provisioning.md#edits-made-in-the-app) saved over an edit made in the app has `replaced_version`, the version that holds the edit.
 - **Dashboard moves and deletes.**
   `dashboard.moved` has `title`, `from_folder_id` and `to_folder_id`, and `dashboard.deleted` has `title`.
 - **Annotations.**

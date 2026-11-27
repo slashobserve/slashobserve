@@ -15,7 +15,7 @@ activity:
       Events of a deleted dashboard stay in the folder the dashboard was in.
       `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more.
       The fields of `data` by type:
-      `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore);
+      `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create), `restored_from` (only on a restore) and `replaced_version` (only when a file in the provisioning directory replaced a version that the provisioner did not save, which can be restored);
       `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`;
       `dashboard.deleted` carries `title`;
       `annotation.created` carries `title` (the first 80 characters of the text on one line, empty when the text has no characters to show), `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.updated` carries `tags`; `annotation.deleted` carries the same fields as `annotation.created`, never more of the text than the `title`;

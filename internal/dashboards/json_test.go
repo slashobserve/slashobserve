@@ -129,3 +129,25 @@ func TestOnlyASaveToAFileDashboardCarriesTheWarning(t *testing.T) {
 		t.Error("a save with nothing to warn about has a warning key")
 	}
 }
+
+func TestAVersionEventNamesTheVersionItReplacedOnlyWhenThereIsOne(t *testing.T) {
+	parent := 4
+	meta := VersionMeta{Number: 5, ParentVersion: &parent, Summary: "Provisioned from a.json"}
+	fields := func(replaced int) map[string]any {
+		raw, err := json.Marshal(versionActivityData("A", meta, replaced))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got map[string]any
+		if err := json.Unmarshal(raw, &got); err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	if got := fields(4); got["replaced_version"] != float64(4) || got["version"] != float64(5) || got["parent_version"] != float64(4) {
+		t.Errorf("event data = %v, want replaced_version 4 beside version 5", got)
+	}
+	if got := fields(0); len(got) != 4 {
+		t.Errorf("event data = %v, want only version, parent_version, title and summary", got)
+	}
+}

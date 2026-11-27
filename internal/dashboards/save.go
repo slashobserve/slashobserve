@@ -32,6 +32,7 @@ type SaveInput struct {
 	ProposeIfNeeded bool
 	Choices         []spec.Choice
 	MergedProposal  pgtype.UUID
+	ReplacedVersion int
 	InTx            func(q *dbsqlc.Queries, version int) error
 	InTxSaved       func(ctx context.Context, q *dbsqlc.Queries, dash Dashboard, ver Version) error
 	before          func(ctx context.Context, q *dbsqlc.Queries) (stayedPut bool, err error)
@@ -286,6 +287,7 @@ func (s *Service) commit(ctx context.Context, by auth.Principal, in SaveInput, d
 		origin:         origin.From(ctx),
 		unverified:     carried,
 		mergedProposal: in.MergedProposal,
+		replaced:       in.ReplacedVersion,
 		before:         in.before,
 	}, inTx)
 }

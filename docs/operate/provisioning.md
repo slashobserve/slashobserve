@@ -79,6 +79,9 @@ A dashboard read tells an editor where the dashboard comes from, so the edit doe
 - The web app shows a note on a `file` dashboard, where an edit starts: in the panel editor and above the prompt.
 - A save to a `file` dashboard works, and its answer carries a `warning` that the next change to the file replaces the edit.
   `update_dashboard` and `update_panels` return the same `warning`.
+- When the file changes and its content replaces a version that `Provisioning` did not save, the `dashboard.version_created` event of the new version has `replaced_version`, the number of the version it replaced.
+  `observe activity` prints it as `saved version 5 of "Checkout" from its file, replacing version 4`.
+  Restore that version from the dashboard's history to get the edit back, then move it into the file.
 
 A save checks the file the way every save is checked: the Spec must be valid and every panel and variable query must run.
 Unlike a Grafana import, a provisioned file is never saved with failing queries.
