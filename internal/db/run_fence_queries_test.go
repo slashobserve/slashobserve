@@ -8,16 +8,20 @@ import (
 	"testing"
 )
 
-var holderWrites = []string{
+const claimQuery = "ClaimAgentRequest"
+
+var holderQueries = []string{
 	"RenewAgentRequestLease", "AppendAgentRequestStep",
 	"UpsertAgentRequestBuild", "RebaseAgentRequestBuild", "DeleteAgentRequestBuild",
 	"SucceedAgentRequest", "SucceedSuggestRequest", "SucceedFindingRequest", "SucceedProposalRequest",
 	"FailAgentRequest", "SettleAgentRequest", "ReleaseAgentRequest",
+	"GetClaimedAgentRequest", "GetRunTokenDeadline", "RenewRunTokens",
 }
 
 var (
-	queryHeader   = regexp.MustCompile(`(?m)^-- name: (\w+) :\w+$`)
-	comparedToArg = regexp.MustCompile(`(?:^|[^:\w.])(?:\w+\.)?(\w+) = @\w+`)
+	queryHeader        = regexp.MustCompile(`(?m)^-- name: (\w+) :\w+$`)
+	fencedOnClaimEpoch = regexp.MustCompile(`\bclaim_epoch = @claim_epoch\b`)
+	movesClaimEpoch    = regexp.MustCompile(`\bclaim_epoch = claim_epoch\b ?([^,\n]*)`)
 )
 
 func namedQueries(t *testing.T) map[string]string {
@@ -46,38 +50,30 @@ func namedQueries(t *testing.T) map[string]string {
 	return queries
 }
 
-func columnsComparedToAnArgument(query string) []string {
-	var columns []string
-	for _, m := range comparedToArg.FindAllStringSubmatch(query, -1) {
-		columns = append(columns, m[1])
-	}
-	return columns
-}
-
-func lowers(query, column string) bool {
-	return strings.Contains(strings.Join(strings.Fields(query), " "), column+" = "+column+" - ")
-}
-
-func TestNoQueryLowersAColumnAHolderWriteIsFencedOn(t *testing.T) {
+func TestEveryQueryOfARunsHolderIsFencedOnItsClaimEpoch(t *testing.T) {
 	queries := namedQueries(t)
-	fencedBy := map[string]string{}
-	for _, name := range holderWrites {
+	for _, name := range holderQueries {
 		query, found := queries[name]
 		if !found {
-			t.Fatalf("query %s is gone; name the query that replaced it in holderWrites", name)
+			t.Errorf("query %s is gone; name the query that replaced it in holderQueries", name)
+			continue
 		}
-		for _, column := range columnsComparedToAnArgument(query) {
-			fencedBy[column] = name
+		if !fencedOnClaimEpoch.MatchString(query) {
+			t.Errorf("%s does not compare claim_epoch to the epoch its caller was handed, so a claim that was released and taken again passes it", name)
 		}
 	}
-	if len(fencedBy) == 0 {
-		t.Fatal("no holder write compares a column to an argument")
-	}
+}
+
+func TestOnlyAClaimMovesTheClaimEpochAndOnlyUp(t *testing.T) {
+	queries := namedQueries(t)
 	for name, query := range queries {
-		for column, write := range fencedBy {
-			if lowers(query, column) {
-				t.Errorf("%s lowers %s, which %s compares to what its holder was handed: the next claim hands the same number to a new holder", name, column, write)
+		for _, move := range movesClaimEpoch.FindAllStringSubmatch(query, -1) {
+			if name != claimQuery || strings.TrimSpace(move[1]) != "+ 1" {
+				t.Errorf("%s sets claim_epoch = claim_epoch %s; only %s moves it, by + 1, or two claims could hold the same epoch", name, move[1], claimQuery)
 			}
 		}
+	}
+	if !movesClaimEpoch.MatchString(queries[claimQuery]) {
+		t.Errorf("%s does not raise claim_epoch, so the claim after a release holds the epoch of the released one", claimQuery)
 	}
 }

@@ -19,10 +19,12 @@ WHERE t.token_hash = @token_hash
   AND t.expires_at > clock_timestamp();
 
 -- name: GetRunTokenDeadline :one
-SELECT max(expires_at)::timestamptz FROM run_tokens WHERE agent_request_id = @agent_request_id AND attempt = @attempt;
+SELECT max(expires_at)::timestamptz FROM run_tokens
+WHERE agent_request_id = @agent_request_id AND attempt = @attempt AND (claim_epoch IS NULL OR claim_epoch = @claim_epoch::integer);
 
 -- name: RenewRunTokens :exec
-UPDATE run_tokens SET expires_at = @expires_at WHERE agent_request_id = @agent_request_id AND attempt = @attempt;
+UPDATE run_tokens SET expires_at = @expires_at
+WHERE agent_request_id = @agent_request_id AND attempt = @attempt AND (claim_epoch IS NULL OR claim_epoch = @claim_epoch::integer);
 
 -- name: DeleteRunTokens :exec
 DELETE FROM run_tokens WHERE agent_request_id = @agent_request_id;
@@ -31,7 +33,9 @@ DELETE FROM run_tokens WHERE agent_request_id = @agent_request_id;
 DELETE FROM run_tokens WHERE expires_at < clock_timestamp();
 
 -- name: GetClaimedAgentRequest :one
-SELECT * FROM agent_requests WHERE id = @id AND attempts = @attempts AND claimed_by = @claimed_by;
+SELECT * FROM agent_requests
+WHERE id = @id AND attempts = @attempts AND claimed_by = @claimed_by
+  AND (@claim_epoch::integer = 0 OR claim_epoch = @claim_epoch::integer);
 
 -- name: TouchAgentWorker :exec
 INSERT INTO agent_workers (id, principal_kind, principal_id, client, seen_at)

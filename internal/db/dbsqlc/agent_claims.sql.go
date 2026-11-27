@@ -21,17 +21,25 @@ func (q *Queries) DeleteRunTokens(ctx context.Context, agentRequestID pgtype.UUI
 }
 
 const getClaimedAgentRequest = `-- name: GetClaimedAgentRequest :one
-SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation, read_restricted, as_of, claim_epoch FROM agent_requests WHERE id = $1 AND attempts = $2 AND claimed_by = $3
+SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation, read_restricted, as_of, claim_epoch FROM agent_requests
+WHERE id = $1 AND attempts = $2 AND claimed_by = $3
+  AND ($4::integer = 0 OR claim_epoch = $4::integer)
 `
 
 type GetClaimedAgentRequestParams struct {
-	ID        pgtype.UUID
-	Attempts  int32
-	ClaimedBy pgtype.Text
+	ID         pgtype.UUID
+	Attempts   int32
+	ClaimedBy  pgtype.Text
+	ClaimEpoch int32
 }
 
 func (q *Queries) GetClaimedAgentRequest(ctx context.Context, arg GetClaimedAgentRequestParams) (AgentRequest, error) {
-	row := q.db.QueryRow(ctx, getClaimedAgentRequest, arg.ID, arg.Attempts, arg.ClaimedBy)
+	row := q.db.QueryRow(ctx, getClaimedAgentRequest,
+		arg.ID,
+		arg.Attempts,
+		arg.ClaimedBy,
+		arg.ClaimEpoch,
+	)
 	var i AgentRequest
 	err := row.Scan(
 		&i.ID,
@@ -101,16 +109,18 @@ func (q *Queries) GetClaimedAgentRequest(ctx context.Context, arg GetClaimedAgen
 }
 
 const getRunTokenDeadline = `-- name: GetRunTokenDeadline :one
-SELECT max(expires_at)::timestamptz FROM run_tokens WHERE agent_request_id = $1 AND attempt = $2
+SELECT max(expires_at)::timestamptz FROM run_tokens
+WHERE agent_request_id = $1 AND attempt = $2 AND (claim_epoch IS NULL OR claim_epoch = $3::integer)
 `
 
 type GetRunTokenDeadlineParams struct {
 	AgentRequestID pgtype.UUID
 	Attempt        int32
+	ClaimEpoch     int32
 }
 
 func (q *Queries) GetRunTokenDeadline(ctx context.Context, arg GetRunTokenDeadlineParams) (pgtype.Timestamptz, error) {
-	row := q.db.QueryRow(ctx, getRunTokenDeadline, arg.AgentRequestID, arg.Attempt)
+	row := q.db.QueryRow(ctx, getRunTokenDeadline, arg.AgentRequestID, arg.Attempt, arg.ClaimEpoch)
 	var column_1 pgtype.Timestamptz
 	err := row.Scan(&column_1)
 	return column_1, err
@@ -351,17 +361,24 @@ func (q *Queries) PruneRunTokens(ctx context.Context) (int64, error) {
 }
 
 const renewRunTokens = `-- name: RenewRunTokens :exec
-UPDATE run_tokens SET expires_at = $1 WHERE agent_request_id = $2 AND attempt = $3
+UPDATE run_tokens SET expires_at = $1
+WHERE agent_request_id = $2 AND attempt = $3 AND (claim_epoch IS NULL OR claim_epoch = $4::integer)
 `
 
 type RenewRunTokensParams struct {
 	ExpiresAt      pgtype.Timestamptz
 	AgentRequestID pgtype.UUID
 	Attempt        int32
+	ClaimEpoch     int32
 }
 
 func (q *Queries) RenewRunTokens(ctx context.Context, arg RenewRunTokensParams) error {
-	_, err := q.db.Exec(ctx, renewRunTokens, arg.ExpiresAt, arg.AgentRequestID, arg.Attempt)
+	_, err := q.db.Exec(ctx, renewRunTokens,
+		arg.ExpiresAt,
+		arg.AgentRequestID,
+		arg.Attempt,
+		arg.ClaimEpoch,
+	)
 	return err
 }
 

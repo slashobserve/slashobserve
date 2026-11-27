@@ -123,7 +123,7 @@ func TestClaimedRunNamesTheRunAndItsRequesterOnlyForItsClaimer(t *testing.T) {
 	f := newFixture(t)
 	queued, _ := f.claimed(t)
 
-	req, err := f.svc.ClaimedRun(context.Background(), grantClaimer, queued.ID.String(), 1)
+	req, err := f.svc.ClaimedRun(context.Background(), grantClaimer, queued.ID.String(), 1, 0)
 	if err != nil || req.ID != queued.ID.String() || req.Attempt != 1 || req.RequestedBy.ID != userID {
 		t.Fatalf("request = %+v, err %v", req, err)
 	}
@@ -134,7 +134,7 @@ func TestClaimedRunNamesTheRunAndItsRequesterOnlyForItsClaimer(t *testing.T) {
 		"another claimer": {Claimer{Kind: revisions.AssignGrant, ID: otherGrantID, Person: userID}, 1},
 		"another attempt": {grantClaimer, 2},
 	} {
-		if _, err := f.svc.ClaimedRun(context.Background(), tc.claimer, queued.ID.String(), tc.attempt); !errors.Is(err, ErrNotYourRun) {
+		if _, err := f.svc.ClaimedRun(context.Background(), tc.claimer, queued.ID.String(), tc.attempt, 0); !errors.Is(err, ErrNotYourRun) {
 			t.Errorf("%s: err = %v, want ErrNotYourRun", name, err)
 		}
 	}

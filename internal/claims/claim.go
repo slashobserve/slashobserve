@@ -29,6 +29,7 @@ type Offer struct {
 type OfferedRun struct {
 	ID            string         `json:"id"`
 	Attempt       int            `json:"attempt"`
+	ClaimEpoch    int            `json:"claim_epoch"`
 	Kind          string         `json:"kind"`
 	Intent        string         `json:"intent"`
 	Prompt        string         `json:"prompt"`
@@ -158,6 +159,7 @@ func offeredRun(req revisions.Request) OfferedRun {
 	run := OfferedRun{
 		ID:            req.ID,
 		Attempt:       req.Attempt,
+		ClaimEpoch:    req.ClaimEpoch,
 		Kind:          revisions.Kind(req.Source),
 		Intent:        string(req.Intent),
 		Prompt:        req.Prompt,
