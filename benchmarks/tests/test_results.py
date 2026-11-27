@@ -25,6 +25,7 @@ def write_trial(
     agent_dir: bool = True,
     skipped_marker: str | None = None,
     graded: bool = True,
+    run: dict | None = None,
 ):
     trial = job / f"{task}__{suffix}"
     trial.mkdir(parents=True)
@@ -32,6 +33,8 @@ def write_trial(
     if agent_dir:
         (trial / "agent").mkdir()
         (trial / "agent" / "server.log").write_text(SERVER_LOG.replace("0.1.5", version) + "\n")
+    if run is not None:
+        (trial / "agent" / "run.json").write_text(json.dumps(run))
     if skipped_marker:
         (trial / "agent" / "skipped.txt").write_text(skipped_marker + "\n")
     if reward is not None and graded:
@@ -262,6 +265,24 @@ def test_jobs_that_set_the_defaults_explicitly_agree_with_jobs_that_leave_them_u
     write_trial(other, "task-b", "BBB", 1.0, kwargs={"run_max_cost_usd": 0.5, "investigation_loop": False})
     with pytest.raises(results.ResultsError, match="the settings"):
         build_from([other])
+
+
+def test_each_attempt_records_the_task_type_and_the_call_limit_the_run_returned(tmp_path):
+    job = write_job(tmp_path)
+    newer = {
+        "steps": [
+            {"message": "Listed 3 services on prom"},
+            {"message": "Routed the question to the measure task type"},
+        ],
+        "usage": {"call_limit": 19, "stage_at_save": "conclude", "model_calls": 9},
+    }
+    write_trial(job, "task-a", "AAA", 1.0, run=newer)
+    write_trial(job, "task-b", "BBB", 1.0, run={"steps": [{"message": "Listed 3 services on prom"}], "usage": {"model_calls": 12}})
+    write_trial(job, "task-c", "CCC", 1.0)
+    attempts = {task["task"]: task["attempts"][0] for task in build_from([job])["tasks"]}
+    assert (attempts["task-a"]["task_type"], attempts["task-a"]["call_limit"], attempts["task-a"]["stage_at_save"]) == ("measure", 19, "conclude")
+    for older in ("task-b", "task-c"):
+        assert (attempts[older]["task_type"], attempts[older]["call_limit"], attempts[older]["stage_at_save"]) == (None, None, None)
 
 
 def test_a_folder_without_trials_is_refused(tmp_path):

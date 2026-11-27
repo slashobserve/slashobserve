@@ -136,7 +136,7 @@ v0.1.5 has none of the loop, ceiling and grounding settings and ignores them whe
 What omitting an option means:
 
 - `investigation_loop`, `investigation_calls_max` and `finding_grounding`: the adapter sends `true`, 40 and `enforce`, so both kinds of image run with them, as far as the image has the setting.
-- `investigation_calls`: nothing is sent, so an image with task types gives each investigation its task type's limit and an older image gives 12; the results file records `server default`.
+- `investigation_calls`: nothing is sent, so an image with task types gives each investigation its task type's limit and an older image gives 12; the results file records `server default`, and each attempt's `call_limit` is the limit the run ended with when the server returns it.
 - `llm_effort`: nothing is sent, so the server picks the effort per run as in the table; the results file records `server default`.
 
 The configuration reference in the repository's `docs/reference/configuration.md` is the source of these values.
@@ -178,6 +178,9 @@ uv run --project benchmarks python -m slashobserve_bench.results write \
 ```
 
 The file holds the benchmark and its version, the server build, model, judge and settings, and per task and attempt the reward, pass or fail, tokens, cost and time.
+Each attempt also records, from the trial's `agent/run.json`, the server's choice for the run: `task_type`, read from the step `Routed the question to the <type> task type`; `call_limit`, the investigation's model-call limit when it ended, after any growth; and `stage_at_save`, the loop's stage when the finding was saved.
+Each is `null` when the run does not return it: an image without task types writes no routing step, a run that is not an investigation is not sorted, and the other two come only with the loop on.
+The reasoning effort a run used is not returned by the server, so the file records only the `llm_effort` that was sent, or `server default`.
 A pass is reward 1.0, and the summary adds the leaderboard's Pass^n: the share of tasks whose every attempt passed, for any number of attempts per task.
 Every task must have the same number of attempts.
 
@@ -556,7 +559,7 @@ The diagnosis columns are `Diagnosis.success` (the judge's verdict), `Diagnosis.
 No mitigation column is written, and no problem is ever mitigated.
 `results.py` does not read these files.
 It reads Harbor job folders, a pass there is a reward of exactly 1.0, and a judged-correct diagnosis can score below 100, so mapping either column onto a reward would change the result.
-Read the success rate from the CSV files, and the tokens and cost from each `run.json`.
+Read the success rate from the CSV files, and the tokens, cost, call limit and stage from each `run.json`, whose steps name the task type the server chose.
 
 ### What is comparable
 

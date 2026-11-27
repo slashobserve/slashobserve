@@ -1,5 +1,6 @@
 import argparse
 import json
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -14,6 +15,7 @@ README_TABLE_HEADING = "## Runs\n"
 CAUSES = ("adapter_fault", "missing_capability", "agent_mistake")
 SERVER_START_MESSAGE = "starting slashobserve-server"
 SKIPPED_EXCEPTION = "TaskSkipped"
+ROUTED_STEP = re.compile(r"Routed the question to the (\w+) task type")
 NO_AGENT_OUTPUT = {"cause": "adapter_fault", "summary": "The trial left no agent output folder, so the run never produced an answer."}
 
 
@@ -84,6 +86,23 @@ def _skipped_reason(trial_dir: Path, info: Any, error: str | None) -> str | None
     return None
 
 
+def run_facts(run: Path) -> dict[str, Any]:
+    facts: dict[str, Any] = {"task_type": None, "call_limit": None, "stage_at_save": None}
+    if not run.is_file():
+        return facts
+    request = _read_json(run)
+    if not isinstance(request, dict):
+        return facts
+    for step in request.get("steps") or []:
+        found = ROUTED_STEP.fullmatch(str((step or {}).get("message") or ""))
+        if found:
+            facts["task_type"] = found.group(1)
+    usage = request.get("usage") or {}
+    facts["call_limit"] = usage.get("call_limit")
+    facts["stage_at_save"] = usage.get("stage_at_save")
+    return facts
+
+
 def read_trial(trial_dir: Path) -> dict[str, Any]:
     try:
         return _read_trial(trial_dir)
@@ -118,6 +137,7 @@ def _read_trial(trial_dir: Path) -> dict[str, Any]:
         "error": error,
         "skipped": _skipped_reason(trial_dir, result.get("exception_info"), error),
         "no_agent_output": not (trial_dir / "agent").is_dir(),
+        **run_facts(trial_dir / "agent" / "run.json"),
     }
 
 
@@ -195,6 +215,9 @@ def _attempt(trial: dict[str, Any], failure: dict[str, str] | None) -> dict[str,
         "cost_usd": _round(trial["cost_usd"], 6),
         "agent_seconds": trial["agent_seconds"],
         "trial_seconds": trial["trial_seconds"],
+        "task_type": trial["task_type"],
+        "call_limit": trial["call_limit"],
+        "stage_at_save": trial["stage_at_save"],
         "error": trial["error"],
         "failure": failure,
     }
