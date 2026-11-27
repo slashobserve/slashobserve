@@ -565,7 +565,7 @@ export interface paths {
         };
         /**
          * Follow workspace activity as Server-Sent Events.
-         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{}`. Each event after that is a frame of `id: <seq>`, `event: activity` and the event JSON of `listActivity` as data, oldest first, filtered to what the caller may see and by the same `dashboard_id`, `folder_id`, `observation_id`, `type` and `since` parameters as the list. Without `Last-Event-ID` the stream sends only events appended after it opened, and `Last-Event-ID: 0` starts at the beginning of the log. A reconnecting client sends the `id` of the last frame it handled as `Last-Event-ID`, and the stream continues with the next event in log order, so nothing is skipped or repeated. `event: reset` with data `{}` follows `ready` when that id is unknown, for example because the event was pruned: events may have been missed, and the stream continues from the newest event; a value that is not a non-negative integer is 400. An event appears once its transaction and every older transaction have committed, so a burst of changes is delivered in log order, and an event can arrive up to about a second after its change. A `: ping` comment arrives every 15 seconds; at each ping the server re-reads the caller's credentials, role and folder access, so a role change or a revoked key takes effect at the next ping, which ends the stream when the credential is gone. The server ends the stream after 30 minutes and clients reconnect. A caller may hold 5 streams and the process 500.
+         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{}`. Each event after that is a frame of `id: <seq>`, `event: activity` and the event JSON of `listActivity` as data, oldest first, filtered to what the caller may see and by the same `dashboard_id`, `folder_id`, `observation_id`, `type` and `since` parameters as the list. Without `Last-Event-ID` the stream sends only events appended after it opened, and `Last-Event-ID: 0` starts at the beginning of the log. A reconnecting client sends the `id` of the last frame it handled as `Last-Event-ID`, and the stream continues with the next event in log order, so nothing is skipped or repeated. `event: reset` with data `{}` follows `ready` when that id is unknown, for example because the event was pruned: events may have been missed, and the stream continues from the newest event; a value that is not a non-negative integer is 400. An event appears once its transaction and every older transaction have committed, so a burst of changes is delivered in log order, and an event can arrive up to about a second after its change. A `: ping` comment arrives every 15 seconds; at each ping the server re-reads the caller's credentials, role and folder access, so a role change or a revoked key takes effect at the next ping, which ends the stream when the credential is gone. The server ends the stream after 30 minutes and clients reconnect. Before the server ends the stream it sends one last `event: closed` whose data is `{"reason"}`: `lifetime` after the 30 minutes, `access_lost` when the credential is gone or may no longer read the log, `check_failed` when the credential or the access could not be checked twice in a row, `read_failed` when the server could not read the log, and `stopping` when the server stops. A client stops after `access_lost` and reconnects with `Last-Event-ID` for every other reason, one it does not know included; `closed` has no `id`, so the last `activity` frame stays the place to resume from, and a stream that the client or the network ends carries none. A caller may hold 5 streams and the process 500.
          */
         get: operations["streamActivity"];
         put?: never;
@@ -707,7 +707,7 @@ export interface paths {
         };
         /**
          * Follow new audit events that match a query as Server-Sent Events.
-         * @description Only Admins can call this endpoint, and an Admin service-account key can too. The stream starts with `retry: 3000` and an `event: ready` whose data is `{}` and whose `id` is the position the stream starts from, so a client cut off before the first event resumes from it. Each event after that is a frame of `id: <position>`, `event: audit` and the event JSON of `listAuditEvents` as data, in the order the events were committed, for every new event that matches `q`. Without `Last-Event-ID` the stream sends only events committed after it opened, and never one that occurred more than 10 minutes before it opened. A frame's `id` is `<xid>-<seq>-<microseconds>`, its position in the trail and the event's time; a reconnecting client sends the `id` of the last frame it handled and the stream continues with every matching event committed after it whose time is at most 10 minutes before that event's, however long the client was away. A `Last-Event-ID` whose event is more than 24 hours old answers 400; read the gap with `listAuditEvents` and open a new stream. An event can arrive a few seconds after it was recorded, because the trail is written in batches and read every 2 seconds. A `: ping` comment arrives every 5 seconds; at each ping the server re-reads the caller's credentials and role, and a caller who is no longer an Admin, or whose credential is gone, gets an `event: forbidden` with the `forbidden_role` body and the stream ends. The stream also ends when the server shuts down, and after 30 minutes; clients reconnect. Opening the stream is recorded once as `audit.search` with the query as sent, its form and the start of what it can send; the events it delivers are not recorded one by one. A caller may hold 5 audit streams and the process 20, and one more answers 429. Each read of the trail runs under a 5 second statement timeout, one at a time; a stream whose read times out twice in a row sends an `event: error` with an `AuditQueryError` body of code `query_too_expensive` and ends.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. The stream starts with `retry: 3000` and an `event: ready` whose data is `{}` and whose `id` is the position the stream starts from, so a client cut off before the first event resumes from it. Each event after that is a frame of `id: <position>`, `event: audit` and the event JSON of `listAuditEvents` as data, in the order the events were committed, for every new event that matches `q`. Without `Last-Event-ID` the stream sends only events committed after it opened, and never one that occurred more than 10 minutes before it opened. A frame's `id` is `<xid>-<seq>-<microseconds>`, its position in the trail and the event's time; a reconnecting client sends the `id` of the last frame it handled and the stream continues with every matching event committed after it whose time is at most 10 minutes before that event's, however long the client was away. A `Last-Event-ID` whose event is more than 24 hours old answers 400; read the gap with `listAuditEvents` and open a new stream. An event can arrive a few seconds after it was recorded, because the trail is written in batches and read every 2 seconds. A `: ping` comment arrives every 5 seconds; at each ping the server re-reads the caller's credentials and role, and a caller who is no longer an Admin, or whose credential is gone, gets an `event: forbidden` with the `forbidden_role` body and the stream ends. The stream also ends when the server shuts down, and after 30 minutes; clients reconnect. Before those ends the server sends one last `event: closed` whose data is `{"reason"}`: `stopping` when the server stops, `lifetime` after the 30 minutes, `check_failed` when the credential could not be checked twice in a row, and `read_failed` when the server could not read the trail; `closed` has no `id`, and a stream that ended with `forbidden` or `error` carries none. Opening the stream is recorded once as `audit.search` with the query as sent, its form and the start of what it can send; the events it delivers are not recorded one by one. A caller may hold 5 audit streams and the process 20, and one more answers 429 whose `reason` is `per_caller` or `server_capacity`. Each read of the trail runs under a 5 second statement timeout, one at a time; a stream whose read times out twice in a row sends an `event: error` with an `AuditQueryError` body of code `query_too_expensive` and ends.
          */
         get: operations["streamAuditEvents"];
         put?: never;
@@ -815,7 +815,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Report the health and dashboard usage of every configured datasource, never its connection details. */
+        /**
+         * Report the health and dashboard usage of every configured datasource, never its connection details.
+         * @description Each datasource carries `health_state` and, when its last check failed, `failure_kind`, so a client can tell a failure to wait out from one that needs the credentials or the settings changed without reading `message`. A failing datasource is answered from the last check at once and checked again in the background once that check is 2 seconds old, which the state `rechecking` says.
+         */
         get: operations["listDatasources"];
         put?: never;
         /**
@@ -1301,7 +1304,7 @@ export interface paths {
         };
         /**
          * Stream live events for one dashboard as Server-Sent Events.
-         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment when a thread is resolved or reopened, and the edited message, with `parent_id` when it is a reply, when a message is edited. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) `comment_id` (for a revision requested by a comment) and `build_saves` (the number of saves in the revision's build, only while the status is `running` and the revision is building a new version of an existing dashboard); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `proposal.updated` is sent when a proposal on the dashboard is opened, gets a revision, is merged or is discarded, and carries `type`, `dashboard_id`, `proposal_id`, `status` (`open`, `merged` or `discarded`) and `author`, never the proposal's text. `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping. `dashboard.moved` is sent when the dashboard moves to another folder and carries `type`, `dashboard_id` and `author` (who moved it), never a folder; access is checked again before it is sent, and a caller who lost access with the move, or whose access cannot be checked then, gets no event and sees the stream end. `role.changed` is sent when the caller's own role changes while the stream is open, checked every 5 seconds, and carries `dashboard_id` and the new `role`; the caller's other requests are judged by the new role at once. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
+         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment when a thread is resolved or reopened, and the edited message, with `parent_id` when it is a reply, when a message is edited. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) `comment_id` (for a revision requested by a comment) and `build_saves` (the number of saves in the revision's build, only while the status is `running` and the revision is building a new version of an existing dashboard); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `proposal.updated` is sent when a proposal on the dashboard is opened, gets a revision, is merged or is discarded, and carries `type`, `dashboard_id`, `proposal_id`, `status` (`open`, `merged` or `discarded`) and `author`, never the proposal's text. `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping. `dashboard.moved` is sent when the dashboard moves to another folder and carries `type`, `dashboard_id` and `author` (who moved it), never a folder; access is checked again before it is sent, and a caller who lost access with the move, or whose access cannot be checked then, gets no event and sees the stream end with `closed`. `role.changed` is sent when the caller's own role changes while the stream is open, checked every 5 seconds, and carries `dashboard_id` and the new `role`; the caller's other requests are judged by the new role at once. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Before the server ends the stream it sends one last `event: closed` whose data is `{"reason"}`: `lifetime` after the 30 minutes, `access_lost` when the caller's credential or view access is gone or the dashboard was deleted, `check_failed` when the credential or the access could not be checked twice in a row or at a move, `slow_subscriber` when the client read too slowly to keep up with the dashboard's events, and `stopping` when the server stops. A client reconnects at once after `lifetime`, stops after `access_lost`, and reconnects after a delay for every other reason, one it does not know included; `closed` has no `id`, and a stream that the client or the network ends carries none. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
          */
         get: operations["streamDashboardEvents"];
         put?: never;
@@ -1794,7 +1797,7 @@ export interface paths {
         put?: never;
         /**
          * Check a datasource definition against the real datasource without saving it.
-         * @description Only Admins can call this endpoint. The body is a draft like the one for adding a datasource. With `base=<uid>`, the draft starts from that saved app datasource, credentials included, and the body changes only what it names, so a form can test an edit without asking for the credentials again. When the body changes the address or the username, a stored credential is not sent to the new target: send every stored credential again in `secrets`, or remove it in `clear_secrets`, or the test answers 422 `secret_required`. The address passes the same outbound allowlist check as saving, but a test never changes the allowlist: a domain that is not listed is tested only while the list is unlocked, and saving adds it. A failed check answers 200 with `healthy: false`, a fixed `message` and, when known, a `detail`; the answer never carries the address or a credential. Every test is recorded as `datasource.test` with the host and the outcome, since it sends stored credentials to that host.
+         * @description Only Admins can call this endpoint. The body is a draft like the one for adding a datasource. With `base=<uid>`, the draft starts from that saved app datasource, credentials included, and the body changes only what it names, so a form can test an edit without asking for the credentials again. When the body changes the address or the username, a stored credential is not sent to the new target: send every stored credential again in `secrets`, or remove it in `clear_secrets`, or the test answers 422 `secret_required`. The address passes the same outbound allowlist check as saving, but a test never changes the allowlist: a domain that is not listed is tested only while the list is unlocked, and saving adds it. A failed check answers 200 with `healthy: false`, a fixed `message`, a `failure_kind` and, when known, a `detail`; the answer never carries the address or a credential. Every test is recorded as `datasource.test` with the host and the outcome, since it sends stored credentials to that host.
          */
         post: operations["testDatasource"];
         delete?: never;
@@ -1864,7 +1867,7 @@ export interface paths {
         put?: never;
         /**
          * Run a fresh health check on one datasource now.
-         * @description Skips the 10 second cache of `GET /datasources` and returns the new status. Calls within 2 seconds of the last check return that check, so a loop cannot hammer the datasource. An unhealthy status carries `message` and, when known, `detail`.
+         * @description Skips the 10 second cache of `GET /datasources` and returns the new status. Calls within 2 seconds of the last check return that check, so a loop cannot hammer the datasource. An unhealthy status carries `message` and, when known, `detail`. A failed check also carries `failure_kind`, which says whether to try again later or to change the credentials or the settings.
          */
         post: operations["recheckDatasource"];
         delete?: never;
@@ -3233,7 +3236,7 @@ export interface paths {
         post?: never;
         /**
          * Withdraw one published revision of an observation's RCA.
-         * @description Needs Edit on the folder, and the same states as publishing. A revision with a live public link is refused with 409 `rca_shared`, because a public link is a person's decision: a person revokes the links first, with Manage on the folder, and then withdraws it. Withdrawing deletes the revision and cannot be undone; the activity log keeps `observation.rca_withdrawn` with the title and the revision. No MCP tool deletes anything, so an agent cannot call this.
+         * @description Needs Edit on the folder; a revision offers it as `withdraw` in its `allowed_actions`. A revision with a live public link is refused with 409 `rca_shared`, because a public link is a person's decision: a person revokes the links first, with Manage on the folder, and then withdraws it. Withdrawing deletes the revision and cannot be undone; the activity log keeps `observation.rca_withdrawn` with the title and the revision. No MCP tool deletes anything, so an agent cannot call this.
          */
         delete: operations["withdrawRca"];
         options?: never;
@@ -4529,7 +4532,7 @@ export interface components {
             allowed_actions?: string[];
             /** @description Present with `admins_only_folder` when the content reads an Admins-only datasource, so it cannot leave its folder and public links are not available for it; the uid of that datasource. */
             datasource?: string;
-            /** @description Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`. The `error` message names the field and says what to change. */
+            /** @description Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`. The `error` message names the field and says what to change. On a `too_many_streams` refusal of an event stream, whose limit was reached: `per_caller` for the caller's own open streams or `server_capacity` for the server process's. */
             reason?: string;
             /**
              * @description On a `forbidden_role` refusal of a route with a role floor, the lowest role that may call it.
@@ -5193,6 +5196,16 @@ export interface components {
              */
             audience?: "everyone" | "admins";
             healthy: boolean;
+            /**
+             * @description What the server knows about the datasource, computed on every read from the last check this server ran; the states are listed in the States reference. `healthy` is `true` only in `healthy`. `unchecked` means no check answered, because the caller left before it did or the check was cancelled, so it says nothing against the datasource. `rechecking` is a failing datasource whose next check is already running.
+             * @enum {string}
+             */
+            health_state: "unchecked" | "healthy" | "failing" | "rechecking";
+            /**
+             * @description What to do about a failed check; present only when `health_state` is `failing` or `rechecking`. `transient`: the datasource did not answer, timed out or hit a limit; the server keeps checking, so try again later. `credentials`: the datasource refused the saved credentials or the server cannot read them; set them again. `configuration`: the datasource's settings, its user's grants or the server's settings must change before a check can pass. `unsupported`: the datasource runs a version the server does not support. `unknown`: the check failed for a reason the server could not classify, so nothing says whether trying again will help; try a few times, then report it.
+             * @enum {string}
+             */
+            failure_kind?: "transient" | "credentials" | "configuration" | "unsupported" | "unknown";
             /** @description A fixed sentence naming the kind of failure; absent when healthy. */
             message?: string;
             /** @description The cause when the server knows it, such as a refused connection or the HTTP status the datasource answered; never an address, user or secret. */
@@ -5318,6 +5331,11 @@ export interface components {
             message?: string;
             /** @description The cause when the server knows it; never an address, user or secret. */
             detail?: string;
+            /**
+             * @description What to do about the failed check, with the meanings `GET /datasources` gives them; absent when healthy or when the check was cancelled.
+             * @enum {string}
+             */
+            failure_kind?: "transient" | "credentials" | "configuration" | "unsupported" | "unknown";
         };
         InvalidDatasourceError: {
             error: string;
@@ -5905,12 +5923,19 @@ export interface components {
         };
         UnverifiedPanel: {
             panel_id: string;
+            reason?: components["schemas"]["UnverifiedReason"];
             issues: components["schemas"]["Issue"][];
         };
         UnverifiedVariable: {
             name: string;
             issues: components["schemas"]["Issue"][];
+            reason?: components["schemas"]["UnverifiedReason"];
         };
+        /**
+         * @description Why the save kept the item although its query did not verify: `empty` (it returned no data), `timeout` (it timed out and the save did not change it), `carried` (the parent version already listed it and it is unchanged), `restored` (the restored version listed it) or `imported` (a Grafana import keeps every failing panel and variable). Absent on a version saved before reasons were kept, and a copy made by duplicating keeps the reasons of its source.
+         * @enum {string}
+         */
+        UnverifiedReason: "empty" | "timeout" | "carried" | "restored" | "imported";
         DashboardWithVersion: {
             dashboard: components["schemas"]["DashboardSummary"];
             version: components["schemas"]["Version"];
@@ -6229,10 +6254,15 @@ export interface components {
              * @description The observation block an anchored thread points into; null otherwise, or once the block is deleted.
              */
             block_id: string | null;
-            /** @description The thread's agent, the one a plain reply asks; null until a message asks an agent, and cleared when that agent can no longer take runs. */
+            /** @description The thread's agent, the one a plain reply asks; null until a message asks an agent, and cleared when that agent can no longer take runs. A null agent is the `none` state of `docs/reference/states.md`. */
             agent: {
                 /** @enum {string} */
                 kind: "builtin" | "grant" | "service_account";
+                /**
+                 * @description `following` while a plain reply asks the agent, and `off` after a message was sent to everyone, which is when `agent_off` is true.
+                 * @enum {string}
+                 */
+                state: "following" | "off";
                 /**
                  * Format: uuid
                  * @description The grant or service account; null for the built-in agent.
@@ -8308,13 +8338,13 @@ export interface components {
              */
             last_viewed_at: string | null;
             expired: boolean;
-            /** @description False when the link is expired or the dashboard's latest version reads the viewer's identity. */
+            /** @description Whether the public address opens the dashboard now. False in each case `unusable_reason` names. */
             usable: boolean;
             /**
-             * @description Why the link does not open, set whenever `usable` is false and null otherwise: `expired` when its expiry time has passed, `user_scoped` when the dashboard's latest version reads the viewer's identity. An expired link reports `expired` whatever the dashboard reads.
+             * @description Why the link does not open, set whenever `usable` is false and null otherwise, the first that applies: `expired` when its expiry time has passed, `admins_only_folder` when the dashboard is in a folder only Admins can read, `user_scoped` when the dashboard's latest version reads the viewer's identity, and `restricted_datasource` when it reads a datasource only Admins can query.
              * @enum {string|null}
              */
-            unusable_reason: "expired" | "user_scoped" | null;
+            unusable_reason: "expired" | "admins_only_folder" | "user_scoped" | "restricted_datasource" | null;
             /**
              * @description Computed from `expired`. See `docs/reference/states.md`.
              * @enum {string}
@@ -8836,6 +8866,9 @@ export interface components {
             title: string;
             summary: string | null;
             observation_state: components["schemas"]["ObservationState"];
+            state: components["schemas"]["RCARevisionState"];
+            /** @description The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links. `share` is left out in a folder only Admins can read and in My Dashboards, where a public link cannot be created. */
+            allowed_actions: components["schemas"]["RCARevisionAction"][];
             /** Format: date-time */
             from: string | null;
             /** Format: date-time */
@@ -8852,9 +8885,29 @@ export interface components {
             title: string;
             summary: string | null;
             observation_state: components["schemas"]["ObservationState"];
+            state: components["schemas"]["RCARevisionState"];
+            /** @description The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links. `share` is left out in a folder only Admins can read and in My Dashboards, where a public link cannot be created. */
+            allowed_actions: components["schemas"]["RCARevisionAction"][];
             created_by: components["schemas"]["Actor"];
             /** Format: date-time */
             created_at: string;
+        };
+        /**
+         * @description Computed on read, never stored. `shared` while a public link that has not expired shows the revision, else `superseded` when a newer revision exists, else `published`.
+         * @enum {string}
+         */
+        RCARevisionState: "published" | "superseded" | "shared";
+        /** @enum {string} */
+        RCARevisionAction: "share" | "unshare" | "withdraw";
+        /** @description The answer to a publish or a withdraw that is refused. `state` and `allowed_actions` describe what the route addresses, the observation for a publish and the revision for a withdraw. */
+        RCARefusal: {
+            error: string;
+            /** @enum {string} */
+            code: "rca_limit" | "rca_unchanged" | "observation_changed" | "rca_shared";
+            /** @description The observation's state for a refused publish, and the revision's state for a refused withdraw. */
+            state: string;
+            /** @description The actions the caller may take in that state, as in the observation's or the revision's own `allowed_actions`. */
+            allowed_actions: string[];
         };
         RCAPublicLink: {
             /** Format: uuid */
@@ -10504,7 +10557,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description The caller already holds the maximum number of open streams (`too_many_streams`). */
+            /** @description The caller already holds the maximum number of open streams (`too_many_streams` with `reason` `per_caller`). */
             429: {
                 headers: {
                     [name: string]: unknown;
@@ -10514,7 +10567,7 @@ export interface operations {
                 };
             };
             500: components["responses"]["Internal"];
-            /** @description The process holds the maximum number of open streams (`too_many_streams`) or is shutting down (`shutting_down`). */
+            /** @description The process holds the maximum number of open streams (`too_many_streams` with `reason` `server_capacity`) or is shutting down (`shutting_down`). */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -10893,7 +10946,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuditQueryError"];
                 };
             };
-            /** @description The caller already holds 5 open audit streams, or the process 20 (`too_many_streams`). */
+            /** @description The caller already holds 5 open audit streams (`too_many_streams` with `reason` `per_caller`), or the process 20 (`reason` `server_capacity`). */
             429: {
                 headers: {
                     [name: string]: unknown;
@@ -12574,7 +12627,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The caller already holds the maximum number of open streams (`too_many_streams`). */
+            /** @description The caller already holds the maximum number of open streams (`too_many_streams` with `reason` `per_caller`). */
             429: {
                 headers: {
                     [name: string]: unknown;
@@ -12584,7 +12637,7 @@ export interface operations {
                 };
             };
             500: components["responses"]["Internal"];
-            /** @description The process holds the maximum number of open streams (`too_many_streams`) or is shutting down (`shutting_down`). */
+            /** @description The process holds the maximum number of open streams (`too_many_streams` with `reason` `server_capacity`) or is shutting down (`shutting_down`). */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -17767,13 +17820,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), it changed while it was being published (`observation_changed`), or nothing changed since the latest revision (`rca_unchanged`). Or a panel froze data from a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), it changed while it was being published (`observation_changed`), or nothing changed since the latest revision (`rca_unchanged`). `rca_limit`, `observation_changed` and `rca_unchanged` carry the observation's `state` and the caller's `allowed_actions` on it. Or a panel froze data from a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
+                    "application/json": components["schemas"]["RCARefusal"] | components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             422: components["responses"]["ObservationInvalid"];
@@ -17832,13 +17885,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The revision still has public links (`rca_shared`), or the observation's state does not allow it (`invalid_transition`). */
+            /** @description The revision still has public links (`rca_shared`); the answer carries the revision's `state` and the caller's `allowed_actions` on it. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["RCARefusal"] | components["schemas"]["Error"];
                 };
             };
             500: components["responses"]["Internal"];

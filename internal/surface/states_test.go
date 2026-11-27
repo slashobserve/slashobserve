@@ -12,6 +12,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/accessrequests"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/inboundmcp"
@@ -37,8 +38,10 @@ func statesReference() string {
 	return lifecycle.Render(
 		revisions.RunMachine.Doc("Run", "A run is one agent request, started by `POST /observe`, a comment, a prompt, an investigation or a suggestion."),
 		threads.ThreadMachine.Doc("Comment thread", "A comment thread is a conversation on a dashboard, an observation, an annotation or a proposal, returned by `GET /threads` and by every route that opens, replies to, resolves or reopens one."),
+		threads.AgentMachine.Doc("Thread's agent", "A thread's agent is the one a plain reply asks, returned as `agent` with its `state` by `GET /threads`. No route takes these moves by name today, so the thread's `allowed_actions` do not list them: a message that mentions an agent or is sent to the agent makes `set_agent`, and a message sent to everyone makes `turn_agent_off`. Each move is recorded as the audit action `thread.agent_set`, not as an activity event."),
 		observations.Machine.Doc("Observation", "An observation is a page of blocks in a folder, started by POST /observations or by an investigation."),
 		observations.BlockMachine.Doc("Observation block", "A block is one item on an observation's page: Markdown, a live panel, a frozen snapshot or an agent run."),
+		observations.RCAMachine.Doc("RCA revision", "An RCA revision is one published copy of an observation, returned by `GET /observations/{id}/rcas`; its state is computed on read from the newer revisions and the live public links, never stored."),
 		proposals.ProposalMachine.Doc("Proposal", "A proposal is a change to a dashboard that someone who can edit merges or discards, returned by `GET /api/v1/proposals/{id}`."),
 		proposals.MergeabilityStates.Doc("Proposal mergeability", "`GET /proposals/{id}` returns the `mergeability` of an open proposal, which says what a merge would meet on the dashboard's latest version, and null once the proposal is merged or discarded."),
 		health.ItemStates.Doc("Dashboard health", "`GET /health` returns the `state` of each dashboard that has a problem."),
@@ -52,10 +55,12 @@ func statesReference() string {
 		grafanaconn.TestStates.Doc("Grafana connection test", "`GET /grafana` returns the `test.state` of each connection."),
 		inboundmcp.ToolMachine.Doc("MCP source tool", "An MCP source tool is one tool of an MCP server an Admin registered, returned by `GET /api/v1/mcp-sources/{uid}/tools`; discovery moves it between `offered`, `changed`, `gone` and `refused`, and an Admin approves or revokes it."),
 		inboundmcp.SourceStates.Doc("MCP source", "`GET /api/v1/mcp-sources` returns the `state` of each MCP source."),
+		dashboards.VerificationStates.Doc("Panel and variable verification", "`GET /dashboards/{id}` returns the panels and variables of a version that are not verified in `unverified`, each with the `reason` the save kept it."),
 		presence.States.Doc("Agent presence", "Whether an outside agent is taking runs: derived from when it last asked for work and the runs it holds."),
 		users.PersonMachine.Doc("Person", "A person is someone who signs in, returned by `GET /users` with `state` and `allowed_actions`; an invited email is listed by `GET /invites` until its first sign-in."),
 		scheduler.States.Doc("Scheduled job", "`GET /jobs` returns the `state` of each scheduled job to an Admin."),
 		accessrequests.States.Doc("Access request", "`GET /access-requests` returns the `state` of each request for Comment access; the list of requests you can grant holds only open ones, and `scope=mine` returns your own in every state."),
+		datasource.HealthStates.Doc("Datasource health", "`GET /datasources` and `POST /datasources/{uid}/recheck` return the `health_state` of each datasource, from the last check the answering server ran."),
 		server.PhaseMachine.Doc("Server process", "A server process moves through these phases from start to exit: `GET /readyz` returns the current one as `phase`, the `slashobserve_server_phase` series is 1 for it, and each move writes one server log line with the name in the Event column and the new phase as its `phase` attribute, not an activity event."),
 	)
 }
@@ -100,6 +105,10 @@ func enumOf(t *testing.T, doc *openapi3.T, schema, property string) []string {
 
 func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 	doc := apitest.Load(t)
+	failureKinds := make([]string, len(datasource.FailureKinds))
+	for i, kind := range datasource.FailureKinds {
+		failureKinds[i] = string(kind)
+	}
 	cases := []struct {
 		schema, property string
 		want             []string
@@ -115,8 +124,22 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 		{"MCPSource", "state", inboundmcp.SourceStates.Names()},
 		{"AccessRequest", "state", accessrequests.States.Names()},
 		{"ScheduledJob", "state", scheduler.States.Names()},
+		{"DatasourceStatus", "health_state", datasource.HealthStates.Names()},
+		{"DatasourceStatus", "failure_kind", failureKinds},
+		{"DatasourceTestResult", "failure_kind", failureKinds},
 		{"GrafanaConnectionTestState", "state", grafanaconn.TestStates.Names()},
 	}
+	var reasons []string
+	for _, r := range dashboards.UnverifiedReasons {
+		reasons = append(reasons, string(r))
+	}
+	cases = append(cases, struct {
+		schema, property string
+		want             []string
+	}{"UnverifiedPanel", "reason", reasons}, struct {
+		schema, property string
+		want             []string
+	}{"UnverifiedVariable", "reason", reasons})
 	var offered []string
 	for _, a := range threads.ThreadMachine.Offered() {
 		offered = append(offered, string(a))

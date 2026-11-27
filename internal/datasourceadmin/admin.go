@@ -628,9 +628,10 @@ func (s *Service) users(ctx context.Context, by auth.Principal, uid string) (InU
 }
 
 type TestResult struct {
-	Healthy bool
-	Message string
-	Detail  string
+	Healthy     bool
+	Message     string
+	Detail      string
+	FailureKind datasource.FailureKind
 }
 
 func (s *Service) Test(ctx context.Context, baseUID string, def Definition, change SecretsChange) (TestResult, error) {
@@ -662,8 +663,8 @@ func (s *Service) Test(ctx context.Context, baseUID string, def Definition, chan
 	checkCtx, cancel := context.WithTimeout(ctx, testTimeout)
 	defer cancel()
 	if err := ds.CheckHealth(checkCtx); err != nil {
-		message, detail := datasource.Reason(err)
-		return TestResult{Message: message, Detail: detail}, nil
+		message, detail, kind := datasource.Reason(err)
+		return TestResult{Message: message, Detail: detail, FailureKind: kind}, nil
 	}
 	return TestResult{Healthy: true}, nil
 }

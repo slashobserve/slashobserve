@@ -448,6 +448,7 @@ components:
           description: >-
             Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`.
             The `error` message names the field and says what to change.
+            On a `too_many_streams` refusal of an event stream, whose limit was reached: `per_caller` for the caller's own open streams or `server_capacity` for the server process's.
         needed_role:
           type: string
           enum: [viewer, commenter, editor, admin]
@@ -1665,7 +1666,7 @@ components:
     DatasourceStatus:
       type: object
       additionalProperties: false
-      required: [uid, type, name, source, healthy, checked_at, dashboard_count]
+      required: [uid, type, name, source, healthy, health_state, checked_at, dashboard_count]
       properties:
         uid:
           type: string
@@ -1696,6 +1697,24 @@ components:
           description: Who can query the datasource, for an Admin caller only; absent for everyone else.
         healthy:
           type: boolean
+        health_state:
+          type: string
+          enum: [unchecked, healthy, failing, rechecking]
+          description: >-
+            What the server knows about the datasource, computed on every read from the last check this server ran; the states are listed in the States reference.
+            `healthy` is `true` only in `healthy`.
+            `unchecked` means no check answered, because the caller left before it did or the check was cancelled, so it says nothing against the datasource.
+            `rechecking` is a failing datasource whose next check is already running.
+        failure_kind:
+          type: string
+          enum: [transient, credentials, configuration, unsupported, unknown]
+          description: >-
+            What to do about a failed check; present only when `health_state` is `failing` or `rechecking`.
+            `transient`: the datasource did not answer, timed out or hit a limit; the server keeps checking, so try again later.
+            `credentials`: the datasource refused the saved credentials or the server cannot read them; set them again.
+            `configuration`: the datasource's settings, its user's grants or the server's settings must change before a check can pass.
+            `unsupported`: the datasource runs a version the server does not support.
+            `unknown`: the check failed for a reason the server could not classify, so nothing says whether trying again will help; try a few times, then report it.
         message:
           type: string
           description: A fixed sentence naming the kind of failure; absent when healthy.
@@ -1913,6 +1932,10 @@ components:
         detail:
           type: string
           description: The cause when the server knows it; never an address, user or secret.
+        failure_kind:
+          type: string
+          enum: [transient, credentials, configuration, unsupported, unknown]
+          description: What to do about the failed check, with the meanings `GET /datasources` gives them; absent when healthy or when the check was cancelled.
     InvalidDatasourceError:
       type: object
       additionalProperties: false
@@ -3015,6 +3038,8 @@ components:
       properties:
         panel_id:
           type: string
+        reason:
+          $ref: "#/components/schemas/UnverifiedReason"
         issues:
           type: array
           minItems: 1
@@ -3032,6 +3057,16 @@ components:
           minItems: 1
           items:
             $ref: "#/components/schemas/Issue"
+        reason:
+          $ref: "#/components/schemas/UnverifiedReason"
+    UnverifiedReason:
+      type: string
+      enum: [empty, timeout, carried, restored, imported]
+      description: >-
+        Why the save kept the item although its query did not verify:
+        `empty` (it returned no data), `timeout` (it timed out and the save did not change it), `carried` (the parent version already listed it and it is unchanged),
+        `restored` (the restored version listed it) or `imported` (a Grafana import keeps every failing panel and variable).
+        Absent on a version saved before reasons were kept, and a copy made by duplicating keeps the reasons of its source.
     DashboardWithVersion:
       type: object
       additionalProperties: false
@@ -3681,12 +3716,16 @@ components:
           type: object
           nullable: true
           additionalProperties: false
-          required: [kind, id]
-          description: The thread's agent, the one a plain reply asks; null until a message asks an agent, and cleared when that agent can no longer take runs.
+          required: [kind, id, state]
+          description: The thread's agent, the one a plain reply asks; null until a message asks an agent, and cleared when that agent can no longer take runs. A null agent is the `none` state of `docs/reference/states.md`.
           properties:
             kind:
               type: string
               enum: [builtin, grant, service_account]
+            state:
+              type: string
+              enum: [following, off]
+              description: "`following` while a plain reply asks the agent, and `off` after a message was sent to everyone, which is when `agent_off` is true."
             id:
               type: string
               format: uuid
@@ -7582,15 +7621,16 @@ components:
           type: boolean
         usable:
           type: boolean
-          description: False when the link is expired or the dashboard's latest version reads the viewer's identity.
+          description: Whether the public address opens the dashboard now. False in each case `unusable_reason` names.
         unusable_reason:
           type: string
-          enum: [expired, user_scoped]
+          enum: [expired, admins_only_folder, user_scoped, restricted_datasource]
           nullable: true
           description: >-
-            Why the link does not open, set whenever `usable` is false and null otherwise:
-            `expired` when its expiry time has passed, `user_scoped` when the dashboard's latest version reads the viewer's identity.
-            An expired link reports `expired` whatever the dashboard reads.
+            Why the link does not open, set whenever `usable` is false and null otherwise, the first that applies:
+            `expired` when its expiry time has passed, `admins_only_folder` when the dashboard is in a folder only Admins can read,
+            `user_scoped` when the dashboard's latest version reads the viewer's identity,
+            and `restricted_datasource` when it reads a datasource only Admins can query.
         state:
           type: string
           enum: [expired, active]
@@ -8457,7 +8497,7 @@ components:
     ObservationRCA:
       type: object
       additionalProperties: false
-      required: [id, observation_id, revision, title, summary, observation_state, from, to, blocks, created_by, created_at]
+      required: [id, observation_id, revision, title, summary, observation_state, state, allowed_actions, from, to, blocks, created_by, created_at]
       properties:
         id:
           type: string
@@ -8476,6 +8516,13 @@ components:
           nullable: true
         observation_state:
           $ref: "#/components/schemas/ObservationState"
+        state:
+          $ref: "#/components/schemas/RCARevisionState"
+        allowed_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/RCARevisionAction"
+          description: The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links. `share` is left out in a folder only Admins can read and in My Dashboards, where a public link cannot be created.
         from:
           type: string
           format: date-time
@@ -8496,7 +8543,7 @@ components:
     ObservationRCASummary:
       type: object
       additionalProperties: false
-      required: [id, revision, title, summary, observation_state, created_by, created_at]
+      required: [id, revision, title, summary, observation_state, state, allowed_actions, created_by, created_at]
       properties:
         id:
           type: string
@@ -8511,11 +8558,44 @@ components:
           nullable: true
         observation_state:
           $ref: "#/components/schemas/ObservationState"
+        state:
+          $ref: "#/components/schemas/RCARevisionState"
+        allowed_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/RCARevisionAction"
+          description: The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links. `share` is left out in a folder only Admins can read and in My Dashboards, where a public link cannot be created.
         created_by:
           $ref: "#/components/schemas/Actor"
         created_at:
           type: string
           format: date-time
+    RCARevisionState:
+      type: string
+      enum: [published, superseded, shared]
+      description: Computed on read, never stored. `shared` while a public link that has not expired shows the revision, else `superseded` when a newer revision exists, else `published`.
+    RCARevisionAction:
+      type: string
+      enum: [share, unshare, withdraw]
+    RCARefusal:
+      type: object
+      additionalProperties: false
+      required: [error, code, state, allowed_actions]
+      description: The answer to a publish or a withdraw that is refused. `state` and `allowed_actions` describe what the route addresses, the observation for a publish and the revision for a withdraw.
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [rca_limit, rca_unchanged, observation_changed, rca_shared]
+        state:
+          type: string
+          description: The observation's state for a refused publish, and the revision's state for a refused withdraw.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+          description: The actions the caller may take in that state, as in the observation's or the revision's own `allowed_actions`.
     RCAPublicLink:
       type: object
       additionalProperties: false
