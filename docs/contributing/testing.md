@@ -326,7 +326,7 @@ A gate fails the run when any of these happens:
 | --- | --- | --- |
 | `changes` | Always. | `scripts/ci-changes.sh`, which decides which of the other jobs run. |
 | `go-lint` | A file outside `web/` and `observe-agent/` changed. | `make lint-go lint-deploy tidy-check`: golangci-lint, `sqlc diff`, the docs lint, the Helm chart checks and the tidy check. |
-| `go-test` | A file outside `web/` and `observe-agent/` changed. | `make test-go` in six shards: `grafana`, `db`, `datasource`, `agent`, `rest-1` and `rest-2`, split by `scripts/go-test-shard.sh`. |
+| `go-test` | A file outside `web/` and `observe-agent/` changed. | `make test-go` in six shards: `grafana`, `db`, `datasource`, `agent`, `rest-1` and `rest-2`, split by `scripts/go-test-shard.sh`, which deals the packages outside the four named shards to the two rest shards by a fixed weight per slow package. Each shard saves its own Go build cache. |
 | `web-lint` | A file other than Go or prose changed. | `make lint-web lint-agent test-agent test-scripts test-benchmarks`. |
 | `web-test` | A file other than Go or prose changed. | The web Vitest suite in two shards. |
 | `build` | Non-prose files changed. | `make build`, then `make generate`, which must leave every file unchanged. |
