@@ -108,12 +108,19 @@ func errorJSON(err error, message string) string {
 	if errors.As(err, &api) {
 		start, end = api.start, api.end
 	}
+	var runID, runState string
+	var ended *runEnded
+	if errors.As(err, &ended) {
+		runID, runState = ended.id, ended.state
+	}
 	data, marshalErr := json.Marshal(struct {
-		Error string `json:"error"`
-		Code  string `json:"code"`
-		Start *int   `json:"start,omitempty"`
-		End   *int   `json:"end,omitempty"`
-	}{Error: message, Code: errorCode(err), Start: start, End: end})
+		Error    string `json:"error"`
+		Code     string `json:"code"`
+		Start    *int   `json:"start,omitempty"`
+		End      *int   `json:"end,omitempty"`
+		RunID    string `json:"run_id,omitempty"`
+		RunState string `json:"run_state,omitempty"`
+	}{Error: message, Code: errorCode(err), Start: start, End: end, RunID: runID, RunState: runState})
 	if marshalErr != nil {
 		return message
 	}

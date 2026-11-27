@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"slices"
 )
@@ -45,7 +44,10 @@ func stateOrLegacyStatus(state, status string) string {
 }
 
 func (r agentRequest) state() string {
-	return stateOrLegacyStatus(r.State, r.Status)
+	if _, known := runStates[r.State]; known {
+		return r.State
+	}
+	return r.Status
 }
 
 func (r agentRequest) nextStep() string {
@@ -91,5 +93,21 @@ func (r agentRequest) failure() error {
 	if step := r.nextStep(); step != "" {
 		message += "\n" + step
 	}
-	return errors.New(message)
+	return &runEnded{id: r.ID, state: r.state(), message: message}
 }
+
+type runEnded struct {
+	id      string
+	state   string
+	message string
+}
+
+func (e *runEnded) Error() string { return e.message }
+
+type interruptedWait struct{ id string }
+
+func (e interruptedWait) Error() string {
+	return "still running on the server: observe status " + e.id
+}
+
+func (e interruptedWait) Unwrap() error { return errInterrupted }

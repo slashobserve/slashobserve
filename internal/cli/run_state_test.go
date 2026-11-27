@@ -2,6 +2,8 @@ package cli
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -25,6 +27,71 @@ func TestRequestStateWordsAreTheSixOfTheWeb(t *testing.T) {
 		if got := requestStateWord(state); got != word {
 			t.Errorf("%s reads %q, want %q", state, got, word)
 		}
+	}
+}
+
+func TestRunStateFallsBackToTheLegacyStatusForAnUnknownState(t *testing.T) {
+	tests := []struct {
+		state, status, want string
+	}{
+		{"canceling", "running", "canceling"},
+		{"canceled", "failed", "canceled"},
+		{"", "running", "running"},
+		{"paused", "running", "running"},
+		{"archived", "failed", "failed"},
+		{"archived", "succeeded", "succeeded"},
+	}
+	for _, tt := range tests {
+		if got := (agentRequest{State: tt.state, Status: tt.status}).state(); got != tt.want {
+			t.Errorf("state %q with status %q reads %q, want %q", tt.state, tt.status, got, tt.want)
+		}
+	}
+}
+
+func TestWaitingKeepsPollingAnUnknownStateWhileTheStatusRuns(t *testing.T) {
+	turn := func(state, status string) string {
+		return `{"id":"` + stoppedID + `","state":"` + state + `","status":"` + status + `","error":"boom","steps":[],"allowed_actions":[]}`
+	}
+	server, calls := requestReplies(t, turn("paused", "running"), turn("paused", "failed"))
+	_, stderr, code := runWith(server, "status", stoppedID, "--wait")
+	if code != 1 || calls.Load() != 2 || strings.TrimSpace(stderr) != "observe failed: boom" {
+		t.Fatalf("exit %d after %d calls, stderr %q", code, calls.Load(), stderr)
+	}
+}
+
+func TestAnEndedRunNamesItsIDAndStateInTheJSONError(t *testing.T) {
+	tests := []struct {
+		state, status, want string
+	}{
+		{"failed", "failed", "failed"},
+		{"canceled", "failed", "canceled"},
+		{"paused", "failed", "failed"},
+	}
+	for _, tt := range tests {
+		reply := `{"id":"` + stoppedID + `","state":"` + tt.state + `","status":"` + tt.status + `","error":"boom","steps":[],"allowed_actions":[]}`
+		server, _ := requestReplies(t, reply)
+		_, stderr, code := runWith(server, "--json", "status", stoppedID, "--wait")
+		lines := strings.Split(strings.TrimSpace(stderr), "\n")
+		var got struct {
+			Code     string `json:"code"`
+			RunID    string `json:"run_id"`
+			RunState string `json:"run_state"`
+		}
+		if err := json.Unmarshal([]byte(lines[len(lines)-1]), &got); err != nil {
+			t.Fatalf("%s: stderr %q: %v", tt.state, stderr, err)
+		}
+		if code != 1 || got.Code != "failed" || got.RunID != stoppedID || got.RunState != tt.want {
+			t.Errorf("%s: exit %d, error %+v, want code failed, run_id %s and run_state %s", tt.state, code, got, stoppedID, tt.want)
+		}
+	}
+}
+
+func TestAnInterruptedWaitHasTheInterruptedCode(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(60*time.Millisecond, cancel)
+	_, _, err := pollAgainst(ctx, t, []int{202}, 5*time.Second)
+	if err == nil || errorCode(err) != "interrupted" || !strings.Contains(err.Error(), "still running on the server: observe status r") {
+		t.Fatalf("got %v with code %q", err, errorCode(err))
 	}
 }
 

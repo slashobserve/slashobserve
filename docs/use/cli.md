@@ -305,6 +305,9 @@ observe status <request-id> --wait
 `status` without `--wait` exits 0 even when the request failed.
 With `--wait` it exits 1 when the request failed, was canceled or the waiting stopped at `--timeout`.
 A failed request prints `observe failed: <reason>` and a canceled one `observe canceled: <reason>`, each followed by the hint line below when the server allows a next move.
+With `--json` that error keeps the code `failed` and adds `run_id` and `run_state` (`failed` or `canceled`).
+The wait reads the request's `state`, and the older `status` when a server sends a state the CLI does not know.
+Ctrl-C during a wait exits 1 with `still running on the server: observe status <id>`, under the code `interrupted`; the request keeps running.
 When polling fails 3 times in a row, the CLI exits 1 and says `the request may still be running: observe status <id>`.
 An Admin can show anyone's request with `observe status`, read only.
 
@@ -2051,6 +2054,7 @@ With `--json`, the error is one JSON object on standard error, so a script can b
 ```
 
 The object can also carry `start` and `end`, integers, when the server sends a byte range.
+An agent request that ended failed or canceled while the CLI waited carries `run_id` and `run_state` too.
 
 Details of the codes:
 
@@ -2058,7 +2062,7 @@ Details of the codes:
 - `usage` is a wrong command line.
 - `unauthenticated` is a missing or refused key.
 - `unreachable` means the server cannot be reached.
-- `interrupted` is an interrupt.
+- `interrupted` is an interrupt, a Ctrl-C during a wait included.
 - `http_<status>` is a status where the server sent no code.
 - `failed` is anything else.
 
