@@ -48,67 +48,69 @@ type Activity struct {
 }
 
 type AgentRequest struct {
-	ID                   pgtype.UUID
-	DashboardID          pgtype.UUID
-	CommentID            pgtype.UUID
-	Prompt               string
-	PanelID              pgtype.Text
-	BaseVersion          pgtype.Int4
-	Status               string
-	Attempts             int32
-	CheckFailures        int32
-	LeaseUntil           pgtype.Timestamptz
-	ResultVersion        pgtype.Int4
-	Error                pgtype.Text
-	RequestedByKind      string
-	RequestedByID        pgtype.UUID
-	RequestedByName      string
-	RequestedByEmail     pgtype.Text
-	CreatedAt            pgtype.Timestamptz
-	StartedAt            pgtype.Timestamptz
-	FinishedAt           pgtype.Timestamptz
-	Steps                []byte
-	RunUsage             []byte
-	Origin               pgtype.Text
-	OriginClient         pgtype.Text
-	Draft                []byte
-	Suggestion           []byte
-	FailureCode          pgtype.Text
-	BuildSavedAt         pgtype.Timestamptz
-	CancelRequestedAt    pgtype.Timestamptz
-	CanceledByKind       pgtype.Text
-	CanceledByID         pgtype.UUID
-	CanceledByName       pgtype.Text
-	ContinuesID          pgtype.UUID
-	ContinueNote         pgtype.Text
-	ContextFrom          pgtype.Timestamptz
-	ContextTo            pgtype.Timestamptz
-	Title                pgtype.Text
-	PinnedAt             pgtype.Timestamptz
-	ArchivedAt           pgtype.Timestamptz
-	Trigger              string
-	State                string
-	ResultKind           string
-	AssignedKind         string
-	AssignedID           pgtype.UUID
-	ClaimedBy            pgtype.Text
-	ObservationID        pgtype.UUID
-	ThreadMessageID      pgtype.UUID
-	ThreadContext        pgtype.Text
-	ChatID               pgtype.UUID
-	RetriesID            pgtype.UUID
-	TimeZone             pgtype.Text
-	ThreadRepliedAt      pgtype.Timestamptz
-	Anchor               []byte
-	BlockID              pgtype.UUID
-	ClientID             pgtype.UUID
-	Intent               string
-	Kind                 string
-	AppliesFindingID     pgtype.UUID
-	SubjectObservationID pgtype.UUID
-	Investigation        bool
-	ReadRestricted       bool
-	AsOf                 pgtype.Timestamptz
+	ID                     pgtype.UUID
+	DashboardID            pgtype.UUID
+	CommentID              pgtype.UUID
+	Prompt                 string
+	PanelID                pgtype.Text
+	BaseVersion            pgtype.Int4
+	Status                 string
+	Attempts               int32
+	CheckFailures          int32
+	LeaseUntil             pgtype.Timestamptz
+	ResultVersion          pgtype.Int4
+	Error                  pgtype.Text
+	RequestedByKind        string
+	RequestedByID          pgtype.UUID
+	RequestedByName        string
+	RequestedByEmail       pgtype.Text
+	CreatedAt              pgtype.Timestamptz
+	StartedAt              pgtype.Timestamptz
+	FinishedAt             pgtype.Timestamptz
+	Steps                  []byte
+	RunUsage               []byte
+	Origin                 pgtype.Text
+	OriginClient           pgtype.Text
+	Draft                  []byte
+	Suggestion             []byte
+	FailureCode            pgtype.Text
+	BuildSavedAt           pgtype.Timestamptz
+	CancelRequestedAt      pgtype.Timestamptz
+	CanceledByKind         pgtype.Text
+	CanceledByID           pgtype.UUID
+	CanceledByName         pgtype.Text
+	ContinuesID            pgtype.UUID
+	ContinueNote           pgtype.Text
+	ContextFrom            pgtype.Timestamptz
+	ContextTo              pgtype.Timestamptz
+	Title                  pgtype.Text
+	PinnedAt               pgtype.Timestamptz
+	ArchivedAt             pgtype.Timestamptz
+	Trigger                string
+	State                  string
+	ResultKind             string
+	AssignedKind           string
+	AssignedID             pgtype.UUID
+	ClaimedBy              pgtype.Text
+	ObservationID          pgtype.UUID
+	ThreadMessageID        pgtype.UUID
+	ThreadContext          pgtype.Text
+	ChatID                 pgtype.UUID
+	RetriesID              pgtype.UUID
+	TimeZone               pgtype.Text
+	ThreadRepliedAt        pgtype.Timestamptz
+	Anchor                 []byte
+	BlockID                pgtype.UUID
+	ClientID               pgtype.UUID
+	Intent                 string
+	Kind                   string
+	AppliesFindingID       pgtype.UUID
+	SubjectObservationID   pgtype.UUID
+	Investigation          bool
+	ReadRestricted         bool
+	AsOf                   pgtype.Timestamptz
+	ClaimEpoch             int32
+	ThreadReplyAbandonedAt pgtype.Timestamptz
 }
 
 type AgentRequestBuild struct {
@@ -430,17 +432,18 @@ type FolderPermission struct {
 }
 
 type GrafanaConnection struct {
-	ID              pgtype.UUID
-	Name            string
-	Url             string
-	TokenCiphertext []byte
-	CreatedBy       pgtype.UUID
-	CreatedAt       pgtype.Timestamptz
-	UpdatedAt       pgtype.Timestamptz
-	LastTestAt      pgtype.Timestamptz
-	LastTestOk      bool
-	LastTestMessage string
-	LastSync        []byte
+	ID                  pgtype.UUID
+	Name                string
+	Url                 string
+	TokenCiphertext     []byte
+	CreatedBy           pgtype.UUID
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+	LastTestAt          pgtype.Timestamptz
+	LastTestOk          bool
+	LastTestMessage     string
+	LastSync            []byte
+	LastTestFailureKind pgtype.Text
 }
 
 type GrafanaSync struct {
@@ -787,6 +790,7 @@ type RunToken struct {
 	AgentRequestID pgtype.UUID
 	Attempt        int32
 	ExpiresAt      pgtype.Timestamptz
+	ClaimEpoch     pgtype.Int4
 }
 
 type SavedPrompt struct {
@@ -950,6 +954,8 @@ type ThreadMessage struct {
 	ObservationBlockID pgtype.UUID
 	ClientID           pgtype.UUID
 	RunFailed          bool
+	RunRefusalCode     pgtype.Text
+	RunRefusalMessage  pgtype.Text
 }
 
 type ThreadRead struct {

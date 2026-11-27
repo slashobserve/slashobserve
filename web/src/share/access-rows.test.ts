@@ -50,6 +50,8 @@ function folder(
     restricted: true,
     admins_only: false,
     audit: false,
+    kind: "open",
+    allowed_actions: [],
     dashboard_count: 3,
     grantees: [],
     grantee_count: 0,

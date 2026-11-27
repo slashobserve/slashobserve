@@ -214,6 +214,7 @@ export function useAddVersion(id: string) {
 type SavedBody =
   | (DashboardEnvelope & {
       merged_from?: { base_version: number; onto_version: number } | null
+      warning?: string
     })
   | { proposal_id: string; revision: number; opened: boolean }
 
@@ -231,6 +232,7 @@ function saveOutcomeOf(body: SavedBody): SaveOutcome {
     envelope: body,
     version: body.version.version,
     mergedFrom: body.merged_from ?? null,
+    warning: body.warning ?? null,
   }
 }
 

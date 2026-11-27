@@ -26,6 +26,12 @@ WHERE w.id = @id;
 -- name: GetWebhookForUpdate :one
 SELECT * FROM webhooks WHERE id = @id FOR UPDATE;
 
+-- name: GetWebhookForSkip :one
+SELECT sqlc.embed(w), coalesce(w.lease_until >= clock_timestamp(), false)::boolean AS leased
+FROM webhooks w
+WHERE w.id = @id
+FOR UPDATE;
+
 -- name: UpdateWebhook :one
 UPDATE webhooks
 SET name = @name,
@@ -38,6 +44,9 @@ SET name = @name,
   next_attempt_at = @next_attempt_at,
   disabled_at = sqlc.narg('disabled_at'),
   disabled_reason = sqlc.narg('disabled_reason'),
+  lease_id = CASE WHEN @drops_lease::boolean THEN NULL ELSE lease_id END,
+  leased_by = CASE WHEN @drops_lease::boolean THEN NULL ELSE leased_by END,
+  lease_until = CASE WHEN @drops_lease::boolean THEN NULL ELSE lease_until END,
   updated_at = now()
 WHERE id = @id
 RETURNING *;
@@ -97,6 +106,9 @@ SET cursor_xid = @cursor_xid,
   cursor_seq = @cursor_seq,
   consecutive_failures = 0,
   next_attempt_at = clock_timestamp(),
+  lease_id = NULL,
+  leased_by = NULL,
+  lease_until = NULL,
   updated_at = now()
 WHERE id = @id;
 

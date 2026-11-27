@@ -14,7 +14,7 @@ import (
 )
 
 func canCommentNow(r dbsqlc.AccessRequestsToSettleRow) bool {
-	facts := folders.Facts{Restricted: r.Restricted, AdminsOnly: r.AdminsOnly, Grants: levelsOf(r.Grants), Creator: r.Creator, Personal: r.Personal, Owner: r.Owner}
+	facts := folders.Facts{Restricted: folders.Restricted(r.AdminsOnly, r.Listed), AdminsOnly: r.AdminsOnly, Grants: levelsOf(r.Grants), Creator: r.Creator, Personal: r.Personal, Owner: r.Owner}
 	return folders.AbilitiesFor(folders.LevelFor(roleOf(r.Role), facts)).Comment
 }
 

@@ -381,35 +381,51 @@ func (s *Service) Test(ctx context.Context, id pgtype.UUID) (Connection, error) 
 	if err != nil {
 		return Connection{}, err
 	}
-	ok, message := true, ""
-	if err := client.health(ctx); err != nil {
-		ok, message = false, describe(err)
-	}
-	var folderCount int
-	if ok {
-		roots, err := client.rootFolders(ctx)
-		if err != nil {
-			ok, message = false, describe(err)
-		}
-		folderCount = len(roots)
-	}
-	if ok {
-		hits, err := client.searchPage(ctx, "dash-db", 1)
-		if err != nil {
-			ok, message = false, describe(err)
-		} else {
-			message = connectedMessage(folderCount, len(hits))
-		}
-	}
+	outcome := probe(ctx, client)
 	if ctx.Err() != nil {
 		return Connection{}, ctx.Err()
 	}
-	tested, err := s.store.setTest(ctx, id, ok, message)
+	tested, err := s.store.setTest(ctx, id, outcome)
 	if err != nil {
 		return Connection{}, err
 	}
-	s.logger.InfoContext(ctx, "grafana connection tested", slog.String("connection_id", tested.ID), slog.Bool("ok", ok))
+	s.logger.InfoContext(ctx, "grafana connection tested", slog.String("connection_id", tested.ID), slog.Bool("ok", outcome.failure == nil))
 	return tested.Connection, nil
+}
+
+type testOutcome struct {
+	failure    error
+	folders    int
+	dashboards int
+}
+
+func (o testOutcome) message() string {
+	if o.failure != nil {
+		return describe(o.failure)
+	}
+	return connectedMessage(o.folders, o.dashboards)
+}
+
+func (o testOutcome) kind() pgtype.Text {
+	if o.failure == nil {
+		return pgtype.Text{}
+	}
+	return pgtype.Text{String: string(failureKindOf(o.failure)), Valid: true}
+}
+
+func probe(ctx context.Context, client grafanaClient) testOutcome {
+	if err := client.health(ctx); err != nil {
+		return testOutcome{failure: err}
+	}
+	roots, err := client.rootFolders(ctx)
+	if err != nil {
+		return testOutcome{failure: err}
+	}
+	hits, err := client.searchPage(ctx, "dash-db", 1)
+	if err != nil {
+		return testOutcome{failure: err}
+	}
+	return testOutcome{folders: len(roots), dashboards: len(hits)}
 }
 
 func connectedMessage(folderCount, dashboards int) string {

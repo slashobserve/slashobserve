@@ -1,6 +1,7 @@
 package runsession
 
 import (
+	"encoding/json"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -94,6 +95,23 @@ func TestEverySettledKindIsKnownToTheAgentAndTheDocs(t *testing.T) {
 	for _, kind := range kinds {
 		if !strings.Contains(sentence, "`"+kind+"`") {
 			t.Errorf("%s does not describe the settled kind %q", runMetaDocPath, kind)
+		}
+	}
+}
+
+func TestTheSettledKindIsStoredWhereTheRunReadLooks(t *testing.T) {
+	for _, kind := range []SettledKind{settledSaved, settledProposed, settledFinding, settledSuggested, settledEnded} {
+		raw, err := json.Marshal(State{Settled: Settled{Kind: kind}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var stored struct {
+			Settled struct {
+				Kind string `json:"kind"`
+			} `json:"settled"`
+		}
+		if err := json.Unmarshal(raw, &stored); err != nil || stored.Settled.Kind != string(kind) {
+			t.Errorf("a %s session stores settled.kind %q (%v); GetRunSessionSettled reads that path", kind, stored.Settled.Kind, err)
 		}
 	}
 }

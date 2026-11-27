@@ -97,6 +97,8 @@ type DashboardAccess struct {
 	Folder      Folder
 	Abilities   Abilities
 	Provisioned bool
+	FromFile    bool
+	Applied     bool
 }
 
 func (a DashboardAccess) Shown() Abilities {
@@ -148,7 +150,8 @@ func (a *Access) Levels(ctx context.Context, p auth.Principal) (Levels, error) {
 	entries := make([]folderLevel, 0, len(rows))
 	var personal pgtype.UUID
 	for _, r := range rows {
-		facts := Facts{Restricted: r.Restricted, AdminsOnly: r.AdminsOnly, Creator: r.Creator, Personal: r.Personal, Owner: r.Owner}
+		restricted := Restricted(r.AdminsOnly, r.Listed)
+		facts := Facts{Restricted: restricted, AdminsOnly: r.AdminsOnly, Creator: r.Creator, Personal: r.Personal, Owner: r.Owner}
 		for _, g := range r.Grants {
 			if level, ok := ParseLevel(g); ok {
 				facts.Grants = append(facts.Grants, level)
@@ -162,7 +165,7 @@ func (a *Access) Levels(ctx context.Context, p auth.Principal) (Levels, error) {
 			personal = r.ID
 		}
 		entries = append(entries, folderLevel{
-			Folder:    Folder{ID: r.ID, Title: r.Title, General: r.General, Personal: r.Personal, Restricted: r.Restricted, AdminsOnly: r.AdminsOnly},
+			Folder:    Folder{ID: r.ID, Title: r.Title, General: r.General, Personal: r.Personal, Restricted: restricted, AdminsOnly: r.AdminsOnly},
 			Abilities: AbilitiesFor(level),
 		})
 	}
@@ -185,7 +188,7 @@ func (a *Access) Dashboard(ctx context.Context, p auth.Principal, id pgtype.UUID
 	if !ok {
 		return DashboardAccess{}, ErrNoAccess
 	}
-	return DashboardAccess{DashboardID: id, Folder: e.Folder, Abilities: e.Abilities, Provisioned: placement.Provisioned}, nil
+	return DashboardAccess{DashboardID: id, Folder: e.Folder, Abilities: e.Abilities, Provisioned: placement.Provisioned, FromFile: placement.FromFile, Applied: placement.Applied}, nil
 }
 
 func (a *Access) Folder(ctx context.Context, p auth.Principal, id pgtype.UUID) (Folder, Abilities, error) {

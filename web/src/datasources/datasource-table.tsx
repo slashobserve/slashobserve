@@ -126,7 +126,7 @@ export function DatasourceTable({ onEdit }: Props) {
       minWidth: 180,
       autoHeight: true,
       cell: (datasource) => {
-        const { tone, text } = statusOf(datasource)
+        const { tone, text, advice } = statusOf(datasource)
         return (
           <div className="flex flex-col gap-0.5 py-2">
             <div className="flex">
@@ -139,6 +139,11 @@ export function DatasourceTable({ onEdit }: Props) {
                 {datasource.detail}
               </span>
             ) : null}
+            {advice === undefined ? null : (
+              <span className="pl-[19px] text-xs text-muted-foreground">
+                {advice}
+              </span>
+            )}
           </div>
         )
       },

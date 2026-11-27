@@ -348,7 +348,7 @@ func TestRunFailsWhenTheRequesterCannotBeLoadedThreeTimes(t *testing.T) {
 	rev := submit(t, svc, dash, "go")
 	startWorker(t, svc, d, revisions.WorkerOptions{})
 	failed := waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
-	if failed.Error != "could not check the request's saved version" || calls.Load() != 0 {
+	if failed.Error != "could not load the person or key that asked for this run" || calls.Load() != 0 {
 		t.Fatalf("revision = %+v after %d calls", failed, calls.Load())
 	}
 	assertFailureCode(t, svc, rev.ID, revisions.FailureCheckFailed)

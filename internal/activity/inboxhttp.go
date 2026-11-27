@@ -22,6 +22,7 @@ type InboxItemJSON struct {
 	EventJSON
 	Reason      *string `json:"reason"`
 	Unread      bool    `json:"unread"`
+	State       string  `json:"state"`
 	TargetTitle *string `json:"target_title"`
 	Excerpt     *string `json:"excerpt"`
 	Question    *string `json:"question"`
@@ -40,6 +41,7 @@ func InboxJSONOf(page InboxPage) InboxJSON {
 			EventJSON:   JSONOf(item.Event),
 			Reason:      httpapi.OptionalString(string(item.Reason)),
 			Unread:      item.Unread,
+			State:       string(item.State()),
 			TargetTitle: httpapi.OptionalString(item.TargetTitle),
 			Excerpt:     httpapi.OptionalString(item.Excerpt),
 			Question:    httpapi.OptionalString(item.Question),

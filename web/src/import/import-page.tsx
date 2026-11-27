@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useState } from "react"
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { CircleAlertIcon } from "lucide-react"
@@ -87,27 +87,35 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
     [source]
   )
   const saving = importDashboard.isPending || createFromSpec.isPending
+  const savingNow = useRef(saving)
+  useEffect(() => {
+    savingNow.current = saving
+  })
 
   const preview = useQuery(previewQuery(specSource ? null : source, mapping))
   const previewError = preview.isError ? previewFailure(preview.error) : null
   const previewData = preview.data
   const stale = preview.isPlaceholderData
 
-  const startOver = useCallback(() => {
-    resetImport()
-    setSource(null)
-    setMapping(noMapping)
-    setRefusal(null)
-  }, [resetImport])
-
-  const refuse = useCallback(
-    (message = TOO_LARGE_MESSAGE) => {
+  const replaceSource = useCallback(
+    (next: Source | null, problem: string | null) => {
+      if (savingNow.current) return
       resetImport()
-      setSource(null)
+      setSource(next)
       setMapping(noMapping)
-      setRefusal(message)
+      setRefusal(problem)
     },
     [resetImport]
+  )
+
+  const startOver = useCallback(
+    () => replaceSource(null, null),
+    [replaceSource]
+  )
+
+  const refuse = useCallback(
+    (message = TOO_LARGE_MESSAGE) => replaceSource(null, message),
+    [replaceSource]
   )
 
   const accept = useCallback(
@@ -116,12 +124,9 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
         refuse()
         return
       }
-      resetImport()
-      setMapping(noMapping)
-      setRefusal(null)
-      setSource(newSource(name, text, pasted))
+      replaceSource(newSource(name, text, pasted), null)
     },
-    [refuse, resetImport]
+    [refuse, replaceSource]
   )
 
   const acceptFile = useCallback(
@@ -264,43 +269,41 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
         </p>
         <p>In folder {created.dashboard.folder.title}.</p>
         {result?.folder_note ? <p>{result.folder_note}</p> : null}
+        {result?.warning ? <p>{result.warning}</p> : null}
       </div>
     )
-  } else if (importError) {
+  } else if (importError || notReadyReason || existing) {
     status = (
-      <p
-        id={statusId}
-        role="alert"
-        className="flex items-start gap-2 text-[13px]"
-      >
-        <CircleAlertIcon
-          aria-hidden="true"
-          className="mt-0.5 size-3.5 flex-none text-status-critical"
-        />
-        {importError.message}
-      </p>
-    )
-  } else if (notReadyReason) {
-    status = (
-      <p id={statusId} className="text-xs text-muted-foreground">
-        {notReadyReason}
-      </p>
-    )
-  } else if (existing) {
-    status = (
-      <p id={statusId} className="text-[13px]">
-        Already imported as{" "}
-        <Link
-          {...dashboardLink(existing.dashboard_id, existing.title)}
-          className="font-medium underline"
-        >
-          {existing.title}
-        </Link>{" "}
-        (version {existing.version}).{" "}
-        {existing.can_update
-          ? "Import as new makes a second copy; update it to save this file as its next version."
-          : "You cannot edit it, so this import makes a second copy."}
-      </p>
+      <div className="flex flex-col gap-1">
+        {importError ? (
+          <p role="alert" className="flex items-start gap-2 text-[13px]">
+            <CircleAlertIcon
+              aria-hidden="true"
+              className="mt-0.5 size-3.5 flex-none text-status-critical"
+            />
+            {importError.message}
+          </p>
+        ) : null}
+        {notReadyReason ? (
+          <p id={statusId} className="text-xs text-muted-foreground">
+            {notReadyReason}
+          </p>
+        ) : existing ? (
+          <p className="text-[13px]">
+            Already imported as{" "}
+            <Link
+              {...dashboardLink(existing.dashboard_id, existing.title)}
+              className="font-medium underline"
+            >
+              {existing.title}
+            </Link>{" "}
+            (version {existing.version}).{" "}
+            {existing.can_update
+              ? "Import as new makes a second copy; update it to save this file as its next version."
+              : "You cannot edit it, so this import makes a second copy."}
+          </p>
+        ) : null}
+      </div>
     )
   }
 
@@ -373,7 +376,7 @@ export function ImportPage({ initial }: { initial: HandedImport | null }) {
                 ? ""
                 : "Reading the dashboard..."
         }
-        dragging={dragging}
+        dragging={dragging && !saving}
         error={sourceError}
         onFile={(file) => void acceptFile(file)}
         onText={acceptText}

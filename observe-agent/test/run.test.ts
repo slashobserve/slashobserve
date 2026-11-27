@@ -805,20 +805,96 @@ describe("opening a run through a database stall", () => {
       failure_code: "internal",
     })
   })
+})
 
-  test("finish_run is a write and is not retried", async () => {
+describe("finishing a run through a database stall", () => {
+  const quick = {
+    ...idle,
+    finishRetry: { waitsMs: [1, 1, 1], budgetMs: 5_000 },
+  }
+  const timeout = () => new McpError(ErrorCode.RequestTimeout, "timed out")
+
+  function failingFinish(claim: FakeClaim, next: () => Error | undefined) {
+    let calls = 0
+    const settled = claim.finishRun.bind(claim)
+    claim.finishRun = async (input) => {
+      calls += 1
+      const failure = next()
+      if (failure !== undefined) {
+        throw failure
+      }
+      return settled(input)
+    }
+    return () => calls
+  }
+
+  test("a finish_run that times out is retried and the run still succeeds", async () => {
+    const claim = new FakeClaim()
+    claim.tools.handler = savedWith()
+    let left = 2
+    const calls = failingFinish(claim, () =>
+      left-- > 0 ? timeout() : undefined
+    )
+    await drive(claim, claimed("create happy path"), quick)
+    expect(calls()).toBe(3)
+    expect(claim.finishes).toHaveLength(1)
+    expect(claim.finishes[0]).toMatchObject({ outcome: "succeeded" })
+  })
+
+  test("a finish_run that keeps timing out stops after the last wait, and the failed finish after it gets the same", async () => {
+    const claim = new FakeClaim()
+    claim.tools.handler = savedWith()
+    const calls = failingFinish(claim, timeout)
+    await drive(claim, claimed("create happy path"), quick)
+    expect(calls()).toBe(8)
+  })
+
+  test("a finish_run the server refuses is not retried", async () => {
+    const claim = new FakeClaim()
+    claim.tools.handler = savedWith()
+    const calls = failingFinish(
+      claim,
+      () => new ToolError("not_your_run", "no longer yours")
+    )
+    await drive(claim, claimed("create happy path"), quick)
+    expect(calls()).toBe(1)
+  })
+
+  test("the finish_run of a failed run is retried too", async () => {
     const claim = new FakeClaim()
     claim.getRunBrief = async () => {
-      throw timeout()
+      throw new ToolError("invalid_reason", "bad reason")
     }
-    let finishes = 0
-    claim.finishRun = async () => {
-      finishes += 1
-      throw timeout()
-    }
+    let left = 1
+    const calls = failingFinish(claim, () =>
+      left-- > 0 ? timeout() : undefined
+    )
     await drive(claim, claimed("create happy path"), quick)
-    expect(claim.briefs).toHaveLength(0)
-    expect(finishes).toBe(1)
+    expect(calls()).toBe(2)
+    expect(claim.finishes[0]).toMatchObject({ outcome: "failed" })
+  })
+})
+
+describe("asking for more tools", () => {
+  const quick = { ...idle, startRetry: { waitsMs: [1, 1], budgetMs: 5_000 } }
+  const timeout = () => new McpError(ErrorCode.RequestTimeout, "timed out")
+
+  test("a relist that times out is retried and the run goes on", async () => {
+    const claim = new FakeClaim()
+    claim.tools.specs = [
+      { name: "create_dashboard", description: "", inputSchema: {} },
+      { name: "list_more_tools", description: "", inputSchema: {} },
+    ]
+    claim.tools.handler = async (call) => {
+      if (call.name === "list_more_tools") {
+        claim.tools.listFailures = [timeout()]
+        return reply()
+      }
+      return reply({ meta: meta("saved", progress(1)) })
+    }
+    await drive(claim, claimed("widen the tool list"), quick)
+    expect(claim.tools.listCalls).toBe(3)
+    expect(claim.finishes[0]).toMatchObject({ outcome: "succeeded" })
   })
 })
 

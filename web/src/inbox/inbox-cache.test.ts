@@ -8,7 +8,12 @@ function item(
   unread: boolean,
   reason: InboxItem["reason"] = "mention"
 ): InboxItem {
-  return { seq, unread, reason } as InboxItem
+  return {
+    seq,
+    unread,
+    reason,
+    state: unread ? "unread" : "read",
+  } as InboxItem
 }
 
 function list(...pages: InboxItem[][]): InboxPages {
@@ -104,5 +109,40 @@ describe("applyInboxChange", () => {
     )
     expect(done.pages[1].items[0].unread).toBe(false)
     expect(forYou.pages[1].items[0].unread).toBe(true)
+  })
+
+  it("keeps each item's state in step with the change", () => {
+    const states = (pages: InboxPages) =>
+      pages.pages.flatMap((page) => page.items.map((i) => i.state))
+    expect(
+      states(applyInboxChange(forYou, { kind: "readThrough", seq: 8 }, 1))
+    ).toEqual(["unread", "read", "read"])
+    expect(
+      states(
+        applyInboxChange(forYou, { kind: "unread", seq: 9, unread: false }, 2)
+      )
+    ).toEqual(["read", "unread", "unread"])
+    const done = applyInboxChange(
+      forYou,
+      { kind: "done", seq: 5, done: true },
+      2
+    )
+    expect(states(done)).toEqual(["unread", "unread", "done"])
+    expect(
+      states(applyInboxChange(done, { kind: "readThrough", seq: 9 }, 0))
+    ).toEqual(["read", "read", "done"])
+    expect(
+      states(
+        applyInboxChange(done, { kind: "unread", seq: 5, unread: false }, 2)
+      )
+    ).toEqual(["unread", "unread", "done"])
+    expect(
+      states(applyInboxChange(done, { kind: "done", seq: 5, done: false }, 2))
+    ).toEqual(["unread", "unread", "read"])
+    expect(
+      states(
+        applyInboxChange(done, { kind: "unread", seq: 5, unread: true }, 3)
+      )
+    ).toEqual(["unread", "unread", "unread"])
   })
 })

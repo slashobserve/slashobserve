@@ -133,6 +133,7 @@ func (a *app) dashboardRestoreCommand() *cobra.Command {
 					return err
 				}
 				out.confirm("Restored version %d as version %d", version, restored.Version.Version)
+				out.warnOfEdit(restored.Warning)
 				return nil
 			})
 		},

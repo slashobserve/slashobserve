@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { saveToast, type SaveOutcome } from "./save-outcome"
+import { saveToast, withWarning, type SaveOutcome } from "./save-outcome"
 
 const envelope = {} as Extract<SaveOutcome, { kind: "saved" }>["envelope"]
 
@@ -8,7 +8,7 @@ describe("saveToast", () => {
   it.each<[string, SaveOutcome, string]>([
     [
       "a plain save",
-      { kind: "saved", envelope, version: 4, mergedFrom: null },
+      { kind: "saved", envelope, version: 4, mergedFrom: null, warning: null },
       "Saved version 4",
     ],
     [
@@ -18,8 +18,20 @@ describe("saveToast", () => {
         envelope,
         version: 6,
         mergedFrom: { base_version: 3, onto_version: 5 },
+        warning: null,
       },
       "Saved version 6, merged with changes made since version 3",
+    ],
+    [
+      "a save the server warns about",
+      {
+        kind: "saved",
+        envelope,
+        version: 7,
+        mergedFrom: null,
+        warning: "A change to its file replaces this edit.",
+      },
+      "Saved version 7. A change to its file replaces this edit.",
     ],
     [
       "a proposal the save opened",
@@ -33,5 +45,19 @@ describe("saveToast", () => {
     ],
   ])("words %s", (_, outcome, text) => {
     expect(saveToast(outcome)).toBe(text)
+  })
+})
+
+describe("withWarning", () => {
+  it.each([
+    [undefined, "Restored version 2 as version 6"],
+    [null, "Restored version 2 as version 6"],
+    ["", "Restored version 2 as version 6"],
+    [
+      "A change to its file replaces this edit.",
+      "Restored version 2 as version 6. A change to its file replaces this edit.",
+    ],
+  ])("adds the server's warning %j to what was done", (warning, text) => {
+    expect(withWarning("Restored version 2 as version 6", warning)).toBe(text)
   })
 })

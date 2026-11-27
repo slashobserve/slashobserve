@@ -240,6 +240,8 @@ The page and a published RCA show it only while the observation is resolved.
 **More actions**, then **Move to folder**, opens a panel that searches the shared folders you can edit.
 My Dashboards is not a choice.
 Resolving, reopening and moving need edit access, and moving needs it on the target folder too.
+An observation that an answer or an agent run keeps in [Admins-only folders](../teams/folders.md#admins-only-folders-in-detail) says so in a note at the top of the panel, with whether it can move once the run ends.
+`GET /api/v1/observations/{id}` returns the same as `confined`.
 The state line also shows who started the observation and when, and links to its folder.
 
 ## Pin it to a dashboard or make a dashboard from it
@@ -501,10 +503,12 @@ Details of these refusals:
 
 A revision never changes, so a slip in one cannot be edited, but the revision can be withdrawn.
 **Withdraw** asks for confirmation and then deletes the revision and its frozen panels for everyone.
-It needs Edit on the observation's folder and the same states as publishing.
+It needs Edit on the observation's folder.
+Over the API each revision carries its own `state` (`published`, `superseded` or `shared`) and `allowed_actions`, and `withdraw` is listed only while no live public link shows it; the [states reference](../reference/states.md) has the moves.
 The activity log keeps `observation.rca_withdrawn` with the title and the revision number.
 
-A revision that still has a live public link answers `rca_shared` (409).
+A revision that still has a live public link answers `rca_shared` (409), with the revision's `state` and the `allowed_actions` the caller still has on it.
+A refused publish (`rca_limit`, `rca_unchanged`, `observation_changed`) carries the observation's `state` and `allowed_actions` the same way.
 A public link is a person's decision, so a person with Manage on the folder revokes its links first and then withdraws the revision.
 Links that have already expired go with the revision.
 Withdrawing the newest revision frees its number, so the next publish takes it again.

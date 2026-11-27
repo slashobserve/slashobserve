@@ -169,13 +169,13 @@ func TestACommittedRevisionBuildFreezesAResizedPanel(t *testing.T) {
 	dash := r.createDashboard(t, "rps", "p99")
 	id := r.runningRequest(t, dash)
 	if _, err := r.service.SaveBuild(reading(t.Context()), testUser, BuildSave{
-		RequestID: id, Attempt: buildAttempt, DashboardID: dash, BaseVersion: 1,
+		RequestID: id, ClaimEpoch: buildEpoch, DashboardID: dash, BaseVersion: 1,
 		Spec: bytes.Replace(panelsSpec("t", "rps", "p99"), []byte(`"w":12`), []byte(`"w":24`), 1),
 	}); err != nil {
 		t.Fatal(err)
 	}
 
-	commit, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildAttempt)
+	commit, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildEpoch)
 	ver := commit.Version
 	if err != nil {
 		t.Fatal(err)

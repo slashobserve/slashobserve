@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -193,6 +194,7 @@ func (b *Broker) deliverLocked(s *Subscription, ev Event) {
 	case s.events <- ev:
 	default:
 		b.logger.Debug("dropping slow event subscriber", slog.String("dashboard_id", s.dashboardID))
+		s.dropped.Store(true)
 		b.removeLocked(s)
 		s.finish()
 	}
@@ -212,11 +214,14 @@ type Subscription struct {
 	events      chan Event
 	done        chan struct{}
 	finishOnce  sync.Once
+	dropped     atomic.Bool
 }
 
 func (s *Subscription) Events() <-chan Event { return s.events }
 
 func (s *Subscription) Done() <-chan struct{} { return s.done }
+
+func (s *Subscription) Dropped() bool { return s.dropped.Load() }
 
 func (s *Subscription) Close() {
 	s.broker.mu.Lock()

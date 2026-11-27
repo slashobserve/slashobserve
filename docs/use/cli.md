@@ -303,7 +303,8 @@ observe status <request-id> --wait
 ```
 
 `status` without `--wait` exits 0 even when the request failed.
-With `--wait` it exits 1 when the request failed or the waiting stopped at `--timeout`.
+With `--wait` it exits 1 when the request failed, was canceled or the waiting stopped at `--timeout`.
+A failed request prints `observe failed: <reason>` and a canceled one `observe canceled: <reason>`, each followed by the hint line below when the server allows a next move.
 When polling fails 3 times in a row, the CLI exits 1 and says `the request may still be running: observe status <id>`.
 An Admin can show anyone's request with `observe status`, read only.
 
@@ -315,8 +316,9 @@ The text is not kept and is gone once the run ends, and `--json` carries it as `
 Details of what `observe status` prints.
 The fields are `ID`, `Status`, `State`, `Intent`, `Investigation`, `Trigger`, `Cost`, `Dashboard`, `Version`, `URL`, `Error`, `Title` and `Prompt`, then the steps, with these rules:
 
-- `Status` is `queued`, `running`, `succeeded` or `failed`.
-  `State` is `queued`, `running`, `canceling`, `succeeded`, `failed` or `canceled`.
+- `State` reads as in the web app: Queued, Running, Stopping, Done, Failed or Canceled.
+  `--json` carries it as `state`, with the server's `queued`, `running`, `canceling`, `succeeded`, `failed` and `canceled`.
+  `Status` is the older `queued`, `running`, `succeeded` or `failed`, in which a canceled request reads `failed`.
 - `Investigation` is `yes` for a run started as an investigation that writes into an observation and `no` for an ask.
   `--json` carries it as `investigation`, and it never changes once the run is queued.
 - `Trigger` says what started the request.
@@ -328,11 +330,11 @@ The fields are `ID`, `Status`, `State`, `Intent`, `Investigation`, `Trigger`, `C
 - `Finding` and `Finding URL` show the finding of an investigation, and `Shared in thread` the thread an answer was shared in.
 - `Cost` shows once the request has finished.
   It is the server's estimate in US dollars, such as `about $0.12`, `under $0.01` or `$0.00`, and `-` when the model has no price or no usage was recorded.
-- A hint line follows the fields and says what to do next.
-  A queued request prints `Queued, position N`, and a failed request that was continued prints `Continued by <request-id>`.
-  A request that was retried prints `Retried by <request-id>`.
-  A stopped request with a build prints `Save it in the browser, or continue it: observe continue <request-id>`.
-  A failed or canceled request with no build to continue prints `Run it again: observe retry <request-id>`.
+- Note lines follow the fields.
+  A queued request prints `Queued, position N`, a request that was continued prints `Continued by <request-id>`, and one that was retried prints `Retried by <request-id>`.
+- A hint line then says what to do next, taken from the moves the server allows you in `allowed_actions`.
+  A stopped request whose build you may save or continue prints `Save it in the browser, or continue it: observe continue <request-id>`, and one you may only continue prints `Continue it: observe continue <request-id>`.
+  A failed or canceled request you may only retry prints `Run it again: observe retry <request-id>`.
 
 ### Cancel, continue or retry a request
 
@@ -371,7 +373,7 @@ Details of how retry counts:
 Archived requests are left out.
 A request that failed before it had a dashboard shows only here, and `observe status <request-id>` reads it.
 
-The state reads as in the web app: Running, Done or Stopped.
+The state reads as in the web app: Queued, Running, Stopping, Done, Failed or Canceled.
 `--json` keeps the server's `queued`, `running`, `canceling`, `succeeded`, `failed` and `canceled`, which is also what `--state` takes.
 
 These flags narrow the list:
@@ -560,6 +562,7 @@ That cursor works only with the same `--order`, and `--all` reads every page.
 
 `dashboards show <dashboard-id>` lists the panels of the latest version, or of the version you give with `--version N`.
 It also prints how many views the dashboard had in the last 30 days, and the folder is in the details.
+`Managed by` says what writes the dashboard: `starter`, `file`, `apply` or `workspace`, the [`managed_by`](../reference/states.md#dashboard-managed-by) of the API.
 A version that does not exist answers `version_not_found` and says what the latest one is.
 `--json` adds `view_count` and `window_days`.
 
@@ -583,6 +586,7 @@ A version that does not exist answers `version_not_found` with the latest versio
 `observe dashboards restore <dashboard-id> --version <n>` saves an earlier version as the newest version.
 It prints `Restored version <n> as version <m>`.
 `--summary <text>` sets the version's summary.
+When a provisioning file or `observe dashboards apply` writes the dashboard, `restore`, `panels`, `proposals merge` and `import --update` also print the server's warning on stderr: [what replaces the edit](../operate/provisioning.md#edits-made-in-the-app).
 
 `restore` reads the latest version for `--parent` when you leave it out, and `--parent <n>` names it yourself.
 It answers `version_conflict` when someone saved since, so read the dashboard again and rerun it.
@@ -1793,7 +1797,7 @@ Without either flag it prints the folders as a table of uid, title and dashboard
 
 It then waits for the import and shows `Imported <done> of <total>` on a terminal.
 At the end it prints how many dashboards were done, skipped and failed, a table of the failed ones with their error, and a notice for dashboards with panels that did not verify.
-It exits 1 when any dashboard failed or the import failed or was canceled, and `--json` prints the final import.
+It exits 1 when any dashboard failed or the import failed or was canceled, and `--json` prints the final import, whose `state` is `finished`, `failed` or `canceled`.
 An interrupt stops the waiting while the import continues on the server.
 The server keeps a connection's last 20 imports.
 
@@ -2029,7 +2033,7 @@ Details of code 0:
 
 Details of code 1:
 
-- The server refused or failed the request, the agent request failed, or the waiting stopped at `--timeout` or an interrupt.
+- The server refused or failed the request, the agent request failed or was canceled, or the waiting stopped at `--timeout` or an interrupt.
 - `observe open` could not open the browser.
 - An `observe doctor` check failed.
 - An `observe datasources lint` diagnostic is an error, or `datasources recheck` or `datasources test` finds the datasource unhealthy.

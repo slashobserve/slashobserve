@@ -45,6 +45,7 @@ type dashboardJSON struct {
 	Folder        dashboardFolderJSON `json:"folder"`
 	Permissions   folders.Permissions `json:"permissions"`
 	Provisioned   bool                `json:"provisioned"`
+	ManagedBy     string              `json:"managed_by"`
 }
 
 type dashboardListItemJSON struct {
@@ -63,6 +64,7 @@ type dashboardListItemJSON struct {
 	Folder           dashboardFolderJSON `json:"folder"`
 	Permissions      folders.Permissions `json:"permissions"`
 	Provisioned      bool                `json:"provisioned"`
+	ManagedBy        string              `json:"managed_by"`
 }
 
 type versionMetaJSON struct {
@@ -119,12 +121,15 @@ type conflictJSON struct {
 type versionSavedJSON struct {
 	DashboardVersionJSON
 	MergedFrom *MergedFrom `json:"merged_from,omitempty"`
+	Warning    string      `json:"warning,omitempty"`
+	Outcome    string      `json:"outcome"`
 }
 
 type proposalCreatedJSON struct {
 	ProposalID string `json:"proposal_id"`
 	Revision   int    `json:"revision"`
 	Opened     bool   `json:"opened"`
+	Outcome    string `json:"outcome"`
 }
 
 func newAuthorJSON(a Author) authorJSON {
@@ -144,6 +149,7 @@ func newDashboardJSON(d Dashboard) dashboardJSON {
 		Folder:        newDashboardFolderJSON(d.Folder),
 		Permissions:   folders.PermissionsJSON(d.Abilities),
 		Provisioned:   d.Provisioned,
+		ManagedBy:     d.ManagedBy.String(),
 	}
 }
 
@@ -199,6 +205,7 @@ func newDashboardListItemJSON(item ListItem) dashboardListItemJSON {
 		Folder:           newDashboardFolderJSON(d.Folder),
 		Permissions:      folders.PermissionsJSON(d.Abilities),
 		Provisioned:      d.Provisioned,
+		ManagedBy:        d.ManagedBy.String(),
 	}
 }
 
@@ -217,6 +224,10 @@ func newVersionMetaJSON(v VersionMeta) versionMetaJSON {
 
 		MergedProposalID: httpapi.OptionalString(v.MergedProposalID),
 	}
+}
+
+func editedJSON(d Dashboard, v Version, outcome string) versionSavedJSON {
+	return versionSavedJSON{DashboardVersionJSON: NewDashboardVersionJSON(d, v), Warning: d.ManagedBy.EditWarning(), Outcome: outcome}
 }
 
 func NewDashboardVersionJSON(d Dashboard, v Version) DashboardVersionJSON {

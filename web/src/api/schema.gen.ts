@@ -223,14 +223,14 @@ export interface paths {
         post?: never;
         /**
          * Remove a deactivated person and their My Dashboards.
-         * @description Admin only, from a person's session; service-account keys cannot. Only a deactivated person can be removed; an active one answers 409 with code not_deactivated. Deleted with them: their My Dashboards folder and the dashboards, observations, findings and saved searches in it (counted in personal_items), their saved prompts, stars, views, inbox state and folder grants. Kept under their stored name: dashboards, versions, observations, comments, proposals and activity in shared folders, and the service accounts and keys they created. A new sign-in with the same identity-provider account afterwards makes a new person.
+         * @description Admin only, from a person's session; service-account keys cannot. Only a deactivated person can be removed; an active one answers 409 with code not_deactivated and the person's `state` and `allowed_actions`. Deleted with them: their My Dashboards folder and the dashboards, observations, findings and saved searches in it (counted in personal_items), their saved prompts, stars, views, inbox state and folder grants. Kept under their stored name: dashboards, versions, observations, comments, proposals and activity in shared folders, and the service accounts and keys they created. A new sign-in with the same identity-provider account afterwards makes a new person.
          */
         delete: operations["removePerson"];
         options?: never;
         head?: never;
         /**
          * Set or clear the role an Admin chose for a person.
-         * @description A role value sets the chosen role and null clears it, after which the role is computed again from the server settings, the identity provider's groups and the default. A role decided by SLASHOBSERVE_ADMIN_EMAILS, by being the first person, or by an identity-provider group is locked and answers 409 with code role_locked. Lowering the last Admin answers 409 with code last_admin. Service accounts cannot call this endpoint.
+         * @description A role value sets the chosen role and null clears it, after which the role is computed again from the server settings, the identity provider's groups and the default. A role decided by SLASHOBSERVE_ADMIN_EMAILS, by being the first person, or by an identity-provider group is locked and answers 409 with code role_locked. Lowering the last Admin answers 409 with code last_admin. Both refusals carry the person's `state` and `allowed_actions`. Service accounts cannot call this endpoint.
          */
         patch: operations["updatePersonRole"];
         trace?: never;
@@ -270,7 +270,7 @@ export interface paths {
         put?: never;
         /**
          * Stop a person from signing in or acting, and keep what they made.
-         * @description Admin only, from a person's session; service-account keys cannot. Deletes every session of the person and disconnects every MCP client they connected in the same transaction, and refuses their next sign-in. Their dashboards, observations, comments and folder grants stay; queued agent runs they requested fail when claimed, and webhooks they own stop. Service-account keys they created keep working, because a key acts as its service account. Deactivating a deactivated person answers 200 and changes nothing. Deactivating yourself answers 409 with code cannot_deactivate_self, and the last active Admin answers 409 with code last_admin.
+         * @description Admin only, from a person's session; service-account keys cannot. Deletes every session of the person and disconnects every MCP client they connected in the same transaction, and refuses their next sign-in. Their dashboards, observations, comments and folder grants stay; queued agent runs they requested fail when claimed, and webhooks they own stop. Service-account keys they created keep working, because a key acts as its service account. Deactivating a deactivated person answers 200 and changes nothing. Deactivating yourself answers 409 with code cannot_deactivate_self, and the last active Admin answers 409 with code last_admin; both carry the person's `state` and `allowed_actions`.
          */
         post: operations["deactivatePerson"];
         delete?: never;
@@ -295,6 +295,26 @@ export interface paths {
          * @description Admin only, from a person's session; service-account keys cannot. The person can sign in again at once with the role the rules give them; the MCP clients they had connected stay disconnected. Reactivating an active person answers 200 and changes nothing.
          */
         post: operations["reactivatePerson"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the server's scheduled jobs with their state.
+         * @description Admin only, and an Admin service-account key can call it too. Every job the servers registered, ordered by name, each with its `state` and its last run. A job whose last run did not finish is `interrupted`, and once another server takes over its lease its `last_outcome` is `interrupted` too. The list changes nothing: jobs run on their schedule, and only `dashboard_health` can be started by hand.
+         */
+        get: operations["listJobs"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -525,7 +545,7 @@ export interface paths {
         };
         /**
          * List workspace activity, newest first.
-         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every dashboard proposal opened, updated, merged or discarded, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `title` (the first 80 characters of the text on one line, empty when the text has no characters to show), `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.updated` carries `tags`; `annotation.deleted` carries the same fields as `annotation.created`, never more of the text than the `title`; `public_link.created` and `public_link.revoked` carry `object` (`kind`, `dashboard` or `observation`, and `id`), `title`, `prefix` and `expires_at` when set, never the token; `access_request.opened` carries `object` (`kind`, `dashboard` or `observation`, and `id`) and `title`, never the note, and its actor is the requester; `access_request.granted` carries `object`, `title` and `requested_by` (`kind`, `id` and `name`), and its actor is whoever changed the access that let the requester comment; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, `saved_search.updated` also `changed`, the parts that changed out of `title`, `query`, `filters` and `range` (absent on an event from before it was recorded, which was always a rename), and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `observation.created`, `observation.resolved`, `observation.reopened` and `observation.deleted` carry `title`; `observation.updated` carries `title` and, when the title changed, `from_title`, the title before; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` and `observation.rca_withdrawn` carry `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`, and `observation.block_added` also carries the block's `state` (`live` or `requested`); `proposal.opened` and `proposal.updated` carry `title`, `revision` and `base_version`; `proposal.merged` carries `title`, `revision` and `version` (null when the change was already in the dashboard and no version was saved); `proposal.discarded` carries `title` and `revision`; `run.queued` carries `intent` and `continues_id` when the run continues another; `run.started` carries `intent` and `attempt`; `run.succeeded` carries `intent` and `result_version` when a version was saved, and, for a health repair that saved a version, also `dashboard_title` and `panels_repaired`, the number of panels the repair prompt named whose queries the saved version changed and no longer lists as unverified; `run.failed` carries `intent` and `failure_code`; `run.canceled` carries `intent`; `run.canceling` carries `intent`; `run.released` carries `intent` and `attempt`; `run.kept` carries `intent` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding, annotation, observation or proposal it is on), `title` (the dashboard or observation title at that time, empty when there is none) and, on a dashboard, `version` and `panel_id` when set; `thread.replied`, `thread.edited` and `thread.deleted` carry `object` and `message_id`, and `thread.deleted` names the thread's first message when the whole thread was deleted; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Administrative events have no folder and only an Admin reader sees them, in the list, the stream and webhooks, whatever their actor's role is now. `user.role_changed` carries `name`, `from_role`, `to_role`, `manual`, false when an override was cleared, and `source` (`admin_emails`, `first_user`, `group` or `default`) when the sign-in policy changed the role and no Admin did; `user.signed_out_everywhere` and `user.deactivated` carry `name`, `sessions` and `grants`; `user.reactivated` and `user.removed` carry `name`; `user.invited` carries `email` and `role`, `user.invite_updated` carries `email` and `role` as `{from, to}`, and `user.invite_withdrawn` carries `email`, and the target id of these three is the invite; `service_account.created` carries `name`, `role` and `takes_runs`; `service_account.updated` carries `name` and `role` or `takes_runs` as `{from, to}`; `service_account.deleted` carries `name`; `service_account.key_created` and `service_account.key_revoked` carry `name`, `key_id`, `key_name` and, on create, `expires_at`, never the key; `webhook.created`, `webhook.updated`, `webhook.secret_rotated` and `webhook.deleted` carry `name` and `host`, `webhook.created` also `event_types`, and `webhook.updated` carries `changes`, an object with `{from, to}` for each of `name`, `enabled`, `event_types` and `host` that changed, and `url_changed` when the address changed at all, never the address path or the secret; `mcp_client.connected` carries `client`, `person_id`, `person_name` and `mode`; `mcp_client.disconnected` also carries `reason`, one of `person`, `admin`, `client`, `code_reuse` or `refresh_reuse`; `outbound_domain.added` and `outbound_domain.removed` carry `domain`, and their target id is a UUID derived from the domain; `grafana_connection.created`, `grafana_connection.updated` and `grafana_connection.deleted` carry `name` and `host`, `grafana_connection.updated` carries `changes`, an object with `{from, to}` for each of `name` and `host` that changed, and `token_changed` when the token did, never the token. `datasource.created`, `datasource.updated`, `datasource.audience_changed` and `datasource.deleted` carry `uid`, `type`, `name` and `host` (the address's host and port, never its path), `datasource.updated` carries `changes`, an object with `{from, to}` for each of `name` and `host` that changed, and `address_changed`, `settings_changed` and `credentials_changed` when they did, never a credential, and `datasource.audience_changed` carries the audience before and after as `from` and `to` (`everyone` or `admins`); a change of the audience and of anything else records both events. Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
+         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every dashboard proposal opened, updated, merged or discarded, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create), `restored_from` (only on a restore) and `replaced_version` (only when a file in the provisioning directory replaced a version that the provisioner did not save, or `observe dashboards apply` replaced a version that no apply saved; that version can be restored); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `title` (the first 80 characters of the text on one line, empty when the text has no characters to show), `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.updated` carries `tags`; `annotation.deleted` carries the same fields as `annotation.created`, never more of the text than the `title`; `public_link.created` and `public_link.revoked` carry `object` (`kind`, `dashboard` or `observation`, and `id`), `title`, `prefix` and `expires_at` when set, never the token; `access_request.opened` carries `object` (`kind`, `dashboard` or `observation`, and `id`) and `title`, never the note, and its actor is the requester; `access_request.granted` carries `object`, `title` and `requested_by` (`kind`, `id` and `name`), and its actor is whoever changed the access that let the requester comment; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, `saved_search.updated` also `changed`, the parts that changed out of `title`, `query`, `filters` and `range` (absent on an event from before it was recorded, which was always a rename), and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `observation.created`, `observation.resolved`, `observation.reopened` and `observation.deleted` carry `title`; `observation.updated` carries `title` and, when the title changed, `from_title`, the title before; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` and `observation.rca_withdrawn` carry `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`, and `observation.block_added` also carries the block's `state` (`live` or `requested`); `proposal.opened` and `proposal.updated` carry `title`, `revision` and `base_version`; `proposal.merged` carries `title`, `revision` and `version` (null when the change was already in the dashboard and no version was saved); `proposal.discarded` carries `title` and `revision`; `run.queued` carries `intent` and `continues_id` when the run continues another; `run.started` carries `intent` and `attempt`; `run.succeeded` carries `intent` and `result_version` when a version was saved, and, for a health repair that saved a version, also `dashboard_title` and `panels_repaired`, the number of panels the repair prompt named whose queries the saved version changed and no longer lists as unverified; `run.failed` carries `intent` and `failure_code`; `run.canceled` carries `intent`; `run.canceling` carries `intent`; `run.released` carries `intent` and `attempt`; `run.kept` carries `intent` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding, annotation, observation or proposal it is on), `title` (the dashboard or observation title at that time, empty when there is none) and, on a dashboard, `version` and `panel_id` when set; `thread.replied`, `thread.edited` and `thread.deleted` carry `object` and `message_id`, and `thread.deleted` names the thread's first message when the whole thread was deleted; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Administrative events have no folder and only an Admin reader sees them, in the list, the stream and webhooks, whatever their actor's role is now. `user.role_changed` carries `name`, `from_role`, `to_role`, `manual`, false when an override was cleared, and `source` (`admin_emails`, `first_user`, `group` or `default`) when the sign-in policy changed the role and no Admin did; `user.signed_out_everywhere` and `user.deactivated` carry `name`, `sessions` and `grants`; `user.reactivated` and `user.removed` carry `name`; `user.invited` carries `email` and `role`, `user.invite_updated` carries `email` and `role` as `{from, to}`, and `user.invite_withdrawn` carries `email`, and the target id of these three is the invite; `service_account.created` carries `name`, `role` and `takes_runs`; `service_account.updated` carries `name` and `role` or `takes_runs` as `{from, to}`; `service_account.deleted` carries `name`; `service_account.key_created` and `service_account.key_revoked` carry `name`, `key_id`, `key_name` and, on create, `expires_at`, never the key; `webhook.created`, `webhook.updated`, `webhook.secret_rotated` and `webhook.deleted` carry `name` and `host`, `webhook.created` also `event_types`, and `webhook.updated` carries `changes`, an object with `{from, to}` for each of `name`, `enabled`, `event_types` and `host` that changed, and `url_changed` when the address changed at all, never the address path or the secret; `mcp_client.connected` carries `client`, `person_id`, `person_name` and `mode`; `mcp_client.disconnected` also carries `reason`, one of `person`, `admin`, `client`, `code_reuse` or `refresh_reuse`; `outbound_domain.added` and `outbound_domain.removed` carry `domain`, and their target id is a UUID derived from the domain; `grafana_connection.created`, `grafana_connection.updated` and `grafana_connection.deleted` carry `name` and `host`, `grafana_connection.updated` carries `changes`, an object with `{from, to}` for each of `name` and `host` that changed, and `token_changed` when the token did, never the token. `datasource.created`, `datasource.updated`, `datasource.audience_changed` and `datasource.deleted` carry `uid`, `type`, `name` and `host` (the address's host and port, never its path), `datasource.updated` carries `changes`, an object with `{from, to}` for each of `name` and `host` that changed, and `address_changed`, `settings_changed` and `credentials_changed` when they did, never a credential, and `datasource.audience_changed` carries the audience before and after as `from` and `to` (`everyone` or `admins`); a change of the audience and of anything else records both events. Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
          */
         get: operations["listActivity"];
         put?: never;
@@ -545,7 +565,7 @@ export interface paths {
         };
         /**
          * Follow workspace activity as Server-Sent Events.
-         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{}`. Each event after that is a frame of `id: <seq>`, `event: activity` and the event JSON of `listActivity` as data, oldest first, filtered to what the caller may see and by the same `dashboard_id`, `folder_id`, `observation_id`, `type` and `since` parameters as the list. Without `Last-Event-ID` the stream sends only events appended after it opened, and `Last-Event-ID: 0` starts at the beginning of the log. A reconnecting client sends the `id` of the last frame it handled as `Last-Event-ID`, and the stream continues with the next event in log order, so nothing is skipped or repeated. `event: reset` with data `{}` follows `ready` when that id is unknown, for example because the event was pruned: events may have been missed, and the stream continues from the newest event; a value that is not a non-negative integer is 400. An event appears once its transaction and every older transaction have committed, so a burst of changes is delivered in log order, and an event can arrive up to about a second after its change. A `: ping` comment arrives every 15 seconds; at each ping the server re-reads the caller's credentials, role and folder access, so a role change or a revoked key takes effect at the next ping, which ends the stream when the credential is gone. The server ends the stream after 30 minutes and clients reconnect. A caller may hold 5 streams and the process 500.
+         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{}`. Each event after that is a frame of `id: <seq>`, `event: activity` and the event JSON of `listActivity` as data, oldest first, filtered to what the caller may see and by the same `dashboard_id`, `folder_id`, `observation_id`, `type` and `since` parameters as the list. Without `Last-Event-ID` the stream sends only events appended after it opened, and `Last-Event-ID: 0` starts at the beginning of the log. A reconnecting client sends the `id` of the last frame it handled as `Last-Event-ID`, and the stream continues with the next event in log order, so nothing is skipped or repeated. `event: reset` with data `{}` follows `ready` when that id is unknown, for example because the event was pruned: events may have been missed, and the stream continues from the newest event; a value that is not a non-negative integer is 400. An event appears once its transaction and every older transaction have committed, so a burst of changes is delivered in log order, and an event can arrive up to about a second after its change. A `: ping` comment arrives every 15 seconds; at each ping the server re-reads the caller's credentials, role and folder access, so a role change or a revoked key takes effect at the next ping, which ends the stream when the credential is gone. The server ends the stream after 30 minutes and clients reconnect. Before the server ends the stream it sends one last `event: closed` whose data is `{"reason"}`: `lifetime` after the 30 minutes, `access_lost` when the credential is gone or may no longer read the log, `check_failed` when the credential or the access could not be checked twice in a row, `read_failed` when the server could not read the log, and `stopping` when the server stops. A client stops after `access_lost` and reconnects with `Last-Event-ID` for every other reason, one it does not know included; `closed` has no `id`, so the last `activity` frame stays the place to resume from, and a stream that the client or the network ends carries none. A caller may hold 5 streams and the process 500.
          */
         get: operations["streamActivity"];
         put?: never;
@@ -687,7 +707,7 @@ export interface paths {
         };
         /**
          * Follow new audit events that match a query as Server-Sent Events.
-         * @description Only Admins can call this endpoint, and an Admin service-account key can too. The stream starts with `retry: 3000` and an `event: ready` whose data is `{}` and whose `id` is the position the stream starts from, so a client cut off before the first event resumes from it. Each event after that is a frame of `id: <position>`, `event: audit` and the event JSON of `listAuditEvents` as data, in the order the events were committed, for every new event that matches `q`. Without `Last-Event-ID` the stream sends only events committed after it opened, and never one that occurred more than 10 minutes before it opened. A frame's `id` is `<xid>-<seq>-<microseconds>`, its position in the trail and the event's time; a reconnecting client sends the `id` of the last frame it handled and the stream continues with every matching event committed after it whose time is at most 10 minutes before that event's, however long the client was away. A `Last-Event-ID` whose event is more than 24 hours old answers 400; read the gap with `listAuditEvents` and open a new stream. An event can arrive a few seconds after it was recorded, because the trail is written in batches and read every 2 seconds. A `: ping` comment arrives every 5 seconds; at each ping the server re-reads the caller's credentials and role, and a caller who is no longer an Admin, or whose credential is gone, gets an `event: forbidden` with the `forbidden_role` body and the stream ends. The stream also ends when the server shuts down, and after 30 minutes; clients reconnect. Opening the stream is recorded once as `audit.search` with the query as sent, its form and the start of what it can send; the events it delivers are not recorded one by one. A caller may hold 5 audit streams and the process 20, and one more answers 429. Each read of the trail runs under a 5 second statement timeout, one at a time; a stream whose read times out twice in a row sends an `event: error` with an `AuditQueryError` body of code `query_too_expensive` and ends.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. The stream starts with `retry: 3000` and an `event: ready` whose data is `{}` and whose `id` is the position the stream starts from, so a client cut off before the first event resumes from it. Each event after that is a frame of `id: <position>`, `event: audit` and the event JSON of `listAuditEvents` as data, in the order the events were committed, for every new event that matches `q`. Without `Last-Event-ID` the stream sends only events committed after it opened, and never one that occurred more than 10 minutes before it opened. A frame's `id` is `<xid>-<seq>-<microseconds>`, its position in the trail and the event's time; a reconnecting client sends the `id` of the last frame it handled and the stream continues with every matching event committed after it whose time is at most 10 minutes before that event's, however long the client was away. A `Last-Event-ID` whose event is more than 24 hours old answers 400; read the gap with `listAuditEvents` and open a new stream. An event can arrive a few seconds after it was recorded, because the trail is written in batches and read every 2 seconds. A `: ping` comment arrives every 5 seconds; at each ping the server re-reads the caller's credentials and role, and a caller who is no longer an Admin, or whose credential is gone, gets an `event: forbidden` with the `forbidden_role` body and the stream ends. The stream also ends when the server shuts down, and after 30 minutes; clients reconnect. Before those ends the server sends one last `event: closed` whose data is `{"reason"}`: `stopping` when the server stops, `lifetime` after the 30 minutes, `check_failed` when the credential could not be checked twice in a row, and `read_failed` when the server could not read the trail; `closed` has no `id`, and a stream that ended with `forbidden` or `error` carries none. Opening the stream is recorded once as `audit.search` with the query as sent, its form and the start of what it can send; the events it delivers are not recorded one by one. A caller may hold 5 audit streams and the process 20, and one more answers 429 whose `reason` is `per_caller` or `server_capacity`. Each read of the trail runs under a 5 second statement timeout, one at a time; a stream whose read times out twice in a row sends an `event: error` with an `AuditQueryError` body of code `query_too_expensive` and ends.
          */
         get: operations["streamAuditEvents"];
         put?: never;
@@ -795,7 +815,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Report the health and dashboard usage of every configured datasource, never its connection details. */
+        /**
+         * Report the health and dashboard usage of every configured datasource, never its connection details.
+         * @description Each datasource carries `health_state` and, when its last check failed, `failure_kind`, so a client can tell a failure to wait out from one that needs the credentials or the settings changed without reading `message`. A failing datasource is answered from the last check at once and checked again in the background once that check is 2 seconds old, which the state `rechecking` says.
+         */
         get: operations["listDatasources"];
         put?: never;
         /**
@@ -1281,7 +1304,7 @@ export interface paths {
         };
         /**
          * Stream live events for one dashboard as Server-Sent Events.
-         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment when a thread is resolved or reopened, and the edited message, with `parent_id` when it is a reply, when a message is edited. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) `comment_id` (for a revision requested by a comment) and `build_saves` (the number of saves in the revision's build, only while the status is `running` and the revision is building a new version of an existing dashboard); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `proposal.updated` is sent when a proposal on the dashboard is opened, gets a revision, is merged or is discarded, and carries `type`, `dashboard_id`, `proposal_id`, `status` (`open`, `merged` or `discarded`) and `author`, never the proposal's text. `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping. `dashboard.moved` is sent when the dashboard moves to another folder and carries `type`, `dashboard_id` and `author` (who moved it), never a folder; access is checked again before it is sent, and a caller who lost access with the move, or whose access cannot be checked then, gets no event and sees the stream end. `role.changed` is sent when the caller's own role changes while the stream is open, checked every 5 seconds, and carries `dashboard_id` and the new `role`; the caller's other requests are judged by the new role at once. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
+         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment when a thread is resolved or reopened, and the edited message, with `parent_id` when it is a reply, when a message is edited. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) `comment_id` (for a revision requested by a comment) and `build_saves` (the number of saves in the revision's build, only while the status is `running` and the revision is building a new version of an existing dashboard); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `proposal.updated` is sent when a proposal on the dashboard is opened, gets a revision, is merged or is discarded, and carries `type`, `dashboard_id`, `proposal_id`, `status` (`open`, `merged` or `discarded`) and `author`, never the proposal's text. `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping. `dashboard.moved` is sent when the dashboard moves to another folder and carries `type`, `dashboard_id` and `author` (who moved it), never a folder; access is checked again before it is sent, and a caller who lost access with the move, or whose access cannot be checked then, gets no event and sees the stream end with `closed`. `role.changed` is sent when the caller's own role changes while the stream is open, checked every 5 seconds, and carries `dashboard_id` and the new `role`; the caller's other requests are judged by the new role at once. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Before the server ends the stream it sends one last `event: closed` whose data is `{"reason"}`: `lifetime` after the 30 minutes, `access_lost` when the caller's credential or view access is gone or the dashboard was deleted, `check_failed` when the credential or the access could not be checked twice in a row or at a move, `slow_subscriber` when the client read too slowly to keep up with the dashboard's events, and `stopping` when the server stops. A client reconnects at once after `lifetime`, stops after `access_lost`, and reconnects after a delay for every other reason, one it does not know included; `closed` has no `id`, and a stream that the client or the network ends carries none. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
          */
         get: operations["streamDashboardEvents"];
         put?: never;
@@ -1356,7 +1379,7 @@ export interface paths {
         put?: never;
         /**
          * Start a thread on a dashboard, an annotation, an observation or a proposal.
-         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on an annotation or an observation. `block_id` anchors the first message to one block of an observation; absent or null means the whole observation. It is refused on a dashboard, an annotation or a proposal, and must name a block of this observation, with 422 `invalid_block` otherwise. Deleting the block keeps the message, now about the whole observation. `anchor` points the thread at one spot of a dashboard panel or, with `block_id`, of an observation block, and is refused on an annotation or a proposal (422 `invalid_target`) or when its kind lacks a field it needs (422 `invalid_anchor`). `block_id` with an anchor sets the thread's block; without an anchor it keeps its message meaning, the block the first message is about. `block_id` with an anchor of a kind that cannot sit on a block, `variable`, answers 422 `invalid_anchor` naming both fields. An observation has one page thread, its discussion, and any number of anchored threads; starting a second page thread adds the message to the first. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). Mention a person with `@[Name](user:<id>)`, the built-in agent with `@observe`, one of your own connected agents with `@[Name](grant:<grant id>)` and a service account that takes runs with `@[Name](service_account:<id>)`, at most 20 mentions in a message, a repeated mention counting each time (422 `too_many_mentions`). A grant that is not yours, revoked or expired, a service account that takes no runs, and a person who does not exist or cannot see the target all answer 422 `invalid_mention`; a service-account key may mention `@observe` and service accounts, never a grant. A mention is recorded, shows in the activity log, and a mentioned person gets it in their Inbox. `to` decides who the message is for. Absent, a message that mentions one agent asks it, a message that mentions a person asks no agent, and any other message asks the thread's agent unless it is off. `agent` asks the agent it mentions, else the thread's agent, else `@observe`; `everyone` asks no agent and turns the thread's agent off. The agent a message asks becomes the thread's agent, so later plain replies ask it too. More than one agent in a message answers 422 `too_many_agents` and writes nothing, whatever `to` says. The agent asked gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context. A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts a read-only `investigate` run about the observation, which needs Comment on it, has no per-person cap and answers in the thread without writing on the page. An annotation or a proposal thread starts no run. A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider, or a thread agent that was disconnected, which is then cleared), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` or `too_many_runs`. A started run is in `message.run`, and `to` in the answer says how the message was delivered. `client_id` is a UUID the caller makes for the message; sending it again answers 200 with the message already posted, `replayed: true` and no new run, and reusing it on another target answers 422 `client_id_reused`. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream; a change of the thread's agent is audited as `thread.agent_set`. A comment sent to a dashboard with `request_revision` has its own path. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
+         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on an annotation or an observation. `block_id` anchors the first message to one block of an observation; absent or null means the whole observation. It is refused on a dashboard, an annotation or a proposal, and must name a block of this observation, with 422 `invalid_block` otherwise. Deleting the block keeps the message, now about the whole observation. `anchor` points the thread at one spot of a dashboard panel or, with `block_id`, of an observation block, and is refused on an annotation or a proposal (422 `invalid_target`) or when its kind lacks a field it needs (422 `invalid_anchor`). `block_id` with an anchor sets the thread's block; without an anchor it keeps its message meaning, the block the first message is about. `block_id` with an anchor of a kind that cannot sit on a block, `variable`, answers 422 `invalid_anchor` naming both fields. An observation has one page thread, its discussion, and any number of anchored threads; starting a second page thread adds the message to the first. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). Mention a person with `@[Name](user:<id>)`, the built-in agent with `@observe`, one of your own connected agents with `@[Name](grant:<grant id>)` and a service account that takes runs with `@[Name](service_account:<id>)`, at most 20 mentions in a message, a repeated mention counting each time (422 `too_many_mentions`). A grant that is not yours, revoked or expired, a service account that takes no runs, and a person who does not exist or cannot see the target all answer 422 `invalid_mention`; a service-account key may mention `@observe` and service accounts, never a grant. A mention is recorded, shows in the activity log, and a mentioned person gets it in their Inbox. `to` decides who the message is for. Absent, a message that mentions one agent asks it, a message that mentions a person asks no agent, and any other message asks the thread's agent unless it is off. `agent` asks the agent it mentions, else the thread's agent, else `@observe`; `everyone` asks no agent and turns the thread's agent off. The agent a message asks becomes the thread's agent, so later plain replies ask it too. More than one agent in a message answers 422 `too_many_agents` and writes nothing, whatever `to` says. The agent asked gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context. A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts a read-only `investigate` run about the observation, which needs Comment on it, has no per-person cap and answers in the thread without writing on the page. An annotation or a proposal thread starts no run. A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider, or a thread agent that was disconnected, which is then cleared), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` or `too_many_runs`. A started run is in `message.run`, and `to` in the answer says how the message was delivered. `client_id` is a UUID the caller makes for the message; sending it again answers 200 with the message already posted, `replayed: true`, the same `message.run` or `message.run_refusal` as the first time and no new run, and reusing it on another target answers 422 `client_id_reused`. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream; a change of the thread's agent is audited as `thread.agent_set`. A comment sent to a dashboard with `request_revision` has its own path. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
          */
         post: operations["openThread"];
         delete?: never;
@@ -1774,7 +1797,7 @@ export interface paths {
         put?: never;
         /**
          * Check a datasource definition against the real datasource without saving it.
-         * @description Only Admins can call this endpoint. The body is a draft like the one for adding a datasource. With `base=<uid>`, the draft starts from that saved app datasource, credentials included, and the body changes only what it names, so a form can test an edit without asking for the credentials again. When the body changes the address or the username, a stored credential is not sent to the new target: send every stored credential again in `secrets`, or remove it in `clear_secrets`, or the test answers 422 `secret_required`. The address passes the same outbound allowlist check as saving, but a test never changes the allowlist: a domain that is not listed is tested only while the list is unlocked, and saving adds it. A failed check answers 200 with `healthy: false`, a fixed `message` and, when known, a `detail`; the answer never carries the address or a credential. Every test is recorded as `datasource.test` with the host and the outcome, since it sends stored credentials to that host.
+         * @description Only Admins can call this endpoint. The body is a draft like the one for adding a datasource. With `base=<uid>`, the draft starts from that saved app datasource, credentials included, and the body changes only what it names, so a form can test an edit without asking for the credentials again. When the body changes the address or the username, a stored credential is not sent to the new target: send every stored credential again in `secrets`, or remove it in `clear_secrets`, or the test answers 422 `secret_required`. The address passes the same outbound allowlist check as saving, but a test never changes the allowlist: a domain that is not listed is tested only while the list is unlocked, and saving adds it. A failed check answers 200 with `healthy: false`, a fixed `message`, a `failure_kind` and, when known, a `detail`; the answer never carries the address or a credential. Every test is recorded as `datasource.test` with the host and the outcome, since it sends stored credentials to that host.
          */
         post: operations["testDatasource"];
         delete?: never;
@@ -1844,7 +1867,7 @@ export interface paths {
         put?: never;
         /**
          * Run a fresh health check on one datasource now.
-         * @description Skips the 10 second cache of `GET /datasources` and returns the new status. Calls within 2 seconds of the last check return that check, so a loop cannot hammer the datasource. An unhealthy status carries `message` and, when known, `detail`.
+         * @description Skips the 10 second cache of `GET /datasources` and returns the new status. Calls within 2 seconds of the last check return that check, so a loop cannot hammer the datasource. An unhealthy status carries `message` and, when known, `detail`. A failed check also carries `failure_kind`, which says whether to try again later or to change the credentials or the settings.
          */
         post: operations["recheckDatasource"];
         delete?: never;
@@ -2523,7 +2546,7 @@ export interface paths {
         put?: never;
         /**
          * Cancel a queued or running agent request.
-         * @description Only the principal that made the request may call it; no editor and no administrator may cancel another principal's request. Someone else gets 403 `forbidden` on a revision they can see, and 404 on a new-dashboard request or a suggestion request. A queued request becomes `canceled` at once: `status` `failed` with the failure code `canceled`. A running request with a live worker is `canceling` (`status` stays `running`) until its worker sees the cancel flag, within about 5 seconds plus the time the in-flight model or tool call takes to return; it then ends `canceled`. A running request whose worker is gone, because its lease expired, ends `canceled` at once, and no worker picks a canceling request up again. The build is kept, so the requester can still save it or continue it. A run that saved its version before the cancel took effect ends `succeeded`, because a saved version always wins. Canceling a request that is already canceled answers 200 with the request; any other finished request answers 409 `request_finished`.
+         * @description Only the principal that made the request may call it; no editor and no administrator may cancel another principal's request. Someone else gets 403 `forbidden` on a revision they can see, and 404 on a new-dashboard request or a suggestion request. A queued request becomes `canceled` at once: `status` `failed` with the failure code `canceled`. A running request with a live worker is `canceling` (`status` stays `running`) until its worker sees the cancel flag, within about 5 seconds plus the time the in-flight model or tool call takes to return; it then ends `canceled`. A running request whose worker is gone, because its lease expired, ends `canceled` at once, and no worker picks a canceling request up again. The build is kept, so the requester can still save it or continue it. A run that saved its version before the cancel took effect ends `succeeded`, because a saved version always wins. Canceling a request that is already canceled answers 200 with the request; any other finished request answers 409 `request_finished` with its `state` and the `allowed_actions` the caller has.
          */
         post: operations["cancelObserveRequest"];
         delete?: never;
@@ -2545,7 +2568,7 @@ export interface paths {
         put?: never;
         /**
          * Continue a stopped agent request in a new request that takes over its build.
-         * @description The new request copies the stopped request's intent, dashboard, comment, panel, prompt and base version, records `continues_id`, and takes the build, so the agent continues from the panels already built with its own model-call budget. The stopped request gains `continued_by` and can no longer be saved or continued. A request is continuable when it is `failed`, its build was not saved, it still has its build, and nothing continues it yet; otherwise the call answers 409 `not_continuable`. Continue and `POST /observe/{id}/build/save` on the same request are exclusive: Continue after a save answers 409 `not_continuable`, and a save after Continue answers 404 `not_found` because the build moved to the new request. Only the principal that made the request may call it, with the same access as starting a run; someone else gets 403 `forbidden` on a revision they can see and 404 on a new-dashboard request. The new request keeps the stopped request's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one. A revision whose dashboard has a newer version than the build's base answers 409 `version_conflict` with `latest_version`. The new request counts against the same caps as `POST /observe`, and is assigned to the same agent as the stopped one. The optional `note` is stored on the new request as `continue_note` and given to the agent in every seed of that run, including its restarts. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description The new request copies the stopped request's intent, dashboard, comment, panel, prompt and base version, records `continues_id`, and takes the build, so the agent continues from the panels already built with its own model-call budget. The stopped request gains `continued_by` and can no longer be saved or continued. A request is continuable when it is `failed`, its build was not saved, it still has its build, and nothing continues it yet; otherwise the call answers 409 `not_continuable` with its `state`, the `allowed_actions` the caller has and, when the state alone does not say why, a `reason`: `no_build`, `kept`, `continued`, `retried`, `investigation`, or `lost_race` when another continue, retry or save took the build while the call ran. Continue and `POST /observe/{id}/build/save` on the same request are exclusive: Continue after a save answers 409 `not_continuable`, and a save after Continue answers 404 `not_found` because the build moved to the new request. Only the principal that made the request may call it, with the same access as starting a run; someone else gets 403 `forbidden` on a revision they can see and 404 on a new-dashboard request. The new request keeps the stopped request's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one. A revision whose dashboard has a newer version than the build's base answers 409 `version_conflict` with `latest_version`. The new request counts against the same caps as `POST /observe`, and is assigned to the same agent as the stopped one. The optional `note` is stored on the new request as `continue_note` and given to the agent in every seed of that run, including its restarts. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["continueObserveRequest"];
         delete?: never;
@@ -2567,7 +2590,7 @@ export interface paths {
         put?: never;
         /**
          * Start a finished agent request again as a new request.
-         * @description Anyone who can see the request and may start that kind of request can call it, not only the requester; being someone else is never a reason to refuse, except that a caller who reads the request `redacted` may not start its words again. The new request is the caller's: its `requested_by` is the caller, not the original requester, and it counts against the caller's caps like `POST /observe`. The original request is left as it was. An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version. A comment or suggestion request cannot be retried, and neither can a request that something continues. An ask from an observation thread whose answer was saved as an observation starts again in that thread for a caller who can comment on the thread's observation; anyone else gets a private ask of their own about the saved observation, with no thread and nothing posted in it. A failed or stopped request can be retried once by its requester: the new request is its `retried_by`, and a second call, including one racing the first or a continue, is refused instead of queuing a duplicate. Anyone else's retry is a request of their own and leaves the original retryable. A request that is not finished, one of those, or one the caller reads `redacted`, answers 409 `invalid_transition` with its `state` and the `allowed_actions` the caller has. A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`. A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`. The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing. The new request keeps the original's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one, because only an Admin may set `as_of`. Retrying a request that succeeded queues a new request on every call. Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
+         * @description Anyone who can see the request and may start that kind of request can call it, not only the requester; being someone else is never a reason to refuse, except that a caller who reads the request `redacted` may not start its words again. The new request is the caller's: its `requested_by` is the caller, not the original requester, and it counts against the caller's caps like `POST /observe`. The original request is left as it was. An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version. A comment or suggestion request cannot be retried, and neither can a request that something continues. An ask from an observation thread whose answer was saved as an observation starts again in that thread for a caller who can comment on the thread's observation; anyone else gets a private ask of their own about the saved observation, with no thread and nothing posted in it. A failed or stopped request can be retried once by its requester: the new request is its `retried_by`, and a second call, including one racing the first or a continue, is refused instead of queuing a duplicate. Anyone else's retry is a request of their own and leaves the original retryable. A request that is not finished, one of those, or one the caller reads `redacted`, answers 409 `invalid_transition` with its `state`, the `allowed_actions` the caller has and the `reason` `continued` or `retried` when that is why. A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`. A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`. The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing. The new request keeps the original's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one, because only an Admin may set `as_of`. Retrying a request that succeeded queues a new request on every call. Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
          */
         post: operations["retryObserveRequest"];
         delete?: never;
@@ -3213,7 +3236,7 @@ export interface paths {
         post?: never;
         /**
          * Withdraw one published revision of an observation's RCA.
-         * @description Needs Edit on the folder, and the same states as publishing. A revision with a live public link is refused with 409 `rca_shared`, because a public link is a person's decision: a person revokes the links first, with Manage on the folder, and then withdraws it. Withdrawing deletes the revision and cannot be undone; the activity log keeps `observation.rca_withdrawn` with the title and the revision. No MCP tool deletes anything, so an agent cannot call this.
+         * @description Needs Edit on the folder; a revision offers it as `withdraw` in its `allowed_actions`. A revision with a live public link is refused with 409 `rca_shared`, because a public link is a person's decision: a person revokes the links first, with Manage on the folder, and then withdraws it. Withdrawing deletes the revision and cannot be undone; the activity log keeps `observation.rca_withdrawn` with the title and the revision. No MCP tool deletes anything, so an agent cannot call this.
          */
         delete: operations["withdrawRca"];
         options?: never;
@@ -3780,7 +3803,7 @@ export interface paths {
         head?: never;
         /**
          * Change a webhook's name, address, format, event types or state.
-         * @description Only Admins can call this endpoint. The owner stays as it is. `owner: "me"` makes the caller the owner on purpose, so the webhook then delivers only what the caller can read, including the caller's personal folder. A webhook disabled with reason `owner` moves to the caller when `enabled: true` turns it on. A new address is checked against the outbound allowlist and resets the failure count. `enabled: true` clears the disable reason and the failure count and resumes delivery from the webhook's position in the log, still limited to events of the last 24 hours; `enabled: false` disables it with reason `manual`.
+         * @description Only Admins can call this endpoint. The owner stays as it is. `owner: "me"` makes the caller the owner on purpose, so the webhook then delivers only what the caller can read, including the caller's personal folder. A webhook disabled with reason `owner` moves to the caller when `enabled: true` turns it on. A new address is checked against the outbound allowlist and resets the failure count. `enabled: true` clears the disable reason and the failure count and resumes delivery from the webhook's position in the log, still limited to events of the last 24 hours; `enabled: false` disables it with reason `manual`. A new address and `enabled: true` also drop an attempt that is on its way: it is not recorded, and the event is sent again at once.
          */
         patch: operations["updateWebhook"];
         trace?: never;
@@ -4273,7 +4296,7 @@ export interface paths {
         };
         /**
          * List the MCP clients the signed-in person has connected.
-         * @description Newest first, live connections only: a disconnected or expired one is not listed. `client.name` is the name the client registered under and is not verified, and null when it registered none. `redirect_host` and `local` describe the client's first registered redirect URI. `last_used_at` is null until the client first uses an access token. Only signed-in people may call it: a service-account key gets 403 `forbidden`.
+         * @description Newest first, live connections only: a disconnected or expired one is not listed unless `include_ended=true` asks for it. `client.name` is the name the client registered under and is not verified, and null when it registered none. `redirect_host` and `local` describe the client's first registered redirect URI. `last_used_at` is null until the client first uses an access token. Only signed-in people may call it: a service-account key gets 403 `forbidden`.
          */
         get: operations["listMyGrants"];
         put?: never;
@@ -4480,8 +4503,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the open Comment access requests on folders the caller manages.
-         * @description Lists the open requests on dashboards and observations whose folder the caller may manage, newest first, at most 100. Grant one by giving the requester Comment on the folder (`PUT /folders/{id}/permissions`) or by raising their role; this list changes nothing. An object in General (`folder.general`) cannot be granted that way, because General takes no entry: raise the requester's role or move the object to another folder.
+         * List the open Comment access requests on folders the caller manages, or the caller's own requests.
+         * @description Lists the open requests on dashboards and observations whose folder the caller may manage, newest first, at most 100. With `scope=mine` it lists the caller's own requests instead, each with its `state`, newest first, at most 100. Grant one by giving the requester Comment on the folder (`PUT /folders/{id}/permissions`) or by raising their role; this list changes nothing. An object in General (`folder.general`) cannot be granted that way, because General takes no entry: raise the requester's role or move the object to another folder.
          */
         get: operations["listAccessRequests"];
         put?: never;
@@ -4503,9 +4526,13 @@ export interface components {
         Error: {
             error: string;
             code: string;
+            /** @description Present on a refusal that depends on the state of the object the request names, such as a person's `role_locked`, `last_admin`, `cannot_deactivate_self` and `not_deactivated`; the state the object is in. */
+            state?: string;
+            /** @description Present with `state`; the actions the caller may take on the object now, as in the object's own `allowed_actions`. Also present with `general_folder`, `personal_folder` and `admins_only_folder`: what the caller may do with the folder the refusal is about, each a `FolderAction`, as on the folder's own `allowed_actions`. For `personal_folder` that is the caller's My Dashboards, and for `admins_only_folder` a folder only Admins can read. */
+            allowed_actions?: string[];
             /** @description Present with `admins_only_folder` when the content reads an Admins-only datasource, so it cannot leave its folder and public links are not available for it; the uid of that datasource. */
             datasource?: string;
-            /** @description Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`. The `error` message names the field and says what to change. */
+            /** @description Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`. The `error` message names the field and says what to change. On a `too_many_streams` refusal of an event stream, whose limit was reached: `per_caller` for the caller's own open streams or `server_capacity` for the server process's. On a `restricted_answer` refusal of a move, a copy, a save or a folder change it says whether waiting helps: `permanent` when the content holds an answer that read Admin-only data, or the run that writes read such data, and `run_in_flight` when an agent run about the content has not ended, so the same request can succeed once the run ends. */
             reason?: string;
             /**
              * @description On a `forbidden_role` refusal of a route with a role floor, the lowest role that may call it.
@@ -4696,6 +4723,13 @@ export interface components {
             token: string;
         };
         Person: {
+            /**
+             * @description Where the person is in the person lifecycle of `docs/reference/states.md`. An invited email is listed by `GET /invites` and a removed person is not listed.
+             * @enum {string}
+             */
+            state: "active" | "deactivated";
+            /** @description What the caller may do to this person now: `set_role` is left out while `role_locked` is true, `deactivate` for the caller's own entry, and every action for a service-account key, which cannot change people. `invite` and `withdraw` belong to an invite and are never listed for a person. */
+            allowed_actions: ("invite" | "withdraw" | "set_role" | "sign_out" | "deactivate" | "reactivate" | "remove")[];
             /** Format: uuid */
             id: string;
             name: string;
@@ -4768,10 +4802,15 @@ export interface components {
              */
             expires_at: string;
             /**
-             * @description Always `active` in the list, which leaves out revoked and expired connections. See `docs/reference/states.md`.
+             * @description Always `active` unless the list was asked for ended connections with `include_ended=true`; then `revoked`, `expired` (the refresh token went unused for 30 days) or `aged_out` (the 90 day limit) says why one ended. See `docs/reference/states.md`.
              * @enum {string}
              */
-            state: "revoked" | "active";
+            state: "revoked" | "active" | "expired" | "aged_out";
+            /**
+             * @description How a `revoked` connection was ended, by its person, an admin, the client itself, a newer connection of the same client, or the reuse of a refresh token or an authorization code; null in every other state.
+             * @enum {string|null}
+             */
+            revoked_reason: "person" | "admin" | "client" | "replaced" | "refresh_reuse" | "code_reuse" | null;
             /**
              * @description How the agent's changes land. direct is the default; with propose its dashboard writes become proposals that someone who can edit merges. The connection's person sets it with `PATCH /api/v1/me/grants/{id}`.
              * @enum {string}
@@ -5004,6 +5043,13 @@ export interface components {
             admins_only: boolean;
             /** @description True for the Audit folder, the one the server made to hold the starter dashboards over the audit trail, whatever it is now called. False for every other folder, and for all of them when the Audit folder was deleted, which the server does not recreate. The field cannot be set. */
             audit: boolean;
+            /**
+             * @description What the folder is, decided in this order: `general`, `personal` (the caller's My Dashboards), `audit` (the Audit folder, whoever reads it), `admins_only`, `restricted` (it lists people or groups), else `open`. `general`, `personal`, `restricted`, `admins_only` and `audit` stay as they were; `docs/reference/states.md` lists the kinds.
+             * @enum {string}
+             */
+            kind: "general" | "personal" | "audit" | "admins_only" | "restricted" | "open";
+            /** @description What the caller may do with this folder now: `create_in` (create a dashboard, an observation or a saved search in it), `move_into` (move one into it), `rename`, `set_permissions` and `delete`. General never offers `rename`, `set_permissions` or `delete`, and a personal folder offers only `create_in`. `delete` still needs the folder to be empty, and a move or a save is still refused when the folder may not hold that content. */
+            allowed_actions: components["schemas"]["FolderAction"][];
             /** @description All dashboards in the folder, including ones the caller cannot see when the caller manages it. */
             dashboard_count: number;
             /** @description The names of up to 5 listed people, then groups. */
@@ -5016,6 +5062,8 @@ export interface components {
             /** @description The caller's level on this folder and on every dashboard in it, the higher of what their role gives and their highest matching entry. Admins have `admin` on every folder except other people's personal folders, and a personal folder's owner has `edit`. */
             level: components["schemas"]["FolderLevel"];
         };
+        /** @enum {string} */
+        FolderAction: "create_in" | "move_into" | "rename" | "set_permissions" | "delete";
         FolderPermissionEntry: {
             /** @enum {string} */
             kind: "user" | "group";
@@ -5157,6 +5205,16 @@ export interface components {
              */
             audience?: "everyone" | "admins";
             healthy: boolean;
+            /**
+             * @description What the server knows about the datasource, computed on every read from the last check this server ran; the states are listed in the States reference. `healthy` is `true` only in `healthy`. `unchecked` means no check answered, because the caller left before it did or the check was cancelled, so it says nothing against the datasource. `rechecking` is a failing datasource whose next check is already running.
+             * @enum {string}
+             */
+            health_state: "unchecked" | "healthy" | "failing" | "rechecking";
+            /**
+             * @description What to do about a failed check; present only when `health_state` is `failing` or `rechecking`. `transient`: the datasource did not answer, timed out or hit a limit; the server keeps checking, so try again later. `credentials`: the datasource refused the saved credentials or the server cannot read them; set them again. `configuration`: the datasource's settings, its user's grants or the server's settings must change before a check can pass. `unsupported`: the datasource runs a version the server does not support. `unknown`: the check failed for a reason the server could not classify, so nothing says whether trying again will help; try a few times, then report it.
+             * @enum {string}
+             */
+            failure_kind?: "transient" | "credentials" | "configuration" | "unsupported" | "unknown";
             /** @description A fixed sentence naming the kind of failure; absent when healthy. */
             message?: string;
             /** @description The cause when the server knows it, such as a refused connection or the HTTP status the datasource answered; never an address, user or secret. */
@@ -5282,6 +5340,11 @@ export interface components {
             message?: string;
             /** @description The cause when the server knows it; never an address, user or secret. */
             detail?: string;
+            /**
+             * @description What to do about the failed check, with the meanings `GET /datasources` gives them; absent when healthy or when the check was cancelled.
+             * @enum {string}
+             */
+            failure_kind?: "transient" | "credentials" | "configuration" | "unsupported" | "unknown";
         };
         InvalidDatasourceError: {
             error: string;
@@ -5321,13 +5384,16 @@ export interface components {
             /** @description True when the MCP sources file set `allowPrivate`, so the source may be an `http` address that resolves to a private network. Only the file can set it, and it is never writable through the API. */
             private: boolean;
             /**
-             * @description `unchecked` until discovery runs, `unreachable` when the last discovery failed, `ready` otherwise.
+             * @description `unchecked` until discovery runs, `unreachable` when the last discovery failed or an agent's call could not reach the server since, `ready` otherwise.
              * @enum {string}
              */
             state: "unchecked" | "unreachable" | "ready";
-            /** @description Why the last discovery failed, as a code such as `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`. */
+            /** @description Why the last discovery failed, or why an agent's call could not reach the server since, as a code such as `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`. The next call the server answers clears it. */
             failure: string | null;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When the last discovery ran, or when an agent's call last moved the source between `ready` and `unreachable`.
+             */
             checked_at: string | null;
             tools: components["schemas"]["MCPSourceToolCounts"];
             /** Format: date-time */
@@ -5589,6 +5655,11 @@ export interface components {
         };
         /** @description A request for Comment access to a dashboard or observation. */
         AccessRequest: {
+            /**
+             * @description Where the request stands, computed on read: `open` while it waits, `granted` once the requester can comment, `dismissed` when someone who can grant it marked it done in their inbox without granting it, and `expired` 30 days after it was asked. The managed list holds only `open` requests; the requester's own list (`scope=mine`) holds all four. A dismissed or expired request can be asked again.
+             * @enum {string}
+             */
+            state: "open" | "granted" | "dismissed" | "expired";
             /** Format: uuid */
             id: string;
             object: {
@@ -5643,6 +5714,11 @@ export interface components {
              */
             reason: "proposal" | "requested_block" | "mention" | "reply" | "run_failed" | "repaired" | "proposal_closed" | "access_request" | null;
             unread: boolean;
+            /**
+             * @description Where the item stands for the caller: `done` once they marked it done, else `unread` while `unread` is true, else `read`. The `open` filter lists `unread` and `read` items, the `unread` filter `unread` ones and the `done` filter `done` ones. See docs/reference/states.md.
+             * @enum {string}
+             */
+            state: "done" | "unread" | "read";
             /** @description The title of the dashboard, observation or proposal the event is about, or null when it has none, no longer exists, or the caller can no longer read it. */
             target_title: string | null;
             /** @description The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, or the note of an `access_request`, as plain text of at most 200 characters; null for other items, and for a comment in a thread the caller can no longer read. */
@@ -5748,6 +5824,11 @@ export interface components {
             permissions: components["schemas"]["Permissions"];
             /** @description True for a starter dashboard the server keeps current with each release, such as those in the Audit folder. Its `permissions.edit` is false, every change to its content answers 409 `provisioned`, and duplicating it makes an ordinary editable dashboard. */
             provisioned: boolean;
+            /**
+             * @description What writes the dashboard's content. `starter` is the same dashboards as `provisioned: true`. `file` is bound to a file in the server's provisioning directory: a save works, and a change to that file replaces it, leaving it in the version history. The value stays after the file is removed. `apply` was last written by `observe dashboards apply`: a save works, and applying its file again after the file changes replaces it, leaving it in the version history. `workspace` is every other dashboard: people edit it in the app, and no file and no release writes it.
+             * @enum {string}
+             */
+            managed_by: "starter" | "file" | "apply" | "workspace";
         };
         HomeDashboard: {
             /**
@@ -5794,6 +5875,11 @@ export interface components {
             permissions: components["schemas"]["Permissions"];
             /** @description True for a starter dashboard the server keeps current with each release. Its `permissions.edit` is false, so a list never offers to move or change it. */
             provisioned: boolean;
+            /**
+             * @description What writes the dashboard's content, with the values and meanings of `managed_by` on `GET /dashboards/{id}`.
+             * @enum {string}
+             */
+            managed_by: "starter" | "file" | "apply" | "workspace";
         };
         VersionMeta: {
             version: number;
@@ -5861,12 +5947,19 @@ export interface components {
         };
         UnverifiedPanel: {
             panel_id: string;
+            reason?: components["schemas"]["UnverifiedReason"];
             issues: components["schemas"]["Issue"][];
         };
         UnverifiedVariable: {
             name: string;
             issues: components["schemas"]["Issue"][];
+            reason?: components["schemas"]["UnverifiedReason"];
         };
+        /**
+         * @description Why the save kept the item although its query did not verify: `empty` (it returned no data), `timeout` (it timed out and the save did not change it), `carried` (the parent version already listed it and it is unchanged), `restored` (the restored version listed it) or `imported` (a Grafana import keeps every failing panel and variable). Absent on a version saved before reasons were kept, and a copy made by duplicating keeps the reasons of its source.
+         * @enum {string}
+         */
+        UnverifiedReason: "empty" | "timeout" | "carried" | "restored" | "imported";
         DashboardWithVersion: {
             dashboard: components["schemas"]["DashboardSummary"];
             version: components["schemas"]["Version"];
@@ -5875,6 +5968,13 @@ export interface components {
             dashboard: components["schemas"]["DashboardSummary"];
             version: components["schemas"]["Version"];
             merged_from?: components["schemas"]["MergedFrom"];
+            /** @description Present when the save or restore went to a dashboard whose `managed_by` is `file` or `apply`. It says what replaces this version, which stays in the version history. That is a change to the provisioning file, or applying the file again after it changes. */
+            warning?: string;
+            /**
+             * @description What the save did: `created` made the new version from the request, `merged` made it by merging a stale save onto the latest version, and `replayed` made no version because the request repeats one that exists (the answer also has `Idempotent-Replay: true`).
+             * @enum {string}
+             */
+            outcome: "replayed" | "merged" | "created";
         };
         /** @description Present when a stale save was merged on the server. */
         MergedFrom: {
@@ -5951,6 +6051,8 @@ export interface components {
             latest_version: number;
             /** @description What the caller may do now. `update` means saving again to add a revision and has no route of its own; `merge` needs Edit on the dashboard and a connection that is not in propose mode; `discard` is for the author or someone who may merge. See docs/reference/states.md. */
             allowed_actions: ("update" | "merge" | "discard")[];
+            /** @description Only on the answer to a merge that saved a version of a dashboard whose `managed_by` is `file` or `apply`. It is the `warning` of a save to that dashboard. */
+            warning?: string;
         };
         /** @description A proposed change to a dashboard with its head revision's document and what it changes. */
         Proposal: {
@@ -6005,6 +6107,11 @@ export interface components {
             diff: components["schemas"]["SpecChange"][];
             /** @description While the proposal is open and behind, the units that both it and the newer versions changed, which a merge needs a choice for; empty otherwise. */
             conflicts: components["schemas"]["MergeConflict"][];
+            /**
+             * @description What a merge would meet now, computed on every read from `behind` and `conflicts`; null once the proposal is merged or discarded. `current` builds on the latest version, `behind_clean` merges onto newer versions without a choice, `behind_conflicting` needs a choice for each conflict, and `blocked` has a conflict whose reason is `invalid`, which no choice resolves: a merge answers 409 `version_conflict` until the author saves a new revision. `allowed_actions` still lists `merge` in every one of them. See docs/reference/states.md.
+             * @enum {string|null}
+             */
+            mergeability: "current" | "behind_clean" | "behind_conflicting" | "blocked" | null;
         };
         ProposalChange: {
             /** @enum {string} */
@@ -6019,6 +6126,11 @@ export interface components {
         };
         /** @description The answer to a save that became a proposal. */
         ProposalCreated: {
+            /**
+             * @description Always `proposed`, the save outcome that made no version.
+             * @enum {string}
+             */
+            outcome: "proposed";
             /** Format: uuid */
             proposal_id: string;
             /** @description The revision this save added. */
@@ -6170,10 +6282,15 @@ export interface components {
              * @description The observation block an anchored thread points into; null otherwise, or once the block is deleted.
              */
             block_id: string | null;
-            /** @description The thread's agent, the one a plain reply asks; null until a message asks an agent, and cleared when that agent can no longer take runs. */
+            /** @description The thread's agent, the one a plain reply asks; null until a message asks an agent, and cleared when that agent can no longer take runs. A null agent is the `none` state of `docs/reference/states.md`. */
             agent: {
                 /** @enum {string} */
                 kind: "builtin" | "grant" | "service_account";
+                /**
+                 * @description `following` while a plain reply asks the agent, and `off` after a message was sent to everyone, which is when `agent_off` is true.
+                 * @enum {string}
+                 */
+                state: "following" | "off";
                 /**
                  * Format: uuid
                  * @description The grant or service account; null for the built-in agent.
@@ -6710,6 +6827,11 @@ export interface components {
              */
             build_saved_at: string | null;
             /**
+             * @description What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
+             * @enum {string}
+             */
+            build_state?: "none" | "building" | "stopped" | "stopped_empty" | "stale" | "kept" | "moved" | "committed" | "proposed";
+            /**
              * Format: uuid
              * @description The stopped request this one continues.
              */
@@ -6759,8 +6881,16 @@ export interface components {
             /** @description The version the proposal is judged inside. */
             base_version: number;
             prompt: string;
-            /** @enum {string} */
+            /**
+             * @description Computed from `state`; kept for clients that read it.
+             * @enum {string}
+             */
             status: "queued" | "running" | "succeeded" | "failed";
+            /**
+             * @description Where the suggestion is in its life, the same six states every run has. A suggestion cannot be canceled, so it is never `canceling` or `canceled`.
+             * @enum {string}
+             */
+            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
             steps: components["schemas"]["AgentStep"][];
             /** @description The proposed panel, set only when the status is `succeeded`. It is not saved anywhere; the client decides whether to apply it. */
             panel: {
@@ -6893,6 +7023,36 @@ export interface components {
             title: string | null;
             /** Format: date-time */
             updated_at: string;
+            /**
+             * @description The build's state, the same value as the request's `build_state`; see `docs/reference/states.md`.
+             * @enum {string}
+             */
+            state?: "none" | "building" | "stopped" | "stopped_empty" | "stale" | "kept" | "moved" | "committed" | "proposed";
+            /**
+             * Format: date-time
+             * @description When the server deletes the build of a finished request, 7 days after it finished; null while the request has not finished.
+             */
+            expires_at?: string | null;
+        };
+        /** @description Why a stopped build cannot be saved now, with the build's state and what the caller may still do with the request. */
+        BuildRefusal: {
+            error: string;
+            /** @enum {string} */
+            code: "build_running" | "build_empty" | "build_not_savable";
+            /** @description The same text as `error`. */
+            message: string;
+            /**
+             * @description The build's state; see `docs/reference/states.md`.
+             * @enum {string}
+             */
+            state: "none" | "building" | "stopped" | "stopped_empty" | "stale" | "kept" | "moved" | "committed" | "proposed";
+            /** @description The actions the caller may take on the request now, as in the request's `allowed_actions`. */
+            allowed_actions: string[];
+            /**
+             * @description `run_not_finished` with `build_running`, `no_panels` with `build_empty` and `no_stopped_build` with `build_not_savable`.
+             * @enum {string}
+             */
+            reason: "run_not_finished" | "no_panels" | "no_stopped_build";
         };
         AgentBuild: {
             /** Format: uuid */
@@ -7017,8 +7177,30 @@ export interface components {
              * @description When the requester saved the stopped build of a `failed` request as a version; null otherwise. The request stays `failed` with its `failure_code`.
              */
             build_saved_at: string | null;
+            /**
+             * @description What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
+             * @enum {string}
+             */
+            build_state?: "none" | "building" | "stopped" | "stopped_empty" | "stale" | "kept" | "moved" | "committed" | "proposed";
+            /** @description The reply this request owes the comment thread it was asked in. */
+            reply?: {
+                /**
+                 * @description `not_owed` for a request not asked in a thread, `owed` until the reply is posted, `replied` once it is, and `abandoned` when it could not be posted within 24 hours after the request finished; see `docs/reference/states.md`.
+                 * @enum {string}
+                 */
+                state: "not_owed" | "owed" | "replied" | "abandoned";
+            };
             /** @description 1-based place among queued requests in claim order, null unless queued. The worker skips a request whose dashboard already has a running revision, so the order can shift. */
             queue_position: number | null;
+            /**
+             * @description What a `running` or `canceling` request has already settled, before its state changes: `saved` (a version), `proposed` (a proposal), `finding` (an answer or finding), `suggested` (a panel suggestion) or `ended` (the agent stopped and the request is about to finish). Null while the agent is still working and for a queued or finished request, whose `result_kind` says what it produced.
+             * @enum {string|null}
+             */
+            settled: "saved" | "proposed" | "finding" | "suggested" | "ended" | null;
+            /** @description How many times the server could not run a check it makes when a worker takes the request (its saved version, its requester, the requester's access). Each failure puts the request back in the queue, so a request that moves between `queued` and `running` with this count rising is waiting on the server, not on the agent. */
+            check_failures: number;
+            /** @description The count of `check_failures` at which the request fails with the failure code `check_failed`; its `error` then names the check that could not run. */
+            check_failures_max: number;
             /**
              * Format: date-time
              * @description When the requester asked to cancel the request; null when they did not. A running request keeps running until its worker sees the flag, then ends `failed` with the `canceled` failure code and keeps its build.
@@ -7254,6 +7436,11 @@ export interface components {
              * @description When the requester saved the stopped build of a `failed` request as a version; null otherwise.
              */
             build_saved_at: string | null;
+            /**
+             * @description What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
+             * @enum {string}
+             */
+            build_state?: "none" | "building" | "stopped" | "stopped_empty" | "stale" | "kept" | "moved" | "committed" | "proposed";
             /** @enum {string} */
             kind: "build" | "investigate";
             /** @description The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none. */
@@ -7322,6 +7509,27 @@ export interface components {
             state: string;
             /** @description The actions the caller may take in that state, as in the object's own `allowed_actions`. */
             allowed_actions: string[];
+        };
+        /** @description The answer to a cancel, continue or retry the request's state or history does not allow. */
+        RunRefusal: {
+            error: string;
+            /**
+             * @description `request_finished` for a cancel, `not_continuable` for a continue and `invalid_transition` for a retry.
+             * @enum {string}
+             */
+            code: "request_finished" | "not_continuable" | "invalid_transition";
+            /**
+             * @description The state the request is in.
+             * @enum {string}
+             */
+            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
+            /** @description The actions the caller may take now, as in the request's own `allowed_actions`. */
+            allowed_actions: string[];
+            /**
+             * @description Why the action is refused when the state alone does not say; absent otherwise. `no_build`: the request left no build. `kept`: its build was saved as a version. `continued`: another request already continues it. `retried`: it was already retried. `investigation`: an investigation has no build to continue. `lost_race`: another continue, retry or save took the build while this call ran.
+             * @enum {string}
+             */
+            reason?: "no_build" | "kept" | "continued" | "retried" | "investigation" | "lost_race";
         };
         AgentRequestEnvelope: {
             request: components["schemas"]["AgentRequest"];
@@ -7854,6 +8062,8 @@ export interface components {
             import: components["schemas"]["ImportRecord"];
             /** @description Why the dashboard is not in the requested folder, or null when it is where the request or the source asked. */
             folder_note: string | null;
+            /** @description Present when `update_dashboard` saved a version of a dashboard whose `managed_by` is `file` or `apply`. It is the `warning` of a save to that dashboard. */
+            warning?: string;
         };
         DatasourcesUnresolved: {
             error: string;
@@ -7893,6 +8103,18 @@ export interface components {
             ok: boolean;
             /** @description A fixed sentence chosen by the outcome, such as the folder and dashboard counts or why Grafana could not be read. */
             message: string;
+        };
+        GrafanaConnectionTestState: {
+            /**
+             * @description `untested` while `last_test` is null, `failing` when the last test could not read Grafana, `ok` otherwise.
+             * @enum {string}
+             */
+            state: "untested" | "failing" | "ok";
+            /**
+             * @description Who can fix a `failing` test, and null in every other state. `transient` means Grafana did not answer or answered 429 or 5xx, so testing again may pass; `credentials` means it refused the token; `configuration` means the URL, the outbound allowlist or what answers at the address is wrong; `unsupported` means an answer this server cannot take; `unknown` covers the rest, and every failure stored before the cause was kept.
+             * @enum {string|null}
+             */
+            failure_kind: "transient" | "credentials" | "configuration" | "unsupported" | "unknown" | null;
         };
         GrafanaImportSummary: {
             /** Format: uuid */
@@ -7978,6 +8200,8 @@ export interface components {
             updated_at: string;
             /** @description Null until the connection is tested, and again after its URL or token changes. */
             last_test: components["schemas"]["GrafanaConnectionTest"] | null;
+            /** @description The state of the connection's test, derived from `last_test`, so a reader does not parse `last_test.message`. */
+            test: components["schemas"]["GrafanaConnectionTestState"];
             /** @description The summary of the last finished import, or null before the first one. */
             last_sync: components["schemas"]["GrafanaImportSummary"] | null;
         };
@@ -8073,10 +8297,10 @@ export interface components {
             /** @enum {string} */
             outcome: "delivered" | "failed" | "skipped";
             /**
-             * @description Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit; `skipped_by_admin` is `skipped`, because an Admin chose to pass the event over.
+             * @description Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit; `skipped_by_admin` is `skipped`, because an Admin chose to pass the event over; `expired` is `skipped`, because the event was more than 24 hours old when its turn came, and nothing was sent.
              * @enum {string|null}
              */
-            error_code: "status" | "unreachable" | "blocked_address" | "domain_not_allowed" | "too_large" | "skipped_by_admin" | null;
+            error_code: "status" | "unreachable" | "blocked_address" | "domain_not_allowed" | "too_large" | "skipped_by_admin" | "expired" | null;
         };
         WebhookSkipResult: {
             webhook: components["schemas"]["Webhook"];
@@ -8235,8 +8459,13 @@ export interface components {
              */
             last_viewed_at: string | null;
             expired: boolean;
-            /** @description False when the link is expired or the dashboard's latest version reads the viewer's identity. */
+            /** @description Whether the public address opens the dashboard now. False in each case `unusable_reason` names. */
             usable: boolean;
+            /**
+             * @description Why the link does not open, set whenever `usable` is false and null otherwise, the first that applies: `expired` when its expiry time has passed, `admins_only_folder` when the dashboard is in a folder only Admins can read, `user_scoped` when the dashboard's latest version reads the viewer's identity, and `restricted_datasource` when it reads a datasource only Admins can query.
+             * @enum {string|null}
+             */
+            unusable_reason: "expired" | "admins_only_folder" | "user_scoped" | "restricted_datasource" | null;
             /**
              * @description Computed from `expired`. See `docs/reference/states.md`.
              * @enum {string}
@@ -8351,6 +8580,35 @@ export interface components {
              * @description When the repair finished, else when it started, else when it was queued.
              */
             updated_at: string;
+        };
+        ScheduledJob: {
+            name: string;
+            /**
+             * @description Computed on read; see `docs/reference/states.md`. `interrupted` means the last run did not finish, because its server crashed or shut down.
+             * @enum {string}
+             */
+            state: "running" | "interrupted" | "due" | "waiting";
+            /** @description The interval between runs. */
+            every_seconds: number;
+            /** Format: date-time */
+            next_run_at: string;
+            /** Format: date-time */
+            last_started_at: string | null;
+            /**
+             * Format: date-time
+             * @description When a run last recorded an outcome; older than `last_started_at` while a run is in flight or after one that did not finish.
+             */
+            last_finished_at: string | null;
+            /**
+             * @description The outcome of the last run that recorded one, or `interrupted` once a server took over the lease of a run that crashed. Null before the first outcome.
+             * @enum {string|null}
+             */
+            last_outcome: "succeeded" | "failed" | "interrupted" | null;
+            /** @description The `key=value` summary of the last failure, never the error's own text; null when the last outcome was not a failure. */
+            last_error: string | null;
+        };
+        ScheduledJobList: {
+            jobs: components["schemas"]["ScheduledJob"][];
         };
         HealthJob: {
             /** Format: date-time */
@@ -8554,6 +8812,15 @@ export interface components {
             observation: components["schemas"]["Observation"];
             folder: components["schemas"]["DashboardFolder"];
             permissions: components["schemas"]["Permissions"];
+            confined?: components["schemas"]["Confined"];
+        };
+        /** @description Present when the observation can only be in a folder only Admins can read, because of an answer it holds or a run about it; a move anywhere else is refused with `restricted_answer` and the same `reason`. An observation that reads a datasource only Admins can query is also kept in such a folder; that is not reported here, and its move is refused with `restricted_content`, which names the datasource. */
+        Confined: {
+            /**
+             * @description `permanent` when it holds an answer that read data only Admins can query, such as the audit trail, which does not change. `run_in_flight` when an agent run about it has not ended; it can move once the run ends.
+             * @enum {string}
+             */
+            reason: "permanent" | "run_in_flight";
         };
         ObservationList: {
             observations: components["schemas"]["Observation"][];
@@ -8729,6 +8996,9 @@ export interface components {
             title: string;
             summary: string | null;
             observation_state: components["schemas"]["ObservationState"];
+            state: components["schemas"]["RCARevisionState"];
+            /** @description The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links. `share` is left out in a folder only Admins can read and in My Dashboards, where a public link cannot be created. */
+            allowed_actions: components["schemas"]["RCARevisionAction"][];
             /** Format: date-time */
             from: string | null;
             /** Format: date-time */
@@ -8745,9 +9015,29 @@ export interface components {
             title: string;
             summary: string | null;
             observation_state: components["schemas"]["ObservationState"];
+            state: components["schemas"]["RCARevisionState"];
+            /** @description The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links. `share` is left out in a folder only Admins can read and in My Dashboards, where a public link cannot be created. */
+            allowed_actions: components["schemas"]["RCARevisionAction"][];
             created_by: components["schemas"]["Actor"];
             /** Format: date-time */
             created_at: string;
+        };
+        /**
+         * @description Computed on read, never stored. `shared` while a public link that has not expired shows the revision, else `superseded` when a newer revision exists, else `published`.
+         * @enum {string}
+         */
+        RCARevisionState: "published" | "superseded" | "shared";
+        /** @enum {string} */
+        RCARevisionAction: "share" | "unshare" | "withdraw";
+        /** @description The answer to a publish or a withdraw that is refused. `state` and `allowed_actions` describe what the route addresses, the observation for a publish and the revision for a withdraw. */
+        RCARefusal: {
+            error: string;
+            /** @enum {string} */
+            code: "rca_limit" | "rca_unchanged" | "observation_changed" | "rca_shared";
+            /** @description The observation's state for a refused publish, and the revision's state for a refused withdraw. */
+            state: string;
+            /** @description The actions the caller may take in that state, as in the observation's or the revision's own `allowed_actions`. */
+            allowed_actions: string[];
         };
         RCAPublicLink: {
             /** Format: uuid */
@@ -9745,6 +10035,29 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
+    listJobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every scheduled job. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduledJobList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
     listInvites: {
         parameters: {
             query?: {
@@ -10374,7 +10687,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description The caller already holds the maximum number of open streams (`too_many_streams`). */
+            /** @description The caller already holds the maximum number of open streams (`too_many_streams` with `reason` `per_caller`). */
             429: {
                 headers: {
                     [name: string]: unknown;
@@ -10384,7 +10697,7 @@ export interface operations {
                 };
             };
             500: components["responses"]["Internal"];
-            /** @description The process holds the maximum number of open streams (`too_many_streams`) or is shutting down (`shutting_down`). */
+            /** @description The process holds the maximum number of open streams (`too_many_streams` with `reason` `server_capacity`) or is shutting down (`shutting_down`). */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -10763,7 +11076,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuditQueryError"];
                 };
             };
-            /** @description The caller already holds 5 open audit streams, or the process 20 (`too_many_streams`). */
+            /** @description The caller already holds 5 open audit streams (`too_many_streams` with `reason` `per_caller`), or the process 20 (`reason` `server_capacity`). */
             429: {
                 headers: {
                     [name: string]: unknown;
@@ -11388,7 +11701,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The folder is General (`general_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`, with `items` listing up to 20 of it and `unlisted` counting the rest), or the folder holds a dashboard or an observation with an answer that read Admin-only data and the change would let others read it (`restricted_answer`, naming that content), or `admins_only` would close a folder holding a dashboard or an observation with an unexpired public link (`admins_only_folder`). */
+            /** @description The folder is General (`general_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`, with `items` listing up to 20 of it and `unlisted` counting the rest), or the folder holds a dashboard or an observation with an answer that read Admin-only data and the change would let others read it (`restricted_answer`, naming that content, with `reason` `permanent`, or `run_in_flight` while an agent run about that content has not ended), or `admins_only` would close a folder holding a dashboard or an observation with an unexpired public link (`admins_only_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11640,7 +11953,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request conflicts with existing state. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the content holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`). Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy. Or the dashboard has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`). */
+            /** @description The request conflicts with existing state. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the content holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`). Its `reason` is `permanent`, or `run_in_flight` while an agent run about the content has not ended and the same request can succeed once it ends. Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy. Or the dashboard has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11815,14 +12128,14 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The new version, with `restored_from` naming the restored one. */
+            /** @description The new version, with `restored_from` naming the restored one, and a `warning` when a file writes the dashboard. */
             201: {
                 headers: {
                     Location: string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DashboardWithVersion"];
+                    "application/json": components["schemas"]["DashboardVersionSaved"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -11986,7 +12299,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`). */
+            /** @description The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`, with `reason` `permanent`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12444,7 +12757,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The caller already holds the maximum number of open streams (`too_many_streams`). */
+            /** @description The caller already holds the maximum number of open streams (`too_many_streams` with `reason` `per_caller`). */
             429: {
                 headers: {
                     [name: string]: unknown;
@@ -12454,7 +12767,7 @@ export interface operations {
                 };
             };
             500: components["responses"]["Internal"];
-            /** @description The process holds the maximum number of open streams (`too_many_streams`) or is shutting down (`shutting_down`). */
+            /** @description The process holds the maximum number of open streams (`too_many_streams` with `reason` `server_capacity`) or is shutting down (`shutting_down`). */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -12712,7 +13025,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The message `client_id` names was already posted; it is returned as it was, with `replayed` true. */
+            /** @description The message `client_id` names was already posted; it is returned as it was, with `replayed` true and the `message.run` or `message.run_refusal` it was first answered with. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12819,7 +13132,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The message `client_id` names was already posted; it is returned as it was, with `replayed` true. */
+            /** @description The message `client_id` names was already posted; it is returned as it was, with `replayed` true and the `message.run` or `message.run_refusal` it was first answered with. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15992,13 +16305,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request already finished and was not canceled (`request_finished`). */
+            /** @description The request already finished and was not canceled (`request_finished`, with its `state` and the `allowed_actions` the caller has). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["RunRefusal"];
                 };
             };
             500: components["responses"]["Internal"];
@@ -16041,13 +16354,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request cannot be continued: `not_continuable`, `assignee_unavailable` when the agent it was assigned to is a revoked, expired or foreign grant or a service account that no longer takes runs, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. */
+            /** @description The request cannot be continued: `not_continuable` with its `state`, the `allowed_actions` the caller has and a `reason`, `assignee_unavailable` when the agent it was assigned to is a revoked, expired or foreign grant or a service account that no longer takes runs, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"] | components["schemas"]["VersionConflict"];
+                    "application/json": components["schemas"]["RunRefusal"] | components["schemas"]["Error"] | components["schemas"]["VersionConflict"];
                 };
             };
             /** @description Too many agent requests are queued or running (`too_many_requests` for the caller, `agent_busy` for the instance, `too_many_revisions` for the dashboard). */
@@ -16095,13 +16408,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request cannot be retried now (`invalid_transition`), or the agent it was assigned to cannot take it again (`assignee_unavailable`). */
+            /** @description The request cannot be retried now (`invalid_transition`, with a `reason` when it was already continued or retried), or the agent it was assigned to cannot take it again (`assignee_unavailable`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvalidTransition"] | components["schemas"]["Error"];
+                    "application/json": components["schemas"]["RunRefusal"] | components["schemas"]["Error"];
                 };
             };
             /** @description The panel an investigation was about no longer exists (`unknown_panel`). */
@@ -16167,13 +16480,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the request read data only Admins can query, such as the audit trail, and the build's folder is not one only Admins can read (`restricted_answer`, saying why). */
+            /** @description The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, each with the build's `state`, the request's `allowed_actions` and a `reason`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the request read data only Admins can query, such as the audit trail, and the build's folder is not one only Admins can read (`restricted_answer`, saying why). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"] | components["schemas"]["VersionConflict"] | components["schemas"]["RestrictedContentError"];
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["VersionConflict"] | components["schemas"]["BuildRefusal"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             500: components["responses"]["Internal"];
@@ -16897,7 +17210,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description The action is not allowed in the observation's state (`invalid_transition`), the target folder is My Dashboards (`personal_folder`), or an investigation is still running on the observation (`run_in_progress`, on delete). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the content holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`). Or an RCA of the observation has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`). */
+            /** @description The action is not allowed in the observation's state (`invalid_transition`), the target folder is My Dashboards (`personal_folder`), or an investigation is still running on the observation (`run_in_progress`, on delete). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the content holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`). Its `reason` is `permanent`, or `run_in_flight` while an agent run about the content has not ended and the same request can succeed once it ends. Or an RCA of the observation has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -17637,13 +17950,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), it changed while it was being published (`observation_changed`), or nothing changed since the latest revision (`rca_unchanged`). Or a panel froze data from a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), it changed while it was being published (`observation_changed`), or nothing changed since the latest revision (`rca_unchanged`). `rca_limit`, `observation_changed` and `rca_unchanged` carry the observation's `state` and the caller's `allowed_actions` on it. Or a panel froze data from a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
+                    "application/json": components["schemas"]["RCARefusal"] | components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             422: components["responses"]["ObservationInvalid"];
@@ -17702,13 +18015,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The revision still has public links (`rca_shared`), or the observation's state does not allow it (`invalid_transition`). */
+            /** @description The revision still has public links (`rca_shared`); the answer carries the revision's `state` and the caller's `allowed_actions` on it. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["RCARefusal"] | components["schemas"]["Error"];
                 };
             };
             500: components["responses"]["Internal"];
@@ -20136,6 +20449,8 @@ export interface operations {
             query?: {
                 limit?: number;
                 cursor?: string;
+                /** @description With true the list also holds connections that were revoked, expired or aged out in the last 30 days, each with its `state` and `revoked_reason`. */
+                include_ended?: boolean;
             };
             header?: never;
             path?: never;
@@ -20219,6 +20534,8 @@ export interface operations {
             query?: {
                 limit?: number;
                 cursor?: string;
+                /** @description With true the list also holds connections that were revoked, expired or aged out in the last 30 days, each with its `state` and `revoked_reason`. */
+                include_ended?: boolean;
             };
             header?: never;
             path?: never;
@@ -20542,7 +20859,10 @@ export interface operations {
     };
     listAccessRequests: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description `managed` lists the open requests the caller can grant. `mine` lists the requests the caller made, in any state, on objects the caller can still see, so the requester can tell a request that is still waiting from one that was dismissed, expired or granted. */
+                scope?: "managed" | "mine";
+            };
             header?: never;
             path?: never;
             cookie?: never;

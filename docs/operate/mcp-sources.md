@@ -121,6 +121,9 @@ A tool the server marks destructive after the fact becomes `refused` and loses i
 **Revoke** withdraws an approval and returns the tool to `offered`.
 
 A source is `unchecked` until its first discovery, `unreachable` when the last discovery failed and `ready` otherwise.
+An agent's call moves it too: a call the server cannot reach turns the source `unreachable` with the failure code of that call, and the next call the server answers turns it `ready` again, so the list does not wait for an Admin to run discovery.
+A call that is refused before it is sent (a tool that is not approved, arguments that do not fit, a source at its call limit) changes nothing.
+
 A failed discovery answers `200` with the failure code in `failure`: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
 Changing the address or the secret resets the check.
 Changing the address also deletes the stored tools, so approvals never carry over to another server.
@@ -203,7 +206,7 @@ They are not offered when a dashboard is built or revised.
 
 - Only an approved tool can be called.
   Each tool the agent lists or finds carries `read_only`, so the model can tell a tool the server marks read-only from one it does not, and it is told to call one that is not only to read, never to change anything.
-  A source whose last discovery failed is still listed to the agent with a status that says so, and a call to it is still tried.
+  A source that is `unreachable` is still listed to the agent with a status that says so, and a call to it is still tried.
   A tool that changed since you approved it stays unusable until you approve it again.
 - A source set to **Admins only** is used only on behalf of an Admin.
 - The agent's arguments must match the schema the tool had when you approved it.

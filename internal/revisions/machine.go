@@ -104,6 +104,18 @@ func (s State) Terminal() bool {
 	return slices.Contains(RunMachine.Terminal, s)
 }
 
+func (s State) Status() Status {
+	switch s {
+	case StateQueued:
+		return StatusQueued
+	case StateRunning, StateCanceling:
+		return StatusRunning
+	case StateSucceeded:
+		return StatusSucceeded
+	}
+	return StatusFailed
+}
+
 type runFacts struct {
 	state       State
 	source      Source
@@ -135,6 +147,61 @@ func (f runFacts) refuses(a Action) bool {
 		return f.asOfBarred || !f.retryable()
 	}
 	return false
+}
+
+const (
+	ReasonNoBuild       = "no_build"
+	ReasonKept          = "kept"
+	ReasonContinued     = "continued"
+	ReasonRetried       = "retried"
+	ReasonInvestigation = "investigation"
+	ReasonLostRace      = "lost_race"
+)
+
+func (f runFacts) reasonAgainst(a Action) string {
+	if _, movable := RunMachine.Find(f.state, a); !movable || (a != ActionContinue && a != ActionRetry) {
+		return ""
+	}
+	continuing := a == ActionContinue
+	switch {
+	case continuing && f.source == SourceInvestigate:
+		return ReasonInvestigation
+	case continuing && f.buildSaved:
+		return ReasonKept
+	case f.continued:
+		return ReasonContinued
+	case f.retried:
+		return ReasonRetried
+	case continuing && f.buildPanels < 1:
+		return ReasonNoBuild
+	}
+	return ""
+}
+
+type refusalWire struct {
+	code  string
+	cause error
+}
+
+var refusalWires = map[Action]refusalWire{
+	ActionCancel:   {CodeRequestFinished, ErrRequestFinished},
+	ActionContinue: {CodeNotContinuable, ErrNotContinuable},
+}
+
+func refusalOf(f runFacts, a Action, reason string) *lifecycle.Refusal {
+	if reason == "" {
+		reason = f.reasonAgainst(a)
+	}
+	wire := refusalWires[a]
+	return &lifecycle.Refusal{
+		Machine: RunMachine.Name,
+		State:   string(f.state),
+		Action:  string(a),
+		Allowed: actionStrings(allowedActions(f)),
+		Code:    wire.code,
+		Reason:  reason,
+		Cause:   wire.cause,
+	}
 }
 
 func allowedActions(f runFacts) []Action {
