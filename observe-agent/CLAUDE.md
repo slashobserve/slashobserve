@@ -1,7 +1,7 @@
 # observe-agent
 
 `observe-agent` is the built-in agent as a separate process: an ordinary claimer that runs the model loop and works a run through the claim tools over MCP.
-The server enforces the run's guards in `internal/runsession`; this package holds no guard of its own.
+The server enforces the run's guards in `internal/runsession`; `src/guard/` is their port, which the run loop does not call yet.
 The server starts it whenever a model provider is configured; the image ships it at `/usr/local/bin/observe-agent` and `make agent` builds `bin/observe-agent`.
 
 ## Layout
@@ -9,6 +9,8 @@ The server starts it whenever a model provider is configured; the image ships it
 - `src/protocol.ts`: the claim tools and the `_meta` keys, as zod schemas.
 - `src/run.ts`: the model loop for one run.
 - `src/shutdown.ts`: how a stop ended, `drained` or `forced`, and its exit code; `main.ts` keeps listening for `SIGTERM` and `SIGINT` after the first one (`process.on`), because a second signal on a one-shot listener kills the process before it releases its runs.
+- `src/guard/`: ports `internal/agent/guard` without the save classification and the parent version, which stay with the server: a `Guard` admits each call of a turn, settles it from its result and run meta, and ends the turn with its nudges, stage line and stop; `snapshot()` is plain JSON for `agent_state`.
+  Its scenarios are the traces under `spec/examples/agent/guard/`, which the Go guard tests read too.
 - `src/session/`: the model sessions, one per provider.
 - `src/session/replay/`: ports `internal/llm/replay`.
 - `src/route/`: ports `internal/agent/route` (`classify`) and the task-tool narrowing of `internal/agent/tools/tasktools.go` (`toolsForTask`), with the per-task call limits read from `claim_run`'s `agent.task_calls` (`callsForTask`); not yet called by the run loop.
