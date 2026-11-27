@@ -98,7 +98,6 @@ func roundTripSources(t *testing.T) map[string][]byte {
 	sources := map[string][]byte{}
 	for _, pattern := range []string{
 		"spec/examples/*.json",
-		"pkg/spec/testdata/upgrade/evolved/*.json",
 		"web/e2e/data/*.json",
 	} {
 		for _, f := range glob(pattern) {
@@ -417,15 +416,12 @@ func TestVariableSchemaIssues(t *testing.T) {
 }
 
 func TestLegacyShapeRejected(t *testing.T) {
-	for _, name := range upgradeGoldenNames(t) {
-		t.Run(name, func(t *testing.T) {
-			issues := parseIssues(t, readUpgradeFile(t, filepath.Join("legacy", name)))
-			if !slices.ContainsFunc(issues, func(i spec.Issue) bool {
-				return i.Code == spec.CodeSchema && i.Path == "" && strings.Contains(i.Message, "timeRange")
-			}) {
-				t.Fatalf("issues = %+v, want a root schema issue naming timeRange", issues)
-			}
-		})
+	legacy := []byte(`{"specVersion": "0", "title": "Legacy", "timeRange": {"from": "now-1h", "to": "now"}, "panels": []}`)
+	issues := parseIssues(t, legacy)
+	if !slices.ContainsFunc(issues, func(i spec.Issue) bool {
+		return i.Code == spec.CodeSchema && i.Path == "" && strings.Contains(i.Message, "timeRange")
+	}) {
+		t.Fatalf("issues = %+v, want a root schema issue naming timeRange", issues)
 	}
 }
 

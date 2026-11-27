@@ -13,18 +13,18 @@ LEFT JOIN service_accounts s ON r.assigned_kind = 'service_account' AND s.id = r
 WHERE t.token_hash = @token_hash
   AND g.revoked_at IS NULL
   AND t.attempt = r.attempts
-  AND (t.claim_epoch IS NULL OR t.claim_epoch = r.claim_epoch)
+  AND t.claim_epoch = r.claim_epoch
   AND r.state = 'running'
   AND r.lease_until > clock_timestamp()
   AND t.expires_at > clock_timestamp();
 
 -- name: GetRunTokenDeadline :one
 SELECT max(expires_at)::timestamptz FROM run_tokens
-WHERE agent_request_id = @agent_request_id AND attempt = @attempt AND (claim_epoch IS NULL OR claim_epoch = @claim_epoch::integer);
+WHERE agent_request_id = @agent_request_id AND attempt = @attempt AND claim_epoch = @claim_epoch::integer;
 
 -- name: RenewRunTokens :exec
 UPDATE run_tokens SET expires_at = @expires_at
-WHERE agent_request_id = @agent_request_id AND attempt = @attempt AND (claim_epoch IS NULL OR claim_epoch = @claim_epoch::integer);
+WHERE agent_request_id = @agent_request_id AND attempt = @attempt AND claim_epoch = @claim_epoch::integer;
 
 -- name: DeleteRunTokens :exec
 DELETE FROM run_tokens WHERE agent_request_id = @agent_request_id;

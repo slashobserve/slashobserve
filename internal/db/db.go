@@ -111,7 +111,6 @@ func newMigrator(sqlDB *sql.DB, logger *slog.Logger) (*goose.Provider, error) {
 		goose.WithSessionLocker(locker),
 		goose.WithDisableGlobalRegistry(true),
 		goose.WithSlog(logger),
-		goose.WithGoMigrations(evolveSpecsMigration()),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create migration provider: %w", err)
@@ -124,7 +123,16 @@ type AppliedMigration struct {
 	Duration time.Duration
 }
 
+var ErrBeforeBaseline = errors.New("this database was created before the migration baseline; recreate it, for example with make demo-reset or scripts/e2e.sh down")
+
 func (d *DB) Migrate(ctx context.Context) ([]AppliedMigration, error) {
+	current, target, err := d.migrator.GetVersions(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read the migration version: %w", err)
+	}
+	if current > target {
+		return nil, ErrBeforeBaseline
+	}
 	results, err := d.migrator.Up(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("apply migrations: %w", err)

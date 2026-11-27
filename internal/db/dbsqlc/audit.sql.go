@@ -40,23 +40,6 @@ func (q *Queries) AdvanceAuditExportCursor(ctx context.Context, arg AdvanceAudit
 	return err
 }
 
-const catchUpAuditEvents = `-- name: CatchUpAuditEvents :one
-SELECT audit_events_catch_up($1::timestamptz, $2::text, $3::text, false)::bigint AS inserted
-`
-
-type CatchUpAuditEventsParams struct {
-	Since     pgtype.Timestamptz
-	ByServer  string
-	ByVersion string
-}
-
-func (q *Queries) CatchUpAuditEvents(ctx context.Context, arg CatchUpAuditEventsParams) (int64, error) {
-	row := q.db.QueryRow(ctx, catchUpAuditEvents, arg.Since, arg.ByServer, arg.ByVersion)
-	var inserted int64
-	err := row.Scan(&inserted)
-	return inserted, err
-}
-
 type CopyAuditEventsParams struct {
 	ID            pgtype.UUID
 	OccurredAt    pgtype.Timestamptz
@@ -115,17 +98,6 @@ func (q *Queries) CountCommittedAuditEvents(ctx context.Context, arg CountCommit
 	var count int64
 	err := row.Scan(&count)
 	return count, err
-}
-
-const getAuditBackfill = `-- name: GetAuditBackfill :one
-SELECT migrated_at FROM audit_backfill
-`
-
-func (q *Queries) GetAuditBackfill(ctx context.Context) (pgtype.Timestamptz, error) {
-	row := q.db.QueryRow(ctx, getAuditBackfill)
-	var migrated_at pgtype.Timestamptz
-	err := row.Scan(&migrated_at)
-	return migrated_at, err
 }
 
 const getAuditExportCursor = `-- name: GetAuditExportCursor :one

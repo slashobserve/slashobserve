@@ -160,19 +160,6 @@ type AppliedDashboard struct {
 	UpdatedAt     pgtype.Timestamptz
 }
 
-type AuditActivityAction struct {
-	Type     string
-	Action   string
-	Category string
-	Keys     []string
-	Extra    []byte
-}
-
-type AuditBackfill struct {
-	Singleton  bool
-	MigratedAt pgtype.Timestamptz
-}
-
 type AuditEvent struct {
 	ID            pgtype.UUID
 	Seq           int64
@@ -257,27 +244,6 @@ type Dashboard struct {
 	FolderID               pgtype.UUID
 	CreatedRunID           pgtype.UUID
 	CopiedRestrictedAnswer bool
-}
-
-type DashboardComment struct {
-	ID                pgtype.UUID
-	DashboardID       pgtype.UUID
-	Version           int32
-	PanelID           pgtype.Text
-	Body              string
-	Status            string
-	AuthorKind        string
-	AuthorID          pgtype.UUID
-	AuthorName        string
-	AuthorEmail       pgtype.Text
-	ResolvedAt        pgtype.Timestamptz
-	ResolvedByKind    pgtype.Text
-	ResolvedByID      pgtype.UUID
-	ResolvedByName    pgtype.Text
-	CreatedAt         pgtype.Timestamptz
-	UpdatedAt         pgtype.Timestamptz
-	ParentID          pgtype.UUID
-	ResolvedByVersion pgtype.Int4
 }
 
 type DashboardHealth struct {
@@ -442,7 +408,6 @@ type GrafanaConnection struct {
 	LastTestAt          pgtype.Timestamptz
 	LastTestOk          bool
 	LastTestMessage     string
-	LastSync            []byte
 	LastTestFailureKind pgtype.Text
 }
 
@@ -790,7 +755,7 @@ type RunToken struct {
 	AgentRequestID pgtype.UUID
 	Attempt        int32
 	ExpiresAt      pgtype.Timestamptz
-	ClaimEpoch     pgtype.Int4
+	ClaimEpoch     int32
 }
 
 type SavedPrompt struct {

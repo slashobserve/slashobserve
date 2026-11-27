@@ -89,7 +89,6 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 ## pkg conventions
 
 - `spec.Parse` is the only validation entry point and accepts only the evolved Spec shape.
-  `spec.Upgrade` is the pure rewrite of the legacy v0 shape; use it for stored versions and fixtures.
 - `spec.ApplyPanelPatch` is the only merge of a panel patch into a dashboard, and it ends in `Parse`, so a patch adds no second copy of a format rule.
   A placement's `gridPos` stays raw JSON and is checked against the schema's `gridPos` before the merge, so a missing field is reported as required at `/layout/N/gridPos`.
   An overlap it finds is reported at the panel the patch upserted or placed, so `failing_panels` names what the caller changed; plain `Parse` keeps document order.

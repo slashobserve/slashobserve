@@ -105,8 +105,6 @@ The table holds client addresses, user agents, actor names and the query text of
 The `audit_partitions` job runs at start.
 A server that starts on a restored database creates the missing partitions from today on, and it drops the partitions that are older than the retention period.
 
-Rolling back with `goose down-to 48` drops the audit table with every event in it; see [Upgrades and backups](upgrades-and-backups.md#upgrade).
-
 ## Understand write pressure
 
 Events reach the table by one of two paths.
@@ -189,7 +187,6 @@ Every server writes to it, and each event carries the `server_id` and `server_ve
 The table is partitioned by `occurred_at`:
 
 - New events go into one partition for each UTC day, named `audit_events_YYYYMMDD`.
-- Events copied from the activity log at upgrade are in monthly and yearly partitions; see [Upgrades and backups](upgrades-and-backups.md#upgrade).
 - The schema has no default partition, so an event dated for a day with no partition has nowhere to go.
   The `audit_partitions` job prevents this by creating the partitions for today and the next 14 days.
   It runs once at every server start and then daily.

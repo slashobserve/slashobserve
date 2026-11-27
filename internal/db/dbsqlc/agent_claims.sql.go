@@ -111,7 +111,7 @@ func (q *Queries) GetClaimedAgentRequest(ctx context.Context, arg GetClaimedAgen
 
 const getRunTokenDeadline = `-- name: GetRunTokenDeadline :one
 SELECT max(expires_at)::timestamptz FROM run_tokens
-WHERE agent_request_id = $1 AND attempt = $2 AND (claim_epoch IS NULL OR claim_epoch = $3::integer)
+WHERE agent_request_id = $1 AND attempt = $2 AND claim_epoch = $3::integer
 `
 
 type GetRunTokenDeadlineParams struct {
@@ -138,7 +138,7 @@ LEFT JOIN service_accounts s ON r.assigned_kind = 'service_account' AND s.id = r
 WHERE t.token_hash = $1
   AND g.revoked_at IS NULL
   AND t.attempt = r.attempts
-  AND (t.claim_epoch IS NULL OR t.claim_epoch = r.claim_epoch)
+  AND t.claim_epoch = r.claim_epoch
   AND r.state = 'running'
   AND r.lease_until > clock_timestamp()
   AND t.expires_at > clock_timestamp()
@@ -365,7 +365,7 @@ func (q *Queries) PruneRunTokens(ctx context.Context) (int64, error) {
 
 const renewRunTokens = `-- name: RenewRunTokens :exec
 UPDATE run_tokens SET expires_at = $1
-WHERE agent_request_id = $2 AND attempt = $3 AND (claim_epoch IS NULL OR claim_epoch = $4::integer)
+WHERE agent_request_id = $2 AND attempt = $3 AND claim_epoch = $4::integer
 `
 
 type RenewRunTokensParams struct {

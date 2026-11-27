@@ -212,7 +212,6 @@ The hourly `activity_prune` job deletes [activity](../use/activity.md) events ol
 
 `8760h` is one year.
 The server stores audit events in one Postgres partition per UTC day.
-Events copied from the activity log at upgrade sit in one partition per UTC month, or per UTC year when older than two years.
 The daily `audit_partitions` job drops each partition whose end is older than the retention, and records an `audit.prune` event.
 
 ### Details of `SLASHOBSERVE_AUDIT_OTLP_ENDPOINT`
