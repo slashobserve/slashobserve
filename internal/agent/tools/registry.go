@@ -86,7 +86,7 @@ func FailureCode(err error) string {
 	return FailureToolFailed
 }
 
-var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes, nameGetSpecGuide: 96 << 10, nameUpdateDashboard: maxSuggestResult, nameGetPanels: MaxModelSpecBytes, nameUpdatePanels: maxSuggestResult, nameGetRunBrief: maxBriefBytes, nameGetProposal: MaxModelSpecBytes}
+var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes, nameGetSpecGuide: 96 << 10, nameUpdateDashboard: maxSuggestResult, nameGetPanels: MaxModelSpecBytes, nameUpdatePanels: maxSuggestResult, nameGetRunBrief: maxBriefBytes, nameGetProposal: MaxModelSpecBytes, nameReadSeries: maxReadSeriesBytes + 8<<10}
 
 const defaultNarrowing = "narrow the request"
 

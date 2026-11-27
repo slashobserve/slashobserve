@@ -518,9 +518,10 @@ When they can still comment on the dashboard but can no longer edit it, or the r
 
 ### Tools in a run
 
-The server has 120 tools: MCP clients get 118, every one except `save_finding` and `list_more_tools`, which only a run offers.
-A run offers 93 of them in a new-dashboard or revision request, 93 in an investigation and 62 in a suggestion.
-With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a third tool that only a run offers, in an investigation only: the server has 121 tools, MCP clients outside a run still get 118 and an investigation offers 94.
+The server has 121 tools: MCP clients get 118, every one except `save_finding`, `list_more_tools` and `read_series`, which only a run offers.
+A run offers 93 of them in a new-dashboard or revision request, 94 in an investigation and 62 in a suggestion.
+`read_series` is offered in an investigation only: it gives every point of a range query, up to 50 series, for the built-in agent's sweep before its first model call, where `query_range` gives only each series' minimum, maximum and last value.
+With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a fourth tool that only a run offers, in an investigation only: the server has 122 tools, MCP clients outside a run still get 118 and an investigation offers 95.
 Those are an Admin's counts: inside a run each tool needs the same role as over MCP, except `save_finding`, and a run session does not list a tool above the requester's role.
 
 - Reads are offered in every run.
