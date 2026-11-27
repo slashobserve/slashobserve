@@ -716,7 +716,7 @@ An Admin also gets the section on the built-in audit datasource.
 
 Each datasource type answers these discovery tools:
 
-- Prometheus: `list_metrics`, `list_labels` and `list_label_values`.
+- Prometheus: `list_metrics`, `list_labels` and `list_label_values`, over the last hour unless you pass `from` and `to`.
 - ClickHouse: the same on the OpenTelemetry tables, plus `get_schema` and `sample_rows`.
 - Loki:
   - `list_labels` and `list_label_values` for stream labels, narrowed by a stream selector in `metric`.
