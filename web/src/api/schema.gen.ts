@@ -1597,7 +1597,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/context-sources": {
+    "/mcp-sources": {
         parameters: {
             query?: never;
             header?: never;
@@ -1605,23 +1605,23 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the registered context sources.
+         * List the registered MCP sources.
          * @description Only Admins can call this endpoint. A response never carries a secret; `secret_set` says whether one is stored.
          */
-        get: operations["listContextSources"];
+        get: operations["listMCPSources"];
         put?: never;
         /**
          * Register an MCP server whose tools the agent may use.
          * @description Only Admins can call this endpoint. The URL must be https with a domain name, no login, query or fragment; the server is reached over MCP streamable HTTP. The host is added to the outbound allowlist when it is not allowed yet, unless `SLASHOBSERVE_OUTBOUND_DOMAINS` is set. The optional secret is sent in the header named by `secret_header`, is encrypted with a key derived from `SLASHOBSERVE_SECRET_KEY` and is never returned. Registering a source asks the server nothing: call the discover endpoint, then approve tools.
          */
-        post: operations["createContextSource"];
+        post: operations["createMCPSource"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/context-sources/{uid}": {
+    "/mcp-sources/{uid}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1631,27 +1631,27 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read one context source.
+         * Read one MCP source.
          * @description Only Admins can call this endpoint.
          */
-        get: operations["getContextSource"];
+        get: operations["getMCPSource"];
         put?: never;
         post?: never;
         /**
-         * Delete a context source, its approved tools and its stored secret.
-         * @description Only Admins can call this endpoint. The host's outbound allowlist entry, when a source added it, is removed unless a webhook, a datasource, a Grafana connection or another source still uses the host. A source from the context sources file answers 409 `provisioned`.
+         * Delete an MCP source, its approved tools and its stored secret.
+         * @description Only Admins can call this endpoint. The host's outbound allowlist entry, when a source added it, is removed unless a webhook, a datasource, a Grafana connection or another source still uses the host. A source from the MCP sources file answers 409 `provisioned`.
          */
-        delete: operations["deleteContextSource"];
+        delete: operations["deleteMCPSource"];
         options?: never;
         head?: never;
         /**
-         * Change a context source's name, audience, address or secret.
-         * @description Only Admins can call this endpoint. A new URL forgets the tools found so far, because they belong to another server, and clears the last discovery. A URL with a new host needs the secret again (`secret`) or `clear_secret`, so a stored secret never reaches another host. A source from the context sources file answers 409 `provisioned`.
+         * Change an MCP source's name, audience, address or secret.
+         * @description Only Admins can call this endpoint. A new URL forgets the tools found so far, because they belong to another server, and clears the last discovery. A URL with a new host needs the secret again (`secret`) or `clear_secret`, so a stored secret never reaches another host. A source from the MCP sources file answers 409 `provisioned`.
          */
-        patch: operations["updateContextSource"];
+        patch: operations["updateMCPSource"];
         trace?: never;
     };
-    "/context-sources/{uid}/discover": {
+    "/mcp-sources/{uid}/discover": {
         parameters: {
             query?: never;
             header?: never;
@@ -1664,16 +1664,16 @@ export interface paths {
         put?: never;
         /**
          * Ask the server for its tools and compare them with what was approved.
-         * @description Only Admins can call this endpoint. The server connects over MCP streamable HTTP through the outbound allowlist and lists its tools. A tool the server marks destructive, or does not mark read-only, is stored as `refused` with the reason. A new read-only tool is stored as `offered`; nothing is approved automatically. An approved tool whose name, description or input schema changed becomes `changed` and is not served until an Admin approves it again. An approved tool the server no longer lists becomes `gone`. A failed discovery answers 200 with `source.state` `unreachable` and `source.failure` naming why: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
+         * @description Only Admins can call this endpoint. The server connects over MCP streamable HTTP through the outbound allowlist and lists its tools. A tool the server marks destructive (`destructiveHint: true`), or whose description or input schema is too large, is stored as `refused` with the reason. Any other new tool is stored as `offered` with `read_only` saying whether the server marks it read-only; nothing is approved automatically. An approved tool whose name, description, input schema or read-only mark changed becomes `changed` and is not served until an Admin approves it again. An approved tool the server no longer lists becomes `gone`. A failed discovery answers 200 with `source.state` `unreachable` and `source.failure` naming why: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
          */
-        post: operations["discoverContextSourceTools"];
+        post: operations["discoverMCPSourceTools"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/context-sources/{uid}/tools": {
+    "/mcp-sources/{uid}/tools": {
         parameters: {
             query?: never;
             header?: never;
@@ -1683,10 +1683,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List what discovery found on a context source.
-         * @description Only Admins can call this endpoint. Each tool carries the definition that was pinned (`description`, `input_schema`, `hash`), and for a `changed` tool the definition the server offers now in `seen`.
+         * List what discovery found on an MCP source.
+         * @description Only Admins can call this endpoint. Each tool carries the definition that was pinned (`description`, `input_schema`, `read_only`, `hash`), and for a `changed` tool the definition the server offers now in `seen`.
          */
-        get: operations["listContextSourceTools"];
+        get: operations["listMCPSourceTools"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1695,7 +1695,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/context-sources/{uid}/tools/approve-read-only": {
+    "/mcp-sources/{uid}/tools/approve-read-only": {
         parameters: {
             query?: never;
             header?: never;
@@ -1707,17 +1707,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Approve every offered tool of a context source at once.
-         * @description Only Admins can call this endpoint. Every `offered` tool is approved as it is pinned now; the server marks each of them read-only. `changed` tools are left alone because each needs its own review, and `refused` tools cannot be approved.
+         * Approve every offered read-only tool of an MCP source at once.
+         * @description Only Admins can call this endpoint. Every `offered` tool the server marks read-only is approved as it is pinned now. An `offered` tool that is not marked read-only is left alone: it is approved only by name, with the single-tool approve route. `changed` tools are left alone because each needs its own review, and `refused` tools cannot be approved.
          */
-        post: operations["approveReadOnlyContextSourceTools"];
+        post: operations["approveReadOnlyMCPSourceTools"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/context-sources/{uid}/tools/{name}/approve": {
+    "/mcp-sources/{uid}/tools/{name}/approve": {
         parameters: {
             query?: never;
             header?: never;
@@ -1733,14 +1733,14 @@ export interface paths {
          * Approve one tool as it is described now.
          * @description Only Admins can call this endpoint. The body is optional. With `hash`, the approval applies only when the tool's current definition has that hash, so an Admin approves what they read; otherwise it answers 409 `tool_changed`. An `offered` tool is approved as pinned; a `changed` tool is approved as the server describes it now, which replaces the pinned definition. A `refused` tool answers 409 `tool_refused` with the reason.
          */
-        post: operations["approveContextSourceTool"];
+        post: operations["approveMCPSourceTool"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/context-sources/{uid}/tools/{name}/revoke": {
+    "/mcp-sources/{uid}/tools/{name}/revoke": {
         parameters: {
             query?: never;
             header?: never;
@@ -1756,7 +1756,7 @@ export interface paths {
          * Withdraw the approval of a tool.
          * @description Only Admins can call this endpoint. An `approved` or `changed` tool returns to `offered`, and the agent stops being offered it.
          */
-        post: operations["revokeContextSourceTool"];
+        post: operations["revokeMCPSourceTool"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4955,12 +4955,12 @@ export interface components {
         OutboundDomain: {
             /** @description A host name, or `*.` followed by a host name for its subdomains only, in lower case ASCII. */
             domain: string;
-            /** @description True when saving a Grafana connection, a datasource or a context source added the entry; it is removed with the last webhook, connection, datasource or context source that uses that host. */
+            /** @description True when saving a Grafana connection, a datasource or an MCP source added the entry; it is removed with the last webhook, connection, datasource or MCP source that uses that host. */
             from_connection: boolean;
-            /** @description The webhooks, Grafana connections, datasources and context sources whose address this entry allows, so removing it would stop them; empty for anyone but an Admin, because those objects are Admin only. */
+            /** @description The webhooks, Grafana connections, datasources and MCP sources whose address this entry allows, so removing it would stop them; empty for anyone but an Admin, because those objects are Admin only. */
             used_by: {
                 /** @enum {string} */
-                kind: "webhook" | "grafana_connection" | "datasource" | "context_source";
+                kind: "webhook" | "grafana_connection" | "datasource" | "mcp_source";
                 name: string;
             }[];
             /**
@@ -5145,6 +5145,11 @@ export interface components {
             /** @description The time field of an Elasticsearch or OpenSearch datasource; absent on other types. */
             time_field?: string;
             /**
+             * @description Present on an Elasticsearch or OpenSearch datasource whose index holds span documents that Jaeger wrote, which answers the trace reads.
+             * @enum {string}
+             */
+            spans?: "jaeger";
+            /**
              * @description Who can query the datasource, for an Admin caller only; absent for everyone else.
              * @enum {string}
              */
@@ -5225,6 +5230,11 @@ export interface components {
             time_field?: string;
             /** @enum {string} */
             query_language?: "" | "kql" | "lucene";
+            /**
+             * @description Elasticsearch and OpenSearch only. `jaeger` says the index holds span documents that Jaeger wrote, so the datasource answers the trace reads; the time field is then `startTimeMillis`.
+             * @enum {string}
+             */
+            spans?: "" | "jaeger";
             fields?: components["schemas"]["DatasourceFieldRoles"];
             limits?: components["schemas"]["DatasourceLimits"];
             secrets?: components["schemas"]["DatasourceSecrets"];
@@ -5253,6 +5263,8 @@ export interface components {
             index?: string;
             time_field?: string;
             query_language?: string;
+            /** @enum {string} */
+            spans?: "jaeger";
             fields?: components["schemas"]["DatasourceFieldRoles"];
             limits?: components["schemas"]["DatasourceLimits"];
             /** @description Which credentials are stored, each `password`, `bearer_token`, `api_key` or `header:<name>`. Their values are never returned. */
@@ -5279,14 +5291,14 @@ export interface components {
             }[];
         };
         /** @description How many of the source's tools are in each state; see `docs/reference/states.md`. */
-        ContextSourceToolCounts: {
+        MCPSourceToolCounts: {
             offered: number;
             approved: number;
             changed: number;
             gone: number;
             refused: number;
         };
-        ContextSource: {
+        MCPSource: {
             uid: string;
             name: string;
             /** @description What the source is for, on one line; null when none was set. */
@@ -5302,9 +5314,9 @@ export interface components {
             secret_header: string | null;
             /** @description True when a secret is stored; the secret itself is never returned. */
             secret_set: boolean;
-            /** @description True when the source comes from the context sources file and cannot be changed or deleted here. */
+            /** @description True when the source comes from the MCP sources file and cannot be changed or deleted here. */
             provisioned: boolean;
-            /** @description True when the context sources file set `allowPrivate`, so the source may be an `http` address that resolves to a private network. Only the file can set it, and it is never writable through the API. */
+            /** @description True when the MCP sources file set `allowPrivate`, so the source may be an `http` address that resolves to a private network. Only the file can set it, and it is never writable through the API. */
             private: boolean;
             /**
              * @description `unchecked` until discovery runs, `unreachable` when the last discovery failed, `ready` otherwise.
@@ -5315,16 +5327,16 @@ export interface components {
             failure: string | null;
             /** Format: date-time */
             checked_at: string | null;
-            tools: components["schemas"]["ContextSourceToolCounts"];
+            tools: components["schemas"]["MCPSourceToolCounts"];
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
             updated_at: string;
         };
-        ContextSourceList: {
-            context_sources: components["schemas"]["ContextSource"][];
+        MCPSourceList: {
+            mcp_sources: components["schemas"]["MCPSource"][];
         };
-        CreateContextSourceRequest: {
+        CreateMCPSourceRequest: {
             uid: string;
             /** @description The display name; the uid when empty. */
             name?: string;
@@ -5338,7 +5350,7 @@ export interface components {
             secret_header?: string;
             secret?: string;
         };
-        UpdateContextSourceRequest: {
+        UpdateMCPSourceRequest: {
             name?: string;
             /** @description What the source is for; an empty string removes it. */
             description?: string;
@@ -5351,10 +5363,10 @@ export interface components {
             /** @description Delete the stored secret; cannot be combined with `secret`. */
             clear_secret?: boolean;
         };
-        InvalidContextSourceError: {
+        InvalidMCPSourceError: {
             error: string;
             /** @enum {string} */
-            code: "invalid_context_source";
+            code: "invalid_mcp_source";
             fields: {
                 field: string;
                 message: string;
@@ -5367,15 +5379,17 @@ export interface components {
             /** @description Why the tool cannot be approved. */
             refusal: string;
         };
-        ContextSourceDefinition: {
+        MCPSourceDefinition: {
             description: string;
             input_schema: {
                 [key: string]: unknown;
             };
-            /** @description SHA-256 over the tool's name, description and input schema, as 64 hex characters. */
+            /** @description Whether the server marks the tool read-only (`readOnlyHint`). */
+            read_only: boolean;
+            /** @description SHA-256 over the tool's name, description, input schema and read-only mark, as 64 hex characters. */
             hash: string;
         };
-        ContextSourceTool: {
+        MCPSourceTool: {
             name: string;
             /** @enum {string} */
             state: "offered" | "approved" | "changed" | "gone" | "refused";
@@ -5386,10 +5400,12 @@ export interface components {
             input_schema: {
                 [key: string]: unknown;
             };
-            /** @description SHA-256 over the pinned name, description and input schema, as 64 hex characters. */
+            /** @description Whether the server marks the pinned tool read-only (`readOnlyHint`). A tool that is not marked can still be approved, by name only, and the agent may then call it, so it can change the system it reaches. A tool discovered before the server stored the mark reads `false` while it was refused, until the next discovery fills it in. */
+            read_only: boolean;
+            /** @description SHA-256 over the pinned name, description, input schema and read-only mark, as 64 hex characters. */
             hash: string;
             /** @description What the server describes now, for a `changed` tool; null otherwise. */
-            seen: components["schemas"]["ContextSourceDefinition"] | null;
+            seen: components["schemas"]["MCPSourceDefinition"] | null;
             /**
              * Format: uuid
              * @description The person who approved the tool; null for a tool not approved, or approved by a key.
@@ -5401,14 +5417,14 @@ export interface components {
             updated_at: string;
             allowed_actions: ("approve" | "revoke")[];
         };
-        ContextSourceToolList: {
-            tools: components["schemas"]["ContextSourceTool"][];
+        MCPSourceToolList: {
+            tools: components["schemas"]["MCPSourceTool"][];
         };
-        ContextSourceApproved: {
-            approved: components["schemas"]["ContextSourceTool"][];
+        MCPSourceApproved: {
+            approved: components["schemas"]["MCPSourceTool"][];
         };
-        ContextSourceDiscovery: {
-            source: components["schemas"]["ContextSource"];
+        MCPSourceDiscovery: {
+            source: components["schemas"]["MCPSource"];
             /** @description What this discovery found; all zero when it failed. */
             tally: {
                 /** @description Tools the server listed that can be kept. */
@@ -5423,7 +5439,7 @@ export interface components {
                 ignored: number;
             };
         };
-        ApproveContextSourceToolRequest: {
+        ApproveMCPSourceToolRequest: {
             /** @description The hash of the definition that was read; the approval is refused when the tool no longer has it. */
             hash?: string;
         };
@@ -6851,6 +6867,13 @@ export interface components {
             text: string;
             /** @enum {string} */
             status: "open" | "supported" | "ruled_out";
+            /**
+             * @description How a supported or ruled-out hypothesis was settled; `cause` goes with `supported` and the others with `ruled_out`. Absent when the agent gave none.
+             * @enum {string}
+             */
+            closing?: "cause" | "knock_on" | "background" | "transient" | "unrelated";
+            /** @description With the `knock_on` closing, the id of the hypothesis it follows from. */
+            knock_on_of?: string;
             /** @description What the agent read and what it showed. */
             evidence?: string[];
             /** @description For an open hypothesis, the read that would settle it. */
@@ -7316,12 +7339,73 @@ export interface components {
             /** @description One sentence on what failed. */
             summary: string;
         };
-        FindingUnverified: {
+        FindingCauseComponent: {
+            /** @enum {string} */
+            kind: "service" | "pod" | "deployment" | "config" | "flag" | "datastore" | "dependency" | "node" | "other";
+            /** @description The name as the telemetry or the system spells it. */
+            name: string;
+            /** @description The namespace or scope the name lives in; null when the agent gave none. */
+            namespace: string | null;
+        };
+        /** @description One cause of the incident, as the agent listed it and the server scored it. */
+        FindingCause: {
+            component: components["schemas"]["FindingCauseComponent"];
+            /** @enum {string} */
+            kind: "deploy" | "config_or_flag" | "dependency" | "resource" | "data" | "traffic" | "infrastructure" | "unknown";
+            /** @description One sentence on how the component failed. */
+            mechanism: string;
+            /** @description The change that set the cause off; null when the agent named none. */
+            trigger: {
+                /** @enum {string} */
+                kind: "feature_flag" | "config_value" | "deploy" | "traffic" | "dependency" | "unknown";
+                /** @description The flag key, setting, version or name exactly as the system spells it. */
+                key: string;
+                /** @description The value it was set to; null when the agent gave none. */
+                value: string | null;
+            } | null;
             /**
-             * @description A figure from the Markdown or the impact, the root cause component, or the onset time.
+             * Format: date-time
+             * @description When this cause began; null when the agent gave none.
+             */
+            onset: string | null;
+            /** @description The components this cause affects. */
+            affected: components["schemas"]["FindingCauseComponent"][];
+            /**
+             * @description `knock_on` when the cause only follows another listed cause, which `knock_on_of` names.
              * @enum {string}
              */
-            kind: "figure" | "component" | "onset";
+            relation: "independent" | "knock_on";
+            /** @description The index in `causes` of the cause this one follows; null for an independent cause. */
+            knock_on_of: number | null;
+            evidence: {
+                /** @description The ids of the run's facts the agent cited for this cause. */
+                facts: string[];
+                /** @description Trace ids the agent cited for this cause. */
+                trace_ids: string[];
+                /** @description The queries the cited facts came from, when the run kept them. */
+                queries: string[];
+            };
+            /**
+             * @description The agent's own estimate; null when it gave none.
+             * @enum {string|null}
+             */
+            estimate: "high" | "medium" | "low" | null;
+            /** @description The server's score from the evidence the run read; null when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `off` or for a finding saved before causes existed. */
+            confidence: number | null;
+            /**
+             * @description The band of `confidence`, 0.7 and above high and 0.4 and above medium; null when it is null.
+             * @enum {string|null}
+             */
+            band: "high" | "medium" | "low" | null;
+            /** @description True when the finding states the cause, a medium or high one or any unscored one; false for an unconfirmed cause. */
+            stated: boolean;
+        };
+        FindingUnverified: {
+            /**
+             * @description A figure from the Markdown or the impact, a cause's component or trigger key, an onset time, a cited fact or `answers` entry that did not pass (an unknown fact, an option more than 1% away, two values for one quantity, or an answer the Markdown never gives), or a trace or span id that was cut short or that the run never read; `candidate` is a triage candidate the investigation left open when it concluded, as its id and service, such as "c2 ad".
+             * @enum {string}
+             */
+            kind: "figure" | "component" | "onset" | "fact" | "trace_id" | "trigger" | "candidate";
             /** @description The item as the agent wrote it, such as "523 ms". */
             text: string;
         };
@@ -7332,8 +7416,10 @@ export interface components {
              * @description The run whose conclusion block this describes; it is the `created_by.run_id` of that block.
              */
             run_id: string;
-            /** @description What failed, when the agent named it; null otherwise. */
+            /** @description The first stated cause that is not a knock-on, kept for readers of the single cause; null when there is none. */
             root_cause: components["schemas"]["FindingRootCause"] | null;
+            /** @description The causes of the incident, stated ones first and most confident first; empty when the agent listed none. */
+            causes: components["schemas"]["FindingCause"][];
             /**
              * Format: date-time
              * @description When the failure started, as the agent judged it; null when it gave none.
@@ -7397,8 +7483,10 @@ export interface components {
             observe_worthy: boolean;
             /** @description True when the run that wrote the answer read a datasource only Admins can query, such as the audit trail, which only an Admin's private chat or a run whose every reader is an Admin can do, or when the dashboard or observation the answer is about sits in a folder only Admins can read. Such an answer is shared, saved, pinned, applied or made a dashboard only in a folder only Admins can read; anywhere else the server answers 409 `restricted_answer`. */
             restricted: boolean;
-            /** @description What failed, when the agent named it; null otherwise. */
+            /** @description The first stated cause that is not a knock-on, kept for readers of the single cause; null when there is none. */
             root_cause?: components["schemas"]["FindingRootCause"] | null;
+            /** @description The causes of the incident, stated ones first and most confident first; empty when the agent listed none. */
+            causes?: components["schemas"]["FindingCause"][];
             /**
              * Format: date-time
              * @description When the failure started, as the agent judged it; null when it gave none.
@@ -13182,7 +13270,7 @@ export interface operations {
             504: components["responses"]["QueryTimeout"];
         };
     };
-    listContextSources: {
+    listMCPSources: {
         parameters: {
             query?: never;
             header?: never;
@@ -13191,13 +13279,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The context sources, sorted by uid. */
+            /** @description The MCP sources, sorted by uid. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContextSourceList"];
+                    "application/json": components["schemas"]["MCPSourceList"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -13206,7 +13294,7 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
-    createContextSource: {
+    createMCPSource: {
         parameters: {
             query?: never;
             header?: never;
@@ -13215,18 +13303,18 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateContextSourceRequest"];
+                "application/json": components["schemas"]["CreateMCPSourceRequest"];
             };
         };
         responses: {
-            /** @description The context source is stored. */
+            /** @description The MCP source is stored. */
             201: {
                 headers: {
                     Location: string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContextSource"];
+                    "application/json": components["schemas"]["MCPSource"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -13250,19 +13338,19 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The definition is not valid (`invalid_context_source`, with the fields to fix), 50 context sources exist (`too_many_context_sources`), or the outbound allowlist is full (`too_many_domains`). */
+            /** @description The definition is not valid (`invalid_mcp_source`, with the fields to fix), 50 MCP sources exist (`too_many_mcp_sources`), or the outbound allowlist is full (`too_many_domains`). */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvalidContextSourceError"] | components["schemas"]["Error"];
+                    "application/json": components["schemas"]["InvalidMCPSourceError"] | components["schemas"]["Error"];
                 };
             };
             500: components["responses"]["Internal"];
         };
     };
-    getContextSource: {
+    getMCPSource: {
         parameters: {
             query?: never;
             header?: never;
@@ -13273,13 +13361,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The context source. */
+            /** @description The MCP source. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContextSource"];
+                    "application/json": components["schemas"]["MCPSource"];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -13288,7 +13376,7 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
-    deleteContextSource: {
+    deleteMCPSource: {
         parameters: {
             query?: never;
             header?: never;
@@ -13299,7 +13387,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The context source is deleted. */
+            /** @description The MCP source is deleted. */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -13309,7 +13397,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The source comes from the context sources file (`provisioned`). */
+            /** @description The source comes from the MCP sources file (`provisioned`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -13321,7 +13409,7 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
-    updateContextSource: {
+    updateMCPSource: {
         parameters: {
             query?: never;
             header?: never;
@@ -13332,17 +13420,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UpdateContextSourceRequest"];
+                "application/json": components["schemas"]["UpdateMCPSourceRequest"];
             };
         };
         responses: {
-            /** @description The changed context source. */
+            /** @description The changed MCP source. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContextSource"];
+                    "application/json": components["schemas"]["MCPSource"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -13357,7 +13445,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description The source comes from the context sources file (`provisioned`), changed while the request ran (`source_changed`), or a secret was sent without `SLASHOBSERVE_SECRET_KEY` (`secret_key_missing`). */
+            /** @description The source comes from the MCP sources file (`provisioned`), changed while the request ran (`source_changed`), or a secret was sent without `SLASHOBSERVE_SECRET_KEY` (`secret_key_missing`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -13367,19 +13455,19 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The change is not valid (`invalid_context_source`, with the fields to fix), or the outbound allowlist is full (`too_many_domains`). */
+            /** @description The change is not valid (`invalid_mcp_source`, with the fields to fix), or the outbound allowlist is full (`too_many_domains`). */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvalidContextSourceError"] | components["schemas"]["Error"];
+                    "application/json": components["schemas"]["InvalidMCPSourceError"] | components["schemas"]["Error"];
                 };
             };
             500: components["responses"]["Internal"];
         };
     };
-    discoverContextSourceTools: {
+    discoverMCPSourceTools: {
         parameters: {
             query?: never;
             header?: never;
@@ -13396,7 +13484,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContextSourceDiscovery"];
+                    "application/json": components["schemas"]["MCPSourceDiscovery"];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -13414,7 +13502,7 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
-    listContextSourceTools: {
+    listMCPSourceTools: {
         parameters: {
             query?: never;
             header?: never;
@@ -13431,7 +13519,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContextSourceToolList"];
+                    "application/json": components["schemas"]["MCPSourceToolList"];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -13440,7 +13528,7 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
-    approveReadOnlyContextSourceTools: {
+    approveReadOnlyMCPSourceTools: {
         parameters: {
             query?: never;
             header?: never;
@@ -13451,13 +13539,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The tools approved by this call; empty when none was offered. */
+            /** @description The tools approved by this call; empty when no read-only tool was offered. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContextSourceApproved"];
+                    "application/json": components["schemas"]["MCPSourceApproved"];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -13466,7 +13554,7 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
-    approveContextSourceTool: {
+    approveMCPSourceTool: {
         parameters: {
             query?: never;
             header?: never;
@@ -13478,7 +13566,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["ApproveContextSourceToolRequest"];
+                "application/json": components["schemas"]["ApproveMCPSourceToolRequest"];
             };
         };
         responses: {
@@ -13488,7 +13576,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContextSourceTool"];
+                    "application/json": components["schemas"]["MCPSourceTool"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -13508,7 +13596,7 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
-    revokeContextSourceTool: {
+    revokeMCPSourceTool: {
         parameters: {
             query?: never;
             header?: never;
@@ -13526,7 +13614,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContextSourceTool"];
+                    "application/json": components["schemas"]["MCPSourceTool"];
                 };
             };
             401: components["responses"]["Unauthorized"];

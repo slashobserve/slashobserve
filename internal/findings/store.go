@@ -36,7 +36,7 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 		return Finding{}, false, fmt.Errorf("encode evidence: %w", err)
 	}
 	cause := rootCauseColumns(in.Structured.RootCause)
-	unverified, err := encodeUnverified(in.Unverified)
+	unverified, causes, err := encodeChecks(in)
 	if err != nil {
 		return Finding{}, false, err
 	}
@@ -81,6 +81,7 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 			NextSteps:          in.Structured.NextSteps,
 			NoIncident:         pgtype.Bool{Bool: true, Valid: in.Structured.NoIncident},
 			Unverified:         unverified,
+			Causes:             causes,
 		})
 		if err != nil {
 			return err
@@ -418,6 +419,14 @@ func optionalText(s string) pgtype.Text {
 	return pgtype.Text{String: s, Valid: s != ""}
 }
 
+func encodeChecks(in SaveInput) (unverified, causes []byte, err error) {
+	if unverified, err = encodeUnverified(in.Unverified); err != nil {
+		return nil, nil, err
+	}
+	causes, err = encodeCauses(in.Structured.Causes)
+	return unverified, causes, err
+}
+
 type causeColumns struct{ component, kind, summary pgtype.Text }
 
 func rootCauseColumns(c *RootCause) causeColumns {
@@ -439,5 +448,6 @@ func StructuredOf(r dbsqlc.Finding) Structured {
 	if r.RootCauseKind.Valid {
 		s.RootCause = &RootCause{Component: r.RootCauseComponent.String, Kind: r.RootCauseKind.String, Summary: r.RootCauseSummary.String}
 	}
+	s.Causes = causesOf(r.Causes, s.RootCause, s.Onset, s.Confidence)
 	return s
 }

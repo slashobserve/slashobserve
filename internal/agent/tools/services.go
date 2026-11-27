@@ -107,11 +107,12 @@ func (r *Registry) serviceTargets(ctx context.Context, uid, signal string) ([]se
 			return nil, res, false
 		}
 		dsType := inst.Datasource.Type()
-		if len(datasource.ServiceSignals(dsType)) == 0 {
+		signals := datasource.SignalsOf(inst.Datasource)
+		if len(signals) == 0 {
 			return nil, invalid("list_services works on Loki, Tempo, Jaeger, ClickHouse, Elasticsearch, OpenSearch and Prometheus datasources; %s is a %s datasource", clip(uid, maxStepNameBytes), dsType), false
 		}
 		if signal == "" {
-			signal = datasource.ServiceSignals(dsType)[0]
+			signal = signals[0]
 		}
 		return []serviceTarget{{uid: inst.UID, dsType: dsType, signal: signal}}, Result{}, true
 	}
@@ -125,7 +126,7 @@ func (r *Registry) serviceTargets(ctx context.Context, uid, signal string) ([]se
 func targetsOf(inst datasource.Instance, signal string) []serviceTarget {
 	dsType := inst.Datasource.Type()
 	var targets []serviceTarget
-	for _, held := range datasource.ServiceSignals(dsType) {
+	for _, held := range datasource.SignalsOf(inst.Datasource) {
 		if signal == "" || signal == held {
 			targets = append(targets, serviceTarget{uid: inst.UID, dsType: dsType, signal: held})
 		}

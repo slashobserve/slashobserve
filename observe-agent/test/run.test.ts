@@ -6,6 +6,7 @@ import {
   briefUnavailableMessage,
   runLoop,
   toolsUnavailableMessage,
+  widened,
 } from "../src/run"
 import { estimateOutputTokens } from "../src/session/replay/replay"
 import { CallError, type SessionFactory } from "../src/session/types"
@@ -897,5 +898,23 @@ describe("a run that wrote but did not answer", () => {
     await drive(claim, claimed("start an observation out of scope"))
     expect(savedMarkdown(claim)).toBeUndefined()
     expect(claim.finishes[0]?.failure_code).toBe("no_tool_call")
+  })
+})
+
+describe("tool list", () => {
+  const result = (isError: boolean) => ({
+    callId: "c",
+    content: "{}",
+    isError,
+    prunable: false,
+  })
+  test("a successful list_more_tools asks for the list again", () => {
+    const calls = [
+      { id: "a", name: "list_metrics", input: "{}" },
+      { id: "b", name: "list_more_tools", input: "{}" },
+    ]
+    expect(widened(calls, [result(false), result(false)])).toBe(true)
+    expect(widened(calls, [result(false), result(true)])).toBe(false)
+    expect(widened(calls.slice(0, 1), [result(false)])).toBe(false)
   })
 })

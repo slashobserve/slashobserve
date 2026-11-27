@@ -81,6 +81,7 @@ The [logs page and the trace search](../use/logs-and-traces.md) have gaps.
 
 - The logs page reads Loki, ClickHouse, Elasticsearch and OpenSearch.
 - The trace search reads Tempo, Jaeger and ClickHouse.
+  An Elasticsearch or OpenSearch datasource with `spans: jaeger` answers the trace tools and the trace, trace statistics and trace comparison API, but not the trace search, the Traces page or `observe traces`.
 - A Jaeger datasource is searched by service, operation, tags and duration, not TraceQL, and has no trace statistics or trace comparison.
 - The [metrics page](../use/metrics.md) reads Prometheus.
   A SQL query on ClickHouse metrics runs in the panel editor's live preview; see [Edit a panel](../use/edit-panel.md).

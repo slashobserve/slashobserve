@@ -94,6 +94,8 @@ const (
 
 var instanceRoles = []string{"admin", "editor", "commenter", "viewer"}
 
+const defaultQuestionEffort = "high"
+
 var llmEfforts = map[string][]string{
 	LLMProviderAnthropic: {"low", "medium", "high", "xhigh", "max"},
 	LLMProviderOpenAI:    {"none", "minimal", "low", "medium", "high", "xhigh"},
@@ -125,7 +127,7 @@ const (
 
 	envServiceAccountsFile = "SLASHOBSERVE_SERVICE_ACCOUNTS_FILE"
 
-	envContextSourcesFile = "SLASHOBSERVE_CONTEXT_SOURCES_FILE"
+	envMCPSourcesFile = "SLASHOBSERVE_MCP_SOURCES_FILE"
 
 	envAPIContractCheck = "SLASHOBSERVE_API_CONTRACT_CHECK"
 
@@ -157,6 +159,7 @@ const (
 	envAgentInvestigationLoop  = "SLASHOBSERVE_AGENT_INVESTIGATION_LOOP"
 	envAgentInvestigationMax   = "SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX"
 	envAgentFindingGrounding   = "SLASHOBSERVE_AGENT_FINDING_GROUNDING"
+	envAgentInvestigationBrief = "SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF"
 	envAgentRunMaxCostUSD      = "SLASHOBSERVE_AGENT_RUN_MAX_COST_USD"
 
 	envProvisionDir = "SLASHOBSERVE_PROVISION_DIR"
@@ -171,8 +174,8 @@ var serverEnvNames = []string{
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
-	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentRunMaxCostUSD, envAgentSessionRenewKiB, envAgentWorkers, envAgentInvestigationCalls, envAgentInvestigationLoop, envAgentInvestigationMax, envAgentFindingGrounding,
-	envProvisionDir, envMetrics, envSecretKey, envServiceAccountsFile, envContextSourcesFile,
+	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentRunMaxCostUSD, envAgentSessionRenewKiB, envAgentWorkers, envAgentInvestigationCalls, envAgentInvestigationLoop, envAgentInvestigationMax, envAgentFindingGrounding, envAgentInvestigationBrief,
+	envProvisionDir, envMetrics, envSecretKey, envServiceAccountsFile, envMCPSourcesFile,
 }
 
 type GroupRoleSetting struct {
@@ -186,6 +189,7 @@ type LLM struct {
 	APIKey         datasource.Secret
 	BaseURL        *url.URL
 	Effort         string
+	QuestionEffort string
 	MaxTokens      int
 	RequestTimeout time.Duration
 	IdleTimeout    time.Duration
@@ -205,6 +209,7 @@ type Agent struct {
 	InvestigationCallsMax int
 	FindingGrounding      grounding.Mode
 	MaxRunCostUSD         float64
+	InvestigationBrief    bool
 }
 
 type Config struct {
@@ -236,8 +241,8 @@ type Config struct {
 	ServiceAccountsFile string
 	ServiceAccounts     []ServiceAccount
 
-	ContextSourcesFile string
-	ContextSources     []ContextSource
+	MCPSourcesFile string
+	MCPSources     []MCPSource
 
 	APIContractCheck bool
 	LLM              LLM
@@ -313,7 +318,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		cfg.ServiceAccounts = accounts
 	}
 
-	errs = append(errs, loadContextSourcesSetting(lookup, &cfg)...)
+	errs = append(errs, loadMCPSourcesSetting(lookup, &cfg)...)
 
 	cfg.APIContractCheck, err = loadBool(lookup, envAPIContractCheck, false)
 	if err != nil {
@@ -325,7 +330,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		errs = append(errs, err)
 	}
 	errs = append(errs, loadAgent(lookup, &cfg)...)
-	cfg.Agent.InvestigationLoop, err = loadBool(lookup, envAgentInvestigationLoop, false)
+	cfg.Agent.InvestigationLoop, err = loadBool(lookup, envAgentInvestigationLoop, true)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -654,12 +659,8 @@ func loadLLM(lookup func(string) (string, bool), cfg *Config) []error {
 		}
 	}
 
-	if v, allowed := strings.ToLower(get(lookup, envLLMEffort)), llmEfforts[llm.Provider]; v != "" && allowed != nil {
-		if !slices.Contains(allowed, v) {
-			errs = append(errs, fmt.Errorf("%s: for provider %s must be one of %s, got %q", envLLMEffort, llm.Provider, strings.Join(allowed, ", "), v))
-		} else {
-			llm.Effort = v
-		}
+	if err := loadEffort(lookup, &llm); err != nil {
+		errs = append(errs, err)
 	}
 
 	if v := get(lookup, envLLMMaxTokens); v != "" {
@@ -736,6 +737,9 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 		errs = append(errs, fmt.Errorf("%s: %w", envAgentFindingGrounding, err))
 	}
 	cfg.Agent.FindingGrounding = mode
+	if cfg.Agent.InvestigationBrief, err = loadOnOff(lookup, envAgentInvestigationBrief, true); err != nil {
+		errs = append(errs, err)
+	}
 	if err := loadRunMaxCost(lookup, cfg); err != nil {
 		errs = append(errs, err)
 	}
@@ -744,7 +748,6 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 
 func loadInvestigationCalls(lookup func(string) (string, bool), cfg *Config) []error {
 	var errs []error
-	cfg.Agent.InvestigationCalls = guard.DefaultInvestigationCalls
 	if v := get(lookup, envAgentInvestigationCalls); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil || n < minAgentInvestigationCalls || n > maxAgentInvestigationCalls {
@@ -753,16 +756,33 @@ func loadInvestigationCalls(lookup func(string) (string, bool), cfg *Config) []e
 			cfg.Agent.InvestigationCalls = n
 		}
 	}
-	cfg.Agent.InvestigationCallsMax = cfg.Agent.InvestigationCalls
+	cfg.Agent.InvestigationCallsMax = max(guard.DefaultInvestigationCallsMax, cfg.Agent.InvestigationCalls)
 	if v := get(lookup, envAgentInvestigationMax); v != "" {
+		floor := max(minAgentInvestigationCalls, cfg.Agent.InvestigationCalls)
 		n, err := strconv.Atoi(v)
-		if err != nil || n < cfg.Agent.InvestigationCalls || n > maxAgentInvestigationCalls {
-			errs = append(errs, fmt.Errorf("%s: must be a whole number from the value of %s (%d) to %d, got %q", envAgentInvestigationMax, envAgentInvestigationCalls, cfg.Agent.InvestigationCalls, maxAgentInvestigationCalls, v))
+		if err != nil || n < floor || n > maxAgentInvestigationCalls {
+			errs = append(errs, fmt.Errorf("%s: must be a whole number from %d, and not below %s, to %d, got %q", envAgentInvestigationMax, floor, envAgentInvestigationCalls, maxAgentInvestigationCalls, v))
 		} else {
 			cfg.Agent.InvestigationCallsMax = n
 		}
 	}
 	return errs
+}
+
+func loadEffort(lookup func(string) (string, bool), llm *LLM) error {
+	var err error
+	if v, allowed := strings.ToLower(get(lookup, envLLMEffort)), llmEfforts[llm.Provider]; v != "" && allowed != nil {
+		if !slices.Contains(allowed, v) {
+			err = fmt.Errorf("%s: for provider %s must be one of %s, got %q", envLLMEffort, llm.Provider, strings.Join(allowed, ", "), v)
+		} else {
+			llm.Effort = v
+		}
+	}
+	llm.QuestionEffort = llm.Effort
+	if llm.Effort == "" && llm.Provider == LLMProviderAnthropic {
+		llm.QuestionEffort = defaultQuestionEffort
+	}
+	return err
 }
 
 func loadRunMaxCost(lookup func(string) (string, bool), cfg *Config) error {
@@ -908,6 +928,19 @@ func HTTPAddr(lookup func(string) (string, bool)) (string, error) {
 		return addr, fmt.Errorf("%s: port must be a number between 1 and 65535, got %q", envHTTPAddr, port)
 	}
 	return addr, nil
+}
+
+func loadOnOff(lookup func(string) (string, bool), key string, def bool) (bool, error) {
+	switch v := get(lookup, key); v {
+	case "":
+		return def, nil
+	case "off":
+		return false, nil
+	case "on":
+		return true, nil
+	default:
+		return def, fmt.Errorf("%s: must be on or off, got %q", key, v)
+	}
 }
 
 func loadBool(lookup func(string) (string, bool), key string, def bool) (bool, error) {

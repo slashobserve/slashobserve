@@ -7,7 +7,7 @@ type GroundingWatch struct {
 }
 
 func (s *State) WatchGrounding() {
-	if s.Mode == tools.ModeInvestigate && s.Grounding == nil {
+	if s.Mode != tools.ModeSuggest && s.Grounding == nil {
 		s.Grounding = &GroundingWatch{}
 	}
 }

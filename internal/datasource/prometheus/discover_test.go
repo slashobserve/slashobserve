@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/prometheus"
@@ -254,5 +255,41 @@ func TestInventoryReportsAnUnreadableSeriesResult(t *testing.T) {
 	_, err = ds.Discover(context.Background(), datasource.DiscoverRequest{Kind: datasource.DiscoverInventory})
 	if !errors.Is(err, datasource.ErrUnavailable) {
 		t.Fatalf("err = %v, want ErrUnavailable", err)
+	}
+}
+
+func TestDiscoverReadsNamesOverTheRangeItIsGiven(t *testing.T) {
+	var forms []map[string][]string
+	var mu sync.Mutex
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		forms = append(forms, r.URL.Query())
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"success","data":["job"]}`))
+	}))
+	t.Cleanup(srv.Close)
+	ds, err := prometheus.New(prometheus.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ds.Close() })
+	from := time.Date(2026, 11, 20, 4, 0, 0, 0, time.UTC)
+	rng := datasource.TimeRange{From: from, To: from.Add(6 * time.Hour)}
+	for _, req := range []datasource.DiscoverRequest{
+		{Kind: datasource.DiscoverLabels, Metric: "http_requests_total", Range: rng},
+		{Kind: datasource.DiscoverLabelValues, Label: "job", Range: rng},
+	} {
+		if _, err := ds.Discover(context.Background(), req); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, form := range forms {
+		if form["start"][0] != "1795147200.000" || form["end"][0] != "1795168800.000" {
+			t.Errorf("read %v, want the range's bounds", form)
+		}
+	}
+	if len(forms) != 2 || forms[0]["match[]"][0] != `{__name__="http_requests_total"}` {
+		t.Fatalf("forms = %v", forms)
 	}
 }

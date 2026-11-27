@@ -69,6 +69,12 @@ It stops at startup when the YAML does not parse, when `datasources` is missing,
 Unknown fields are rejected, and a duplicate `uid` is refused.
 An empty list logs the warning `datasources file lists no datasources`.
 
+## Read spans from a search index
+
+An `elasticsearch` or `opensearch` entry with `spans: jaeger` reads an index of span documents that Jaeger wrote, and answers the trace reads instead of the log reads.
+Its time field is `startTimeMillis`.
+[Read spans that Jaeger stored](../connect/opensearch.md#read-spans-that-jaeger-stored) shows an entry.
+
 ## Keep a password out of the file
 
 Name the environment variable that holds the secret, or a file that holds it.

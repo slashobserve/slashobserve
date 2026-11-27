@@ -75,14 +75,14 @@ const adminGroups: readonly SettingsGroup[] = [
 ]
 
 const auditLogHash = "audit-log"
-const contextSourcesHash = "context-sources"
+const mcpSourcesHash = "mcp-sources"
 
 export function isMovedAuditLog(hash: string): boolean {
   return hash === auditLogHash
 }
 
-export function isMovedContextSources(hash: string): boolean {
-  return hash === contextSourcesHash
+export function isMovedMCPSources(hash: string): boolean {
+  return hash === mcpSourcesHash
 }
 
 export function settingsGroups(role: Role): readonly SettingsGroup[] {

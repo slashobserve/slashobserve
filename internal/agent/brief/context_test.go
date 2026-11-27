@@ -336,3 +336,11 @@ func TestWriteSuggestRequestNamesTheDashboardVariables(t *testing.T) {
 		t.Fatalf("a dashboard with no variables named some: %q", plain.String())
 	}
 }
+
+func TestTheDatasourceListMarksASpanIndex(t *testing.T) {
+	var b strings.Builder
+	writeDatasources(&b, []datasource.Status{{UID: "spans", Type: "opensearch", Spans: "jaeger", Healthy: true}, {UID: "logs", Type: "opensearch"}})
+	if want := "Configured datasources:\n- logs (opensearch): unhealthy\n- spans (opensearch, spans: jaeger): healthy\n"; b.String() != want {
+		t.Errorf("datasources = %q, want %q", b.String(), want)
+	}
+}

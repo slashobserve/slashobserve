@@ -7,6 +7,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/agent/brief"
 	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -40,10 +41,17 @@ type State struct {
 	Usage             revisions.Usage      `json:"usage"`
 	Turn              OpenTurn             `json:"turn"`
 
-	Ledger []revisions.Hypothesis `json:"ledger,omitempty"`
-	Loop   bool                   `json:"loop,omitempty"`
+	Ledger      []revisions.Hypothesis `json:"ledger,omitempty"`
+	Loop        bool                   `json:"loop,omitempty"`
+	DataReads   int                    `json:"data_reads,omitempty"`
+	TransientAt map[string]int         `json:"transient_at,omitempty"`
 
 	Grounding *grounding.Record `json:"grounding,omitempty"`
+
+	Triage *Triage `json:"triage,omitempty"`
+
+	Task     route.Task `json:"task,omitempty"`
+	AllTools bool       `json:"all_tools,omitempty"`
 }
 
 type Settled struct {
@@ -96,6 +104,7 @@ func (s *State) addDiscovery(found tools.Discovery) {
 func (s *State) noteLedger(ledger []revisions.Hypothesis) (changed bool) {
 	changed = !guard.SameLedger(s.Ledger, ledger)
 	s.Guard.NoteLedger(s.Ledger, ledger)
+	s.noteTransient(ledger)
 	s.Ledger = ledger
 	return changed
 }

@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest"
 
 import {
   isMovedAuditLog,
-  isMovedContextSources,
+  isMovedMCPSources,
   sectionNotice,
   selectedSectionId,
   settingsGroups,
@@ -204,11 +204,11 @@ describe("isMovedAuditLog", () => {
   })
 })
 
-describe("isMovedContextSources", () => {
-  test("names the section hash that now lives at /datasources/context-sources", () => {
-    expect(isMovedContextSources("context-sources")).toBe(true)
-    expect(isMovedContextSources("")).toBe(false)
-    expect(isMovedContextSources("webhooks")).toBe(false)
-    expect(isMovedContextSources("Context-sources")).toBe(false)
+describe("isMovedMCPSources", () => {
+  test("names the section hash that now lives at /datasources/mcp-sources", () => {
+    expect(isMovedMCPSources("mcp-sources")).toBe(true)
+    expect(isMovedMCPSources("")).toBe(false)
+    expect(isMovedMCPSources("webhooks")).toBe(false)
+    expect(isMovedMCPSources("Mcp-sources")).toBe(false)
   })
 })

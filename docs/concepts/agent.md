@@ -60,7 +60,8 @@ It then works in this order: discover, draft, lint, run, save, and repair if the
 Details of the authoring guide:
 
 - It is a core plus one section per datasource type: Prometheus, ClickHouse, Loki, Tempo, Jaeger, and one shared by Elasticsearch and OpenSearch.
-- The system text carries only the sections of the configured types.
+- The system text carries only the sections of the configured types, for an investigation as for a build.
+- An investigation's system text is a short core plus the playbook of its [task type](investigate.md#task-types): a few numbered steps naming the tools to use and the shape of the answer, then the rules that only that kind of question needs; a question no rule sorts gets the core and every playbook.
 - An Admin's runs also get a section on the built-in audit datasource, which no one else can read.
 - The JSON Schema is not in that text.
   The model reads it on demand with `get_spec_guide`, which inside a run returns only the schema.
@@ -112,7 +113,7 @@ These tools work across datasources:
 - `list_services` lists the services a log, trace or Prometheus datasource has seen in a recent window, one hour by default and at most six hours, or finds which datasources hold one, and names the field a query filters on, which on a metric store is a label.
 - On logs, `log_facets` counts the top values of each field a query matches, `log_patterns` groups the matching lines into patterns and `log_context` reads the lines around one.
   `logs_for_trace` reads the lines that carry a trace id.
-- On traces, `get_trace` reads one trace, `trace_stats` counts spans, errors and durations over a filter and `compare_traces` ranks what differs between two sets of traces.
+- On traces, `get_trace` reads one trace, `trace_stats` counts spans, errors and durations over a filter, `trace_error_origins` counts failing requests at the span where each failure starts, `trace_slow_path` finds where each route's slow requests spend their time and `compare_traces` ranks what differs between two sets of traces.
 - `list_annotations` shows deploy markers beside a spike, `list_folders` names the folders a request may place a dashboard in, and `list_datasources` says whether each source is healthy.
 
 For a new dashboard, the model first calls `list_metrics` with a `scope` that covers the request, such as `{job="checkout"}` or a ClickHouse table.
@@ -229,12 +230,12 @@ From the sixth model call since the session started, its history was shortened, 
 This limit of six is for a revision and for a chat message that has started building a dashboard.
 The call before gets a note to save next.
 
-- A new message in a chat with no dashboard or observation, which may be a question, gets the investigation limit instead of 6 until its first panel is saved (12 calls by default, with the note one call before).
+- A new message in a chat with no dashboard or observation, which may be a question, gets the investigation limit instead of 6 until its first panel is saved (12 calls unless `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` is set, with the note one call before).
   Its note and its refusal name the first panel for a dashboard request and `save_finding` otherwise.
   After its first accepted save, including an import, six calls apply to each panel.
 - A suggest run, which proposes one panel for the panel editor, gets 12 calls instead of 6, with the note at the 11th.
-- An investigation, which saves a finding, gets 12 calls by default, with the note one call before.
-  `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` sets it from 6 to 60 for investigations that need longer, on the server and for connected agents alike.
+- An investigation, which saves a finding, gets the calls of its [task type](investigate.md#task-types) by default, from 12 for `inventory` and `explain` to 30 for `incident` and an unsorted question, with the note one call before.
+  `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` sets one number from 6 to 60 for every investigation instead, on the server and for connected agents alike.
 - Reads in the same call as a save always run, and so do the reads of the call right after a rejected save, so the model can look into why a save was rejected.
 - Two turns in a row in which every call was refused end the run with `no_progress`.
 
@@ -263,6 +264,7 @@ Details of shortening:
 - It puts the build, the reason and a list of up to 4 KiB of the metric, label and table names the agent found in front of them, so the agent does not discover them again.
 - The names are sent to the model and never written to the server's logs.
 - With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, an investigation's hypothesis ledger goes in front of them as well, in a `<hypotheses>` block whose ledger text is at most 4 KiB.
+- An investigation's preflight brief, the `<triage>` block the server computed before the first model call, goes in front of them as well, unchanged, because the sweep runs once per run; see [The preflight brief](investigate.md#the-preflight-brief).
 - Older read results are also left out of what is sent once they add up to 64 KiB, while the last 4 turns stay in full.
 - Only the model's view is shortened: the run keeps everything it read.
 - A shortened conversation is not a fresh session, and neither has a count of its own that ends the run.
@@ -346,6 +348,7 @@ See [Run cost](../connect/llm-providers.md#run-cost).
 
 More details of a run:
 
+- With `SLASHOBSERVE_LLM_EFFORT` unset on Anthropic, an investigation and a question about a dashboard or an observation run at `high` and every other run at `medium`; a set value applies to every run.
 - The first call of a session, before any save to the build, runs one reasoning step higher than `SLASHOBSERVE_LLM_EFFORT`: `low` becomes `medium`, `medium` becomes `high`, and any other value stays.
 - Every other call caps its output at half of `SLASHOBSERVE_LLM_MAX_TOKENS`, but at least 8192 and never above it.
   A call cut off at that lower cap is sent once more at the full value.
@@ -515,16 +518,18 @@ When they can still comment on the dashboard but can no longer edit it, or the r
 
 ### Tools in a run
 
-The server has 114 tools: MCP clients get 113, every one except `save_finding`, which only a run offers.
-A run offers 89 of them in a new-dashboard or revision request, 88 in an investigation and 58 in a suggestion.
-With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a second tool that only a run offers, in an investigation only: the server has 115 tools, MCP clients outside a run still get 113 and an investigation offers 89.
+The server has 119 tools: MCP clients get 117, every one except `save_finding` and `list_more_tools`, which only a run offers.
+A run offers 93 of them in a new-dashboard or revision request, 93 in an investigation and 62 in a suggestion.
+With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a third tool that only a run offers, in an investigation only: the server has 120 tools, MCP clients outside a run still get 117 and an investigation offers 94.
 Those are an Admin's counts: inside a run each tool needs the same role as over MCP, except `save_finding`, and a run session does not list a tool above the requester's role.
 
 - Reads are offered in every run.
 - Writes are offered in every run except a suggestion, whose only result is one proposed panel in the editor.
 - An investigation never gets the Spec writers `create_dashboard`, `update_dashboard`, `update_panels` and `import_grafana_dashboard`.
-- `list_context_sources`, `find_context_tools` and `call_context_tool` are offered in an investigation and in a question asked in a chat, never when a dashboard is built or revised or a panel is suggested.
-  A question asked from the home page starts as a new-dashboard run, so it offers 92 tools: the 89 and these three.
+- `list_mcp_sources`, `find_mcp_tools` and `call_mcp_tool` are offered in an investigation and in a question asked in a chat, never when a dashboard is built or revised or a panel is suggested.
+  A question asked from the home page starts as a new-dashboard run, so it offers 96 tools: the 93 and these three.
+- An investigation, and a question asked about a dashboard or an observation, offers only the tools of its [task type](investigate.md#task-types) when one is decided, and the full list otherwise.
+  `list_more_tools` is offered only then, and calling it offers every investigation tool for the rest of the run.
 
 The tools fall in five groups:
 
@@ -577,6 +582,7 @@ The agent also reads the thread's earlier messages with the request.
 ### Data sent to the provider
 
 The agent sends what its tools return to the LLM provider, including names, label values, sampled rows and query results.
+With `SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF` on, the default, an investigation's first message also carries the preflight brief, which holds service names, rates, log patterns, flag keys and annotation text the sweep read.
 See [LLM providers](../connect/llm-providers.md).
 
 ## The agent process
@@ -662,13 +668,13 @@ See [Run cost](../connect/llm-providers.md#run-cost) for the price table.
 | `SLASHOBSERVE_AGENT_RUN_TIMEOUT` | none | Time limit of a run, at least `1m`. |
 | `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` | none | Cost limit of one attempt. |
 | `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` | 256 | Conversation size after which it is shortened, from 32 to 4096. |
-| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | 12 | Model calls an investigation gets before only a save runs, from 6 to 60. |
-| `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` | false | Gives an investigation a hypothesis ledger that the server writes back into the brief when the conversation is shortened, stages, and a call limit that grows with progress. |
-| `SLASHOBSERVE_AGENT_FINDING_GROUNDING` | off | Checks an investigation's finding against what the run read; `report` stores what did not pass and `enforce` also sends the finding back once. |
-| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX` | the investigation calls | Ceiling of the growing call limit, up to 60. |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | by task type, 12 to 30 | Model calls an investigation gets before only a save runs, from 6 to 60. |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` | true | Gives an investigation a hypothesis ledger that the server writes back into the brief when the conversation is shortened, stages, and a call limit that grows with progress. |
+| `SLASHOBSERVE_AGENT_FINDING_GROUNDING` | enforce | Numbers what reads return as facts and checks a run's finding against what the run read; `report` stores what did not pass and `enforce` also sends the finding back once. |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX` | 40, or the investigation calls when higher | Ceiling of the growing call limit, up to 60. |
 | `SLASHOBSERVE_LLM_IDLE_TIMEOUT` | 180 s | Time without output after which a call is retried, `0` for none. |
 | `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` | 10 minutes | Time limit of one model call, retries included, `0` for none. |
-| `SLASHOBSERVE_LLM_EFFORT` | `medium` on Anthropic, nothing sent on OpenAI | Reasoning effort. |
+| `SLASHOBSERVE_LLM_EFFORT` | on Anthropic `high` for an investigation or a question about a dashboard or an observation and `medium` otherwise, nothing sent on OpenAI | Reasoning effort. |
 | `SLASHOBSERVE_LLM_MAX_TOKENS` | 16000 | Output limit of a model call. |
 
 [Configuration](../reference/configuration.md) describes every variable.

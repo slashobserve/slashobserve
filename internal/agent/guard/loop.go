@@ -24,15 +24,16 @@ const (
 )
 
 type Loop struct {
-	Limit           int    `json:"limit"`
-	Max             int    `json:"max"`
-	Base            string `json:"base,omitempty"`
-	ReadSinceGrowth bool   `json:"read_since_growth,omitempty"`
-	QuietTurns      int    `json:"quiet_turns,omitempty"`
-	Reminded        bool   `json:"reminded,omitempty"`
-	ConcludeSent    bool   `json:"conclude_sent,omitempty"`
-	Shown           string `json:"shown,omitempty"`
-	SavedStage      string `json:"saved_stage,omitempty"`
+	Limit           int      `json:"limit"`
+	Max             int      `json:"max"`
+	Base            string   `json:"base,omitempty"`
+	ReadSinceGrowth bool     `json:"read_since_growth,omitempty"`
+	QuietTurns      int      `json:"quiet_turns,omitempty"`
+	Reminded        bool     `json:"reminded,omitempty"`
+	ConcludeSent    bool     `json:"conclude_sent,omitempty"`
+	Shown           string   `json:"shown,omitempty"`
+	SavedStage      string   `json:"saved_stage,omitempty"`
+	Candidates      []string `json:"candidates,omitempty"`
 }
 
 func (s *State) StartLoop(callsMax int) {
@@ -43,9 +44,20 @@ func (s *State) StartLoop(callsMax int) {
 	s.Loop = &Loop{Limit: limit, Max: max(callsMax, limit)}
 }
 
+func (s *State) SeedLedger(ledger []revisions.Hypothesis) {
+	if s.Loop == nil {
+		return
+	}
+	s.Loop.Base = baseStage(ledger)
+	s.Loop.Candidates = nil
+	for _, h := range ledger {
+		s.Loop.Candidates = append(s.Loop.Candidates, h.ID)
+	}
+}
+
 func SameLedger(a, b []revisions.Hypothesis) bool {
 	return slices.EqualFunc(a, b, func(x, y revisions.Hypothesis) bool {
-		return x.ID == y.ID && x.Text == y.Text && x.Status == y.Status && x.Next == y.Next && slices.Equal(x.Evidence, y.Evidence)
+		return x.ID == y.ID && x.Text == y.Text && x.Status == y.Status && x.Closing == y.Closing && x.KnockOnOf == y.KnockOnOf && x.Next == y.Next && slices.Equal(x.Evidence, y.Evidence)
 	})
 }
 
@@ -60,10 +72,25 @@ func (s *State) NoteLedger(prev, next []revisions.Hypothesis) {
 	}
 	s.Turn.LedgerChanged = true
 	if l.ReadSinceGrowth && provedSomething(prev, next) {
-		if grown := min(l.Limit+LimitGrowth, l.Max); grown > l.Limit {
+		if grown := min(l.Limit+LimitGrowth*max(1, l.closedCandidates(prev, next)), l.Max); grown > l.Limit {
 			l.Limit, l.ReadSinceGrowth = grown, false
 		}
 	}
+}
+
+func (l *Loop) closedCandidates(prev, next []revisions.Hypothesis) int {
+	closed := func(ledger []revisions.Hypothesis, id string) bool {
+		return slices.ContainsFunc(ledger, func(h revisions.Hypothesis) bool {
+			return h.ID == id && h.Status != revisions.HypothesisOpen && h.Closing != "" && len(h.Evidence) > 0
+		})
+	}
+	n := 0
+	for _, id := range l.Candidates {
+		if closed(next, id) && !closed(prev, id) {
+			n++
+		}
+	}
+	return n
 }
 
 func baseStage(ledger []revisions.Hypothesis) string {

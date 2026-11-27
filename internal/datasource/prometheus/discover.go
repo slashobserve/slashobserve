@@ -55,10 +55,14 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 	}
 	ctx, cancel := bound(ctx, discoverTimeout)
 	defer cancel()
-	now := datasource.Now(ctx)
+	end := datasource.Now(ctx)
+	start := end.Add(-lookback)
+	if !req.Range.From.IsZero() {
+		start, end = req.Range.From, req.Range.To
+	}
 	form := url.Values{
-		"start": {unixSeconds(now.Add(-lookback))},
-		"end":   {unixSeconds(now)},
+		"start": {unixSeconds(start)},
+		"end":   {unixSeconds(end)},
 	}
 	if req.Metric != "" && req.Kind != datasource.DiscoverMetrics {
 		form.Set("match[]", metricMatcher(req.Metric))

@@ -42,7 +42,7 @@ type Config struct {
 	PublicURL   *url.URL
 	InternalURL *url.URL
 	InstanceID  string
-	Model       func() *ModelSettings
+	Model       func(question bool) *ModelSettings
 	RunTimeout  time.Duration
 	Logger      *slog.Logger
 }
@@ -54,7 +54,7 @@ type Service struct {
 	publicURL   *url.URL
 	internalURL *url.URL
 	instanceID  string
-	model       func() *ModelSettings
+	model       func(question bool) *ModelSettings
 	runTimeout  time.Duration
 	logger      *slog.Logger
 	steps       *revisions.Steps

@@ -144,7 +144,11 @@ type serviceTarget struct{ uid, dsType, signal string }
 func serviceTargets(list []datasourceEntry, signal string) []serviceTarget {
 	var targets []serviceTarget
 	for _, ds := range list {
-		for _, held := range datasource.ServiceSignals(ds.Type) {
+		signals := datasource.ServiceSignals(ds.Type)
+		if ds.Spans != "" {
+			signals = []string{datasource.SignalTraces}
+		}
+		for _, held := range signals {
 			if signal == "" || signal == held {
 				targets = append(targets, serviceTarget{uid: ds.UID, dsType: ds.Type, signal: held})
 			}

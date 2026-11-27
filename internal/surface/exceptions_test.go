@@ -9,7 +9,7 @@ const (
 	connectedAgents     = "connected agents are a person's credentials; keys never manage credentials, the CLI signs in with a key, and no MCP tool manages a person's credentials"
 	webhookAdmin        = "An Admin decides where workspace activity is sent; an agent that could register a webhook could send it anywhere."
 	datasourceAdmin     = "An Admin decides where the server connects and with which credentials; an agent that could add or change a datasource, or read its address, could point the server anywhere. Agents list datasources and recheck them."
-	contextSourceAdmin  = "An Admin decides which servers the server connects to and which of their tools an agent may call; an agent that could register a source or approve a tool could point the server anywhere and widen its own reach."
+	mcpSourceAdmin      = "An Admin decides which servers the server connects to and which of their tools an agent may call; an agent that could register a source or approve a tool could point the server anywhere and widen its own reach."
 	publicLink          = "a public link is a person's decision: no agent or MCP tool creates, lists or revokes one"
 	noMCPDeletes        = "no MCP tool deletes a dashboard, folder, annotation or block, so people delete in the web app, the HTTP API or the CLI"
 	panelActions        = "runs a panel action a person clicks; the agent and MCP clients never add, change or run actions"
@@ -201,27 +201,27 @@ var exceptions = map[string]exception{
 	"addTeamMember":         {MCP: peopleAdmin},
 	"removeTeamMember":      {MCP: noMCPDeletes},
 
-	"getDatasourceConfig":               {MCP: datasourceAdmin},
-	"createDatasource":                  {MCP: datasourceAdmin},
-	"updateDatasource":                  {MCP: datasourceAdmin},
-	"deleteDatasource":                  {MCP: datasourceAdmin},
-	"testDatasource":                    {MCP: datasourceAdmin},
-	"listContextSources":                {MCP: contextSourceAdmin},
-	"createContextSource":               {MCP: contextSourceAdmin},
-	"getContextSource":                  {MCP: contextSourceAdmin},
-	"updateContextSource":               {MCP: contextSourceAdmin},
-	"deleteContextSource":               {MCP: contextSourceAdmin},
-	"discoverContextSourceTools":        {MCP: contextSourceAdmin},
-	"listContextSourceTools":            {MCP: contextSourceAdmin},
-	"approveReadOnlyContextSourceTools": {MCP: contextSourceAdmin},
-	"approveContextSourceTool":          {MCP: contextSourceAdmin},
-	"revokeContextSourceTool":           {MCP: contextSourceAdmin},
-	"listWebhooks":                      {MCP: webhookAdmin},
-	"createWebhook":                     {MCP: webhookAdmin},
-	"updateWebhook":                     {MCP: webhookAdmin},
-	"deleteWebhook":                     {MCP: webhookAdmin},
-	"rotateWebhookSecret":               {MCP: webhookAdmin},
-	"testWebhook":                       {MCP: webhookAdmin},
-	"skipWebhookEvent":                  {MCP: webhookAdmin},
-	"listWebhookDeliveries":             {MCP: webhookAdmin},
+	"getDatasourceConfig":           {MCP: datasourceAdmin},
+	"createDatasource":              {MCP: datasourceAdmin},
+	"updateDatasource":              {MCP: datasourceAdmin},
+	"deleteDatasource":              {MCP: datasourceAdmin},
+	"testDatasource":                {MCP: datasourceAdmin},
+	"listMCPSources":                {MCP: mcpSourceAdmin},
+	"createMCPSource":               {MCP: mcpSourceAdmin},
+	"getMCPSource":                  {MCP: mcpSourceAdmin},
+	"updateMCPSource":               {MCP: mcpSourceAdmin},
+	"deleteMCPSource":               {MCP: mcpSourceAdmin},
+	"discoverMCPSourceTools":        {MCP: mcpSourceAdmin},
+	"listMCPSourceTools":            {MCP: mcpSourceAdmin},
+	"approveReadOnlyMCPSourceTools": {MCP: mcpSourceAdmin},
+	"approveMCPSourceTool":          {MCP: mcpSourceAdmin},
+	"revokeMCPSourceTool":           {MCP: mcpSourceAdmin},
+	"listWebhooks":                  {MCP: webhookAdmin},
+	"createWebhook":                 {MCP: webhookAdmin},
+	"updateWebhook":                 {MCP: webhookAdmin},
+	"deleteWebhook":                 {MCP: webhookAdmin},
+	"rotateWebhookSecret":           {MCP: webhookAdmin},
+	"testWebhook":                   {MCP: webhookAdmin},
+	"skipWebhookEvent":              {MCP: webhookAdmin},
+	"listWebhookDeliveries":         {MCP: webhookAdmin},
 }

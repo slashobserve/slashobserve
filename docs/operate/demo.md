@@ -148,7 +148,7 @@ make demo-code
 ```
 
 This builds the server from your checkout, as `make demo-build` does, and adds a small read-only code server over the shop's source.
-It registers the server as the [context source](context-sources.md) `shop-code`, and the server approves its three tools, `list_dir`, `read_file` and `grep`, at start.
+It registers the server as the [MCP source](mcp-sources.md) `shop-code`, and the server approves its three tools, `list_dir`, `read_file` and `grep`, at start.
 The code server sees only the source of the pinned release in `deploy/astronomy/.upstream/src`, which it gets as a read-only mount, and it has no tool that writes.
 `make demo-check` then also asks the server, with the `astronomy` key over MCP, which tools `shop-code` offers, and checks that it offers all three.
 
@@ -166,7 +166,7 @@ The same source works for every other flag in [Faults](#faults).
 The layer is a little different from a source you would add yourself:
 
 - The code server is on the Compose network as `codeserver.demo.internal` and speaks plain `http`.
-  `deploy/astronomy/context-sources.yaml` sets `allowPrivate: true` for it, the provisioning-file switch that [Context sources](context-sources.md#provision-sources-from-a-file) describes, so the server may call a private address.
+  `deploy/astronomy/mcp-sources.yaml` sets `allowPrivate: true` for it, the provisioning-file switch that [MCP sources](mcp-sources.md#provision-sources-from-a-file) describes, so the server may call a private address.
 - The layer fixes `SLASHOBSERVE_OUTBOUND_DOMAINS` to `codeserver.demo.internal`, so the allowlist holds only that name while it runs.
 - The same file lists the three tools in `approve`, so the server discovers the source and approves them at start, and no one has to approve them in the app.
   If you change what the code server offers, a tool that changed needs an Admin to approve it again.
@@ -202,7 +202,7 @@ Two settings differ from upstream:
 
 The server reads `deploy/astronomy/datasources.yaml`, which declares `prom`, `ch`, `loki`, `tempo` and `jaeger`, plus `es` and `os`, which answer only after `make demo-search`.
 It also reads `deploy/astronomy/service-accounts.yaml`, which declares the `astronomy` service account.
-With `make demo-code` it also reads `deploy/astronomy/context-sources.yaml`.
+With `make demo-code` it also reads `deploy/astronomy/mcp-sources.yaml`.
 Its key is generated into `deploy/astronomy/.state/keys/astronomy.key` on the first start and never leaves your machine.
 
 ### The dashboard

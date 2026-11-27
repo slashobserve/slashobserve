@@ -54,6 +54,7 @@ type Options struct {
 	TimeField         string
 	QueryLanguage     string
 	Fields            FieldRoles
+	Spans             string
 	Limits            datasource.Limits
 	HTTPClient        *http.Client
 	MaxResponseBytes  int64
@@ -88,6 +89,9 @@ func New(opts Options) (*Datasource, error) {
 	case strings.ContainsFunc(opts.Index, unicode.IsSpace):
 		return nil, datasource.ConfigErrorf("%s: index must not contain whitespace", name)
 	}
+	if err := checkSpans(name, &opts); err != nil {
+		return nil, err
+	}
 	if opts.TimeField == "" {
 		opts.TimeField = DefaultTimeField
 	}
@@ -98,13 +102,8 @@ func New(opts Options) (*Datasource, error) {
 	if !slices.Contains(queryLanguages, opts.QueryLanguage) {
 		return nil, datasource.ConfigErrorf("%s: query language must be %s", name, strings.Join(queryLanguages, " or "))
 	}
-	switch {
-	case opts.MaxResponseBytes < 0:
-		return nil, datasource.ConfigErrorf("%s: max response bytes must not be negative", name)
-	case opts.MaxResponseBytes > maxConfigurableBytes:
-		return nil, datasource.ConfigErrorf("%s: max response bytes must not exceed %d", name, maxConfigurableBytes)
-	case opts.MaxResponseBytes == 0:
-		opts.MaxResponseBytes = defaultMaxResponseBytes
+	if opts.MaxResponseBytes, err = responseLimit(name, opts.MaxResponseBytes); err != nil {
+		return nil, err
 	}
 	opts.Limits = opts.Limits.WithDefaults(datasource.DefaultLimits)
 	if err := opts.Limits.Validate(); err != nil {
@@ -127,6 +126,18 @@ func New(opts Options) (*Datasource, error) {
 		d.client = &supplied
 	}
 	return d, nil
+}
+
+func responseLimit(name string, n int64) (int64, error) {
+	switch {
+	case n < 0:
+		return 0, datasource.ConfigErrorf("%s: max response bytes must not be negative", name)
+	case n > maxConfigurableBytes:
+		return 0, datasource.ConfigErrorf("%s: max response bytes must not exceed %d", name, maxConfigurableBytes)
+	case n == 0:
+		return defaultMaxResponseBytes, nil
+	}
+	return n, nil
 }
 
 func validateHeaders(name string, opts Options) (map[string]string, error) {

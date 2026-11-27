@@ -147,19 +147,19 @@ See [Roles](../teams/roles.md).
 Unset means no datasources from a file.
 An Admin can still [add them in the app](../connect/datasources-in-the-app.md).
 
-## Context sources
+## MCP sources
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| `SLASHOBSERVE_CONTEXT_SOURCES_FILE` | unset | Path to a YAML file of [context sources](../operate/context-sources.md#provision-sources-from-a-file) the server keeps in step with its entries. |
+| `SLASHOBSERVE_MCP_SOURCES_FILE` | unset | Path to a YAML file of [MCP sources](../operate/mcp-sources.md#provision-sources-from-a-file) the server keeps in step with its entries. |
 
-Unset means no context sources from a file.
+Unset means no MCP sources from a file.
 An Admin can still add them in the app.
 
-The file holds one `contextSources` list:
+The file holds one `mcpSources` list:
 
 ```yaml
-contextSources:
+mcpSources:
   - uid: docs
     name: Company docs
     description: Runbooks and design notes
@@ -285,17 +285,18 @@ See [LLM providers](../connect/llm-providers.md) for how the settings combine.
 | `SLASHOBSERVE_LLM_API_KEY` | unset | Provider credential. |
 | `SLASHOBSERVE_LLM_API_KEY_FILE` | unset | File that holds the credential. |
 | `SLASHOBSERVE_LLM_BASE_URL` | the provider's endpoint | Endpoint URL, with a path if needed. |
-| `SLASHOBSERVE_LLM_EFFORT` | unset | Reasoning effort, checked against the provider's list. |
+| `SLASHOBSERVE_LLM_EFFORT` | unset | Reasoning effort, checked against the provider's list; unset on `anthropic`, an investigation and a question about a dashboard or an observation run at `high`. |
 | `SLASHOBSERVE_LLM_MAX_TOKENS` | `16000` | Output token cap of a model call, `1024` to `64000`. |
 | `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` | `10m` | Limit for one model call, `10s` to `60m`, or `0` for none. |
 | `SLASHOBSERVE_LLM_IDLE_TIMEOUT` | `180s` | Silence limit while a call streams, `10s` to `60m`, or `0` for none. |
 | `SLASHOBSERVE_AGENT_RUN_TIMEOUT` | `0` | Cap on one agent run. `0` is no limit. |
 | `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` | `0` | Cost cap of a run in US dollars. `0` is no limit. |
 | `SLASHOBSERVE_AGENT_WORKERS` | `8` | Agent requests this server runs at once, `1` to `64`. |
-| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | `12` | Model calls an investigation makes, `6` to `60`. |
-| `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` | `false` | Gives investigations of the built-in agent a hypothesis ledger, stages, and a call limit that grows with progress. |
-| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX` | the value of `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | The most model calls a growing investigation limit can reach, from `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` to `60`. |
-| `SLASHOBSERVE_AGENT_FINDING_GROUNDING` | `off` | Checks an investigation's finding against what the run read: `off`, `report` or `enforce`. |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | unset: by task type, `12` to `30` | Model calls an investigation makes, `6` to `60`. |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` | `true` | Gives investigations of the built-in agent a hypothesis ledger, stages, and a call limit that grows with progress. |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX` | `40`, or `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` when that is higher | The most model calls a growing investigation limit can reach, from `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` (or `6`) to `60`. |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF` | `on` | Sweeps the datasources before an investigation's first model call and gives the agent the result as a starting point: `on` or `off`. |
+| `SLASHOBSERVE_AGENT_FINDING_GROUNDING` | `enforce` | Numbers what reads return as facts and checks a run's finding against what the run read: `off`, `report` or `enforce`. |
 | `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` | `256` | Session size that triggers shortening, `32` to `4096` KiB. |
 | `SLASHOBSERVE_LLM_PRICES_FILE` | the built-in table | YAML file of model prices. |
 | `SLASHOBSERVE_LLM_REPLAY_DIR` | unset | Folder of recorded model scripts. Required for `replay`. |
@@ -322,9 +323,10 @@ For `openai`, the URL is used as written.
 ### Details of `SLASHOBSERVE_LLM_EFFORT`
 
 - For `anthropic`: `low`, `medium`, `high`, `xhigh` or `max`.
-  Unset means `medium`.
+  Unset means `high` for an investigation and a question asked about a dashboard or an observation, and `medium` for every other run.
 - For `openai`: `none`, `minimal`, `low`, `medium`, `high` or `xhigh`.
-  Unset sends nothing to the provider.
+  Unset sends nothing to the provider, for every run, because an OpenAI-compatible server may not take a reasoning effort.
+- A value that is set applies to every run.
 - `replay` ignores the value.
 - The first call of a new build runs one step higher: `low` becomes `medium`, `medium` becomes `high`, and anything else stays.
   Every later call runs at the value.
@@ -364,9 +366,13 @@ The metric `slashobserve_agent_queue_wait_seconds` shows whether more workers wo
 ### Details of `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`
 
 The value is how many model calls an investigation makes before only `save_finding` can run.
+Unset, each [task type](../concepts/investigate.md#task-types) has its own: `measure` 16, `logs` 20, `traces` 20, `incident` 30, `inventory` 12, `explain` 12, and 30 for a question no rule sorts; a message in a chat with no dashboard or observation gets 12 until its first panel is saved.
+A set value applies to every investigation and to that chat message alike.
+
 The call before the limit gets a note to save the finding next, and reads in the same call as the finding still run.
 It covers every agent that runs an investigation, the built-in one and connected ones.
 Suggest runs keep 12 and dashboard runs keep 6.
+A run keeps the limit it started with, so a changed setting reaches new runs only.
 Raise it for questions that need many reads.
 A longer investigation costs more model calls, so `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` is the cap on spend.
 
@@ -377,6 +383,7 @@ A plain question gets the tool but not the section, and the server does not writ
 The server keeps the latest ledger and writes it back into the agent's brief as a `<hypotheses>` block whenever the conversation is shortened.
 The finished run returns the last ledger as `usage.hypotheses` to its requester and to Admins.
 An investigation that saves a finding with `root_cause` or `ruled_out` while every hypothesis in its ledger is still open, or it has none, gets that save sent back once with the request to update the ledger first; the second save is accepted as it is, and the run counts the first as a nudge.
+It is on by default.
 With `false`, the tool is not offered, the prompt has no section and the brief has no block, so a run is the same as it was before the setting existed.
 A connected agent in an investigate run, started with a run token, gets the tool and the prompt section as well, through `get_run_brief`; a connected agent outside a run never gets the tool.
 
@@ -387,26 +394,40 @@ Changing the setting needs a server restart.
 ### Details of `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`
 
 The value is the ceiling the call limit of an investigation can grow to when `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` is `true`.
-It must be at least `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` and at most `60`, and the server refuses to start with a value outside that range.
-Unset, it equals `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`, so the limit never grows.
+It must be at least `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` when that is set, else at least `6`, and at most `60`, and the server refuses to start with a value outside that range.
+Unset, it is `40`, or `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` when that is higher; a starting limit above the ceiling never grows.
 Without the loop setting it has no effect.
 The cost cap `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` and the run timeout still end an investigation at any limit.
+
+### Details of `SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF`
+
+With `on`, the server reads every datasource the run may read before an investigation's first model call, with no model, in at most 40 reads and 20 seconds, and puts the service map, the per-service rates on a 1 hour, 6 hour and 24 hour ladder, the onsets, error origins, changed log patterns and change events into the agent's first message as numbered candidates.
+The sweep runs once per investigation and is kept with the run session.
+A plain question, a chat question and dashboard builds do not sweep, and any other value than `on` or `off` stops the server at start-up.
+See [The preflight brief](../concepts/investigate.md#the-preflight-brief).
 
 ### Details of `SLASHOBSERVE_AGENT_FINDING_GROUNDING`
 
 With `report` or `enforce`, the server keeps a bounded record of what an investigation read, and checks the finding against it when the agent saves.
 The record holds up to 2,000 numbers, rounded to 3 significant figures and kept per read, the names the run saw, the time ranges it queried and the times its results showed.
-A figure in the Markdown or the impact passes when it is within 2% of a number the run read, or within the precision it was written with but never more than 10% away, or when it is the difference, sum, ratio or percentage change of two numbers from the same read; a percentage is compared as a fraction.
+A cited fact always passes, a typed figure within 1% of a fact passes and one further from it than 1% but within the tolerance below does not, a trace or span id passes only whole and read, and figures that are not measurements, such as a number from the question, a version, a port, an HTTP status, a window or step duration or a year, are not checked; otherwise a figure in the Markdown or the impact passes when it is within 2% of a number the run read, or within the precision it was written with but never more than 10% away, or when it is the difference, sum, ratio or percentage change of two numbers from the same read; a percentage is compared as a fraction.
 Times, dates, whole numbers of 10 or less with no unit, code spans and links are not checked, a small number with a unit such as `3 s` is, and `ms` and `s` and `K` and `M` are read as units.
 `root_cause.component` passes when it matches a name the run discovered or saw as a label value or a trace's service, as a whole or by whole words, and `onset` passes when it falls inside a time range the run queried or next to a time a result showed, give or take a minute.
+Each entry of `causes` is checked the same way: its component name, its trigger key, its onset, each fact id of its evidence, which must be one the run's results gave, and each trace id, which must be one it read.
+
+With `report` or `enforce`, the server also scores each cause from 0 to 1 from what it can check, and that score decides whether the finding states the cause; see [Investigate](../concepts/investigate.md#causes-and-confidence).
+With `off`, causes are not scored and every cause is stated.
+
+The measurement and trace reads also number their values as facts (`"facts":{"value":"f3"}` beside the value), and the run keeps the newest 400 facts with their full-precision values, labels, windows and queries; see [Investigate](../concepts/investigate.md#facts).
 
 - `off` records nothing and checks nothing, so a run is the same as it was before the setting existed.
+- `enforce` is the default.
 - `report` stores the items that did not pass with the finding and changes nothing else.
-- `enforce` sends the finding back once, listing each item with "read it, correct it, or remove it"; the second save is accepted, and the items that still did not pass are stored with it.
+- `enforce` sends the finding back once, listing each item with how to fix it, such as "read it, correct it, or remove it"; the second save is accepted, and the items that still did not pass are stored with it.
 
 A send-back is not a rejected save: it does not count toward the 3 rejected saves in a row, and the call that answers it may read past the call limit.
 The check never fails a run.
-It covers investigate runs of the built-in agent and of connected agents, and a run keeps the mode it started with across a restart.
+It covers every run that can save a finding, an investigation, a question asked on Home and a revision, of the built-in agent and of connected agents, and a run keeps the mode it started with across a restart; `save_finding` also takes `answers`, one fact per quantity the question asks for, and two facts for one quantity are an item of the check.
 The items are returned as `unverified` on the finding and on the observation's `findings`, and the observation shows one line under its header.
 Changing the setting needs a server restart.
 

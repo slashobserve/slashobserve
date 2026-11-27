@@ -22,6 +22,8 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/accessrequests"
 	"github.com/slashobserve/slashobserve/internal/activity"
+	"github.com/slashobserve/slashobserve/internal/agent/grounding"
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/audit/trail"
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -140,6 +142,7 @@ type Result struct {
 	Created    []string
 	App        json.RawMessage
 	Ledger     []revisions.Hypothesis
+	AllTools   bool
 }
 
 type Edits struct {
@@ -183,7 +186,7 @@ type Deps struct {
 	Home           *homedash.Service
 	Provider       llm.Provider
 	DraftBudget    DraftBudget
-	ContextSources ContextSources
+	MCPSources     MCPSources
 	PublicURL      *url.URL
 	Logger         *slog.Logger
 
@@ -222,6 +225,10 @@ func (t Tool) onlyInWords() string {
 }
 
 func (t Tool) OfferedInRun(run Run) bool {
+	return t.OfferedInMode(run) && t.InTask(run)
+}
+
+func (t Tool) OfferedInMode(run Run) bool {
 	return t.OfferedIn(run.Mode) || t.AlsoInChats && run.Chat()
 }
 
@@ -244,6 +251,8 @@ type Run struct {
 	AsOf          time.Time
 	ChatID        string
 	ThreadAsk     bool
+	Task          route.Task
+	AllTools      bool
 }
 
 func (run Run) asOf() *time.Time {
@@ -294,6 +303,31 @@ func UncheckedReads(ctx context.Context) []Unchecked {
 }
 
 type unverifiedKey struct{}
+
+type factsKey struct{}
+
+func WithFacts(ctx context.Context, ledger *grounding.Ledger) context.Context {
+	if ledger == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, factsKey{}, ledger)
+}
+
+func factsOf(ctx context.Context) (*grounding.Ledger, bool) {
+	ledger, ok := ctx.Value(factsKey{}).(*grounding.Ledger)
+	return ledger, ok && ledger != nil
+}
+
+type causeSignalsKey struct{}
+
+func WithCauseSignals(ctx context.Context, signals []findings.Signals) context.Context {
+	return context.WithValue(ctx, causeSignalsKey{}, signals)
+}
+
+func causeSignalsOf(ctx context.Context) ([]findings.Signals, bool) {
+	signals, ok := ctx.Value(causeSignalsKey{}).([]findings.Signals)
+	return signals, ok
+}
 
 func WithUnverified(ctx context.Context, items []findings.Unverified) context.Context {
 	return context.WithValue(ctx, unverifiedKey{}, items)
@@ -627,7 +661,7 @@ var runEnding = []error{
 	errHealthNotConfigured,
 	errAnnotationsNotConfigured,
 	errClaimsNotConfigured,
-	errContextSourcesNotConfigured,
+	errMCPSourcesNotConfigured,
 }
 
 func endsRun(ctx context.Context, err error) bool {

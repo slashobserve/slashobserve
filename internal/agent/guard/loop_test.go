@@ -191,6 +191,35 @@ func TestEachProvingLedgerWithAReadSinceTheLastGrowthGrowsTheLimit(t *testing.T)
 	}
 }
 
+func closed(h revisions.Hypothesis, closing string) revisions.Hypothesis {
+	h.Closing = closing
+	return h
+}
+
+func TestEachCandidateClosedWithEvidenceGrowsTheLimit(t *testing.T) {
+	seeded := []revisions.Hypothesis{open("c1"), open("c2"), open("c3"), open("h1")}
+	cases := []struct {
+		name string
+		next []revisions.Hypothesis
+		want int
+	}{
+		{"one candidate", []revisions.Hypothesis{closed(supported("c1", "e1"), revisions.ClosingCause), open("c2"), open("c3"), open("h1")}, 15},
+		{"two candidates at once", []revisions.Hypothesis{closed(supported("c1", "e1"), revisions.ClosingCause), closed(ruledOut("c2", "e2"), revisions.ClosingUnrelated), open("c3"), open("h1")}, 18},
+		{"a candidate with no closing", []revisions.Hypothesis{supported("c1", "e1"), ruledOut("c2", "e2"), open("c3"), open("h1")}, 15},
+		{"the model's own hypothesis", []revisions.Hypothesis{open("c1"), open("c2"), open("c3"), closed(ruledOut("h1", "e1"), revisions.ClosingUnrelated)}, 15},
+		{"three candidates up to the ceiling", []revisions.Hypothesis{closed(supported("c1", "e1"), revisions.ClosingCause), closed(ruledOut("c2", "e2"), revisions.ClosingUnrelated), closed(ruledOut("c3", "e3"), revisions.ClosingBackground), open("h1")}, 20},
+	}
+	for _, c := range cases {
+		d := newDriver(t, true, 12, 20)
+		d.s.SeedLedger(seeded[:3])
+		d.ledger = seeded
+		d.turn(seeded, 1)
+		if out := d.turn(c.next, 1); out.limit != c.want {
+			t.Errorf("%s: limit = %d, want %d", c.name, out.limit, c.want)
+		}
+	}
+}
+
 func TestALedgerWithNoReadAtAllEarnsNothing(t *testing.T) {
 	d := newDriver(t, true, 12, 30)
 	if out := d.turn([]revisions.Hypothesis{ruledOut("a", "e1"), open("b")}, 0); out.limit != 12 {

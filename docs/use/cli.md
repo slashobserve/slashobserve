@@ -1796,17 +1796,17 @@ It exits 1 when any dashboard failed or the import failed or was canceled, and `
 An interrupt stops the waiting while the import continues on the server.
 The server keeps a connection's last 20 imports.
 
-### Context sources
+### MCP sources
 
-An Admin registers MCP servers for the agent and approves their tools with `observe context`; see [Context sources](../operate/context-sources.md).
+An Admin registers MCP servers for the agent and approves their tools with `observe mcp-sources`; see [MCP sources](../operate/mcp-sources.md).
 
 ```sh
-printf '%s' "$DOCS_TOKEN" | observe context add docs --url https://docs.example.com/mcp --secret-header Authorization --secret-stdin
-observe context discover docs
-observe context tools docs
-observe context approve docs search
-observe context approve docs --all-read-only
-observe context revoke docs search
+printf '%s' "$DOCS_TOKEN" | observe mcp-sources add docs --url https://docs.example.com/mcp --secret-header Authorization --secret-stdin
+observe mcp-sources discover docs
+observe mcp-sources tools docs
+observe mcp-sources approve docs search
+observe mcp-sources approve docs --all-read-only
+observe mcp-sources revoke docs search
 ```
 
 - `list [uid]` prints every source with its state, audience and tool counts, or one source in full.
@@ -1820,9 +1820,10 @@ observe context revoke docs search
 - `remove <uid>` deletes the source, its tools and its secret.
 - `discover <uid>` lists the server's tools and prints how many are new, changed, gone or ignored.
   It exits 1 and prints the failure when the server could not be asked.
-- `tools <uid>` prints each tool with its state and its refusal.
+- `tools <uid>` prints each tool with its state, whether the server marks it read-only and its refusal.
 - `approve <uid> <tool>` approves one tool as it is listed now, and fails when the server changed it since.
-  `approve <uid> --all-read-only` approves every tool still to review.
+  It approves a tool the server does not mark read-only too, and then warns that the agent may call it and that it can change the system it reaches.
+  `approve <uid> --all-read-only` approves every tool still to review that the server marks read-only, and leaves the others to be approved by name.
   A refused tool cannot be approved.
 - `revoke <uid> <tool>` withdraws an approval.
 

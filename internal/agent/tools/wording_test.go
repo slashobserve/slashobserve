@@ -423,7 +423,7 @@ var agentToolTextAllowances = map[string]int{
 	nameCreateComment: 2100,
 	nameListActivity:  3600,
 	nameQueryInstant:  2300,
-	nameSaveFinding:   3400,
+	nameSaveFinding:   5400,
 	nameStartRun:      2200,
 	nameUpdatePanels:  3700,
 }
@@ -481,7 +481,7 @@ func TestServerInstructionsNameOnlyRealToolsAndFields(t *testing.T) {
 
 func TestSaveFindingOffersTheStructuredFieldsOnlyToAnInvestigation(t *testing.T) {
 	tool := toolsByName(t)[nameSaveFinding]
-	structured := []string{"root_cause", "onset", "impact", "confidence", "ruled_out", "next_steps", "no_incident"}
+	structured := []string{"causes", "onset", "impact", "confidence", "ruled_out", "next_steps", "no_incident"}
 	for _, mode := range []Mode{ModeCreate, ModeRevise, ModeInvestigate} {
 		for _, investigation := range []bool{false, true} {
 			offered := tool.ForRun(mode, investigation)
@@ -496,8 +496,8 @@ func TestSaveFindingOffersTheStructuredFieldsOnlyToAnInvestigation(t *testing.T)
 					t.Errorf("%s run, investigation %t: %s in schema = %t", mode, investigation, name, has)
 				}
 			}
-			if mentions := strings.Contains(offered.Description, "root_cause"); mentions != investigation {
-				t.Errorf("%s run, investigation %t: description mentions root_cause = %t", mode, investigation, mentions)
+			if mentions := strings.Contains(offered.Description, "causes"); mentions != investigation {
+				t.Errorf("%s run, investigation %t: description mentions causes = %t", mode, investigation, mentions)
 			}
 		}
 	}

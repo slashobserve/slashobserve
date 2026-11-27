@@ -129,7 +129,7 @@ func (s *Service) offer(ctx context.Context, c Claimer, claimed revisions.Claime
 		Session:      &session,
 		LeaseSeconds: int(revisions.LeaseTTL / time.Second),
 		SystemPrompt: &PromptRef{Name: observePrompt, Arguments: map[string]string{"kind": run.Kind}},
-		Model:        s.modelFor(c),
+		Model:        s.modelFor(c, claimed.Request),
 	}, nil
 }
 

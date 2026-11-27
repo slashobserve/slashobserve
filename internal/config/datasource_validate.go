@@ -163,6 +163,9 @@ func validateSearch(s SearchDatasource) []FieldError {
 	if s.QueryLanguage != "" && !slices.Contains(queryLanguages, s.QueryLanguage) {
 		errs = append(errs, FieldError{"queryLanguage", "must be " + strings.Join(queryLanguages, " or ")})
 	}
+	if field, message, ok := strings.Cut(spansProblem(s.Spans, s.TimeField), ": "); ok {
+		errs = append(errs, FieldError{field, message})
+	}
 	return errs
 }
 

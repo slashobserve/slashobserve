@@ -37,7 +37,7 @@ import { Route as AuthedShellAuditDashboardsRouteImport } from './routes/_authed
 import { Route as AuthedShellAuditObservationsRouteImport } from './routes/_authed/_shell/audit/observations'
 import { Route as AuthedShellDashboardsIndexRouteImport } from './routes/_authed/_shell/dashboards/index'
 import { Route as AuthedShellDatasourcesIndexRouteImport } from './routes/_authed/_shell/datasources/index'
-import { Route as AuthedShellDatasourcesContextSourcesRouteImport } from './routes/_authed/_shell/datasources/context-sources'
+import { Route as AuthedShellDatasourcesMcpSourcesRouteImport } from './routes/_authed/_shell/datasources/mcp-sources'
 import { Route as AuthedShellFFolderIdRouteImport } from './routes/_authed/_shell/f/$folderId'
 import { Route as AuthedShellFindingsFindingIdRouteImport } from './routes/_authed/_shell/findings/$findingId'
 import { Route as AuthedShellImportIndexRouteImport } from './routes/_authed/_shell/import/index'
@@ -209,10 +209,10 @@ const AuthedShellDatasourcesIndexRoute =
     path: '/datasources/',
     getParentRoute: () => AuthedShellRoute,
   } as any)
-const AuthedShellDatasourcesContextSourcesRoute =
-  AuthedShellDatasourcesContextSourcesRouteImport.update({
-    id: '/datasources/context-sources',
-    path: '/datasources/context-sources',
+const AuthedShellDatasourcesMcpSourcesRoute =
+  AuthedShellDatasourcesMcpSourcesRouteImport.update({
+    id: '/datasources/mcp-sources',
+    path: '/datasources/mcp-sources',
     getParentRoute: () => AuthedShellRoute,
   } as any)
 const AuthedShellFFolderIdRoute = AuthedShellFFolderIdRouteImport.update({
@@ -399,7 +399,7 @@ export interface FileRoutesByFullPath {
   '/agents/$agentRef': typeof AuthedShellAgentsAgentRefRoute
   '/audit/dashboards': typeof AuthedShellAuditDashboardsRoute
   '/audit/observations': typeof AuthedShellAuditObservationsRoute
-  '/datasources/context-sources': typeof AuthedShellDatasourcesContextSourcesRoute
+  '/datasources/mcp-sources': typeof AuthedShellDatasourcesMcpSourcesRoute
   '/f/$folderId': typeof AuthedShellFFolderIdRoute
   '/findings/$findingId': typeof AuthedShellFindingsFindingIdRoute
   '/import/repair': typeof AuthedShellImportRepairRoute
@@ -455,7 +455,7 @@ export interface FileRoutesByTo {
   '/agents/$agentRef': typeof AuthedShellAgentsAgentRefRoute
   '/audit/dashboards': typeof AuthedShellAuditDashboardsRoute
   '/audit/observations': typeof AuthedShellAuditObservationsRoute
-  '/datasources/context-sources': typeof AuthedShellDatasourcesContextSourcesRoute
+  '/datasources/mcp-sources': typeof AuthedShellDatasourcesMcpSourcesRoute
   '/f/$folderId': typeof AuthedShellFFolderIdRoute
   '/findings/$findingId': typeof AuthedShellFindingsFindingIdRoute
   '/import/repair': typeof AuthedShellImportRepairRoute
@@ -514,7 +514,7 @@ export interface FileRoutesById {
   '/_authed/_shell/agents/$agentRef': typeof AuthedShellAgentsAgentRefRoute
   '/_authed/_shell/audit/dashboards': typeof AuthedShellAuditDashboardsRoute
   '/_authed/_shell/audit/observations': typeof AuthedShellAuditObservationsRoute
-  '/_authed/_shell/datasources/context-sources': typeof AuthedShellDatasourcesContextSourcesRoute
+  '/_authed/_shell/datasources/mcp-sources': typeof AuthedShellDatasourcesMcpSourcesRoute
   '/_authed/_shell/f/$folderId': typeof AuthedShellFFolderIdRoute
   '/_authed/_shell/findings/$findingId': typeof AuthedShellFindingsFindingIdRoute
   '/_authed/_shell/import/repair': typeof AuthedShellImportRepairRoute
@@ -573,7 +573,7 @@ export interface FileRouteTypes {
     | '/agents/$agentRef'
     | '/audit/dashboards'
     | '/audit/observations'
-    | '/datasources/context-sources'
+    | '/datasources/mcp-sources'
     | '/f/$folderId'
     | '/findings/$findingId'
     | '/import/repair'
@@ -629,7 +629,7 @@ export interface FileRouteTypes {
     | '/agents/$agentRef'
     | '/audit/dashboards'
     | '/audit/observations'
-    | '/datasources/context-sources'
+    | '/datasources/mcp-sources'
     | '/f/$folderId'
     | '/findings/$findingId'
     | '/import/repair'
@@ -687,7 +687,7 @@ export interface FileRouteTypes {
     | '/_authed/_shell/agents/$agentRef'
     | '/_authed/_shell/audit/dashboards'
     | '/_authed/_shell/audit/observations'
-    | '/_authed/_shell/datasources/context-sources'
+    | '/_authed/_shell/datasources/mcp-sources'
     | '/_authed/_shell/f/$folderId'
     | '/_authed/_shell/findings/$findingId'
     | '/_authed/_shell/import/repair'
@@ -928,11 +928,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedShellDatasourcesIndexRouteImport
       parentRoute: typeof AuthedShellRoute
     }
-    '/_authed/_shell/datasources/context-sources': {
-      id: '/_authed/_shell/datasources/context-sources'
-      path: '/datasources/context-sources'
-      fullPath: '/datasources/context-sources'
-      preLoaderRoute: typeof AuthedShellDatasourcesContextSourcesRouteImport
+    '/_authed/_shell/datasources/mcp-sources': {
+      id: '/_authed/_shell/datasources/mcp-sources'
+      path: '/datasources/mcp-sources'
+      fullPath: '/datasources/mcp-sources'
+      preLoaderRoute: typeof AuthedShellDatasourcesMcpSourcesRouteImport
       parentRoute: typeof AuthedShellRoute
     }
     '/_authed/_shell/f/$folderId': {
@@ -1162,7 +1162,7 @@ interface AuthedShellRouteChildren {
   AuthedShellAgentsAgentRefRoute: typeof AuthedShellAgentsAgentRefRoute
   AuthedShellAuditDashboardsRoute: typeof AuthedShellAuditDashboardsRoute
   AuthedShellAuditObservationsRoute: typeof AuthedShellAuditObservationsRoute
-  AuthedShellDatasourcesContextSourcesRoute: typeof AuthedShellDatasourcesContextSourcesRoute
+  AuthedShellDatasourcesMcpSourcesRoute: typeof AuthedShellDatasourcesMcpSourcesRoute
   AuthedShellFFolderIdRoute: typeof AuthedShellFFolderIdRoute
   AuthedShellFindingsFindingIdRoute: typeof AuthedShellFindingsFindingIdRoute
   AuthedShellImportRepairRoute: typeof AuthedShellImportRepairRoute
@@ -1204,8 +1204,7 @@ const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellAgentsAgentRefRoute: AuthedShellAgentsAgentRefRoute,
   AuthedShellAuditDashboardsRoute: AuthedShellAuditDashboardsRoute,
   AuthedShellAuditObservationsRoute: AuthedShellAuditObservationsRoute,
-  AuthedShellDatasourcesContextSourcesRoute:
-    AuthedShellDatasourcesContextSourcesRoute,
+  AuthedShellDatasourcesMcpSourcesRoute: AuthedShellDatasourcesMcpSourcesRoute,
   AuthedShellFFolderIdRoute: AuthedShellFFolderIdRoute,
   AuthedShellFindingsFindingIdRoute: AuthedShellFindingsFindingIdRoute,
   AuthedShellImportRepairRoute: AuthedShellImportRepairRoute,

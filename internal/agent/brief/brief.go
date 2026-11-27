@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/agent/prompts"
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -12,6 +13,8 @@ import (
 )
 
 const threadLead = "The request was asked in this thread (earlier messages, oldest first):"
+
+const factsNote = "When you answer with save_finding, write each figure from a read that gave fact ids in `facts` as its fact, `{{f3}}`, which the server fills in (`{{f3:ms}}`, `{{f3:%}}` or `{{f3:3}}` change the unit or the figures within 1%), copy trace ids whole, and list each quantity asked in `answers` with its one fact."
 
 const withheldAdvice = "When the request needs them, say so in your answer and do not guess their contents."
 
@@ -32,7 +35,10 @@ type Task struct {
 	Withheld      bool
 	Pointer       Pointer
 	Loop          bool
+	Facts         bool
 	Hypotheses    string
+	Triage        string
+	Route         route.Task
 }
 
 type View struct {
@@ -50,10 +56,7 @@ func Render(statuses []datasource.Status, t Task, v View, r Reason, digest strin
 	sd := seed{build: v.Build, reason: r, note: t.ContinueNote}
 	var m Message
 	if t.Mode == tools.ModeInvestigate {
-		m.System = prompts.Investigate()
-		if t.Loop {
-			m.System = prompts.InvestigateWithLedger()
-		}
+		m.System = investigateSystem(statuses, t)
 		m.Context = investigateContext(statuses, t, v.Current, sd)
 	} else {
 		view := v.Current
@@ -68,6 +71,9 @@ func Render(statuses []datasource.Status, t Task, v View, r Reason, digest strin
 	}
 	if t.Mode != tools.ModeSuggest {
 		m.Context += "\n\n" + clockNote(t.TimeZone, t.now())
+		if t.Facts && t.Mode != tools.ModeInvestigate {
+			m.Context += "\n\n" + factsNote
+		}
 	}
 	if note := anchorNote(t.Pointer); note != "" {
 		m.Context += "\n\n" + note
@@ -89,6 +95,10 @@ func Render(statuses []datasource.Status, t Task, v View, r Reason, digest strin
 	}
 	m.User = userMessage(m.Context, t.Prompt)
 	return m, nil
+}
+
+func investigateSystem(statuses []datasource.Status, t Task) string {
+	return prompts.InvestigateFor(prompts.Variant{Task: t.Route, Facts: t.Facts, Ledger: t.Loop}, guideTypes(statuses))
 }
 
 func userMessage(context, prompt string) string {

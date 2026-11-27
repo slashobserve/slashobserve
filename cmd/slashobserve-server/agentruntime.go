@@ -63,7 +63,7 @@ func (s *sidecarSetup) internalURL() *url.URL {
 	return s.url
 }
 
-func (s *sidecarSetup) modelSettings(cfg config.Config) func() *claims.ModelSettings {
+func (s *sidecarSetup) modelSettings(cfg config.Config) func(question bool) *claims.ModelSettings {
 	if s == nil {
 		return nil
 	}
@@ -81,7 +81,7 @@ func (s *sidecarSetup) start(ctx context.Context, cfg config.Config, service *cl
 	return supervisor, startBackground(ctx, "observe-agent supervisor", supervisor.Run, logger)
 }
 
-func modelSettingsOf(llm config.LLM, sessionRenewBytes int) func() *claims.ModelSettings {
+func modelSettingsOf(llm config.LLM, sessionRenewBytes int) func(question bool) *claims.ModelSettings {
 	settings := claims.ModelSettings{
 		Provider:              llm.Provider,
 		Model:                 llm.Model,
@@ -97,8 +97,11 @@ func modelSettingsOf(llm config.LLM, sessionRenewBytes int) func() *claims.Model
 	if llm.BaseURL != nil {
 		settings.BaseURL = llm.BaseURL.String()
 	}
-	return func() *claims.ModelSettings {
+	return func(question bool) *claims.ModelSettings {
 		kept := settings
+		if question {
+			kept.Effort = llm.QuestionEffort
+		}
 		return &kept
 	}
 }

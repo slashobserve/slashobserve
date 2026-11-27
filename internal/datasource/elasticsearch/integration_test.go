@@ -128,6 +128,9 @@ func startServer(ctx context.Context, flavor elasticsearch.Flavor) (server, func
 	if err := seed(ctx, s); err != nil {
 		return server{}, stop, fmt.Errorf("seed: %w", err)
 	}
+	if err := seedSpans(ctx, s); err != nil {
+		return server{}, stop, fmt.Errorf("seed spans: %w", err)
+	}
 	return s, stop, nil
 }
 

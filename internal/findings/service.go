@@ -96,7 +96,7 @@ func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Fi
 	}
 	conclusion := Conclusion{
 		RunID: in.AgentRequestID, DashboardID: in.DashboardID, FolderID: in.FolderID,
-		Title: in.Title, Markdown: in.Markdown, Evidence: in.Evidence, From: in.From, To: in.To,
+		Title: in.Title, Markdown: in.Markdown, Evidence: in.Evidence, From: in.From, To: in.To, Causes: in.Structured.Causes,
 	}
 	conclude := func(q *dbsqlc.Queries) (pgtype.UUID, bool, error) {
 		return s.observations.WriteConclusion(ctx, q, by, conclusion)
@@ -157,7 +157,7 @@ func (s *Service) SaveAsObservation(ctx context.Context, by auth.Principal, requ
 	if !isRequester(by, f) {
 		return Finding{}, false, ErrRequesterOnly
 	}
-	conclusion := Conclusion{RunID: requestID, Title: f.Title, Markdown: f.Markdown, Evidence: f.Evidence, From: f.From, To: f.To}
+	conclusion := Conclusion{RunID: requestID, Title: f.Title, Markdown: f.Markdown, Evidence: f.Evidence, From: f.From, To: f.To, Causes: f.Structured.Causes}
 	kept, err := folders.RunAnswerKeptWithAdmins(ctx, s.store.db.Queries(), requestID)
 	if err != nil {
 		return Finding{}, false, err
@@ -212,7 +212,7 @@ func (s *Service) ShowIn(ctx context.Context, q *dbsqlc.Queries, by auth.Princip
 	if current == observationID {
 		return nil
 	}
-	conclusion := Conclusion{RunID: requestID, Into: observationID, Title: f.Title, Markdown: f.Markdown, Evidence: f.Evidence, From: f.From, To: f.To}
+	conclusion := Conclusion{RunID: requestID, Into: observationID, Title: f.Title, Markdown: f.Markdown, Evidence: f.Evidence, From: f.From, To: f.To, Causes: f.Structured.Causes}
 	if _, _, err := s.observations.WriteConclusion(ctx, q, by, conclusion); err != nil {
 		return err
 	}

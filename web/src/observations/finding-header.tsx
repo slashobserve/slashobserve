@@ -19,9 +19,12 @@ const kindLabels: Record<
   unknown: "Unknown",
 }
 
+type Cause = RunFinding["causes"][number]
+
 export function hasFindingHeader(finding: RunFinding): boolean {
   return (
     finding.root_cause !== null ||
+    finding.causes.length > 0 ||
     finding.onset !== null ||
     finding.impact !== null ||
     finding.confidence !== null ||
@@ -35,22 +38,46 @@ function hasUnverified(finding: RunFinding): boolean {
   return finding.unverified.length > 0
 }
 
-type UnverifiedKind = RunFinding["unverified"][number]["kind"]
+type UnverifiedItem = RunFinding["unverified"][number]
+type UnreadKind = Exclude<UnverifiedItem["kind"], "candidate">
 
-function subjectOf(kind: UnverifiedKind, count: number): string {
+function subjectOf(kind: UnreadKind, count: number): string {
   switch (kind) {
     case "figure":
       return count === 1 ? "1 figure" : `${count} figures`
     case "component":
-      return "the root cause component"
+      return count === 1 ? "1 cause component" : `${count} cause components`
+    case "trigger":
+      return count === 1 ? "1 trigger key" : `${count} trigger keys`
     case "onset":
       return "the onset time"
+    case "fact":
+      return count === 1 ? "1 cited fact" : `${count} cited facts`
+    case "trace_id":
+      return count === 1 ? "1 trace id" : `${count} trace ids`
   }
 }
 
 export function unverifiedLine(finding: RunFinding): string {
-  const counts = new Map<UnverifiedKind, number>()
+  const unread: { kind: UnreadKind; text: string }[] = []
+  const open: string[] = []
   for (const item of finding.unverified) {
+    if (item.kind === "candidate") open.push(item.text)
+    else unread.push({ kind: item.kind, text: item.text })
+  }
+  const candidates =
+    open.length === 0
+      ? ""
+      : `${open.length === 1 ? "1 triage candidate was" : `${open.length} triage candidates were`} left open when the investigation ended: ${open.join(", ")}`
+  return [unreadLine(unread), candidates].filter((s) => s !== "").join(". ")
+}
+
+function unreadLine(
+  items: readonly { kind: UnreadKind; text: string }[]
+): string {
+  if (items.length === 0) return ""
+  const counts = new Map<UnreadKind, number>()
+  for (const item of items) {
     counts.set(item.kind, (counts.get(item.kind) ?? 0) + 1)
   }
   const subjects = [...counts].map(([kind, n]) => subjectOf(kind, n))
@@ -58,9 +85,15 @@ export function unverifiedLine(finding: RunFinding): string {
     subjects.length > 1
       ? `${subjects.slice(0, -1).join(", ")} and ${subjects.at(-1)}`
       : (subjects[0] ?? "")
-  const plural = subjects.length > 1 || (counts.get("figure") ?? 0) > 1
-  const items = finding.unverified.map((item) => item.text).join(", ")
-  const sentence = `${subject} ${plural ? "were" : "was"} not found in what the agent read: ${items}`
+  const plural =
+    subjects.length > 1 ||
+    (counts.get("figure") ?? 0) > 1 ||
+    (counts.get("component") ?? 0) > 1 ||
+    (counts.get("trigger") ?? 0) > 1 ||
+    (counts.get("fact") ?? 0) > 1 ||
+    (counts.get("trace_id") ?? 0) > 1
+  const texts = items.map((item) => item.text).join(", ")
+  const sentence = `${subject} ${plural ? "were" : "was"} not found in what the agent read: ${texts}`
   return sentence.charAt(0).toUpperCase() + sentence.slice(1)
 }
 
@@ -107,6 +140,72 @@ function ItemsRow({
   )
 }
 
+function listsCauses(finding: RunFinding): boolean {
+  return (
+    finding.causes.length > 1 ||
+    finding.causes.some((cause) => cause.band !== null || !cause.stated)
+  )
+}
+
+function componentText(component: Cause["component"]): string {
+  return component.namespace === null
+    ? component.name
+    : `${component.namespace}/${component.name}`
+}
+
+function CauseItem({ cause, all }: { cause: Cause; all: readonly Cause[] }) {
+  const source = cause.knock_on_of === null ? undefined : all[cause.knock_on_of]
+  return (
+    <li>
+      <span className="font-medium">{componentText(cause.component)}</span>
+      <span className="text-muted-foreground">
+        {" "}
+        · {kindLabels[cause.kind]}
+        {cause.band === null ? null : ` · ${cause.band}`}
+        {source === undefined
+          ? null
+          : ` · knock-on of ${componentText(source.component)}`}
+      </span>
+      {" - "}
+      {cause.mechanism}
+      {cause.trigger === null ? null : (
+        <span className="text-muted-foreground">
+          {" "}
+          ({cause.trigger.key}
+          {cause.trigger.value === null ? "" : ` = ${cause.trigger.value}`})
+        </span>
+      )}
+    </li>
+  )
+}
+
+function CauseList({ causes }: { causes: readonly Cause[] }) {
+  const stated = causes.filter((cause) => cause.stated)
+  const unconfirmed = causes.filter((cause) => !cause.stated)
+  return (
+    <>
+      {stated.length === 0 ? null : (
+        <ol aria-label="Causes" className="list-decimal pl-4">
+          {stated.map((cause, index) => (
+            <CauseItem key={index} cause={cause} all={causes} />
+          ))}
+        </ol>
+      )}
+      {unconfirmed.length === 0 ? null : (
+        <dl>
+          <Row label="Unconfirmed">
+            <ul aria-label="Unconfirmed causes" className="list-disc pl-4">
+              {unconfirmed.map((cause, index) => (
+                <CauseItem key={index} cause={cause} all={causes} />
+              ))}
+            </ul>
+          </Row>
+        </dl>
+      )}
+    </>
+  )
+}
+
 function UnverifiedLine({ finding }: { finding: RunFinding }) {
   const line = unverifiedLine(finding)
   return <p className="text-[12px] text-muted-foreground">{line}</p>
@@ -131,7 +230,9 @@ function FindingSummary({ finding }: { finding: RunFinding }) {
       {finding.no_incident ? (
         <p className="font-medium">No incident found</p>
       ) : null}
-      {cause === null ? null : (
+      {listsCauses(finding) ? (
+        <CauseList causes={finding.causes} />
+      ) : cause === null ? null : (
         <p>
           <span className="font-medium">{cause.component}</span>
           <span className="text-muted-foreground">

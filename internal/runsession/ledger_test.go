@@ -17,7 +17,10 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
+
+var promGuide = []spec.DatasourceType{spec.Prometheus}
 
 const (
 	firstLedger  = `{"hypotheses":[{"id":"pool","text":"The checkout pool is exhausted","status":"open","next_check":"read pool_in_use"},{"id":"deploy","text":"The 10:00 deploy broke it","status":"open"}]}`
@@ -122,7 +125,7 @@ func TestAShortenedSessionGetsTheLedgerBackInItsNextBrief(t *testing.T) {
 	}
 
 	next := s.brief(brief.NoFinding)
-	if next.System != prompts.InvestigateWithLedger() {
+	if next.System != prompts.InvestigateFor(prompts.Variant{Ledger: true}, promGuide) {
 		t.Error("the next brief lacks the ledger section of the prompt")
 	}
 	block := next.Message[strings.Index(next.Message, "<hypotheses>") : strings.Index(next.Message, "</hypotheses>")+len("</hypotheses>")]
@@ -171,7 +174,7 @@ func TestWithTheLoopOffTheBriefIsTheOneARunWithNoLedgerGets(t *testing.T) {
 	off.sess.state.Ledger = []revisions.Hypothesis{{ID: "pool", Text: "kept from a run made with the loop on", Status: revisions.HypothesisOpen}}
 	got := off.brief(brief.NoFinding)
 
-	if got.System != prompts.Investigate() || got != want {
+	if got.System != prompts.InvestigateFor(prompts.Variant{}, promGuide) || got != want {
 		t.Fatalf("brief with the loop off differs:\n%+v\nwant\n%+v", got, want)
 	}
 	if strings.Contains(got.Message, "<hypotheses>") || strings.Contains(got.System, "note_hypotheses") {
@@ -222,7 +225,7 @@ func TestAPlainAskGetsTheBriefARunWithNoLedgerGets(t *testing.T) {
 	plain := newScript(t, false)
 	plain.sess.state.Ledger = []revisions.Hypothesis{{ID: "pool", Text: "noted by a tool call", Status: revisions.HypothesisOpen}}
 	got := plain.brief(brief.NoFinding)
-	if got.System != prompts.Investigate() || strings.Contains(got.Message, "<hypotheses>") {
+	if got.System != prompts.InvestigateFor(prompts.Variant{}, promGuide) || strings.Contains(got.Message, "<hypotheses>") {
 		t.Fatal("the ledger reached a plain ask")
 	}
 }

@@ -35,10 +35,11 @@ type Structured struct {
 	RuledOut   []string
 	NextSteps  []string
 	NoIncident bool
+	Causes     []Cause
 }
 
 func (s Structured) Empty() bool {
-	return s.RootCause == nil && s.Onset == nil && s.Impact == "" && s.Confidence == "" &&
+	return s.RootCause == nil && len(s.Causes) == 0 && s.Onset == nil && s.Impact == "" && s.Confidence == "" &&
 		len(s.RuledOut) == 0 && len(s.NextSteps) == 0 && !s.NoIncident
 }
 
@@ -56,35 +57,34 @@ type StructuredInput struct {
 	RuledOut   []string        `json:"ruled_out"`
 	NextSteps  []string        `json:"next_steps"`
 	NoIncident bool            `json:"no_incident"`
+	Causes     []CauseInput    `json:"causes"`
+
+	LegacyFacts []string `json:"-"`
 }
 
 func (in StructuredInput) Provided() bool {
-	return in.RootCause != nil || in.Onset != "" || in.Impact != "" || in.Confidence != "" ||
+	return in.RootCause != nil || len(in.Causes) > 0 || in.Onset != "" || in.Impact != "" || in.Confidence != "" ||
 		len(in.RuledOut) > 0 || len(in.NextSteps) > 0 || in.NoIncident
 }
 
 func (in StructuredInput) Check() (Structured, error) {
 	var out Structured
+	var rootCause *RootCause
 	if in.RootCause != nil {
 		cause, err := checkRootCause(*in.RootCause)
 		if err != nil {
 			return Structured{}, err
 		}
-		out.RootCause = &cause
+		rootCause = &cause
 	}
-	if in.NoIncident && out.RootCause != nil {
+	if in.NoIncident && rootCause != nil {
 		return Structured{}, fmt.Errorf("no_incident is true, so root_cause must be left out")
 	}
 	out.NoIncident = in.NoIncident
-	if onset := strings.TrimSpace(in.Onset); onset != "" {
-		at, err := time.Parse(time.RFC3339, onset)
-		if err != nil {
-			return Structured{}, fmt.Errorf("onset must be an absolute RFC 3339 time such as 2026-11-20T10:05:00Z")
-		}
-		at = at.UTC()
-		out.Onset = &at
-	}
 	var err error
+	if out.Onset, err = onsetOf("onset", in.Onset); err != nil {
+		return Structured{}, err
+	}
 	if out.Impact, err = sentence("impact", in.Impact, MaxSentenceRunes); err != nil {
 		return Structured{}, err
 	}
@@ -97,6 +97,10 @@ func (in StructuredInput) Check() (Structured, error) {
 	if out.NextSteps, err = lines("next_steps", in.NextSteps, MaxNextSteps); err != nil {
 		return Structured{}, err
 	}
+	if out.Causes, err = in.checkCauses(rootCause); err != nil {
+		return Structured{}, err
+	}
+	out.settle()
 	return out, nil
 }
 

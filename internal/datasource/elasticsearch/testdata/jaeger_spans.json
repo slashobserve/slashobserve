@@ -1,0 +1,205 @@
+[
+ {
+  "traceID": "0af7651916cd43dd8448eb211c80319c",
+  "spanID": "b7ad6b7169203331",
+  "operationName": "GET /api/cart",
+  "references": null,
+  "startTime": 1795752613000000,
+  "startTimeMillis": 1795752613000,
+  "duration": 250000,
+  "tags": [
+   {
+    "key": "otel.scope.name",
+    "type": "string",
+    "value": "test"
+   },
+   {
+    "key": "http.request.method",
+    "type": "string",
+    "value": "GET"
+   },
+   {
+    "key": "http.route",
+    "type": "string",
+    "value": "/api/cart"
+   },
+   {
+    "key": "http.response.status_code",
+    "type": "int64",
+    "value": 500
+   },
+   {
+    "key": "otel.status_description",
+    "type": "string",
+    "value": "upstream failed"
+   }
+  ],
+  "tag": {
+   "error": true,
+   "span@kind": "server"
+  },
+  "logs": null,
+  "process": {
+   "serviceName": "frontend",
+   "tags": [
+    {
+     "key": "host.name",
+     "type": "string",
+     "value": "fe-1"
+    }
+   ]
+  }
+ },
+ {
+  "traceID": "0af7651916cd43dd8448eb211c80319c",
+  "spanID": "c7ad6b7169203332",
+  "parentSpanID": "b7ad6b7169203331",
+  "operationName": "oteldemo.CartService/GetCart",
+  "references": [
+   {
+    "refType": "CHILD_OF",
+    "traceID": "0af7651916cd43dd8448eb211c80319c",
+    "spanID": "b7ad6b7169203331"
+   },
+   {
+    "refType": "FOLLOWS_FROM",
+    "traceID": "1af7651916cd43dd8448eb211c80319c",
+    "spanID": "d7ad6b7169203339"
+   }
+  ],
+  "startTime": 1795752613010000,
+  "startTimeMillis": 1795752613010,
+  "duration": 230000,
+  "tags": [
+   {
+    "key": "otel.scope.name",
+    "type": "string",
+    "value": "test"
+   },
+   {
+    "key": "rpc.system",
+    "type": "string",
+    "value": "grpc"
+   }
+  ],
+  "tag": {
+   "error": true,
+   "span@kind": "client"
+  },
+  "logs": null,
+  "process": {
+   "serviceName": "frontend",
+   "tags": [
+    {
+     "key": "host.name",
+     "type": "string",
+     "value": "fe-1"
+    }
+   ]
+  }
+ },
+ {
+  "traceID": "0af7651916cd43dd8448eb211c80319c",
+  "spanID": "e7ad6b7169203333",
+  "parentSpanID": "c7ad6b7169203332",
+  "operationName": "oteldemo.CartService/GetCart",
+  "references": [
+   {
+    "refType": "CHILD_OF",
+    "traceID": "0af7651916cd43dd8448eb211c80319c",
+    "spanID": "c7ad6b7169203332"
+   }
+  ],
+  "startTime": 1795752613020000,
+  "startTimeMillis": 1795752613020,
+  "duration": 210000,
+  "tags": [
+   {
+    "key": "otel.scope.name",
+    "type": "string",
+    "value": "test"
+   },
+   {
+    "key": "app.retries",
+    "type": "int64",
+    "value": 3
+   },
+   {
+    "key": "app.ratio",
+    "type": "float64",
+    "value": 0.5
+   },
+   {
+    "key": "app.cached",
+    "type": "bool",
+    "value": false
+   },
+   {
+    "key": "otel.status_description",
+    "type": "string",
+    "value": "redis timeout"
+   }
+  ],
+  "tag": {
+   "error": true,
+   "span@kind": "server"
+  },
+  "logs": [
+   {
+    "timestamp": 1795752613200000,
+    "fields": [
+     {
+      "key": "event",
+      "type": "string",
+      "value": "exception"
+     },
+     {
+      "key": "exception.message",
+      "type": "string",
+      "value": "redis timeout"
+     }
+    ]
+   }
+  ],
+  "process": {
+   "serviceName": "cart",
+   "tags": []
+  }
+ },
+ {
+  "traceID": "0af7651916cd43dd8448eb211c80319c",
+  "spanID": "f7ad6b7169203334",
+  "parentSpanID": "e7ad6b7169203333",
+  "operationName": "HGET",
+  "references": [
+   {
+    "refType": "CHILD_OF",
+    "traceID": "0af7651916cd43dd8448eb211c80319c",
+    "spanID": "e7ad6b7169203333"
+   }
+  ],
+  "startTime": 1795752613030000,
+  "startTimeMillis": 1795752613030,
+  "duration": 190000,
+  "tags": [
+   {
+    "key": "otel.scope.name",
+    "type": "string",
+    "value": "test"
+   },
+   {
+    "key": "otel.status_code",
+    "type": "string",
+    "value": "OK"
+   }
+  ],
+  "tag": {
+   "span@kind": "client"
+  },
+  "logs": null,
+  "process": {
+   "serviceName": "cart",
+   "tags": []
+  }
+ }
+]

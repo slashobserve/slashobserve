@@ -206,9 +206,9 @@ It stays there when the dashboard moves.
 - It reads earlier [observations](observations.md) in the folders you can open, as you.
   When one bears on the question, it cites it by title and `/o/<id>` link and says its numbers are from an earlier time.
 
-### Context sources
+### MCP sources
 
-A context source is an MCP server an Admin registered, such as a documentation index or a ticket system; see [Context sources](../operate/context-sources.md).
+An MCP source is an MCP server an Admin registered, such as a documentation index or a ticket system; see [MCP sources](../operate/mcp-sources.md).
 In an investigation or a question the agent can list the sources you may use and call the tools an Admin approved.
 
 - It cannot call a tool that is not approved, changed since it was approved, or belongs to a source set to Admins only when you are not an Admin.
@@ -252,14 +252,17 @@ Both are fields of the run's `finding` in `GET /observe/{id}`, `get_run`, `get_c
 An investigation's answer may also carry a few fields that sum it up, all optional.
 The agent fills them when it saves an investigation, and they must agree with the Markdown answer.
 
-- `root_cause` has a `component`, a `kind` and a `summary`, all three or none.
+- `causes` lists up to 6 causes, most confident first; see [Causes](#causes) below.
+- `root_cause` has a `component`, a `kind` and a `summary`: the first stated cause that is not a knock-on, kept for readers of a single cause, and null when there is none.
   The `kind` is one of `deploy`, `config_or_flag`, `dependency`, `resource`, `data`, `traffic`, `infrastructure` or `unknown`.
+  A save that sends only `root_cause` is stored as a one-cause list, and a save that sends both is refused unless `root_cause` names the component and kind of the first cause.
 - `onset` is the absolute time the problem began, in RFC 3339.
 - `impact` is one or two sentences with numbers.
 - `confidence` is `high`, `medium` or `low`.
 - `ruled_out` lists at most 5 causes that were checked and excluded, and `next_steps` lists at most 3 things to do.
 - `no_incident` is true when nothing was wrong.
-  It cannot be set together with `root_cause`.
+  It cannot be set together with `root_cause` or `causes`.
+  In an incident investigation whose preflight brief listed candidates, it is accepted only when every candidate was closed as background, transient or unrelated; see [Closing every candidate](../concepts/investigate.md#closing-every-candidate).
 
 A component is at most 120 characters, a sentence at most 300 and a list line at most 200, each on one line.
 A save that breaks a rule is refused with the reason, and the agent fixes it and saves again.
@@ -268,6 +271,25 @@ A save outside an investigation that sets any of them is still saved, without th
 
 The observation shows the fields as a compact summary above the answer, and shows nothing extra when none is set.
 They are fields of the run's `finding` in `GET /observe/{id}`, `get_run`, `get_chat` and `observe status --json`.
+
+#### Causes
+
+Each entry of `causes` has:
+
+- `component`: the `kind` (`service`, `pod`, `deployment`, `config`, `flag`, `datastore`, `dependency`, `node` or `other`), the `name` as the telemetry or the system spells it, and an optional `namespace`.
+- `kind`: the same kinds as `root_cause`.
+- `mechanism`: one sentence on how the component failed, with the changed value.
+- `trigger`: optional, the change that set it off, with a `kind` (`feature_flag`, `config_value`, `deploy`, `traffic`, `dependency` or `unknown`), a `key` exactly as the system spells it, such as a flag key, a setting or a version, and an optional `value`.
+- `onset`: optional, when this cause began, in RFC 3339.
+- `affected`: up to 8 components it affects, in the same form as `component`.
+- `relation` and `knock_on_of`: `knock_on` with the index of the listed cause it follows, or `independent`; a knock-on must follow an independent cause, never itself.
+- `evidence`: the `facts` (up to 12 fact ids of the run) and `trace_ids` (up to 4) the agent cited, and the `queries` those facts came from.
+- `estimate`: the agent's own `high`, `medium` or `low`.
+- `confidence`, `band` and `stated`: the server's score from 0 to 1, its band and whether the finding states the cause; see [Causes and confidence](../concepts/investigate.md#causes-and-confidence).
+
+The observation's answer block ends with a Causes section listing each stated cause with its band, mechanism, trigger and onset, and the unconfirmed ones under their own heading; the summary above the answer lists them the same way when there is more than one or any is scored.
+`observe investigate` prints the root cause line, then each other stated cause and each unconfirmed one on a line of its own.
+A finding saved before causes existed reads its `root_cause` as its only cause, stated and unscored.
 `GET /observations/{id}` and `get_observation` return them as `findings`, one entry per saved answer with its `run_id`, and only for answers the caller can see.
 `observe investigate` and `observe observations show` print them as lines before the answer.
 Search finds an observation by the name of its root cause component.
