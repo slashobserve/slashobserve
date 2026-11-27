@@ -103,7 +103,10 @@ async function release(
   signal: AbortSignal
 ): Promise<void> {
   try {
-    await client.releaseRun({ run_id: run.id, attempt: run.attempt }, signal)
+    await client.releaseRun(
+      { run_id: run.id, attempt: run.attempt, claim_epoch: run.claim_epoch },
+      signal
+    )
   } catch (error) {
     if (!(error instanceof ToolError) && !signal.aborted) {
       log("warn", "release of a run failed", { run_id: run.id })

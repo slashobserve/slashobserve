@@ -187,6 +187,21 @@ describe("claim loop", () => {
     expect(client.finishes).toHaveLength(0)
   })
 
+  test("a release names the claim epoch of the claim it hands back", async () => {
+    const stop = new AbortController()
+    const claim = offer("a", { model: null })
+    const client = new Script(
+      [{ ...claim, run: { ...claim.run!, claim_epoch: 7 } }, "wait"],
+      stop
+    )
+    await claimLoop(client, 1, factory, stop.signal, {
+      sleep: instantSleep([]),
+    })
+    expect(client.releases).toEqual([
+      { run_id: "a", attempt: 1, claim_epoch: 7 },
+    ])
+  })
+
   test("claims without model settings back off before the next claim and a usable answer resets it", async () => {
     const stop = new AbortController()
     const sleeps: number[] = []

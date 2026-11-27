@@ -238,15 +238,23 @@ describe("ClaimClient", () => {
     expect(answer.session?.token).toBe("sot_run")
   })
 
-  test("release_run sends the run and its attempt and reads the state", async () => {
+  test("release_run sends the run, its attempt and its claim epoch and reads the state", async () => {
     const server = serve(() => ({
       text: '{"state":"queued"}',
       structured: { state: "queued" },
     }))
     const claim = new ClaimClient(connect(server))
-    const answer = await claim.releaseRun({ run_id: "run-1", attempt: 2 })
+    const answer = await claim.releaseRun({
+      run_id: "run-1",
+      attempt: 2,
+      claim_epoch: 7,
+    })
     expect(server.calls[0]?.name).toBe("release_run")
-    expect(server.calls[0]?.args).toEqual({ run_id: "run-1", attempt: 2 })
+    expect(server.calls[0]?.args).toEqual({
+      run_id: "run-1",
+      attempt: 2,
+      claim_epoch: 7,
+    })
     expect(answer.state).toBe("queued")
   })
 
