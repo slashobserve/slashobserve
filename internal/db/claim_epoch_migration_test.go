@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-const claimEpochVersion = 101
+const claimEpochVersion = 102
 
 const claimEpochColumnsSQL = `SELECT count(*)::text FROM information_schema.columns
 WHERE column_name = 'claim_epoch' AND table_name IN ('agent_requests', 'run_tokens')`
@@ -50,8 +50,23 @@ WHERE t.attempt = r.attempts AND (t.claim_epoch IS NULL OR t.claim_epoch = r.cla
 		t.Errorf("tokens that still match their run = %s, want 1", got)
 	}
 
+	claimedByOldServer := run("")
+	for _, id := range []string{claimedByOldServer, running} {
+		d.Exec(t, `UPDATE agent_requests SET state = 'running', status = 'running', attempts = attempts + 1, lease_until = clock_timestamp() + interval '1 minute' WHERE id = $1::uuid`, id)
+	}
+	d.Exec(t, `UPDATE agent_requests SET state = 'queued', status = 'queued', attempts = attempts - 1, lease_until = NULL WHERE id = $1::uuid`, claimedByOldServer)
+	d.Exec(t, `UPDATE agent_requests SET state = 'running', status = 'running', attempts = attempts + 1, claim_epoch = claim_epoch + 1 WHERE id = $1::uuid`, claimedByOldServer)
+	for id, want := range map[string]string{claimedByOldServer: "2", running: "3"} {
+		if got := foScalar(t, sqlDB, `SELECT claim_epoch::text FROM agent_requests WHERE id = $1::uuid`, id); got != want {
+			t.Errorf("run %s after claims that raised only attempts: claim_epoch = %s, want %s", id, got, want)
+		}
+	}
+
 	if err := d.MigrateDownTo(ctx, claimEpochVersion-1); err != nil {
 		t.Fatalf("down: %v", err)
+	}
+	if got := foScalar(t, sqlDB, `SELECT count(*)::text FROM pg_proc WHERE proname = 'agent_requests_old_server_claim_epoch'`); got != "0" {
+		t.Errorf("claim epoch trigger functions left after down = %s, want none", got)
 	}
 	if got := foScalar(t, sqlDB, claimEpochColumnsSQL); got != "0" {
 		t.Errorf("claim_epoch columns left after down = %s, want none", got)
