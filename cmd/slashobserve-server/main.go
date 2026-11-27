@@ -545,6 +545,7 @@ func run() error {
 		Viewers:        viewersService,
 		Home:           homedash.New(database, folderAccess),
 		Provider:       llmProvider,
+		DraftQueue:     sidecar.draftQueue(),
 		DraftBudget:    draftbudget.New(database),
 		PublicURL:      cfg.PublicURL,
 		MCPSources:     mcpSourcesService,

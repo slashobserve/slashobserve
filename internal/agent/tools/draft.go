@@ -29,7 +29,7 @@ const (
 
 	maxQuestionRunes = 2000
 	maxReasonRunes   = 300
-	draftDeadline    = 60 * time.Second
+	DraftDeadline    = 60 * time.Second
 	lastTurnNote     = "\nThis is your last turn: call submit_query with a fixed query, or cannot_translate."
 	stillFails       = "The drafted query still fails after one correction: "
 
@@ -65,7 +65,7 @@ var (
 	ErrDraftTooMany     = fmt.Errorf("you already have %d questions in flight; wait for one to finish", maxDraftsPerCaller)
 	ErrDraftBusy        = fmt.Errorf("the server is answering %d questions; try again shortly", maxDraftsInFlight)
 	ErrDraftProvider    = errors.New("the model provider failed")
-	ErrDraftTimeout     = fmt.Errorf("the draft did not finish within %d seconds", int(draftDeadline.Seconds()))
+	ErrDraftTimeout     = fmt.Errorf("the draft did not finish within %d seconds", int(DraftDeadline.Seconds()))
 )
 
 var draftCodes = []struct {
@@ -78,6 +78,7 @@ var draftCodes = []struct {
 	{ErrDraftBusy, "agent_busy"},
 	{ErrDraftProvider, "provider_error"},
 	{ErrDraftTimeout, "draft_timeout"},
+	{ErrDraftStopped, "agent_unavailable"},
 }
 
 type DraftBudget interface {
@@ -209,7 +210,7 @@ func (r *Registry) DraftQuery(ctx context.Context, in DraftInput) (Draft, error)
 			return Draft{}, &draftBudgetError{resetsIn: resetsIn}
 		}
 	}
-	draftCtx, cancel := context.WithTimeout(ctx, draftDeadline)
+	draftCtx, cancel := context.WithTimeout(ctx, DraftDeadline)
 	defer cancel()
 	started := time.Now()
 	draft, stats, err := r.draft(draftCtx, run, question)

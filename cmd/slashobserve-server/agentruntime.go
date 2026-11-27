@@ -9,9 +9,11 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/config"
+	"github.com/slashobserve/slashobserve/internal/drafts"
 	"github.com/slashobserve/slashobserve/internal/harness"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/mcpauth"
@@ -37,8 +39,9 @@ func loopbackURL(addr string) (*url.URL, error) {
 }
 
 type sidecarSetup struct {
-	path string
-	url  *url.URL
+	path   string
+	url    *url.URL
+	drafts *drafts.Queue
 }
 
 func prepareAgentRuntime(cfg config.Config, providerConfigured bool, logger *slog.Logger) (*sidecarSetup, error) {
@@ -53,7 +56,9 @@ func prepareAgentRuntime(cfg config.Config, providerConfigured bool, logger *slo
 	if err != nil {
 		return nil, described("invalid_config", err)
 	}
-	return &sidecarSetup{path: path, url: serverURL}, nil
+	model := modelSettingsOf(cfg.LLM, cfg.Agent.SessionRenewBytes)
+	queue := drafts.New(drafts.Config{Model: func() *claims.ModelSettings { return model(false) }, Timeout: tools.DraftDeadline})
+	return &sidecarSetup{path: path, url: serverURL, drafts: queue}, nil
 }
 
 func (s *sidecarSetup) internalURL() *url.URL {
@@ -61,6 +66,13 @@ func (s *sidecarSetup) internalURL() *url.URL {
 		return nil
 	}
 	return s.url
+}
+
+func (s *sidecarSetup) draftQueue() tools.DraftQueue {
+	if s == nil {
+		return nil
+	}
+	return s.drafts
 }
 
 func (s *sidecarSetup) modelSettings(cfg config.Config) func(question bool) *claims.ModelSettings {
@@ -110,7 +122,7 @@ func (s *sidecarSetup) start(ctx context.Context, cfg config.Config, service *cl
 	}
 	supervisor := harness.NewSupervisor(harness.SupervisorConfig{
 		Path: s.path, ServerURL: s.url.String(), Slots: cfg.Agent.Workers,
-		LogLevel: cfg.LogLevel, Logger: logger, OnExit: observeAgentExit(service, logger),
+		LogLevel: cfg.LogLevel, Logger: logger, OnExit: observeAgentExit(service, s.drafts, logger),
 	})
 	return supervisor, startBackground(ctx, "harness supervisor", supervisor.Run, logger)
 }
@@ -159,8 +171,9 @@ func (m mcpCredentials) observeAgent(header string) (mcp.Credential, bool, bool)
 	return mcp.Credential{Claimer: &builtIn, Loopback: true, ClaimOnly: true}, true, true
 }
 
-func observeAgentExit(service *claims.Service, logger *slog.Logger) func(context.Context) {
+func observeAgentExit(service *claims.Service, queue *drafts.Queue, logger *slog.Logger) func(context.Context) {
 	return func(ctx context.Context) {
+		queue.Lost()
 		if err := service.ReleaseHeld(ctx, service.BuiltIn()); err != nil {
 			logger.Error("release the runs the harness held", logattrs.Failure("harness_release_failed", err)...)
 		}

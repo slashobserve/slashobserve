@@ -136,7 +136,7 @@ The server queries ClickHouse only as a read-only user.
   A run that does not end holds back other editors' revisions on its dashboard until its limits, its requester or a run time limit end it.
 - **The built-in agent's token only works beside the server.**
   The agent process claims runs with a token that is new at each start.
-  The server accepts it only from a loopback peer on a request with no forwarding header, and it lists only the five claim tools; see [The agent process](../concepts/agent.md#the-agent-process).
+  The server accepts it only from a loopback peer on a request with no forwarding header, and it lists only the five claim tools and the two tools that take query drafts; see [The agent process](../concepts/agent.md#the-agent-process).
 - **Draft questions are capped.**
   Each person or key may start 60 draft queries per clock hour, a count every server shares, on top of the limits on concurrent drafts.
   A refused one answers `429 too_many_requests` and calls no model.

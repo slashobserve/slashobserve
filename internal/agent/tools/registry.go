@@ -184,6 +184,7 @@ type Deps struct {
 	Viewers        *viewers.Service
 	Home           *homedash.Service
 	Provider       llm.Provider
+	DraftQueue     DraftQueue
 	DraftBudget    DraftBudget
 	MCPSources     MCPSources
 	PublicURL      *url.URL

@@ -405,7 +405,7 @@ A claim tool called with a run that is not yours at that attempt answers `not_yo
 `claim_epoch` is optional on `report_run`, `finish_run`, `release_run` and `get_run_brief`; send it, because with it a call from a claim that was handed back and taken again also answers `not_your_run`.
 
 The session lists the tools SlashObserve's own agent has for that kind of run, with the same text, and none above the requester's role.
-It lists none of the 23 tools that no run has, such as the claim tools, `start_run` and the comment writes; [the agent](../concepts/agent.md#tools-in-a-run) lists them with their reasons.
+It lists none of the 25 tools that no run has, such as the claim tools, `start_run` and the comment writes; [the agent](../concepts/agent.md#tools-in-a-run) lists them with their reasons.
 It acts for the person who asked and records every call in the run's steps.
 Its prompt list is empty, because the `observe` prompt is read on the first connection.
 

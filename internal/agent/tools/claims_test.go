@@ -289,14 +289,14 @@ func TestClaimToolsAreMCPOnlyAndNeverOfferedInARun(t *testing.T) {
 	}
 }
 
-func TestOnlyTheFiveClaimToolsAreClaimTools(t *testing.T) {
+func TestOnlyTheClaimAndDraftToolsAreClaimTools(t *testing.T) {
 	var got []string
 	for _, tool := range New(Deps{}).List() {
 		if tool.Claim {
 			got = append(got, tool.Name)
 		}
 	}
-	if strings.Join(got, ",") != "claim_run,finish_run,get_run_brief,release_run,report_run" {
+	if strings.Join(got, ",") != "claim_draft,claim_run,finish_draft,finish_run,get_run_brief,release_run,report_run" {
 		t.Fatalf("claim tools = %v", got)
 	}
 }

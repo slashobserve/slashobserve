@@ -518,10 +518,10 @@ When they can still comment on the dashboard but can no longer edit it, or the r
 
 ### Tools in a run
 
-The server has 121 tools: MCP clients get 118, every one except `save_finding`, `list_more_tools` and `read_series`, which only a run offers.
+The server has 123 tools: MCP clients get 118, every one except `save_finding`, `list_more_tools` and `read_series`, which only a run offers, and `claim_draft` and `finish_draft`, which only the server's own agent calls to take query drafts.
 A run offers 93 of them in a new-dashboard or revision request, 94 in an investigation and 62 in a suggestion.
 `read_series` is offered in an investigation only: it gives every point of a range query, up to 50 series, for the built-in agent's sweep before its first model call, where `query_range` gives only each series' minimum, maximum and last value.
-With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a fourth tool that only a run offers, in an investigation only: the server has 122 tools, MCP clients outside a run still get 118 and an investigation offers 95.
+With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a fourth tool that only a run offers, in an investigation only: the server has 124 tools, MCP clients outside a run still get 118 and an investigation offers 95.
 Those are an Admin's counts: inside a run each tool needs the same role as over MCP, except `save_finding`, and a run session does not list a tool above the requester's role.
 
 - Reads are offered in every run.
@@ -548,9 +548,10 @@ Anything else is refused with `out_of_scope` and a message that names where the 
 Reads of private or Admin-only content, such as another chat or the audit trail, keep what the run writes afterwards visible only to the requester and Admins.
 Such a run cannot create, rename or move a folder, an observation, a dashboard or a saved search into a place others read; that is refused with `restricted_answer`.
 
-The other 23 tools are left out of every run, each for a reason:
+The other 25 tools are left out of every run, each for a reason:
 
 - `claim_run`, `report_run`, `finish_run`, `release_run` and `get_run_brief`: a run token works a run and never claims one.
+- `claim_draft` and `finish_draft`: only the server's own agent takes query drafts, over its claim connection.
 - `create_comment`, `reply_to_comment`, `edit_comment`, `resolve_comment` and `reopen_comment`: the server answers and resolves threads after a run.
 - `start_run`, `retry_run` and `cancel_run`: a new run would escape the cost and call limits of this one.
 - `restore_dashboard_version`, `make_dashboard` and `duplicate_dashboard`: only the finished build becomes a version, one per request.

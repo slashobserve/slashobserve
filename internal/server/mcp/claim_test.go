@@ -81,7 +81,7 @@ func postFrom(h http.Handler, remote, token, body string) *httptest.ResponseReco
 	return rec
 }
 
-func TestSidecarSessionListsExactlyTheFiveClaimTools(t *testing.T) {
+func TestSidecarSessionListsExactlyTheClaimAndDraftTools(t *testing.T) {
 	h, _, _ := newSidecarHandler(t)
 	rec := postFrom(h, "127.0.0.1:50000", sidecarToken, rpc(1, "tools/list", map[string]any{}))
 	var result struct {
@@ -93,7 +93,7 @@ func TestSidecarSessionListsExactlyTheFiveClaimTools(t *testing.T) {
 		names = append(names, tool.Name)
 	}
 	slices.Sort(names)
-	want := []string{"claim_run", "finish_run", "get_run_brief", "release_run", "report_run"}
+	want := []string{"claim_draft", "claim_run", "finish_draft", "finish_run", "get_run_brief", "release_run", "report_run"}
 	if !slices.Equal(names, want) {
 		t.Fatalf("tools = %v, want %v", names, want)
 	}
