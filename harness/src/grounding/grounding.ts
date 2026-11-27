@@ -1,3 +1,4 @@
+import { readsData } from "../phase"
 import type { CallMeta } from "../protocol"
 import type { Task } from "../route/route"
 import { scoredCauses, type ScoredCause } from "./causes"
@@ -17,32 +18,7 @@ import { parseTime } from "./time"
 
 export type { GroundingRecord, Mode } from "./record"
 
-const queryTools = new Set([
-  "query_range",
-  "query_instant",
-  "measure_window",
-  "measure_aggregate",
-])
-
-const dataReads = new Set([
-  "trace_stats",
-  "sample_rows",
-  "get_trace",
-  "compare_traces",
-  "trace_error_origins",
-  "trace_slow_path",
-  "log_context",
-  "log_patterns",
-  "log_facets",
-  "logs_for_trace",
-  "call_mcp_tool",
-])
-
 const callMCPTool = "call_mcp_tool"
-
-export function readsData(tool: string): boolean {
-  return queryTools.has(tool) || dataReads.has(tool)
-}
 
 export function parseMode(raw: string | undefined): Mode | undefined {
   switch (raw) {

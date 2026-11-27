@@ -1,3 +1,4 @@
+import { queryTools, readsData, saveTools } from "../phase"
 import type { AgentSettings, TurnMeta } from "../protocol"
 import * as answer from "./answer"
 import { type Churn, noteChurn } from "./churn"
@@ -103,20 +104,6 @@ export type GuardOptions = {
 }
 
 export type PhaseOf = (name: string) => ToolPhase
-
-const saveTools = new Set([
-  "create_dashboard",
-  "update_dashboard",
-  "update_panels",
-  "import_grafana_dashboard",
-  "save_finding",
-])
-const queryTools = new Set([
-  "query_range",
-  "query_instant",
-  "measure_window",
-  "measure_aggregate",
-])
 
 export function toolPhase(name: string, readOnly: boolean): ToolPhase {
   if (saveTools.has(name)) {
@@ -829,7 +816,7 @@ export class Guard {
     if (call.name === "list_annotations" && !result.isError) {
       s.evidence.annotations = true
     }
-    if (!result.isError && answer.readsData(call.name, phase)) {
+    if (!result.isError && readsData(call.name)) {
       s.evidence.queried = true
     }
     const entry = s.reads[adm.key]

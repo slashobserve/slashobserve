@@ -12,15 +12,11 @@ import {
   type Stop,
   toolPhase,
 } from "../src/guard"
-import {
-  countClaim,
-  doubtsTitleCause,
-  findingOf,
-  readsData,
-} from "../src/guard/answer"
+import { countClaim, doubtsTitleCause, findingOf } from "../src/guard/answer"
 import { callKey } from "../src/guard/key"
 import { provedSomething } from "../src/guard/loop"
 import * as text from "../src/guard/text"
+import { readsData } from "../src/phase"
 import type { AgentSettings } from "../src/protocol"
 
 const fixtures = resolve(
@@ -417,10 +413,10 @@ describe("guard cases", () => {
 
   test("data reads", () => {
     for (const name of cases.data_reads.yes) {
-      expect(readsData(name, toolPhase(name, true)), name).toBe(true)
+      expect(readsData(name), name).toBe(true)
     }
     for (const name of cases.data_reads.no) {
-      expect(readsData(name, toolPhase(name, true)), name).toBe(false)
+      expect(readsData(name), name).toBe(false)
     }
   })
 })

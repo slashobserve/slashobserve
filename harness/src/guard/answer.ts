@@ -64,24 +64,6 @@ const plainWords = new Set([
   "during",
 ])
 
-const dataReads = new Set([
-  "trace_stats",
-  "sample_rows",
-  "get_trace",
-  "compare_traces",
-  "trace_error_origins",
-  "trace_slow_path",
-  "log_context",
-  "log_patterns",
-  "log_facets",
-  "logs_for_trace",
-  "call_mcp_tool",
-])
-
-export function readsData(name: string, phase: string): boolean {
-  return phase === "query" || dataReads.has(name)
-}
-
 export type Fault = { model: string; people: string; needsRead: boolean }
 
 export type Evidence = {
