@@ -83,6 +83,12 @@ func (s *Server) token(w http.ResponseWriter, r *http.Request) {
 		writeOAuthError(w, &oauthError{http.StatusBadRequest, "unsupported_grant_type", "grant_type must be authorization_code or refresh_token"})
 		return
 	}
+	var ended *endedGrant
+	if errors.As(err, &ended) {
+		s.refusedWith(r.Context(), audit.ActionOAuthExchange, ended.refusal(), s.registeredClient(r.Context(), form.clientID), map[string]any{"grant_type": form.grantType})
+		writeEndedGrant(w, ended)
+		return
+	}
 	var denied *oauthError
 	if errors.As(err, &denied) {
 		s.refusedWith(r.Context(), audit.ActionOAuthExchange, denied, s.registeredClient(r.Context(), form.clientID), map[string]any{"grant_type": form.grantType})
@@ -140,15 +146,16 @@ func (s *Server) exchangeCode(ctx context.Context, f tokenForm) (tokenResponse, 
 			if err := s.revokeReusedCode(ctx, q, code.GrantID); err != nil {
 				return err
 			}
-			committed = errInvalidGrant
+			committed = errCodeAlreadyUsed
 			return nil
 		}
 		switch {
-		case !code.ExpiresAt.Time.After(code.DbNow.Time),
-			code.ClientID != f.clientID,
+		case code.ClientID != f.clientID,
 			code.RedirectUri != f.redirectURI,
 			!pkceMatches(f.verifier, code.CodeChallenge):
 			return errInvalidGrant
+		case !code.ExpiresAt.Time.After(code.DbNow.Time):
+			return errCodeExpired
 		case f.resource != "" && !canonicalEqual(f.resource, code.Resource):
 			return errInvalidTarget
 		}
@@ -208,7 +215,7 @@ func (s *Server) refresh(ctx context.Context, f tokenForm) (tokenResponse, error
 		return resp, errInvalidGrant
 	}
 	hash := opaquetoken.Hash(f.refreshToken)
-	var committed *oauthError
+	var committed error
 	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		row, err := q.GetOAuthRefresh(ctx, hash)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -217,19 +224,22 @@ func (s *Server) refresh(ctx context.Context, f tokenForm) (tokenResponse, error
 		if err != nil {
 			return err
 		}
-		if row.RevokedAt.Valid || !row.ExpiresAt.Time.After(row.DbNow.Time) || row.ClientID != f.clientID {
+		if row.ClientID != f.clientID {
 			return errInvalidGrant
+		}
+		if ended := endedRefresh(row); ended != nil {
+			return ended
 		}
 		if row.RotatedAt.Valid {
 			if row.DbNow.Time.Sub(row.RotatedAt.Time) <= refreshReuseLeeway {
-				return errInvalidGrant
+				return errRefreshAlreadyUsed
 			}
 			if err := revokeReused(ctx, q, row.GrantID, "refresh_reuse"); err != nil {
 				return err
 			}
 			s.logger.WarnContext(ctx, "oauth refresh token reused; grant revoked",
 				slog.String("grant_id", row.GrantID.String()), slog.String("user_id", row.UserID.String()))
-			committed = errInvalidGrant
+			committed = &endedGrant{state: GrantStateRevoked, revokedReason: "refresh_reuse"}
 			return nil
 		}
 		if f.resource != "" && !canonicalEqual(f.resource, row.Resource) {
@@ -248,6 +258,14 @@ func (s *Server) refresh(ctx context.Context, f tokenForm) (tokenResponse, error
 		return tokenResponse{}, committed
 	}
 	return resp, err
+}
+
+func endedRefresh(row dbsqlc.GetOAuthRefreshRow) *endedGrant {
+	state := grantStateOf(grantFacts{revoked: row.RevokedAt.Valid, created: row.CreatedAt.Time, expires: row.ExpiresAt.Time, now: row.DbNow.Time})
+	if state == GrantStateActive {
+		return nil
+	}
+	return &endedGrant{state: state, revokedReason: row.RevokedReason.String}
 }
 
 func (s *Server) issue(ctx context.Context, q *dbsqlc.Queries, grantID pgtype.UUID, grantCreated time.Time) (tokenResponse, error) {

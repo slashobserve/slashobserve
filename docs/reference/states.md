@@ -211,8 +211,10 @@ This state is computed from stored fields on every read; nothing stores it.
 
 | State | When |
 | --- | --- |
-| `revoked` | The person or an admin revoked it; it leaves the list. |
+| `revoked` | It was ended before its time, and `revoked_reason` says how: by its person, an admin or the client, by a newer connection of the same client, or because a code or refresh token was used twice. |
 | `active` | It may call /mcp as its person until expires_at. |
+| `expired` | Its refresh token went unused for 30 days; the person approves the client again. |
+| `aged_out` | It reached the 90 day limit of a connection; the person approves the client again. |
 
 ## Dashboard save
 
@@ -334,6 +336,54 @@ This state is computed from stored fields on every read; nothing stores it.
 | `working` | It holds the lease of a run it claimed. |
 | `listening` | It asked for work in the last 40 seconds. |
 | `offline` | It has not asked for work in 40 seconds and holds no run. |
+
+## Person
+
+A person is someone who signs in, returned by `GET /users` with `state` and `allowed_actions`; an invited email is listed by `GET /invites` until its first sign-in.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `invited` | An Admin invited the email and nobody has signed in with it; listed by `GET /invites`, not by `GET /users`. | `invite`, `withdraw` |
+| `active` | Can sign in and work. | `set_role`, `sign_out`, `deactivate` |
+| `deactivated` | Cannot sign in; their sessions and connected agents are gone and their work is kept. | `set_role`, `reactivate`, `remove` |
+| `removed` | The invite was withdrawn, or the deactivated person and their My Dashboards were deleted. Final. | - |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `invite` | - | `invited` | `user.invited` | admin |
+| `invite` | `invited` | - | `user.invite_updated` | admin |
+| `withdraw` | `invited` | `removed` | `user.invite_withdrawn` | admin |
+| `join` | - | `active` | `auth.login` | server |
+| `join` | `invited` | `active` | `auth.login` | server |
+| `set_role` | `active`, `deactivated` | - | `user.role_changed` | admin |
+| `sign_out` | `active` | - | `user.signed_out_everywhere` | admin |
+| `deactivate` | `active` | `deactivated` | `user.deactivated` | admin |
+| `reactivate` | `deactivated` | `active` | `user.reactivated` | admin |
+| `remove` | `deactivated` | `removed` | `user.removed` | admin |
+
+## Scheduled job
+
+`GET /jobs` returns the `state` of each scheduled job to an Admin.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `running` | A server holds its lease and is running it. |
+| `interrupted` | Its last run did not finish: the server crashed and the lease ran out, or the server shut down and gave the lease back. The next server that finds it due runs it again. |
+| `due` | Its next run time has passed and no server has claimed it yet. |
+| `waiting` | Its last run finished, or it never ran, and the next run time is ahead. |
+
+## Access request
+
+`GET /access-requests` returns the `state` of each request for Comment access; the list of requests you can grant holds only open ones, and `scope=mine` returns your own in every state.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `open` | Asked in the last 30 days, not granted, and nobody who can grant it marked it done in their inbox. |
+| `granted` | The requester got Comment access after asking. |
+| `dismissed` | Someone who can grant it marked it done in their inbox without granting it; the requester may ask again. |
+| `expired` | Nobody granted or dismissed it within 30 days; the requester may ask again. |
 
 ## Datasource health
 

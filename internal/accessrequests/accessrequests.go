@@ -83,6 +83,7 @@ type Request struct {
 	RequestedBy Requester
 	Note        string
 	CreatedAt   time.Time
+	State       State
 }
 
 func folderOf(levels folders.Levels, id pgtype.UUID) Folder {
@@ -258,7 +259,7 @@ func (s *Service) Request(ctx context.Context, by auth.Principal, obj Object, ra
 	if err != nil {
 		return Request{}, err
 	}
-	out := Request{Object: obj, RequestedBy: requester, Note: note}
+	out := Request{Object: obj, RequestedBy: requester, Note: note, State: StateOpen}
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		t, err := lockTarget(ctx, q, obj)
 		if err != nil {
@@ -345,6 +346,42 @@ func (s *Service) List(ctx context.Context, by auth.Principal) ([]Request, error
 			RequestedBy: Requester{Kind: r.RequesterKind, ID: r.RequesterID.String(), Name: r.RequesterName},
 			Note:        r.Note,
 			CreatedAt:   r.CreatedAt.Time,
+			State:       StateOpen,
+		})
+	}
+	return out, nil
+}
+
+func (s *Service) Mine(ctx context.Context, by auth.Principal) ([]Request, error) {
+	requester, requesterID, err := requesterOf(by)
+	if err != nil {
+		return nil, err
+	}
+	levels, err := s.access.Levels(ctx, by)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.db.Queries().ListOwnAccessRequests(ctx, dbsqlc.ListOwnAccessRequestsParams{
+		RequesterKind: requester.Kind, RequesterID: requesterID, Visible: levels.Visible(), RowLimit: maxListed,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list own access requests: %w", err)
+	}
+	out := make([]Request, 0, len(rows))
+	for _, r := range rows {
+		obj := Object{Kind: KindDashboard, ID: r.DashboardID}
+		if r.ObservationID.Valid {
+			obj = Object{Kind: KindObservation, ID: r.ObservationID}
+		}
+		out = append(out, Request{
+			ID:          r.ID.String(),
+			Object:      obj,
+			Title:       r.Title,
+			Folder:      folderOf(levels, r.FolderID),
+			RequestedBy: Requester{Kind: r.RequesterKind, ID: r.RequesterID.String(), Name: r.RequesterName},
+			Note:        r.Note,
+			CreatedAt:   r.CreatedAt.Time,
+			State:       stateOf(standing{granted: r.Granted, dismissed: r.Dismissed, age: r.ReadAt.Time.Sub(r.CreatedAt.Time)}),
 		})
 	}
 	return out, nil

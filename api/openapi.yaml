@@ -38,6 +38,8 @@ paths:
     $ref: "./paths/users.yaml#/users-id-deactivate"
   /users/{id}/reactivate:
     $ref: "./paths/users.yaml#/users-id-reactivate"
+  /jobs:
+    $ref: "./paths/jobs.yaml#/jobs"
   /invites:
     $ref: "./paths/invites.yaml#/invites"
   /invites/{id}:
@@ -429,6 +431,14 @@ components:
           type: string
         code:
           type: string
+        state:
+          type: string
+          description: Present on a refusal that depends on the state of the object the request names, such as a person's `role_locked`, `last_admin`, `cannot_deactivate_self` and `not_deactivated`; the state the object is in.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+          description: Present with `state`; the actions the caller may take on the object now, as in the object's own `allowed_actions`.
         datasource:
           type: string
           description: >-
@@ -840,7 +850,21 @@ components:
         - deactivated_at
         - deactivated_by
         - personal_items
+        - state
+        - allowed_actions
       properties:
+        state:
+          type: string
+          enum: [active, deactivated]
+          description: Where the person is in the person lifecycle of `docs/reference/states.md`. An invited email is listed by `GET /invites` and a removed person is not listed.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+            enum: [invite, withdraw, set_role, sign_out, deactivate, reactivate, remove]
+          description: >-
+            What the caller may do to this person now: `set_role` is left out while `role_locked` is true, `deactivate` for the caller's own entry, and every action for a service-account key, which cannot change people.
+            `invite` and `withdraw` belong to an invite and are never listed for a person.
         id:
           type: string
           format: uuid
@@ -913,7 +937,7 @@ components:
     ConnectedAgent:
       type: object
       additionalProperties: false
-      required: [id, client, person, created_at, last_used_at, expires_at, state, mode, presence, last_seen_at]
+      required: [id, client, person, created_at, last_used_at, expires_at, state, revoked_reason, mode, presence, last_seen_at]
       properties:
         id:
           type: string
@@ -961,8 +985,13 @@ components:
           description: When the connection ends and the person must approve it again.
         state:
           type: string
-          enum: [revoked, active]
-          description: Always `active` in the list, which leaves out revoked and expired connections. See `docs/reference/states.md`.
+          enum: [revoked, active, expired, aged_out]
+          description: Always `active` unless the list was asked for ended connections with `include_ended=true`; then `revoked`, `expired` (the refresh token went unused for 30 days) or `aged_out` (the 90 day limit) says why one ended. See `docs/reference/states.md`.
+        revoked_reason:
+          type: string
+          nullable: true
+          enum: [person, admin, client, replaced, refresh_reuse, code_reuse]
+          description: How a `revoked` connection was ended, by its person, an admin, the client itself, a newer connection of the same client, or the reuse of a refresh token or an authorization code; null in every other state.
         mode:
           type: string
           enum: [direct, propose]
@@ -2510,9 +2539,15 @@ components:
     AccessRequest:
       type: object
       additionalProperties: false
-      required: [id, object, folder, requested_by, note, created_at]
+      required: [id, object, folder, requested_by, note, created_at, state]
       description: A request for Comment access to a dashboard or observation.
       properties:
+        state:
+          type: string
+          enum: [open, granted, dismissed, expired]
+          description: >-
+            Where the request stands, computed on read: `open` while it waits, `granted` once the requester can comment, `dismissed` when someone who can grant it marked it done in their inbox without granting it, and `expired` 30 days after it was asked.
+            The managed list holds only `open` requests; the requester's own list (`scope=mine`) holds all four. A dismissed or expired request can be asked again.
         id:
           type: string
           format: uuid
@@ -7782,6 +7817,51 @@ components:
           type: string
           format: date-time
           description: When the repair finished, else when it started, else when it was queued.
+    ScheduledJob:
+      type: object
+      additionalProperties: false
+      required: [name, state, every_seconds, next_run_at, last_started_at, last_finished_at, last_outcome, last_error]
+      properties:
+        name:
+          type: string
+        state:
+          type: string
+          enum: [running, interrupted, due, waiting]
+          description: Computed on read; see `docs/reference/states.md`. `interrupted` means the last run did not finish, because its server crashed or shut down.
+        every_seconds:
+          type: integer
+          minimum: 1
+          description: The interval between runs.
+        next_run_at:
+          type: string
+          format: date-time
+        last_started_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_finished_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When a run last recorded an outcome; older than `last_started_at` while a run is in flight or after one that did not finish.
+        last_outcome:
+          type: string
+          nullable: true
+          enum: [succeeded, failed, interrupted]
+          description: The outcome of the last run that recorded one, or `interrupted` once a server took over the lease of a run that crashed. Null before the first outcome.
+        last_error:
+          type: string
+          nullable: true
+          description: The `key=value` summary of the last failure, never the error's own text; null when the last outcome was not a failure.
+    ScheduledJobList:
+      type: object
+      additionalProperties: false
+      required: [jobs]
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduledJob"
     HealthJob:
       type: object
       additionalProperties: false

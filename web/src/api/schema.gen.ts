@@ -223,14 +223,14 @@ export interface paths {
         post?: never;
         /**
          * Remove a deactivated person and their My Dashboards.
-         * @description Admin only, from a person's session; service-account keys cannot. Only a deactivated person can be removed; an active one answers 409 with code not_deactivated. Deleted with them: their My Dashboards folder and the dashboards, observations, findings and saved searches in it (counted in personal_items), their saved prompts, stars, views, inbox state and folder grants. Kept under their stored name: dashboards, versions, observations, comments, proposals and activity in shared folders, and the service accounts and keys they created. A new sign-in with the same identity-provider account afterwards makes a new person.
+         * @description Admin only, from a person's session; service-account keys cannot. Only a deactivated person can be removed; an active one answers 409 with code not_deactivated and the person's `state` and `allowed_actions`. Deleted with them: their My Dashboards folder and the dashboards, observations, findings and saved searches in it (counted in personal_items), their saved prompts, stars, views, inbox state and folder grants. Kept under their stored name: dashboards, versions, observations, comments, proposals and activity in shared folders, and the service accounts and keys they created. A new sign-in with the same identity-provider account afterwards makes a new person.
          */
         delete: operations["removePerson"];
         options?: never;
         head?: never;
         /**
          * Set or clear the role an Admin chose for a person.
-         * @description A role value sets the chosen role and null clears it, after which the role is computed again from the server settings, the identity provider's groups and the default. A role decided by SLASHOBSERVE_ADMIN_EMAILS, by being the first person, or by an identity-provider group is locked and answers 409 with code role_locked. Lowering the last Admin answers 409 with code last_admin. Service accounts cannot call this endpoint.
+         * @description A role value sets the chosen role and null clears it, after which the role is computed again from the server settings, the identity provider's groups and the default. A role decided by SLASHOBSERVE_ADMIN_EMAILS, by being the first person, or by an identity-provider group is locked and answers 409 with code role_locked. Lowering the last Admin answers 409 with code last_admin. Both refusals carry the person's `state` and `allowed_actions`. Service accounts cannot call this endpoint.
          */
         patch: operations["updatePersonRole"];
         trace?: never;
@@ -270,7 +270,7 @@ export interface paths {
         put?: never;
         /**
          * Stop a person from signing in or acting, and keep what they made.
-         * @description Admin only, from a person's session; service-account keys cannot. Deletes every session of the person and disconnects every MCP client they connected in the same transaction, and refuses their next sign-in. Their dashboards, observations, comments and folder grants stay; queued agent runs they requested fail when claimed, and webhooks they own stop. Service-account keys they created keep working, because a key acts as its service account. Deactivating a deactivated person answers 200 and changes nothing. Deactivating yourself answers 409 with code cannot_deactivate_self, and the last active Admin answers 409 with code last_admin.
+         * @description Admin only, from a person's session; service-account keys cannot. Deletes every session of the person and disconnects every MCP client they connected in the same transaction, and refuses their next sign-in. Their dashboards, observations, comments and folder grants stay; queued agent runs they requested fail when claimed, and webhooks they own stop. Service-account keys they created keep working, because a key acts as its service account. Deactivating a deactivated person answers 200 and changes nothing. Deactivating yourself answers 409 with code cannot_deactivate_self, and the last active Admin answers 409 with code last_admin; both carry the person's `state` and `allowed_actions`.
          */
         post: operations["deactivatePerson"];
         delete?: never;
@@ -295,6 +295,26 @@ export interface paths {
          * @description Admin only, from a person's session; service-account keys cannot. The person can sign in again at once with the role the rules give them; the MCP clients they had connected stay disconnected. Reactivating an active person answers 200 and changes nothing.
          */
         post: operations["reactivatePerson"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the server's scheduled jobs with their state.
+         * @description Admin only, and an Admin service-account key can call it too. Every job the servers registered, ordered by name, each with its `state` and its last run. A job whose last run did not finish is `interrupted`, and once another server takes over its lease its `last_outcome` is `interrupted` too. The list changes nothing: jobs run on their schedule, and only `dashboard_health` can be started by hand.
+         */
+        get: operations["listJobs"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4276,7 +4296,7 @@ export interface paths {
         };
         /**
          * List the MCP clients the signed-in person has connected.
-         * @description Newest first, live connections only: a disconnected or expired one is not listed. `client.name` is the name the client registered under and is not verified, and null when it registered none. `redirect_host` and `local` describe the client's first registered redirect URI. `last_used_at` is null until the client first uses an access token. Only signed-in people may call it: a service-account key gets 403 `forbidden`.
+         * @description Newest first, live connections only: a disconnected or expired one is not listed unless `include_ended=true` asks for it. `client.name` is the name the client registered under and is not verified, and null when it registered none. `redirect_host` and `local` describe the client's first registered redirect URI. `last_used_at` is null until the client first uses an access token. Only signed-in people may call it: a service-account key gets 403 `forbidden`.
          */
         get: operations["listMyGrants"];
         put?: never;
@@ -4483,8 +4503,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the open Comment access requests on folders the caller manages.
-         * @description Lists the open requests on dashboards and observations whose folder the caller may manage, newest first, at most 100. Grant one by giving the requester Comment on the folder (`PUT /folders/{id}/permissions`) or by raising their role; this list changes nothing. An object in General (`folder.general`) cannot be granted that way, because General takes no entry: raise the requester's role or move the object to another folder.
+         * List the open Comment access requests on folders the caller manages, or the caller's own requests.
+         * @description Lists the open requests on dashboards and observations whose folder the caller may manage, newest first, at most 100. With `scope=mine` it lists the caller's own requests instead, each with its `state`, newest first, at most 100. Grant one by giving the requester Comment on the folder (`PUT /folders/{id}/permissions`) or by raising their role; this list changes nothing. An object in General (`folder.general`) cannot be granted that way, because General takes no entry: raise the requester's role or move the object to another folder.
          */
         get: operations["listAccessRequests"];
         put?: never;
@@ -4506,6 +4526,10 @@ export interface components {
         Error: {
             error: string;
             code: string;
+            /** @description Present on a refusal that depends on the state of the object the request names, such as a person's `role_locked`, `last_admin`, `cannot_deactivate_self` and `not_deactivated`; the state the object is in. */
+            state?: string;
+            /** @description Present with `state`; the actions the caller may take on the object now, as in the object's own `allowed_actions`. */
+            allowed_actions?: string[];
             /** @description Present with `admins_only_folder` when the content reads an Admins-only datasource, so it cannot leave its folder and public links are not available for it; the uid of that datasource. */
             datasource?: string;
             /** @description Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`. The `error` message names the field and says what to change. On a `too_many_streams` refusal of an event stream, whose limit was reached: `per_caller` for the caller's own open streams or `server_capacity` for the server process's. */
@@ -4699,6 +4723,13 @@ export interface components {
             token: string;
         };
         Person: {
+            /**
+             * @description Where the person is in the person lifecycle of `docs/reference/states.md`. An invited email is listed by `GET /invites` and a removed person is not listed.
+             * @enum {string}
+             */
+            state: "active" | "deactivated";
+            /** @description What the caller may do to this person now: `set_role` is left out while `role_locked` is true, `deactivate` for the caller's own entry, and every action for a service-account key, which cannot change people. `invite` and `withdraw` belong to an invite and are never listed for a person. */
+            allowed_actions: ("invite" | "withdraw" | "set_role" | "sign_out" | "deactivate" | "reactivate" | "remove")[];
             /** Format: uuid */
             id: string;
             name: string;
@@ -4771,10 +4802,15 @@ export interface components {
              */
             expires_at: string;
             /**
-             * @description Always `active` in the list, which leaves out revoked and expired connections. See `docs/reference/states.md`.
+             * @description Always `active` unless the list was asked for ended connections with `include_ended=true`; then `revoked`, `expired` (the refresh token went unused for 30 days) or `aged_out` (the 90 day limit) says why one ended. See `docs/reference/states.md`.
              * @enum {string}
              */
-            state: "revoked" | "active";
+            state: "revoked" | "active" | "expired" | "aged_out";
+            /**
+             * @description How a `revoked` connection was ended, by its person, an admin, the client itself, a newer connection of the same client, or the reuse of a refresh token or an authorization code; null in every other state.
+             * @enum {string|null}
+             */
+            revoked_reason: "person" | "admin" | "client" | "replaced" | "refresh_reuse" | "code_reuse" | null;
             /**
              * @description How the agent's changes land. direct is the default; with propose its dashboard writes become proposals that someone who can edit merges. The connection's person sets it with `PATCH /api/v1/me/grants/{id}`.
              * @enum {string}
@@ -5610,6 +5646,11 @@ export interface components {
         };
         /** @description A request for Comment access to a dashboard or observation. */
         AccessRequest: {
+            /**
+             * @description Where the request stands, computed on read: `open` while it waits, `granted` once the requester can comment, `dismissed` when someone who can grant it marked it done in their inbox without granting it, and `expired` 30 days after it was asked. The managed list holds only `open` requests; the requester's own list (`scope=mine`) holds all four. A dismissed or expired request can be asked again.
+             * @enum {string}
+             */
+            state: "open" | "granted" | "dismissed" | "expired";
             /** Format: uuid */
             id: string;
             object: {
@@ -8424,6 +8465,35 @@ export interface components {
              */
             updated_at: string;
         };
+        ScheduledJob: {
+            name: string;
+            /**
+             * @description Computed on read; see `docs/reference/states.md`. `interrupted` means the last run did not finish, because its server crashed or shut down.
+             * @enum {string}
+             */
+            state: "running" | "interrupted" | "due" | "waiting";
+            /** @description The interval between runs. */
+            every_seconds: number;
+            /** Format: date-time */
+            next_run_at: string;
+            /** Format: date-time */
+            last_started_at: string | null;
+            /**
+             * Format: date-time
+             * @description When a run last recorded an outcome; older than `last_started_at` while a run is in flight or after one that did not finish.
+             */
+            last_finished_at: string | null;
+            /**
+             * @description The outcome of the last run that recorded one, or `interrupted` once a server took over the lease of a run that crashed. Null before the first outcome.
+             * @enum {string|null}
+             */
+            last_outcome: "succeeded" | "failed" | "interrupted" | null;
+            /** @description The `key=value` summary of the last failure, never the error's own text; null when the last outcome was not a failure. */
+            last_error: string | null;
+        };
+        ScheduledJobList: {
+            jobs: components["schemas"]["ScheduledJob"][];
+        };
         HealthJob: {
             /** Format: date-time */
             last_started_at: string | null;
@@ -9837,6 +9907,29 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listJobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every scheduled job. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduledJobList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
         };
     };
@@ -20231,6 +20324,8 @@ export interface operations {
             query?: {
                 limit?: number;
                 cursor?: string;
+                /** @description With true the list also holds connections that were revoked, expired or aged out in the last 30 days, each with its `state` and `revoked_reason`. */
+                include_ended?: boolean;
             };
             header?: never;
             path?: never;
@@ -20314,6 +20409,8 @@ export interface operations {
             query?: {
                 limit?: number;
                 cursor?: string;
+                /** @description With true the list also holds connections that were revoked, expired or aged out in the last 30 days, each with its `state` and `revoked_reason`. */
+                include_ended?: boolean;
             };
             header?: never;
             path?: never;
@@ -20637,7 +20734,10 @@ export interface operations {
     };
     listAccessRequests: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description `managed` lists the open requests the caller can grant. `mine` lists the requests the caller made, in any state, on objects the caller can still see, so the requester can tell a request that is still waiting from one that was dismissed, expired or granted. */
+                scope?: "managed" | "mine";
+            };
             header?: never;
             path?: never;
             cookie?: never;

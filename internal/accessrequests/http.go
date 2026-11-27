@@ -66,6 +66,32 @@ func JSONOf(r Request) RequestJSON {
 	}
 }
 
+type statedJSON struct {
+	RequestJSON
+	State State `json:"state"`
+}
+
+type statedListJSON struct {
+	Items []statedJSON `json:"items"`
+}
+
+func statedJSONOf(r Request) statedJSON {
+	return statedJSON{RequestJSON: JSONOf(r), State: r.State}
+}
+
+func statedListJSONOf(items []Request) statedListJSON {
+	out := statedListJSON{Items: make([]statedJSON, 0, len(items))}
+	for _, r := range items {
+		out.Items = append(out.Items, statedJSONOf(r))
+	}
+	return out
+}
+
+const (
+	scopeManaged = "managed"
+	scopeMine    = "mine"
+)
+
 func ListJSONOf(items []Request) ListJSON {
 	out := ListJSON{Items: make([]RequestJSON, 0, len(items))}
 	for _, r := range items {
@@ -123,7 +149,7 @@ func (h *Handler) create(c *gin.Context) {
 		h.fail(c, "request comment access", err)
 		return
 	}
-	c.JSON(http.StatusCreated, JSONOf(request))
+	c.JSON(http.StatusCreated, statedJSONOf(request))
 }
 
 func abortRefusal(c *gin.Context, err error) bool {
@@ -148,7 +174,16 @@ func abortRefusal(c *gin.Context, err error) bool {
 }
 
 func (h *Handler) list(c *gin.Context) {
-	items, err := h.service.List(c.Request.Context(), httpapi.Caller(c))
+	read := h.service.List
+	switch c.DefaultQuery("scope", scopeManaged) {
+	case scopeManaged:
+	case scopeMine:
+		read = h.service.Mine
+	default:
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "scope must be managed or mine")
+		return
+	}
+	items, err := read(c.Request.Context(), httpapi.Caller(c))
 	if errors.Is(err, folders.ErrForbidden) {
 		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
 		return
@@ -157,7 +192,7 @@ func (h *Handler) list(c *gin.Context) {
 		h.fail(c, "list access requests", err)
 		return
 	}
-	c.JSON(http.StatusOK, ListJSONOf(items))
+	c.JSON(http.StatusOK, statedListJSONOf(items))
 }
 
 func (h *Handler) fail(c *gin.Context, action string, err error) {

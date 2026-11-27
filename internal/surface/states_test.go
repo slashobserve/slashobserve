@@ -9,6 +9,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 
 	"github.com/slashobserve/slashobserve/api/apitest"
+	"github.com/slashobserve/slashobserve/internal/accessrequests"
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -23,8 +24,10 @@ import (
 	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/public"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/scheduler"
 	"github.com/slashobserve/slashobserve/internal/server"
 	"github.com/slashobserve/slashobserve/internal/threads"
+	"github.com/slashobserve/slashobserve/internal/users"
 	"github.com/slashobserve/slashobserve/internal/webhooks"
 )
 
@@ -56,6 +59,9 @@ func statesReference() string {
 		inboundmcp.SourceStates.Doc("MCP source", "`GET /api/v1/mcp-sources` returns the `state` of each MCP source."),
 		dashboards.VerificationStates.Doc("Panel and variable verification", "`GET /dashboards/{id}` returns the panels and variables of a version that are not verified in `unverified`, each with the `reason` the save kept it."),
 		presence.States.Doc("Agent presence", "Whether an outside agent is taking runs: derived from when it last asked for work and the runs it holds."),
+		users.PersonMachine.Doc("Person", "A person is someone who signs in, returned by `GET /users` with `state` and `allowed_actions`; an invited email is listed by `GET /invites` until its first sign-in."),
+		scheduler.States.Doc("Scheduled job", "`GET /jobs` returns the `state` of each scheduled job to an Admin."),
+		accessrequests.States.Doc("Access request", "`GET /access-requests` returns the `state` of each request for Comment access; the list of requests you can grant holds only open ones, and `scope=mine` returns your own in every state."),
 		datasource.HealthStates.Doc("Datasource health", "`GET /datasources` and `POST /datasources/{uid}/recheck` return the `health_state` of each datasource, from the last check the answering server ran."),
 		server.PhaseMachine.Doc("Server process", "A server process moves through these phases from start to exit: `GET /readyz` returns the current one as `phase`, the `slashobserve_server_phase` series is 1 for it, and each move writes one server log line with the name in the Event column and the new phase as its `phase` attribute, not an activity event."),
 	)
@@ -119,6 +125,8 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 		{"PublicLink", "unusable_reason", public.UnusableReasons},
 		{"InboxItem", "state", activity.InboxItemStates.Names()},
 		{"MCPSource", "state", inboundmcp.SourceStates.Names()},
+		{"AccessRequest", "state", accessrequests.States.Names()},
+		{"ScheduledJob", "state", scheduler.States.Names()},
 		{"DatasourceStatus", "health_state", datasource.HealthStates.Names()},
 		{"DatasourceStatus", "failure_kind", failureKinds},
 		{"DatasourceTestResult", "failure_kind", failureKinds},
@@ -250,6 +258,21 @@ func TestObservationEnumsMatchTheMachines(t *testing.T) {
 		if got := enumOf(t, doc, c.schema, c.property); !slices.Equal(got, c.want) {
 			t.Errorf("%s.%s enum = %v, want %v", c.schema, c.property, got, c.want)
 		}
+	}
+}
+
+func TestPersonEnumsMatchTheMachine(t *testing.T) {
+	doc := apitest.Load(t)
+	var offered []string
+	for _, a := range users.PersonMachine.Offered() {
+		offered = append(offered, string(a))
+	}
+	listed := []string{string(users.StateActive), string(users.StateDeactivated)}
+	if got := enumOf(t, doc, "Person", "state"); !slices.Equal(got, listed) {
+		t.Errorf("Person.state enum = %v, want %v", got, listed)
+	}
+	if got := enumOf(t, doc, "Person", "allowed_actions"); !slices.Equal(got, offered) {
+		t.Errorf("Person.allowed_actions enum = %v, want %v", got, offered)
 	}
 }
 
