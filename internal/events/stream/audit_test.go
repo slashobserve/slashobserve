@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -258,6 +259,31 @@ func TestAuditStreamEndsAtShutdownAfterItsSearchIsRecorded(t *testing.T) {
 	}
 }
 
+func TestAuditStreamSaysWhyBeforeTheServerEndsIt(t *testing.T) {
+	unavailable := errors.New("database unavailable")
+	cases := []struct {
+		name   string
+		tune   func(*AuditHandler)
+		end    func(*auditRig)
+		reason string
+	}{
+		{"lifetime reached", func(h *AuditHandler) { h.lifetime = 100 * time.Millisecond }, func(*auditRig) {}, "lifetime"},
+		{"credential checks keep failing", func(h *AuditHandler) { h.pingInterval = 10 * time.Millisecond }, func(r *auditRig) { r.principals.err.Store(&unavailable) }, "check_failed"},
+		{"server shutting down", func(*AuditHandler) {}, func(r *auditRig) { r.broker.Close() }, "stopping"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newAuditRig(t, admin)
+			tc.tune(r.handler)
+			s := r.open(t, "")
+
+			tc.end(r)
+
+			s.expectClosedBecause(t, tc.reason)
+		})
+	}
+}
+
 func TestAuditStreamRefusesNonAdminsAndBadRequests(t *testing.T) {
 	for name, p := range map[string]auth.Principal{
 		"viewer":     viewer,
@@ -311,8 +337,8 @@ func TestAuditStreamAnswers429BeyondFivePerCallerAndTwentyPerServer(t *testing.T
 		t.Fatal(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	var body struct{ Error, Code string }
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil || resp.StatusCode != http.StatusTooManyRequests || body.Code != "too_many_streams" || !strings.Contains(body.Error, "20") {
+	var body struct{ Error, Code, Reason string }
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil || resp.StatusCode != http.StatusTooManyRequests || body.Code != "too_many_streams" || body.Reason != "server_capacity" || !strings.Contains(body.Error, "20") {
 		t.Fatalf("a stream past the server's limit = %d %+v (%v)", resp.StatusCode, body, err)
 	}
 }

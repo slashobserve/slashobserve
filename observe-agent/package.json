@@ -18,6 +18,10 @@
     "ai": "7.0.156",
     "zod": "4.6.6"
   },
+  "overrides": {
+    "@hono/node-server": "2.1.6",
+    "hono": "4.13.16"
+  },
   "devDependencies": {
     "@types/bun": "1.4.2",
     "prettier": "3.9.10",

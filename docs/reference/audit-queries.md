@@ -402,8 +402,9 @@ The `query` of a Query DSL body takes `bool` (`must`, `filter`, `should`, `must_
 - Every 5 seconds the server checks that the caller is still an Admin.
   It ends the stream with a `forbidden` frame (`forbidden_role`) once they are not.
   It also ends the stream at shutdown and after 30 minutes, and a client reconnects from its last id.
+  Before those ends it sends a last `closed` frame whose data is `{"reason": "<reason>"}`: `stopping` when the server stops, `lifetime`, `check_failed` when it could not check the caller twice in a row, or `read_failed` when it could not read the trail.
 - A caller may hold 5 audit streams and a server 20.
-  One more answers 429 `too_many_streams` for a caller over its limit and 503 `too_many_streams` for a server over its limit.
+  One more answers 429 `too_many_streams`, and its `reason` is `per_caller` for a caller over its limit and `server_capacity` for a server over its limit.
 - Each stream reads the trail every 2 seconds, one read at a time, under a 5 second statement timeout.
   A stream whose read times out twice in a row ends with an `error` frame (`query_too_expensive`) saying the query is too expensive to follow.
   Narrow the query or search instead.

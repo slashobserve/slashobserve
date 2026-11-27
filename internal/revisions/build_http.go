@@ -65,6 +65,9 @@ type buildProgressJSON struct {
 	PlannedPanels int     `json:"planned_panels"`
 	Title         *string `json:"title"`
 	UpdatedAt     string  `json:"updated_at"`
+
+	State     BuildState `json:"state"`
+	ExpiresAt *string    `json:"expires_at"`
 }
 
 type buildJSON struct {
@@ -134,13 +137,13 @@ func ReplyFor(err error) (Reply, bool) {
 	case errors.Is(err, ErrClientIDReused):
 		return Reply{Status: http.StatusUnprocessableEntity, Code: "client_id_reused", Message: ErrClientIDReused.Error()}, true
 	case errors.Is(err, ErrNotContinuable):
-		return Reply{Status: http.StatusConflict, Code: "not_continuable", Message: ErrNotContinuable.Error()}, true
+		return Reply{Status: http.StatusConflict, Code: CodeNotContinuable, Message: ErrNotContinuable.Error()}, true
 	case errors.Is(err, ErrFindingApplied):
 		return Reply{Status: http.StatusConflict, Code: CodeAlreadyApplied, Message: ErrFindingApplied.Error()}, true
 	case errors.Is(err, ErrAssigneeUnavailable):
 		return Reply{Status: http.StatusConflict, Code: "assignee_unavailable", Message: ErrAssigneeUnavailable.Error()}, true
 	case errors.Is(err, ErrRequestFinished):
-		return Reply{Status: http.StatusConflict, Code: "request_finished", Message: ErrRequestFinished.Error()}, true
+		return Reply{Status: http.StatusConflict, Code: CodeRequestFinished, Message: ErrRequestFinished.Error()}, true
 	case errors.Is(err, ErrChatReadOnly):
 		return Reply{Status: http.StatusForbidden, Code: CodeChatReadOnly, Message: ErrChatReadOnly.Error()}, true
 	case errors.Is(err, ErrNotRequester):
@@ -154,6 +157,11 @@ func ReplyFor(err error) (Reply, bool) {
 }
 
 func (h *ObserveHandler) failBuild(c *gin.Context, action string, err error, idAttrs ...any) {
+	var refusal *lifecycle.Refusal
+	if errors.As(err, &refusal) {
+		lifecycle.AbortRefusal(c, refusal)
+		return
+	}
 	if reply, ok := ReplyFor(err); ok {
 		if reply.Latest > 0 {
 			c.AbortWithStatusJSON(reply.Status, versionConflictJSON{Error: reply.Message, Code: reply.Code, LatestVersion: reply.Latest})
@@ -212,12 +220,12 @@ func (h *ObserveHandler) saveBuild(c *gin.Context) {
 		err = ErrBuildRunning
 	}
 	if err != nil {
-		h.failBuild(c, "save stopped agent request build", err, idAttr)
+		h.failBuildSave(c, row, err, idAttr)
 		return
 	}
 	saved, err := h.service.builds.SaveStoppedBuild(ctx, caller, row.ID)
 	if err != nil {
-		h.failBuild(c, "save stopped agent request build", err, idAttr)
+		h.failBuildSave(c, row, err, idAttr)
 		return
 	}
 	status := http.StatusCreated
@@ -272,12 +280,7 @@ func (h *ObserveHandler) retryObserve(c *gin.Context) {
 		return
 	}
 	row, err := h.service.Retry(c.Request.Context(), id, httpapi.Caller(c))
-	var refusal *lifecycle.Refusal
-	switch {
-	case errors.As(err, &refusal):
-		lifecycle.AbortRefusal(c, refusal)
-		return
-	case err != nil:
+	if err != nil {
 		h.failBuild(c, "retry agent request", err, slog.String("agent_request_id", id.String()))
 		return
 	}

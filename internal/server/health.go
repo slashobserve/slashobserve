@@ -20,17 +20,27 @@ type healthResponse struct {
 type readinessResponse struct {
 	Status string            `json:"status"`
 	Checks map[string]string `json:"checks"`
+	Phase  Phase             `json:"phase"`
 }
 
-func registerHealthRoutes(engine *gin.Engine, logger *slog.Logger, checks []Check) {
+func registerHealthRoutes(engine *gin.Engine, logger *slog.Logger, checks []Check, phase func() Phase) {
+	if phase == nil {
+		phase = func() Phase { return PhaseReady }
+	}
 	healthz := func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
 		c.JSON(http.StatusOK, healthResponse{Status: "ok"})
 	}
 	readyz := func(c *gin.Context) {
+		now := phase()
+		if now == PhaseStopping {
+			c.Header("Cache-Control", "no-store")
+			c.JSON(http.StatusServiceUnavailable, readinessResponse{Status: string(PhaseStopping), Checks: map[string]string{}, Phase: now})
+			return
+		}
 		ctx, cancel := context.WithTimeout(c.Request.Context(), readinessTimeout)
 		defer cancel()
-		resp := readinessResponse{Status: "ok", Checks: make(map[string]string, len(checks))}
+		resp := readinessResponse{Status: "ok", Checks: make(map[string]string, len(checks)), Phase: now}
 		status := http.StatusOK
 		for _, check := range checks {
 			if err := check.Run(ctx); err != nil {

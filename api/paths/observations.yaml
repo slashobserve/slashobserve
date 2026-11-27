@@ -274,6 +274,7 @@ observations-id-move:
           The action is not allowed in the observation's state (`invalid_transition`), the target folder is My Dashboards (`personal_folder`), or an investigation is still running on the observation (`run_in_progress`, on delete).
           Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
           Or the content holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`).
+          Its `reason` is `permanent`, or `run_in_flight` while an agent run about the content has not ended and the same request can succeed once it ends.
           Or an RCA of the observation has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`).
         content:
           application/json:

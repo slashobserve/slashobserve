@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"context"
 	"crypto/tls"
+	"net"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -76,6 +77,7 @@ func New(opts Options) (*Datasource, error) {
 			Password: opts.Password.Reveal(),
 		},
 		DialTimeout:     5 * time.Second,
+		DialContext:     dialPublic,
 		MaxOpenConns:    opts.MaxOpenConns,
 		MaxIdleConns:    opts.MaxOpenConns,
 		ConnMaxLifetime: 10 * time.Minute,
@@ -88,6 +90,10 @@ func New(opts Options) (*Datasource, error) {
 		return nil, datasource.ConfigErrorf("invalid clickhouse options")
 	}
 	return &Datasource{conn: conn, limits: limits, database: opts.Database, columns: ttlcache.New[tableName, []string](columnCacheTTL, columnCacheCost)}, nil
+}
+
+func dialPublic(ctx context.Context, addr string) (net.Conn, error) {
+	return datasource.NewDialer().DialContext(ctx, "tcp", addr)
 }
 
 func (d *Datasource) Type() string { return "clickhouse" }

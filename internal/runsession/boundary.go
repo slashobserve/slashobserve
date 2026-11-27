@@ -27,7 +27,7 @@ type Call struct {
 }
 
 type RunMeta struct {
-	Settled *string              `json:"settled"`
+	Settled *SettledKind         `json:"settled"`
 	Build   *tools.BuildProgress `json:"build"`
 }
 

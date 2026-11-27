@@ -38,6 +38,8 @@ paths:
     $ref: "./paths/users.yaml#/users-id-deactivate"
   /users/{id}/reactivate:
     $ref: "./paths/users.yaml#/users-id-reactivate"
+  /jobs:
+    $ref: "./paths/jobs.yaml#/jobs"
   /invites:
     $ref: "./paths/invites.yaml#/invites"
   /invites/{id}:
@@ -429,6 +431,17 @@ components:
           type: string
         code:
           type: string
+        state:
+          type: string
+          description: Present on a refusal that depends on the state of the object the request names, such as a person's `role_locked`, `last_admin`, `cannot_deactivate_self` and `not_deactivated`; the state the object is in.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+          description: >-
+            Present with `state`; the actions the caller may take on the object now, as in the object's own `allowed_actions`.
+            Also present with `general_folder`, `personal_folder` and `admins_only_folder`: what the caller may do with the folder the refusal is about, each a `FolderAction`, as on the folder's own `allowed_actions`.
+            For `personal_folder` that is the caller's My Dashboards, and for `admins_only_folder` a folder only Admins can read.
         datasource:
           type: string
           description: >-
@@ -438,6 +451,8 @@ components:
           description: >-
             Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`.
             The `error` message names the field and says what to change.
+            On a `too_many_streams` refusal of an event stream, whose limit was reached: `per_caller` for the caller's own open streams or `server_capacity` for the server process's.
+            On a `restricted_answer` refusal of a move, a copy, a save or a folder change it says whether waiting helps: `permanent` when the content holds an answer that read Admin-only data, or the run that writes read such data, and `run_in_flight` when an agent run about the content has not ended, so the same request can succeed once the run ends.
         needed_role:
           type: string
           enum: [viewer, commenter, editor, admin]
@@ -839,7 +854,21 @@ components:
         - deactivated_at
         - deactivated_by
         - personal_items
+        - state
+        - allowed_actions
       properties:
+        state:
+          type: string
+          enum: [active, deactivated]
+          description: Where the person is in the person lifecycle of `docs/reference/states.md`. An invited email is listed by `GET /invites` and a removed person is not listed.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+            enum: [invite, withdraw, set_role, sign_out, deactivate, reactivate, remove]
+          description: >-
+            What the caller may do to this person now: `set_role` is left out while `role_locked` is true, `deactivate` for the caller's own entry, and every action for a service-account key, which cannot change people.
+            `invite` and `withdraw` belong to an invite and are never listed for a person.
         id:
           type: string
           format: uuid
@@ -912,7 +941,7 @@ components:
     ConnectedAgent:
       type: object
       additionalProperties: false
-      required: [id, client, person, created_at, last_used_at, expires_at, state, mode, presence, last_seen_at]
+      required: [id, client, person, created_at, last_used_at, expires_at, state, revoked_reason, mode, presence, last_seen_at]
       properties:
         id:
           type: string
@@ -960,8 +989,13 @@ components:
           description: When the connection ends and the person must approve it again.
         state:
           type: string
-          enum: [revoked, active]
-          description: Always `active` in the list, which leaves out revoked and expired connections. See `docs/reference/states.md`.
+          enum: [revoked, active, expired, aged_out]
+          description: Always `active` unless the list was asked for ended connections with `include_ended=true`; then `revoked`, `expired` (the refresh token went unused for 30 days) or `aged_out` (the 90 day limit) says why one ended. See `docs/reference/states.md`.
+        revoked_reason:
+          type: string
+          nullable: true
+          enum: [person, admin, client, replaced, refresh_reuse, code_reuse]
+          description: How a `revoked` connection was ended, by its person, an admin, the client itself, a newer connection of the same client, or the reuse of a refresh token or an authorization code; null in every other state.
         mode:
           type: string
           enum: [direct, propose]
@@ -1362,7 +1396,7 @@ components:
     Folder:
       type: object
       additionalProperties: false
-      required: [id, title, general, personal, restricted, admins_only, audit, dashboard_count, grantees, grantee_count, created_by, permissions, level]
+      required: [id, title, general, personal, restricted, admins_only, audit, kind, allowed_actions, dashboard_count, grantees, grantee_count, created_by, permissions, level]
       properties:
         id:
           type: string
@@ -1386,6 +1420,20 @@ components:
         audit:
           type: boolean
           description: True for the Audit folder, the one the server made to hold the starter dashboards over the audit trail, whatever it is now called. False for every other folder, and for all of them when the Audit folder was deleted, which the server does not recreate. The field cannot be set.
+        kind:
+          type: string
+          enum: [general, personal, audit, admins_only, restricted, open]
+          description: >-
+            What the folder is, decided in this order: `general`, `personal` (the caller's My Dashboards), `audit` (the Audit folder, whoever reads it), `admins_only`, `restricted` (it lists people or groups), else `open`.
+            `general`, `personal`, `restricted`, `admins_only` and `audit` stay as they were; `docs/reference/states.md` lists the kinds.
+        allowed_actions:
+          type: array
+          description: >-
+            What the caller may do with this folder now: `create_in` (create a dashboard, an observation or a saved search in it), `move_into` (move one into it), `rename`, `set_permissions` and `delete`.
+            General never offers `rename`, `set_permissions` or `delete`, and a personal folder offers only `create_in`.
+            `delete` still needs the folder to be empty, and a move or a save is still refused when the folder may not hold that content.
+          items:
+            $ref: "#/components/schemas/FolderAction"
         dashboard_count:
           type: integer
           description: All dashboards in the folder, including ones the caller cannot see when the caller manages it.
@@ -1409,6 +1457,9 @@ components:
           description: The caller's level on this folder and on every dashboard in it, the higher of what their role gives and their highest matching entry. Admins have `admin` on every folder except other people's personal folders, and a personal folder's owner has `edit`.
           allOf:
             - $ref: "#/components/schemas/FolderLevel"
+    FolderAction:
+      type: string
+      enum: [create_in, move_into, rename, set_permissions, delete]
     FolderPermissionEntry:
       type: object
       additionalProperties: false
@@ -1636,7 +1687,7 @@ components:
     DatasourceStatus:
       type: object
       additionalProperties: false
-      required: [uid, type, name, source, healthy, checked_at, dashboard_count]
+      required: [uid, type, name, source, healthy, health_state, checked_at, dashboard_count]
       properties:
         uid:
           type: string
@@ -1658,12 +1709,33 @@ components:
           type: string
           enum: [jaeger]
           description: Present on an Elasticsearch or OpenSearch datasource whose index holds span documents that Jaeger wrote, which answers the trace reads.
+        trace_search:
+          type: boolean
+          description: "`true` when the Traces page and `observe traces` can search the datasource and read a trace by id through the query path: Tempo, Jaeger and ClickHouse datasources. Absent otherwise, including on an Elasticsearch or OpenSearch datasource with `spans` set, which answers the agent's trace tools only."
         audience:
           type: string
           enum: [everyone, admins]
           description: Who can query the datasource, for an Admin caller only; absent for everyone else.
         healthy:
           type: boolean
+        health_state:
+          type: string
+          enum: [unchecked, healthy, failing, rechecking]
+          description: >-
+            What the server knows about the datasource, computed on every read from the last check this server ran; the states are listed in the States reference.
+            `healthy` is `true` only in `healthy`.
+            `unchecked` means no check answered, because the caller left before it did or the check was cancelled, so it says nothing against the datasource.
+            `rechecking` is a failing datasource whose next check is already running.
+        failure_kind:
+          type: string
+          enum: [transient, credentials, configuration, unsupported, unknown]
+          description: >-
+            What to do about a failed check; present only when `health_state` is `failing` or `rechecking`.
+            `transient`: the datasource did not answer, timed out or hit a limit; the server keeps checking, so try again later.
+            `credentials`: the datasource refused the saved credentials or the server cannot read them; set them again.
+            `configuration`: the datasource's settings, its user's grants or the server's settings must change before a check can pass.
+            `unsupported`: the datasource runs a version the server does not support.
+            `unknown`: the check failed for a reason the server could not classify, so nothing says whether trying again will help; try a few times, then report it.
         message:
           type: string
           description: A fixed sentence naming the kind of failure; absent when healthy.
@@ -1881,6 +1953,10 @@ components:
         detail:
           type: string
           description: The cause when the server knows it; never an address, user or secret.
+        failure_kind:
+          type: string
+          enum: [transient, credentials, configuration, unsupported, unknown]
+          description: What to do about the failed check, with the meanings `GET /datasources` gives them; absent when healthy or when the check was cancelled.
     InvalidDatasourceError:
       type: object
       additionalProperties: false
@@ -1954,15 +2030,16 @@ components:
         state:
           type: string
           enum: [unchecked, unreachable, ready]
-          description: "`unchecked` until discovery runs, `unreachable` when the last discovery failed, `ready` otherwise."
+          description: "`unchecked` until discovery runs, `unreachable` when the last discovery failed or an agent's call could not reach the server since, `ready` otherwise."
         failure:
           type: string
           nullable: true
-          description: Why the last discovery failed, as a code such as `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
+          description: Why the last discovery failed, or why an agent's call could not reach the server since, as a code such as `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`. The next call the server answers clears it.
         checked_at:
           type: string
           format: date-time
           nullable: true
+          description: When the last discovery ran, or when an agent's call last moved the source between `ready` and `unreachable`.
         tools:
           $ref: "#/components/schemas/MCPSourceToolCounts"
         created_at:
@@ -2191,6 +2268,7 @@ components:
     ApproveMCPSourceToolRequest:
       type: object
       additionalProperties: false
+      required: [hash]
       properties:
         hash:
           type: string
@@ -2482,9 +2560,15 @@ components:
     AccessRequest:
       type: object
       additionalProperties: false
-      required: [id, object, folder, requested_by, note, created_at]
+      required: [id, object, folder, requested_by, note, created_at, state]
       description: A request for Comment access to a dashboard or observation.
       properties:
+        state:
+          type: string
+          enum: [open, granted, dismissed, expired]
+          description: >-
+            Where the request stands, computed on read: `open` while it waits, `granted` once the requester can comment, `dismissed` when someone who can grant it marked it done in their inbox without granting it, and `expired` 30 days after it was asked.
+            The managed list holds only `open` requests; the requester's own list (`scope=mine`) holds all four. A dismissed or expired request can be asked again.
         id:
           type: string
           format: uuid
@@ -2538,7 +2622,7 @@ components:
     InboxItem:
       type: object
       additionalProperties: false
-      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread, target_title, excerpt, question]
+      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread, state, target_title, excerpt, question]
       description: An activity event as `listActivity` returns it, with why it is in the inbox and whether it is unread.
       properties:
         seq:
@@ -2580,6 +2664,13 @@ components:
           description: The first rule the event matches, or null in the `everything` view when it matches none.
         unread:
           type: boolean
+        state:
+          type: string
+          enum: [done, unread, read]
+          description: >-
+            Where the item stands for the caller: `done` once they marked it done, else `unread` while `unread` is true, else `read`.
+            The `open` filter lists `unread` and `read` items, the `unread` filter `unread` ones and the `done` filter `done` ones.
+            See docs/reference/states.md.
         target_title:
           type: string
           nullable: true
@@ -2741,7 +2832,7 @@ components:
     DashboardSummary:
       type: object
       additionalProperties: false
-      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator, folder, permissions, provisioned]
+      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator, folder, permissions, provisioned, managed_by]
       properties:
         id:
           type: string
@@ -2772,6 +2863,15 @@ components:
         provisioned:
           type: boolean
           description: True for a starter dashboard the server keeps current with each release, such as those in the Audit folder. Its `permissions.edit` is false, every change to its content answers 409 `provisioned`, and duplicating it makes an ordinary editable dashboard.
+        managed_by:
+          type: string
+          enum: [starter, file, apply, workspace]
+          description: >-
+            What writes the dashboard's content.
+            `starter` is the same dashboards as `provisioned: true`.
+            `file` is bound to a file in the server's provisioning directory: a save works, and a change to that file replaces it, leaving it in the version history. The value stays after the file is removed.
+            `apply` was last written by `observe dashboards apply`: a save works, and applying its file again after the file changes replaces it, leaving it in the version history.
+            `workspace` is every other dashboard: people edit it in the app, and no file and no release writes it.
     HomeDashboard:
       type: object
       additionalProperties: false
@@ -2806,7 +2906,7 @@ components:
     DashboardListItem:
       type: object
       additionalProperties: false
-      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, view_count, folder, permissions, provisioned]
+      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, view_count, folder, permissions, provisioned, managed_by]
       properties:
         id:
           type: string
@@ -2854,6 +2954,10 @@ components:
         provisioned:
           type: boolean
           description: True for a starter dashboard the server keeps current with each release. Its `permissions.edit` is false, so a list never offers to move or change it.
+        managed_by:
+          type: string
+          enum: [starter, file, apply, workspace]
+          description: What writes the dashboard's content, with the values and meanings of `managed_by` on `GET /dashboards/{id}`.
     VersionMeta:
       type: object
       additionalProperties: false
@@ -2975,6 +3079,8 @@ components:
       properties:
         panel_id:
           type: string
+        reason:
+          $ref: "#/components/schemas/UnverifiedReason"
         issues:
           type: array
           minItems: 1
@@ -2992,6 +3098,16 @@ components:
           minItems: 1
           items:
             $ref: "#/components/schemas/Issue"
+        reason:
+          $ref: "#/components/schemas/UnverifiedReason"
+    UnverifiedReason:
+      type: string
+      enum: [empty, timeout, carried, restored, imported]
+      description: >-
+        Why the save kept the item although its query did not verify:
+        `empty` (it returned no data), `timeout` (it timed out and the save did not change it), `carried` (the parent version already listed it and it is unchanged),
+        `restored` (the restored version listed it) or `imported` (a Grafana import keeps every failing panel and variable).
+        Absent on a version saved before reasons were kept, and a copy made by duplicating keeps the reasons of its source.
     DashboardWithVersion:
       type: object
       additionalProperties: false
@@ -3004,7 +3120,7 @@ components:
     DashboardVersionSaved:
       type: object
       additionalProperties: false
-      required: [dashboard, version]
+      required: [dashboard, version, outcome]
       properties:
         dashboard:
           $ref: "#/components/schemas/DashboardSummary"
@@ -3012,6 +3128,18 @@ components:
           $ref: "#/components/schemas/Version"
         merged_from:
           $ref: "#/components/schemas/MergedFrom"
+        warning:
+          type: string
+          description: >-
+            Present when the save or restore went to a dashboard whose `managed_by` is `file` or `apply`.
+            It says what replaces this version, which stays in the version history.
+            That is a change to the provisioning file, or applying the file again after it changes.
+        outcome:
+          type: string
+          enum: [replayed, merged, created]
+          description: >-
+            What the save did: `created` made the new version from the request, `merged` made it by merging a stale save onto the latest version,
+            and `replayed` made no version because the request repeats one that exists (the answer also has `Idempotent-Replay: true`).
     MergedFrom:
       type: object
       additionalProperties: false
@@ -3166,10 +3294,13 @@ components:
             What the caller may do now. `update` means saving again to add a revision and has no route of its own;
             `merge` needs Edit on the dashboard and a connection that is not in propose mode; `discard` is for the author or someone who may merge.
             See docs/reference/states.md.
+        warning:
+          type: string
+          description: Only on the answer to a merge that saved a version of a dashboard whose `managed_by` is `file` or `apply`. It is the `warning` of a save to that dashboard.
     Proposal:
       type: object
       additionalProperties: false
-      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, close_reason, merged_version, behind, latest_version, allowed_actions, spec, changes, diff, conflicts]
+      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, close_reason, merged_version, behind, latest_version, allowed_actions, spec, changes, diff, conflicts, mergeability]
       description: A proposed change to a dashboard with its head revision's document and what it changes.
       properties:
         id:
@@ -3276,6 +3407,16 @@ components:
             $ref: "#/components/schemas/MergeConflict"
           description: >-
             While the proposal is open and behind, the units that both it and the newer versions changed, which a merge needs a choice for; empty otherwise.
+        mergeability:
+          type: string
+          enum: [current, behind_clean, behind_conflicting, blocked]
+          nullable: true
+          description: >-
+            What a merge would meet now, computed on every read from `behind` and `conflicts`; null once the proposal is merged or discarded.
+            `current` builds on the latest version, `behind_clean` merges onto newer versions without a choice,
+            `behind_conflicting` needs a choice for each conflict, and `blocked` has a conflict whose reason is `invalid`,
+            which no choice resolves: a merge answers 409 `version_conflict` until the author saves a new revision.
+            `allowed_actions` still lists `merge` in every one of them. See docs/reference/states.md.
     ProposalChange:
       type: object
       additionalProperties: false
@@ -3305,9 +3446,13 @@ components:
     ProposalCreated:
       type: object
       additionalProperties: false
-      required: [proposal_id, revision, opened]
+      required: [proposal_id, revision, opened, outcome]
       description: The answer to a save that became a proposal.
       properties:
+        outcome:
+          type: string
+          enum: [proposed]
+          description: Always `proposed`, the save outcome that made no version.
         proposal_id:
           type: string
           format: uuid
@@ -3621,12 +3766,16 @@ components:
           type: object
           nullable: true
           additionalProperties: false
-          required: [kind, id]
-          description: The thread's agent, the one a plain reply asks; null until a message asks an agent, and cleared when that agent can no longer take runs.
+          required: [kind, id, state]
+          description: The thread's agent, the one a plain reply asks; null until a message asks an agent, and cleared when that agent can no longer take runs. A null agent is the `none` state of `docs/reference/states.md`.
           properties:
             kind:
               type: string
               enum: [builtin, grant, service_account]
+            state:
+              type: string
+              enum: [following, off]
+              description: "`following` while a plain reply asks the agent, and `off` after a message was sent to everyone, which is when `agent_off` is true."
             id:
               type: string
               format: uuid
@@ -4591,6 +4740,10 @@ components:
           format: date-time
           nullable: true
           description: When the requester saved the stopped build of a `failed` request as a version; null otherwise.
+        build_state:
+          type: string
+          enum: [none, building, stopped, stopped_empty, stale, kept, moved, committed, proposed]
+          description: What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
         continues_id:
           type: string
           format: uuid
@@ -4660,6 +4813,7 @@ components:
         - base_version
         - prompt
         - status
+        - state
         - steps
         - panel
         - error
@@ -4692,6 +4846,11 @@ components:
         status:
           type: string
           enum: [queued, running, succeeded, failed]
+          description: Computed from `state`; kept for clients that read it.
+        state:
+          type: string
+          enum: [queued, running, canceling, succeeded, failed, canceled]
+          description: "Where the suggestion is in its life, the same six states every run has. A suggestion cannot be canceled, so it is never `canceling` or `canceled`."
         steps:
           type: array
           maxItems: 2000
@@ -4966,6 +5125,42 @@ components:
         updated_at:
           type: string
           format: date-time
+        state:
+          type: string
+          enum: [none, building, stopped, stopped_empty, stale, kept, moved, committed, proposed]
+          description: The build's state, the same value as the request's `build_state`; see `docs/reference/states.md`.
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the server deletes the build of a finished request, 7 days after it finished; null while the request has not finished.
+    BuildRefusal:
+      type: object
+      additionalProperties: false
+      required: [error, code, message, state, allowed_actions, reason]
+      description: Why a stopped build cannot be saved now, with the build's state and what the caller may still do with the request.
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [build_running, build_empty, build_not_savable]
+        message:
+          type: string
+          description: The same text as `error`.
+        state:
+          type: string
+          enum: [none, building, stopped, stopped_empty, stale, kept, moved, committed, proposed]
+          description: The build's state; see `docs/reference/states.md`.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+          description: The actions the caller may take on the request now, as in the request's `allowed_actions`.
+        reason:
+          type: string
+          enum: [run_not_finished, no_panels, no_stopped_build]
+          description: "`run_not_finished` with `build_running`, `no_panels` with `build_empty` and `no_stopped_build` with `build_not_savable`."
     AgentBuild:
       type: object
       additionalProperties: false
@@ -5080,6 +5275,9 @@ components:
         - build
         - build_saved_at
         - queue_position
+        - settled
+        - check_failures
+        - check_failures_max
         - cancel_requested_at
         - canceled_by
         - can_cancel
@@ -5219,11 +5417,42 @@ components:
           format: date-time
           nullable: true
           description: When the requester saved the stopped build of a `failed` request as a version; null otherwise. The request stays `failed` with its `failure_code`.
+        build_state:
+          type: string
+          enum: [none, building, stopped, stopped_empty, stale, kept, moved, committed, proposed]
+          description: What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
+        reply:
+          type: object
+          additionalProperties: false
+          required: [state]
+          description: The reply this request owes the comment thread it was asked in.
+          properties:
+            state:
+              type: string
+              enum: [not_owed, owed, replied, abandoned]
+              description: "`not_owed` for a request not asked in a thread, `owed` until the reply is posted, `replied` once it is, and `abandoned` when it could not be posted within 24 hours after the request finished; see `docs/reference/states.md`."
         queue_position:
           type: integer
           minimum: 1
           nullable: true
           description: 1-based place among queued requests in claim order, null unless queued. The worker skips a request whose dashboard already has a running revision, so the order can shift.
+        settled:
+          type: string
+          nullable: true
+          enum: [saved, proposed, finding, suggested, ended]
+          description: >-
+            What a `running` or `canceling` request has already settled, before its state changes:
+            `saved` (a version), `proposed` (a proposal), `finding` (an answer or finding), `suggested` (a panel suggestion)
+            or `ended` (the agent stopped and the request is about to finish).
+            Null while the agent is still working and for a queued or finished request, whose `result_kind` says what it produced.
+        check_failures:
+          type: integer
+          minimum: 0
+          description: How many times the server could not run a check it makes when a worker takes the request (its saved version, its requester, the requester's access). Each failure puts the request back in the queue, so a request that moves between `queued` and `running` with this count rising is waiting on the server, not on the agent.
+        check_failures_max:
+          type: integer
+          minimum: 1
+          description: The count of `check_failures` at which the request fails with the failure code `check_failed`; its `error` then names the check that could not run.
         cancel_requested_at:
           type: string
           format: date-time
@@ -5604,6 +5833,10 @@ components:
           format: date-time
           nullable: true
           description: When the requester saved the stopped build of a `failed` request as a version; null otherwise.
+        build_state:
+          type: string
+          enum: [none, building, stopped, stopped_empty, stale, kept, moved, committed, proposed]
+          description: What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
         kind:
           type: string
           enum: [build, investigate]
@@ -5705,6 +5938,36 @@ components:
           items:
             type: string
           description: The actions the caller may take in that state, as in the object's own `allowed_actions`.
+    RunRefusal:
+      type: object
+      additionalProperties: false
+      required: [error, code, state, allowed_actions]
+      description: The answer to a cancel, continue or retry the request's state or history does not allow.
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [request_finished, not_continuable, invalid_transition]
+          description: "`request_finished` for a cancel, `not_continuable` for a continue and `invalid_transition` for a retry."
+        state:
+          type: string
+          enum: [queued, running, canceling, succeeded, failed, canceled]
+          description: The state the request is in.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+          description: The actions the caller may take now, as in the request's own `allowed_actions`.
+        reason:
+          type: string
+          enum: [no_build, kept, continued, retried, investigation, lost_race]
+          description: >-
+            Why the action is refused when the state alone does not say; absent otherwise.
+            `no_build`: the request left no build. `kept`: its build was saved as a version.
+            `continued`: another request already continues it. `retried`: it was already retried.
+            `investigation`: an investigation has no build to continue.
+            `lost_race`: another continue, retry or save took the build while this call ran.
     AgentRequestEnvelope:
       type: object
       additionalProperties: false
@@ -6759,6 +7022,9 @@ components:
           type: string
           nullable: true
           description: Why the dashboard is not in the requested folder, or null when it is where the request or the source asked.
+        warning:
+          type: string
+          description: Present when `update_dashboard` saved a version of a dashboard whose `managed_by` is `file` or `apply`. It is the `warning` of a save to that dashboard.
     DatasourcesUnresolved:
       type: object
       additionalProperties: false
@@ -6834,6 +7100,20 @@ components:
         message:
           type: string
           description: A fixed sentence chosen by the outcome, such as the folder and dashboard counts or why Grafana could not be read.
+    GrafanaConnectionTestState:
+      type: object
+      additionalProperties: false
+      required: [state, failure_kind]
+      properties:
+        state:
+          type: string
+          enum: [untested, failing, ok]
+          description: "`untested` while `last_test` is null, `failing` when the last test could not read Grafana, `ok` otherwise."
+        failure_kind:
+          type: string
+          nullable: true
+          enum: [transient, credentials, configuration, unsupported, unknown]
+          description: Who can fix a `failing` test, and null in every other state. `transient` means Grafana did not answer or answered 429 or 5xx, so testing again may pass; `credentials` means it refused the token; `configuration` means the URL, the outbound allowlist or what answers at the address is wrong; `unsupported` means an answer this server cannot take; `unknown` covers the rest, and every failure stored before the cause was kept.
     GrafanaImportSummary:
       type: object
       additionalProperties: false
@@ -6954,7 +7234,7 @@ components:
     GrafanaConnection:
       type: object
       additionalProperties: false
-      required: [id, name, url, created_by, created_at, updated_at, last_test, last_sync]
+      required: [id, name, url, created_by, created_at, updated_at, last_test, test, last_sync]
       properties:
         id:
           type: string
@@ -6980,6 +7260,10 @@ components:
           description: Null until the connection is tested, and again after its URL or token changes.
           allOf:
             - $ref: "#/components/schemas/GrafanaConnectionTest"
+        test:
+          description: The state of the connection's test, derived from `last_test`, so a reader does not parse `last_test.message`.
+          allOf:
+            - $ref: "#/components/schemas/GrafanaConnectionTestState"
         last_sync:
           nullable: true
           description: The summary of the last finished import, or null before the first one.
@@ -7163,8 +7447,8 @@ components:
         error_code:
           type: string
           nullable: true
-          enum: [status, unreachable, blocked_address, domain_not_allowed, too_large, skipped_by_admin]
-          description: Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit; `skipped_by_admin` is `skipped`, because an Admin chose to pass the event over.
+          enum: [status, unreachable, blocked_address, domain_not_allowed, too_large, skipped_by_admin, expired]
+          description: Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit; `skipped_by_admin` is `skipped`, because an Admin chose to pass the event over; `expired` is `skipped`, because the event was more than 24 hours old when its turn came, and nothing was sent.
     WebhookSkipResult:
       type: object
       additionalProperties: false
@@ -7458,7 +7742,7 @@ components:
     PublicLink:
       type: object
       additionalProperties: false
-      required: [id, prefix, label, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, state]
+      required: [id, prefix, label, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, unusable_reason, state]
       properties:
         id:
           type: string
@@ -7504,7 +7788,16 @@ components:
           type: boolean
         usable:
           type: boolean
-          description: False when the link is expired or the dashboard's latest version reads the viewer's identity.
+          description: Whether the public address opens the dashboard now. False in each case `unusable_reason` names.
+        unusable_reason:
+          type: string
+          enum: [expired, admins_only_folder, user_scoped, restricted_datasource]
+          nullable: true
+          description: >-
+            Why the link does not open, set whenever `usable` is false and null otherwise, the first that applies:
+            `expired` when its expiry time has passed, `admins_only_folder` when the dashboard is in a folder only Admins can read,
+            `user_scoped` when the dashboard's latest version reads the viewer's identity,
+            and `restricted_datasource` when it reads a datasource only Admins can query.
         state:
           type: string
           enum: [expired, active]
@@ -7684,6 +7977,51 @@ components:
           type: string
           format: date-time
           description: When the repair finished, else when it started, else when it was queued.
+    ScheduledJob:
+      type: object
+      additionalProperties: false
+      required: [name, state, every_seconds, next_run_at, last_started_at, last_finished_at, last_outcome, last_error]
+      properties:
+        name:
+          type: string
+        state:
+          type: string
+          enum: [running, interrupted, due, waiting]
+          description: Computed on read; see `docs/reference/states.md`. `interrupted` means the last run did not finish, because its server crashed or shut down.
+        every_seconds:
+          type: integer
+          minimum: 1
+          description: The interval between runs.
+        next_run_at:
+          type: string
+          format: date-time
+        last_started_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_finished_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When a run last recorded an outcome; older than `last_started_at` while a run is in flight or after one that did not finish.
+        last_outcome:
+          type: string
+          nullable: true
+          enum: [succeeded, failed, interrupted]
+          description: The outcome of the last run that recorded one, or `interrupted` once a server took over the lease of a run that crashed. Null before the first outcome.
+        last_error:
+          type: string
+          nullable: true
+          description: The `key=value` summary of the last failure, never the error's own text; null when the last outcome was not a failure.
+    ScheduledJobList:
+      type: object
+      additionalProperties: false
+      required: [jobs]
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduledJob"
     HealthJob:
       type: object
       additionalProperties: false
@@ -8035,6 +8373,22 @@ components:
           $ref: "#/components/schemas/DashboardFolder"
         permissions:
           $ref: "#/components/schemas/Permissions"
+        confined:
+          $ref: "#/components/schemas/Confined"
+    Confined:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      description: >-
+        Present when the observation can only be in a folder only Admins can read, because of an answer it holds or a run about it; a move anywhere else is refused with `restricted_answer` and the same `reason`.
+        An observation that reads a datasource only Admins can query is also kept in such a folder; that is not reported here, and its move is refused with `restricted_content`, which names the datasource.
+      properties:
+        reason:
+          type: string
+          enum: [permanent, run_in_flight]
+          description: >-
+            `permanent` when it holds an answer that read data only Admins can query, such as the audit trail, which does not change.
+            `run_in_flight` when an agent run about it has not ended; it can move once the run ends.
     ObservationList:
       type: object
       additionalProperties: false
@@ -8326,7 +8680,7 @@ components:
     ObservationRCA:
       type: object
       additionalProperties: false
-      required: [id, observation_id, revision, title, summary, observation_state, from, to, blocks, created_by, created_at]
+      required: [id, observation_id, revision, title, summary, observation_state, state, allowed_actions, from, to, blocks, created_by, created_at]
       properties:
         id:
           type: string
@@ -8345,6 +8699,13 @@ components:
           nullable: true
         observation_state:
           $ref: "#/components/schemas/ObservationState"
+        state:
+          $ref: "#/components/schemas/RCARevisionState"
+        allowed_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/RCARevisionAction"
+          description: The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links. `share` is left out in a folder only Admins can read and in My Dashboards, where a public link cannot be created.
         from:
           type: string
           format: date-time
@@ -8365,7 +8726,7 @@ components:
     ObservationRCASummary:
       type: object
       additionalProperties: false
-      required: [id, revision, title, summary, observation_state, created_by, created_at]
+      required: [id, revision, title, summary, observation_state, state, allowed_actions, created_by, created_at]
       properties:
         id:
           type: string
@@ -8380,11 +8741,44 @@ components:
           nullable: true
         observation_state:
           $ref: "#/components/schemas/ObservationState"
+        state:
+          $ref: "#/components/schemas/RCARevisionState"
+        allowed_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/RCARevisionAction"
+          description: The actions the caller may take on this revision in its state, in the order of `docs/reference/states.md`; `withdraw` is `DELETE` on the revision, and `share` and `unshare` are taken through its public links. `share` is left out in a folder only Admins can read and in My Dashboards, where a public link cannot be created.
         created_by:
           $ref: "#/components/schemas/Actor"
         created_at:
           type: string
           format: date-time
+    RCARevisionState:
+      type: string
+      enum: [published, superseded, shared]
+      description: Computed on read, never stored. `shared` while a public link that has not expired shows the revision, else `superseded` when a newer revision exists, else `published`.
+    RCARevisionAction:
+      type: string
+      enum: [share, unshare, withdraw]
+    RCARefusal:
+      type: object
+      additionalProperties: false
+      required: [error, code, state, allowed_actions]
+      description: The answer to a publish or a withdraw that is refused. `state` and `allowed_actions` describe what the route addresses, the observation for a publish and the revision for a withdraw.
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [rca_limit, rca_unchanged, observation_changed, rca_shared]
+        state:
+          type: string
+          description: The observation's state for a refused publish, and the revision's state for a refused withdraw.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+          description: The actions the caller may take in that state, as in the observation's or the revision's own `allowed_actions`.
     RCAPublicLink:
       type: object
       additionalProperties: false

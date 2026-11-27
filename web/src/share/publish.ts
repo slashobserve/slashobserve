@@ -1,7 +1,9 @@
 import type { Folder } from "@/folders/queries"
 
 export function publishTargets(folders: readonly Folder[]): Folder[] {
-  return folders.filter((folder) => !folder.personal && folder.permissions.edit)
+  return folders.filter((folder) =>
+    folder.allowed_actions.includes("move_into")
+  )
 }
 
 export function publishAudience(

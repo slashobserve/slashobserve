@@ -178,8 +178,8 @@ func (s *streamRun) write(ctx context.Context, writes *recorder) []written {
 	var out []written
 	for n := 0; n < s.e.cfg.events && ctx.Err() == nil; n++ {
 		body := map[string]string{"dashboard_id": s.d.id, "text": fmt.Sprintf("load test annotation %d", n)}
-		r := s.e.api.post(ctx, s.e.editorKey(0), "/api/v1/annotations", body)
 		at := time.Now()
+		r := s.e.api.post(ctx, s.e.editorKey(0), "/api/v1/annotations", body)
 		track(ctx, r, writes)
 		if r.ok() {
 			var created struct {

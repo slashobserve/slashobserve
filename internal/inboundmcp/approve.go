@@ -63,6 +63,9 @@ func reviewedHash(t Tool) string {
 }
 
 func (s *Service) Approve(ctx context.Context, by auth.Principal, uid, name, hash string) (Tool, error) {
+	if hash == "" {
+		return Tool{}, ErrToolHashRequired
+	}
 	var out Tool
 	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		source, current, err := s.lockedTool(ctx, q, uid, name)
@@ -73,7 +76,7 @@ func (s *Service) Approve(ctx context.Context, by auth.Principal, uid, name, has
 		if err != nil {
 			return err
 		}
-		if hash != "" && hash != reviewedHash(current) {
+		if hash != reviewedHash(current) {
 			return ErrToolChanged
 		}
 		if err := q.PutMCPSourceTool(ctx, putParams(source.ID, next)); err != nil {

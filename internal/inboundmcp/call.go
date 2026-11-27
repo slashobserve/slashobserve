@@ -212,7 +212,39 @@ func (s *Service) call(ctx context.Context, attempt *callAttempt, arguments json
 	for i, r := range rows {
 		stored[i] = toolOf(r)
 	}
-	return s.dispatch(ctx, access, attempt, stored, arguments)
+	result, err := s.dispatch(ctx, access, attempt, stored, arguments)
+	s.noteReachability(ctx, row, reachabilityOf(err))
+	return result, err
+}
+
+type reachability struct {
+	seen    bool
+	failure string
+}
+
+func reachabilityOf(err error) reachability {
+	var failure *tools.ContextFailure
+	switch {
+	case err == nil:
+		return reachability{seen: true}
+	case errors.As(err, &failure) && failure.Code == tools.ContextCodeSourceDown:
+		return reachability{seen: true, failure: failure.Reason}
+	}
+	return reachability{}
+}
+
+func (r reachability) changes(row dbsqlc.McpSource) bool {
+	return r.seen && row.CheckedAt.Valid && row.Failure.String != r.failure
+}
+
+func (s *Service) noteReachability(ctx context.Context, row dbsqlc.McpSource, seen reachability) {
+	if !seen.changes(row) {
+		return
+	}
+	err := s.db.Queries().NoteMCPSourceReachability(context.WithoutCancel(ctx), dbsqlc.NoteMCPSourceReachabilityParams{ID: row.ID, Failure: text(seen.failure)})
+	if err != nil {
+		s.logger.WarnContext(ctx, "MCP source reachability not recorded", logattrs.Failure("mcp_source_reachability_failed", err, slog.String("uid", row.Uid))...)
+	}
 }
 
 func (s *Service) dispatch(ctx context.Context, access datasource.Access, attempt *callAttempt, stored []Tool, arguments json.RawMessage) (tools.ContextResult, error) {

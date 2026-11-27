@@ -10,6 +10,10 @@ export function saveProblemText(error: unknown): string {
         return "Fix the fields marked below."
       case "secret_key_missing":
         return "Set SLASHOBSERVE_SECRET_KEY on the server and restart to store credentials, or save without them."
+      case "secret_required":
+        return "Enter every credential again, or clear it, when you change the address or username."
+      case "datasource_changed":
+        return "This datasource changed while you were editing it. Reload it and try again."
       case "uid_taken":
         return "Another datasource already uses this id."
       case "datasource_read_only":

@@ -18,13 +18,15 @@ type Unverified struct {
 }
 
 type UnverifiedPanel struct {
-	PanelID string       `json:"panel_id"`
-	Issues  []spec.Issue `json:"issues"`
+	PanelID string           `json:"panel_id"`
+	Issues  []spec.Issue     `json:"issues"`
+	Reason  UnverifiedReason `json:"reason,omitempty"`
 }
 
 type UnverifiedVariable struct {
-	Name   string       `json:"name"`
-	Issues []spec.Issue `json:"issues"`
+	Name   string           `json:"name"`
+	Issues []spec.Issue     `json:"issues"`
+	Reason UnverifiedReason `json:"reason,omitempty"`
 }
 
 func (u Unverified) Empty() bool {
@@ -48,10 +50,10 @@ func (u Unverified) Shown(provisioned bool) Unverified {
 func (u Unverified) withEmptyLists() Unverified {
 	out := Unverified{Panels: make([]UnverifiedPanel, len(u.Panels)), Variables: make([]UnverifiedVariable, len(u.Variables))}
 	for i, p := range u.Panels {
-		out.Panels[i] = UnverifiedPanel{PanelID: p.PanelID, Issues: nonNilIssues(p.Issues)}
+		out.Panels[i] = UnverifiedPanel{PanelID: p.PanelID, Issues: nonNilIssues(p.Issues), Reason: p.Reason}
 	}
 	for i, v := range u.Variables {
-		out.Variables[i] = UnverifiedVariable{Name: v.Name, Issues: nonNilIssues(v.Issues)}
+		out.Variables[i] = UnverifiedVariable{Name: v.Name, Issues: nonNilIssues(v.Issues), Reason: v.Reason}
 	}
 	return out
 }
@@ -158,7 +160,7 @@ func CarryUnverified(prev *spec.Dashboard, prevUnverified Unverified, next *spec
 		blocking = append(blocking, v.Issues...)
 	}
 	slices.SortStableFunc(blocking, func(a, b spec.Issue) int { return strings.Compare(a.Path, b.Path) })
-	return carried, blocking
+	return carried.because(ReasonCarried), blocking
 }
 
 func ChangedSince(prev, next *spec.Dashboard) (panels, variables []string) {
@@ -189,7 +191,7 @@ func CarryUnchanged(prev *spec.Dashboard, prevUnverified Unverified, next *spec.
 		if !ok {
 			continue
 		}
-		carried.Panels = append(carried.Panels, UnverifiedPanel{PanelID: was.PanelID, Issues: repointed(was.Issues, from.Pointer, e.Pointer)})
+		carried.Panels = append(carried.Panels, UnverifiedPanel{PanelID: was.PanelID, Issues: repointed(was.Issues, from.Pointer, e.Pointer), Reason: ReasonCarried})
 	}
 	for i, v := range next.Variables {
 		was, listed := prevUnverified.Variable(v.Name)
@@ -200,7 +202,7 @@ func CarryUnchanged(prev *spec.Dashboard, prevUnverified Unverified, next *spec.
 		if from < 0 {
 			continue
 		}
-		carried.Variables = append(carried.Variables, UnverifiedVariable{Name: was.Name, Issues: repointed(was.Issues, "/variables/"+strconv.Itoa(from), "/variables/"+strconv.Itoa(i))})
+		carried.Variables = append(carried.Variables, UnverifiedVariable{Name: was.Name, Issues: repointed(was.Issues, "/variables/"+strconv.Itoa(from), "/variables/"+strconv.Itoa(i)), Reason: ReasonCarried})
 	}
 	return carried
 }
@@ -407,7 +409,7 @@ func acceptEmpty(ctx context.Context, d *spec.Dashboard, issues []spec.Issue) ([
 	}
 	empty := slices.DeleteFunc(slices.Clone(issues), func(is spec.Issue) bool { return is.Code != queryproxy.CodeQueryEmpty })
 	accepted, _ := UnverifiedOf(d, empty)
-	return slices.DeleteFunc(slices.Clone(issues), func(is spec.Issue) bool { return is.Code == queryproxy.CodeQueryEmpty }), accepted
+	return slices.DeleteFunc(slices.Clone(issues), func(is spec.Issue) bool { return is.Code == queryproxy.CodeQueryEmpty }), accepted.because(ReasonEmpty)
 }
 
 func (u Unverified) with(more Unverified) Unverified {

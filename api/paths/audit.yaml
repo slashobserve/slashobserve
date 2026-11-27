@@ -478,8 +478,9 @@ audit-stream:
       An event can arrive a few seconds after it was recorded, because the trail is written in batches and read every 2 seconds.
       A `: ping` comment arrives every 5 seconds; at each ping the server re-reads the caller's credentials and role, and a caller who is no longer an Admin, or whose credential is gone, gets an `event: forbidden` with the `forbidden_role` body and the stream ends.
       The stream also ends when the server shuts down, and after 30 minutes; clients reconnect.
+      Before those ends the server sends one last `event: closed` whose data is `{"reason"}`: `stopping` when the server stops, `lifetime` after the 30 minutes, `check_failed` when the credential could not be checked twice in a row, and `read_failed` when the server could not read the trail; `closed` has no `id`, and a stream that ended with `forbidden` or `error` carries none.
       Opening the stream is recorded once as `audit.search` with the query as sent, its form and the start of what it can send; the events it delivers are not recorded one by one.
-      A caller may hold 5 audit streams and the process 20, and one more answers 429.
+      A caller may hold 5 audit streams and the process 20, and one more answers 429 whose `reason` is `per_caller` or `server_capacity`.
       Each read of the trail runs under a 5 second statement timeout, one at a time; a stream whose read times out twice in a row sends an `event: error` with an `AuditQueryError` body of code `query_too_expensive` and ends.
     parameters:
       - name: q
@@ -522,7 +523,7 @@ audit-stream:
             schema:
               $ref: "../openapi.yaml#/components/schemas/AuditQueryError"
       "429":
-        description: The caller already holds 5 open audit streams, or the process 20 (`too_many_streams`).
+        description: The caller already holds 5 open audit streams (`too_many_streams` with `reason` `per_caller`), or the process 20 (`reason` `server_capacity`).
         content:
           application/json:
             schema:

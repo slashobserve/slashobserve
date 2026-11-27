@@ -26,6 +26,7 @@ type Registry struct {
 	httpRequests     *prometheus.HistogramVec
 	agentRuns        *prometheus.CounterVec
 	agentQueueWait   *prometheus.HistogramVec
+	repliesAbandoned *prometheus.CounterVec
 	modelCalls       *prometheus.HistogramVec
 	modelTokens      *prometheus.CounterVec
 	proxyQueries     *prometheus.HistogramVec
@@ -51,6 +52,10 @@ func New() *Registry {
 			Help:    "Time an agent request waited in the queue before a worker started it.",
 			Buckets: agentQueueBuckets,
 		}, []string{"source"}),
+		repliesAbandoned: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "slashobserve_thread_replies_abandoned_total",
+			Help: "Replies of finished agent runs that could not be posted in their comment thread within 24 hours and were given up.",
+		}, nil),
 		modelCalls: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Name:    "slashobserve_model_call_duration_seconds",
 			Help:    "Time of one model call including its retries, by provider, model and outcome.",
@@ -81,7 +86,7 @@ func New() *Registry {
 	r.registry.MustRegister(
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
-		r.httpRequests, r.agentRuns, r.agentQueueWait, r.modelCalls, r.modelTokens, r.proxyQueries, r.proxyCache, r.schedulerJobs, r.schedulerRunning,
+		r.httpRequests, r.agentRuns, r.agentQueueWait, r.repliesAbandoned, r.modelCalls, r.modelTokens, r.proxyQueries, r.proxyCache, r.schedulerJobs, r.schedulerRunning,
 	)
 	return r
 }
@@ -101,12 +106,13 @@ func (h HTTP) ObserveRequest(route, method string, status int, took time.Duratio
 }
 
 type AgentRequests struct {
-	runs *prometheus.CounterVec
-	wait *prometheus.HistogramVec
+	runs             *prometheus.CounterVec
+	wait             *prometheus.HistogramVec
+	repliesAbandoned *prometheus.CounterVec
 }
 
 func (r *Registry) AgentRequests() AgentRequests {
-	return AgentRequests{runs: r.agentRuns, wait: r.agentQueueWait}
+	return AgentRequests{runs: r.agentRuns, wait: r.agentQueueWait, repliesAbandoned: r.repliesAbandoned}
 }
 
 func (a AgentRequests) AgentRun(kind, outcome string) {
@@ -115,6 +121,10 @@ func (a AgentRequests) AgentRun(kind, outcome string) {
 
 func (a AgentRequests) RequestClaimed(source string, waited time.Duration) {
 	a.wait.WithLabelValues(source).Observe(waited.Seconds())
+}
+
+func (a AgentRequests) ThreadRepliesAbandoned(replies int) {
+	a.repliesAbandoned.WithLabelValues().Add(float64(replies))
 }
 
 type ModelCalls struct {
@@ -195,6 +205,30 @@ func (r *Registry) Fleet(live func() int) {
 		Name: "slashobserve_fleet_servers",
 		Help: "Servers that heartbeat into this database in the last 30 seconds, this one included.",
 	}, func() float64 { return float64(live()) }))
+}
+
+func (r *Registry) ServerPhase(phases []string, current func() string) {
+	r.registry.MustRegister(phaseCollector{phases: phases, current: current})
+}
+
+var serverPhase = prometheus.NewDesc("slashobserve_server_phase", "The phase this server process is in: 1 for that phase and 0 for every other.", []string{"phase"}, nil)
+
+type phaseCollector struct {
+	phases  []string
+	current func() string
+}
+
+func (phaseCollector) Describe(ch chan<- *prometheus.Desc) { ch <- serverPhase }
+
+func (c phaseCollector) Collect(ch chan<- prometheus.Metric) {
+	now := c.current()
+	for _, phase := range c.phases {
+		in := 0.0
+		if phase == now {
+			in = 1
+		}
+		ch <- prometheus.MustNewConstMetric(serverPhase, prometheus.GaugeValue, in, phase)
+	}
 }
 
 type SlotUsage struct {

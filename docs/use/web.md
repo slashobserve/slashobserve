@@ -120,7 +120,7 @@ When you have none, it lists the first eight dashboards you can see, folder by f
 
 The search box below them finds dashboards by title or description, and `tag:` words narrow it to tags: `tag:prod latency` finds dashboards tagged `prod` that mention `latency`.
 Arrow keys move through the results and Enter opens one.
-Recently viewed dashboards stay in this browser's local storage, at most 20, and never reach the server.
+Recently viewed dashboards stay in this browser's local storage for the person signed in, at most 20, and never reach the server.
 
 ### Pin a dashboard to the sidebar
 
@@ -277,6 +277,7 @@ The address carries `inspect=<panel id>` and, for the second and third tab, `ins
 The pane has three tabs:
 
 - **Data** shows the panel's results after its transforms as a table of up to 500 rows, with **Download CSV** and **Save as PNG**.
+  The CSV starts a text cell that begins with `=`, `+`, `-` or `@` with a single quote, so a spreadsheet does not run it as a formula; numbers are written as they are.
 - **Query** shows the time range and step the server ran, and for each query its datasource, step, saved text, the text as run and the variables it uses with their selected values.
   The text as run is the query after variables and macros are expanded.
   It shows when it differs from the saved text and never on a public link.

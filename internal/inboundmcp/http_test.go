@@ -156,7 +156,9 @@ func TestAnAdminRegistersDiscoversAndApprovesTools(t *testing.T) {
 	if got := decodeJSON[toolView](t, one, http.StatusOK); got.State != "approved" {
 		t.Fatalf("search = %+v", got)
 	}
-	expectCode(t, r.call(t, http.MethodPost, base+"/docs/tools/wipe/approve", ""), http.StatusConflict, "tool_refused")
+	expectCode(t, r.call(t, http.MethodPost, base+"/docs/tools/search/approve", ""), http.StatusBadRequest, "tool_hash_required")
+	expectCode(t, r.call(t, http.MethodPost, base+"/docs/tools/search/approve", "{}"), http.StatusBadRequest, "tool_hash_required")
+	expectCode(t, r.call(t, http.MethodPost, base+"/docs/tools/wipe/approve", `{"hash":"`+tools["wipe"].Hash+`"}`), http.StatusConflict, "tool_refused")
 
 	all := decodeJSON[struct {
 		Approved []toolView `json:"approved"`
@@ -341,7 +343,7 @@ func TestEveryChangeIsAuditedWithoutTheSecret(t *testing.T) {
 	r := newRig(t, readOnlyTool("search", "Search"))
 	r.call(t, http.MethodPost, base, registration("docs", "s3cret-value"))
 	r.discover(t, "docs")
-	r.call(t, http.MethodPost, base+"/docs/tools/search/approve", "")
+	r.call(t, http.MethodPost, base+"/docs/tools/search/approve", `{"hash":"`+r.tools(t, "docs")["search"].Hash+`"}`)
 	r.call(t, http.MethodPost, base+"/docs/tools/search/revoke", "")
 	r.call(t, http.MethodPatch, base+"/docs", `{"name":"Renamed","secret":"another-secret-1"}`)
 	r.call(t, http.MethodDelete, base+"/docs", "")

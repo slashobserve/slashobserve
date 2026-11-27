@@ -1,14 +1,14 @@
 name: Set up Go
-description: Install the Go toolchain of go.mod and restore a module and build cache that belongs to one job kind. The cache is saved once per week and per dependency set, so most runs only restore it.
+description: Install the Go toolchain of go.mod and restore and save a module and build cache that belongs to one job kind. The cache is saved once per week and per dependency set, so most runs only restore it.
 
 inputs:
   cache-name:
     description: Names the cache, so jobs that compile different things (race tests, lint, release build) do not overwrite each other.
     required: true
-  save:
-    description: Whether this job may save the cache. Jobs that share a cache name leave saving to the one that compiles the most.
+  shard:
+    description: Names the slice of a matrix job. Each shard saves its own cache and starts from the latest cache of any shard of the same cache name when it has none of its own.
     required: false
-    default: "true"
+    default: ""
 
 runs:
   using: composite
@@ -19,31 +19,28 @@ runs:
         go-version-file: go.mod
         cache: false
 
-    - name: Read the week
-      id: week
+    - name: Name the cache
+      id: names
       shell: bash
-      run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      env:
+        CACHE_NAME: ${{ inputs.cache-name }}
+        SHARD: ${{ inputs.shard }}
+        RUNNER_OS_NAME: ${{ runner.os }}
+      run: |
+        {
+          echo "week=$(date -u +%G-%V)"
+          echo "family=go-$CACHE_NAME-"
+          echo "prefix=go-$CACHE_NAME-${SHARD:+$SHARD-}$RUNNER_OS_NAME"
+        } >> "$GITHUB_OUTPUT"
 
     - name: Restore and save the Go caches
-      if: inputs.save == 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
-        key: go-${{ inputs.cache-name }}-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'tools/*/go.sum') }}-${{ steps.week.outputs.week }}
+        key: ${{ steps.names.outputs.prefix }}-${{ hashFiles('go.mod', 'go.sum', 'tools/*/go.sum') }}-${{ steps.names.outputs.week }}
         restore-keys: |
-          go-${{ inputs.cache-name }}-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'tools/*/go.sum') }}-
-          go-${{ inputs.cache-name }}-${{ runner.os }}-
-
-    - name: Restore the Go caches
-      if: inputs.save != 'true'
-      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: |
-          ~/go/pkg/mod
-          ~/.cache/go-build
-        key: go-${{ inputs.cache-name }}-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'tools/*/go.sum') }}-${{ steps.week.outputs.week }}
-        restore-keys: |
-          go-${{ inputs.cache-name }}-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'tools/*/go.sum') }}-
-          go-${{ inputs.cache-name }}-${{ runner.os }}-
+          ${{ steps.names.outputs.prefix }}-${{ hashFiles('go.mod', 'go.sum', 'tools/*/go.sum') }}-
+          ${{ steps.names.outputs.prefix }}-
+          ${{ steps.names.outputs.family }}

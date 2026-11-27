@@ -16,8 +16,12 @@ function source(uid: string, type: string): DatasourceStatus {
     name: uid,
     source: "file",
     healthy: true,
+    health_state: "healthy",
     checked_at: "2026-11-19T00:00:00Z",
     dashboard_count: 0,
+    ...(["tempo", "jaeger", "clickhouse"].includes(type) && {
+      trace_search: true,
+    }),
   }
 }
 

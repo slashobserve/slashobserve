@@ -180,6 +180,14 @@ function formatClock(totalSeconds: number): string {
   return totalSeconds < 0 ? `-${text}` : text
 }
 
+function formatDayClock(totalSeconds: number): string {
+  const abs = Math.floor(Math.abs(totalSeconds))
+  const days = Math.floor(abs / 86400)
+  const clock = formatClock(abs % 86400)
+  const text = days > 0 ? `${days}d ${clock}` : clock
+  return totalSeconds < 0 ? `-${text}` : text
+}
+
 function isToday(date: Date): boolean {
   return date.toDateString() === new Date().toDateString()
 }
@@ -353,9 +361,9 @@ const rules = {
     kind: "custom",
     format: (value) => formatHumanDuration(value * 1000),
   },
-  dthms: spaced("dthms"),
-  dtdhms: spaced("dtdhms"),
-  timeticks: spaced("timeticks"),
+  dthms: { kind: "custom", format: (value) => formatClock(value) },
+  dtdhms: { kind: "custom", format: (value) => formatDayClock(value) },
+  timeticks: { kind: "custom", format: (value) => formatClock(value / 100) },
   clockms: { kind: "custom", format: (value) => formatClock(value / 1000) },
   clocks: { kind: "custom", format: (value) => formatClock(value) },
   dateTimeAsIso: dateRule(isoDate),

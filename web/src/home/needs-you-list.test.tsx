@@ -29,6 +29,7 @@ function item(over: Partial<InboxItem>): InboxItem {
     created_at: new Date().toISOString(),
     reason: "proposal_closed",
     unread: true,
+    state: "unread",
     target_title: "Checkout",
     excerpt: null,
     question: null,

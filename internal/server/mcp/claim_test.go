@@ -44,7 +44,7 @@ func (s *claimingService) Claim(_ context.Context, c claims.Claimer, _ time.Dura
 	return claims.Offer{Run: &claims.OfferedRun{ID: runRequestID, Attempt: 1, Kind: "create", Intent: "ask", Prompt: "checkout latency"}}, nil
 }
 
-func (*claimingService) ClaimedRun(context.Context, claims.Claimer, string, int) (revisions.Request, error) {
+func (*claimingService) ClaimedRun(context.Context, claims.Claimer, string, int, int) (revisions.Request, error) {
 	return revisions.Request{}, claims.ErrNotYourRun
 }
 

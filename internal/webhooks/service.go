@@ -279,8 +279,7 @@ func (s *Service) pending(ctx context.Context, ownerKind, ownerID string, types 
 	if err != nil {
 		return nil, err
 	}
-	page, _, err := s.source.next(ctx, audience, types, time.Now().Add(-expiry), from, limit)
-	return page, err
+	return s.source.unexpired(ctx, audience, types, time.Now(), from, limit)
 }
 
 func (s *Service) waiting(ctx context.Context, ownerKind, ownerID string, types []string, from cursor) *Waiting {
@@ -291,20 +290,28 @@ func (s *Service) waiting(ctx context.Context, ownerKind, ownerID string, types 
 	return &Waiting{Count: min(len(page), maxWaitingCount), More: len(page) > maxWaitingCount}
 }
 
+func skipRefusal(row dbsqlc.Webhook, leased bool) error {
+	switch {
+	case stateOf(!row.DisabledAt.Valid, int(row.ConsecutiveFailures)) != StateRetrying:
+		return ErrNothingToSkip
+	case leased:
+		return ErrBusy
+	}
+	return nil
+}
+
 func (s *Service) SkipEvent(ctx context.Context, by auth.Principal, id pgtype.UUID) (skipped Delivery, updated Webhook, err error) {
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		row, err := q.GetWebhookForUpdate(ctx, id)
+		locked, err := q.GetWebhookForSkip(ctx, id)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		}
 		if err != nil {
 			return err
 		}
-		if row.ConsecutiveFailures == 0 || row.DisabledAt.Valid {
-			return ErrNothingToSkip
-		}
-		if row.LeaseUntil.Valid && row.LeaseUntil.Time.After(time.Now()) {
-			return ErrBusy
+		row := locked.Webhook
+		if err := skipRefusal(row, locked.Leased); err != nil {
+			return err
 		}
 		page, err := s.pending(ctx, row.OwnerKind, row.OwnerID.String(), row.EventTypes, cursor{xid: row.CursorXid.Uint64, seq: row.CursorSeq}, 1)
 		if errors.Is(err, auth.ErrPrincipalGone) || (err == nil && len(page) == 0) {
@@ -314,7 +321,7 @@ func (s *Service) SkipEvent(ctx context.Context, by auth.Principal, id pgtype.UU
 			return err
 		}
 		e := page[0]
-		stored, err := q.InsertWebhookDelivery(ctx, deliveryParams(id, id.String()+"."+strconv.FormatInt(e.Seq, 10), e.Type,
+		stored, err := q.InsertWebhookDelivery(ctx, deliveryParams(id, deliveryIDOf(id.String(), e), e.Type,
 			pgtype.Int8{Int64: e.Seq, Valid: true}, attempt{outcome: outcomeSkipped, errorCode: errorSkippedByAdmin}))
 		if err != nil {
 			return err
@@ -392,11 +399,12 @@ func (c cleanedPatch) apply(current dbsqlc.Webhook, ownerKind string, ownerID pg
 	if c.types != nil {
 		params.EventTypes = c.types
 	}
-	if c.address != "" && c.address != current.Url {
+	enables := c.enabled != nil && *c.enabled
+	if enables || (c.address != "" && c.address != current.Url) {
 		params.ConsecutiveFailures, params.NextAttemptAt = 0, at
+		params.DropsLease = true
 	}
-	if c.enabled != nil && *c.enabled {
-		params.ConsecutiveFailures, params.NextAttemptAt = 0, at
+	if enables {
 		params.DisabledAt, params.DisabledReason = pgtype.Timestamptz{}, pgtype.Text{}
 	}
 	if c.enabled != nil && !*c.enabled && !current.DisabledAt.Valid {

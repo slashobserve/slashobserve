@@ -2,11 +2,13 @@ package revisions_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/logtest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -52,6 +54,24 @@ func TestARunThatProposedSucceedsWithAProposalAndLeavesItsCommentThreadOpen(t *t
 	}
 	if thread.Status != "open" || thread.ResolvedByVersion.Valid {
 		t.Fatalf("thread = %+v, want it still open", thread)
+	}
+}
+
+func TestARunThatProposedLogsASuccessNotAFailure(t *testing.T) {
+	logger, logs := logtest.New()
+	d := dbtest.New(t)
+	svc := newTestService(d.DB, reviserFunc(func(_ context.Context, req revisions.Request) (revisions.Result, error) {
+		proposeFor(t, d, mustUUID(t, req.DashboardID), mustUUID(t, req.ID))
+		return revisions.Result{ProposalID: "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b"}, nil
+	}), logger)
+	dash := seedDashboard(t, d, 1)
+	rev := submit(t, svc, dash, "go")
+	startWorkerLogged(t, svc, d, revisions.WorkerOptions{}, logger)
+	waitForStatus(t, svc, dash, rev.ID, revisions.StatusSucceeded)
+
+	findEventually(t, logs, "agent request succeeded")
+	if strings.Contains(logs.String(), "agent request failed") {
+		t.Fatalf("a run that proposed logged a failure: %s", logs.String())
 	}
 }
 

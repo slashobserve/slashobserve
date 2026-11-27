@@ -17,6 +17,7 @@ import type { components } from "@/api/schema.gen"
 import { panelRequestLimiter } from "@/dashboards/limiter"
 import { asDashboardSpec } from "@/dashboards/queries"
 import { panelRetry } from "@/dashboards/use-panel-data"
+import { followCursor } from "@/lib/follow-cursor"
 import type { Panel } from "@/spec"
 
 export type Finding = components["schemas"]["Finding"]
@@ -38,15 +39,20 @@ export function findingsForDashboardQuery(dashboardId: string) {
   return queryOptions({
     queryKey: findingKeys.forDashboard(dashboardId),
     queryFn: ({ signal }) =>
-      api
-        .GET("/findings", {
-          params: {
-            query: { dashboard_id: dashboardId, limit: findingsPage },
-          },
-          signal,
-        })
-        .then(unwrap)
-        .then((body) => body.findings),
+      followCursor((cursor) =>
+        api
+          .GET("/findings", {
+            params: {
+              query: { dashboard_id: dashboardId, limit: findingsPage, cursor },
+            },
+            signal,
+          })
+          .then(unwrap)
+          .then((body) => ({
+            items: body.findings,
+            next: body.next_cursor ?? null,
+          }))
+      ),
     staleTime: 10_000,
   })
 }

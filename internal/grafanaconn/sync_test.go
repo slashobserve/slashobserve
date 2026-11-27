@@ -303,6 +303,34 @@ func TestSyncFailsAfterItsLeaseExpiresTwice(t *testing.T) {
 	}
 }
 
+func TestATransientErrorAtResumeReleasesTheLeaseWithoutCountingALoss(t *testing.T) {
+	r := newRig(t)
+	conn := r.connect(t)
+	id := r.insertRunning(t, conn.ID, r.admin.ID, 0)
+
+	r.principals.failWith(errors.New("database blip"))
+	r.svc.ResumeOnce(t.Context())
+	r.svc.Wait()
+
+	if n := r.count(t, "SELECT count(*) FROM grafana_syncs WHERE id = $1 AND state = 'running' AND lease_id IS NULL AND lease_losses = 1 AND finished_at IS NULL", id); n != 1 {
+		t.Fatal("the transient error did not release the lease, or counted a second loss")
+	}
+
+	r.svc.ResumeOnce(t.Context())
+	r.svc.Wait()
+	if n := r.count(t, "SELECT lease_losses FROM grafana_syncs WHERE id = $1", id); n != 1 {
+		t.Fatalf("%d lease losses after a second transient error, want 1", n)
+	}
+
+	r.principals.failWith(nil)
+	r.svc.ResumeOnce(t.Context())
+	r.svc.Wait()
+	got, err := r.svc.SyncStatus(reading(t.Context()), uuidOf(t, conn.ID), id)
+	if err != nil || got.State != grafanaconn.SyncFinished {
+		t.Fatalf("got %+v, err %v", got.SyncSummary, err)
+	}
+}
+
 func TestSyncFailsWhenItsStarterIsNoLongerAnAdmin(t *testing.T) {
 	r := newRig(t)
 	conn := r.connect(t)

@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/llm"
@@ -108,6 +109,48 @@ func TestStopReasonSurvivesTheUsageChunk(t *testing.T) {
 			}
 			if turn.Usage.OutputTokens != 5 {
 				t.Fatalf("OutputTokens = %d, want 5", turn.Usage.OutputTokens)
+			}
+		})
+	}
+}
+
+func TestBrokenStreamIsRetried(t *testing.T) {
+	complete := stream(chunk(`[{"index":0,"delta":{"content":"done"},"finish_reason":"stop"}]`, ""))
+	cases := map[string]string{
+		"no finish reason": stream(chunk(`[{"index":0,"delta":{"content":"par"}}]`, "")),
+		"foreign chunk": stream(
+			chunk(`[{"index":0,"delta":{"content":"par"}}]`, ""),
+			strings.Replace(chunk(`[{"index":0,"delta":{"content":"x"}}]`, ""), `"id":"c1"`, `"id":"other"`, 1),
+		),
+	}
+	for name, broken := range cases {
+		t.Run(name, func(t *testing.T) {
+			var calls atomic.Int32
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = io.Copy(io.Discard, r.Body)
+				w.Header().Set("Content-Type", "text/event-stream")
+				if calls.Add(1) == 1 {
+					_, _ = io.WriteString(w, broken)
+					return
+				}
+				_, _ = io.WriteString(w, complete)
+			}))
+			t.Cleanup(srv.Close)
+			base, err := url.Parse(srv.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			provider := openaicompat.New(openaicompat.Config{Model: "m", BaseURL: base, MaxTokens: 8192}, slog.New(slog.DiscardHandler))
+			session, err := provider.Start(context.Background(), llm.Request{Prompt: "hi"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			turn, err := session.Next(context.Background(), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if turn.Text != "done" || turn.Stop != llm.StopEndTurn || calls.Load() != 2 {
+				t.Fatalf("turn = %+v after %d calls, want the second stream's turn after 2", turn, calls.Load())
 			}
 		})
 	}

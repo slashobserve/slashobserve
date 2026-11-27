@@ -32,7 +32,7 @@ func settledOf(a Answer) string {
 	if a.Meta.Settled == nil {
 		return ""
 	}
-	return *a.Meta.Settled
+	return string(*a.Meta.Settled)
 }
 
 func TestReadsRunUntilTheSixthTurnWithoutASaveAndThenAreRefused(t *testing.T) {

@@ -187,6 +187,9 @@ The server queries ClickHouse only as a read-only user.
   Responses carry `X-Frame-Options: DENY` and `frame-ancestors 'none'` in the policy.
 - **Other headers.**
   Responses also carry `X-Content-Type-Options: nosniff` and `Referrer-Policy: strict-origin-when-cross-origin`.
+- **HTTPS only.**
+  When `SLASHOBSERVE_PUBLIC_URL` is an `https` URL, responses carry `Strict-Transport-Security: max-age=31536000`, so browsers keep to HTTPS for a year.
+  With an `http` URL the header is not sent.
 - **`/metrics` needs no sign-in.**
   The series hold route templates, codes and model names and no ids, user names or query text.
   Anyone who can reach the route can read them, so keep it on an internal network or block it at the proxy, or set `SLASHOBSERVE_METRICS=false`; see [Metrics](metrics.md).

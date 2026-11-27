@@ -25,7 +25,7 @@ function renameProblemText(error: unknown): string {
 }
 
 export function FolderSettingsBody({ folder }: { folder: Folder }) {
-  if (folder.general) {
+  if (folder.kind === "general") {
     return (
       <RoleNote className="py-2">
         General holds dashboards that are in no other folder. Everyone sees it
@@ -33,7 +33,7 @@ export function FolderSettingsBody({ folder }: { folder: Folder }) {
       </RoleNote>
     )
   }
-  if (folder.personal) {
+  if (folder.kind === "personal") {
     return (
       <RoleNote className="py-2">
         Only you can see My Dashboards, and Admins cannot. Every new dashboard
@@ -42,17 +42,18 @@ export function FolderSettingsBody({ folder }: { folder: Folder }) {
       </RoleNote>
     )
   }
-  const canManage = folder.permissions.manage
+  const allowed = folder.allowed_actions
+  const canSetPermissions = allowed.includes("set_permissions")
   return (
     <>
-      {canManage ? null : (
+      {canSetPermissions ? null : (
         <RoleNote>
           {`Your access to this folder is ${levelLabels[folder.level]}. Only folder Admins can change it.`}
         </RoleNote>
       )}
-      {canManage ? <NameCard folder={folder} /> : null}
-      <FolderAccessCard folderId={folder.id} readOnly={!canManage} />
-      {canManage ? <DeleteFolderCard folder={folder} /> : null}
+      {allowed.includes("rename") ? <NameCard folder={folder} /> : null}
+      <FolderAccessCard folderId={folder.id} readOnly={!canSetPermissions} />
+      {allowed.includes("delete") ? <DeleteFolderCard folder={folder} /> : null}
     </>
   )
 }

@@ -205,7 +205,7 @@ func TestAnMCPToolResultGivesNamesButNoFigures(t *testing.T) {
 	s.readOf("find_mcp_tools", `{"matches":[{"source":"code","name":"grep","description":"search paymentservice"}],"total":4821}`, nil)
 	s.readOf("call_mcp_tool", `{"notice":"n","source":"code","tool":"grep","text":"checkout.go:4821: flag adFailure"}`, nil)
 
-	got := s.sess.state.Grounding.Check(json.RawMessage(`{"markdown":"The match is at line 4,821, not 7,700.","root_cause":{"component":"adFailure","kind":"config","summary":"s"}}`))
+	got := grounding.Unverified(s.sess.state.Grounding.Review(json.RawMessage(`{"markdown":"The match is at line 4,821, not 7,700.","root_cause":{"component":"adFailure","kind":"config","summary":"s"}}`), ""))
 	want := []findings.Unverified{{Kind: findings.UnverifiedFigure, Text: "4,821"}, {Kind: findings.UnverifiedFigure, Text: "7,700"}}
 	if !slices.Equal(got, want) {
 		t.Errorf("unverified = %+v\nwant %+v", got, want)
@@ -255,7 +255,7 @@ func TestOnlyDatasourceReadsFeedTheRecord(t *testing.T) {
 	s.readOf("get_trace", `{"duration_ms":812.4,"services":[{"name":"checkout","spans":40}]}`, nil)
 	s.readOf("list_metrics", `{"metrics":["pool_in_use"],"total":640}`, &tools.Discovery{Datasource: "prom", Of: "metrics", Names: []string{"pool_in_use"}})
 
-	got := s.sess.state.Grounding.Check(json.RawMessage(`{"markdown":"Traces took 812 ms over 640 metrics, not 9.3 s, 2,950, 4,321 or 7,700 ms."}`))
+	got := grounding.Unverified(s.sess.state.Grounding.Review(json.RawMessage(`{"markdown":"Traces took 812 ms over 640 metrics, not 9.3 s, 2,950, 4,321 or 7,700 ms."}`), ""))
 	want := []findings.Unverified{
 		{Kind: findings.UnverifiedFigure, Text: "9.3 s"},
 		{Kind: findings.UnverifiedFigure, Text: "2,950"},

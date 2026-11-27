@@ -100,6 +100,19 @@ if [[ "$matrix_shards" != "$script_shards" ]]; then
   failures=$((failures + 1))
 fi
 
+sharded="$(cd "$root" && for shard in $script_shards; do
+  read -r -a patterns <<<"$(scripts/go-test-shard.sh "$shard")"
+  go list "${patterns[@]}"
+done | LC_ALL=C sort)"
+every_package="$(cd "$root" && go list ./... | LC_ALL=C sort)"
+if [[ "$sharded" != "$every_package" ]]; then
+  echo "FAIL shard-partition: the shards cover these packages:" >&2
+  echo "$sharded" >&2
+  echo "but go list ./... holds:" >&2
+  echo "$every_package" >&2
+  failures=$((failures + 1))
+fi
+
 if ((failures > 0)); then
   echo "$failures ci-changes test(s) failed" >&2
   exit 1

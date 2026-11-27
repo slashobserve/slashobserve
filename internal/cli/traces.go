@@ -110,22 +110,23 @@ func (a *app) runTraces(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	ctx := cmd.Context()
-	kind, err := datasourceType(ctx, c, opts.datasource)
+	ds, err := datasourceFor(ctx, c, opts.datasource)
 	if err != nil {
 		return err
 	}
-	if err := tracesKindUsage(opts.datasource, kind); err != nil {
+	if err := tracesKindUsage(ds); err != nil {
 		return err
 	}
+	kind := ds.Type
 	if opts.ask != "" {
 		return a.searchTraces(ctx, c, kind, sort)
 	}
 	return a.showTrace(ctx, c, kind, strings.ToLower(args[0]))
 }
 
-func tracesKindUsage(uid, kind string) error {
-	if kind != "tempo" && kind != "jaeger" && kind != "clickhouse" {
-		return usagef("traces reads Tempo, Jaeger or ClickHouse datasources; %s is %s", text(uid), text(kind))
+func tracesKindUsage(ds datasourceEntry) error {
+	if !ds.TraceSearch {
+		return usagef("traces reads Tempo, Jaeger or ClickHouse datasources; %s is %s", text(ds.UID), text(ds.Type))
 	}
 	return nil
 }

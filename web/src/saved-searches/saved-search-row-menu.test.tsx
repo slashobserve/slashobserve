@@ -22,15 +22,28 @@ function folder(id: string, title: string, extra: Partial<Folder> = {}) {
     title,
     general: false,
     personal: false,
+    kind: "open",
+    allowed_actions: [
+      "create_in",
+      "move_into",
+      "rename",
+      "set_permissions",
+      "delete",
+    ],
     permissions: { comment: true, edit: true, manage: true, create: true },
     ...extra,
   } as Folder
 }
 
 const folders = [
-  folder(mineId, "Ana's folder", { personal: true }),
+  folder(mineId, "Ana's folder", {
+    personal: true,
+    kind: "personal",
+    allowed_actions: ["create_in"],
+  }),
   folder(shopId, "Shop"),
   folder(opsId, "Ops", {
+    allowed_actions: [],
     permissions: { comment: true, edit: false, manage: false, create: false },
   }),
 ]

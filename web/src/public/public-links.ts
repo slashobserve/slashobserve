@@ -57,12 +57,23 @@ export function expiryFor(
   return { ok: true, expiresAt: endOfDay.toISOString() }
 }
 
+const unusableText: Record<
+  NonNullable<PublicLink["unusable_reason"]>,
+  string
+> = {
+  expired: "Expired",
+  admins_only_folder:
+    "Not usable: the dashboard is in a folder only Admins can read",
+  user_scoped: "Not usable: uses the viewer's identity",
+  restricted_datasource: "Not usable: reads a datasource only Admins can query",
+}
+
 export function linkStatus(
-  link: Pick<PublicLink, "state" | "usable">
+  link: Pick<PublicLink, "unusable_reason">
 ): string | null {
-  if (link.state === "expired") return "Expired"
-  if (!link.usable) return "Not usable: uses the viewer's identity"
-  return null
+  return link.unusable_reason === null
+    ? null
+    : unusableText[link.unusable_reason]
 }
 
 export function modeLabel(mode: PublicMode): string {

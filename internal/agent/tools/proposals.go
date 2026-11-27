@@ -219,7 +219,7 @@ func (r *Registry) mergeProposal(ctx context.Context, input json.RawMessage) (Re
 	if dropped := droppedUnits(choices); dropped != "" {
 		step += "; the proposed change to " + dropped + " was dropped because the dashboard's own was kept"
 	}
-	return success(step, proposals.NewSummaryJSON(merged.Item)), nil
+	return success(step, proposals.NewMergedJSON(merged)), nil
 }
 
 func droppedUnits(choices []spec.Choice) string {

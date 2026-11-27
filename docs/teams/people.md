@@ -148,9 +148,13 @@ These routes need an Admin signed in to the web app:
 | `DELETE /api/v1/users/{id}` | Remove a deactivated person. |
 
 A service-account key cannot call them, because keys never end another person's sessions or connected agents.
+Each person in `GET /api/v1/users` carries `state` (`active` or `deactivated`) and `allowed_actions`, the changes the caller may make now: `set_role` is missing while the role is locked, `deactivate` is missing on your own entry, and a key gets an empty list.
+The [states reference](../reference/states.md#person) lists every state and move.
 The `observe` CLI and MCP have no command for them.
 
 ### Errors
+
+The 409 answers `role_locked`, `last_admin`, `cannot_deactivate_self` and `not_deactivated` also carry the person's `state` and `allowed_actions`.
 
 | Status and code | When |
 | --- | --- |

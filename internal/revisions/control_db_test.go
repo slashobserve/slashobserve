@@ -79,7 +79,7 @@ func TestCancelKeepsTheBuildOfARunningRequestWhoseLeaseExpired(t *testing.T) {
 	}
 	claimed, _ := claimOne(t, svc)
 	if _, err := d.Queries().UpsertAgentRequestBuild(reading(context.Background()), dbsqlc.UpsertAgentRequestBuildParams{
-		AgentRequestID: row.ID, Spec: []byte(`{}`), Attempt: claimed.Attempts,
+		AgentRequestID: row.ID, Spec: []byte(`{}`), ClaimEpoch: claimed.ClaimEpoch,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestContinueRefusesWithVersionConflictWhenTheDashboardMovedOnAndEnqueuesNot
 	id := mustUUID(t, rev.ID)
 	claimed, _ := claimOne(t, svc)
 	if _, err := d.Queries().UpsertAgentRequestBuild(ctx, dbsqlc.UpsertAgentRequestBuildParams{
-		AgentRequestID: id, DashboardID: dash, BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, Spec: []byte(`{}`), Panels: 1, Attempt: claimed.Attempts,
+		AgentRequestID: id, DashboardID: dash, BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, Spec: []byte(`{}`), Panels: 1, ClaimEpoch: claimed.ClaimEpoch,
 	}); err != nil {
 		t.Fatal(err)
 	}

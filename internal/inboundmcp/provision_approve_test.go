@@ -144,7 +144,7 @@ func TestTheFileNeverApprovesAChangedDefinition(t *testing.T) {
 	if events := r.database.AuditEvents(t, string(actionApprove)); len(events) != 1 {
 		t.Errorf("approve events = %+v", events)
 	}
-	if got := decodeJSON[toolView](t, r.call(t, http.MethodPost, base+"/code/tools/search/approve", ""), http.StatusOK); got.State != "approved" {
+	if got := decodeJSON[toolView](t, r.call(t, http.MethodPost, base+"/code/tools/search/approve", `{"hash":"`+r.tools(t, "code")["search"].Seen.Hash+`"}`), http.StatusOK); got.State != "approved" {
 		t.Errorf("an Admin could not approve the changed tool: %+v", got)
 	}
 }

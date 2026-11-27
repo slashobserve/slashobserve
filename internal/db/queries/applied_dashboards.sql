@@ -19,9 +19,6 @@ WHERE folder_id = @folder_id AND lower(title) = lower(@title::text)
 ORDER BY id
 LIMIT 2;
 
--- name: IsProvisionedDashboard :one
-SELECT EXISTS (SELECT 1 FROM provisioned_dashboards WHERE dashboard_id = @dashboard_id)::boolean;
-
 -- name: ListAppliedInFolder :many
 SELECT a.path, a.dashboard_id
 FROM applied_dashboards a

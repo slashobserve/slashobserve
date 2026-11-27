@@ -24,11 +24,18 @@ import {
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { withWarning } from "@/dashboards/save-outcome"
 import { dashboardLink } from "@/lib/links"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { mergeLeftProposalStale, mergeProblem } from "./merge-problem"
-import { choicesFrom, droppedText, unitKey, type Picks } from "./proposal-view"
+import {
+  choicesFrom,
+  droppedText,
+  mergeHint,
+  unitKey,
+  type Picks,
+} from "./proposal-view"
 import {
   proposalQuery,
   useDiscardProposal,
@@ -160,14 +167,7 @@ export function ProposalActions({
   const canMerge = proposal.allowed_actions.includes("merge")
   const canDiscard = proposal.allowed_actions.includes("discard")
   const { choices, missing } = choicesFrom(proposal.conflicts, picks)
-  const blocked = proposal.conflicts.some(
-    (conflict) => conflict.reason === "invalid"
-  )
-  const hint = blocked
-    ? "Some changes cannot be merged; discard this proposal or ask its author to fix it"
-    : missing.length > 0
-      ? "Choose a side for each conflict first"
-      : null
+  const hint = mergeHint(proposal, missing)
 
   function refetch() {
     const query = proposalQuery(proposal.id)
@@ -185,7 +185,7 @@ export function ProposalActions({
   }
 
   function submit() {
-    if (missing.length > 0 || merge.isPending) return
+    if (hint !== null || merge.isPending) return
     setProblem(null)
     merge.mutate(
       { revision: proposal.revision, choices },
@@ -194,7 +194,10 @@ export function ProposalActions({
           toast.success(
             merged.merged_version === null
               ? "Merged without a new version"
-              : `Merged as version ${merged.merged_version}`,
+              : withWarning(
+                  `Merged as version ${merged.merged_version}`,
+                  merged.warning
+                ),
             {
               description: droppedText(proposal, picks) ?? undefined,
               action: {

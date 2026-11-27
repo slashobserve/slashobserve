@@ -13,6 +13,8 @@ function folder(id: string, title: string, audit: boolean): Folder {
     restricted: true,
     admins_only: true,
     audit,
+    kind: "open",
+    allowed_actions: [],
     dashboard_count: 0,
     grantees: [],
     grantee_count: 0,

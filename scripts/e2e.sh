@@ -791,7 +791,7 @@ check_datasources() {
   pass "datasources report healthy without exposing connection details"
 
   while IFS= read -r entry; do
-    keys="$(grep -oE '"[A-Za-z0-9_]+":' <<<"$entry" | tr -d '":' | grep -vxE "audience|index|time_field" | sort | paste -sd, -)"
+    keys="$(grep -oE '"[A-Za-z0-9_]+":' <<<"$entry" | tr -d '":' | grep -vxE "audience|index|time_field|trace_search|health_state|failure_kind" | sort | paste -sd, -)"
     case "$keys" in
       checked_at,dashboard_count,healthy,name,source,type,uid | checked_at,dashboard_count,healthy,message,name,source,type,uid | checked_at,dashboard_count,detail,healthy,name,source,type,uid | checked_at,dashboard_count,detail,healthy,message,name,source,type,uid) entries=$((entries + 1)) ;;
       *) fail "datasource entry has unexpected keys ($keys)" ;;
