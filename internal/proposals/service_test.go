@@ -722,7 +722,7 @@ func TestAMergeAndADiscardAtOnceLeaveOneOutcome(t *testing.T) {
 	}
 }
 
-const runAttempt = 1
+const runEpoch = 1
 
 func (r *rig) runWithABuild(t *testing.T, dash pgtype.UUID, panels ...panel) pgtype.UUID {
 	t.Helper()
@@ -740,7 +740,7 @@ func (r *rig) runWithABuild(t *testing.T, dash pgtype.UUID, panels ...panel) pgt
 		t.Fatalf("claimed %v, want %v, err %v", claimed.AgentRequest.ID, queued.ID, err)
 	}
 	_, err = r.dashboards.SaveBuild(reading(t.Context()), editor, dashboards.BuildSave{
-		RequestID: queued.ID, Attempt: runAttempt, DashboardID: dash, BaseVersion: 1, Spec: specOf("t", panels...),
+		RequestID: queued.ID, ClaimEpoch: runEpoch, DashboardID: dash, BaseVersion: 1, Spec: specOf("t", panels...),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -762,7 +762,7 @@ func TestARunWhoseRequesterLostEditCommitsItsBuildAsAProposalOwnedByTheRun(t *te
 	id := r.createDashboard(t, steady, second)
 	run := r.runWithABuild(t, id, changed, second)
 
-	commit, err := r.dashboards.CommitBuild(reading(t.Context()), commenter, run, runAttempt)
+	commit, err := r.dashboards.CommitBuild(reading(t.Context()), commenter, run, runEpoch)
 	if err != nil || commit.Proposal == nil || !commit.Proposal.Opened || commit.Proposal.Revision != 1 || commit.Version.Number != 0 {
 		t.Fatalf("commit = proposal %+v, version %d, err %v, want an opened proposal at revision 1", commit.Proposal, commit.Version.Number, err)
 	}
@@ -776,7 +776,7 @@ func TestARunWhoseRequesterLostEditCommitsItsBuildAsAProposalOwnedByTheRun(t *te
 		t.Fatalf("latest = %d, want 1: a proposal saves no version", got)
 	}
 
-	again, err := r.dashboards.CommitBuild(reading(t.Context()), commenter, run, runAttempt)
+	again, err := r.dashboards.CommitBuild(reading(t.Context()), commenter, run, runEpoch)
 	if err != nil || again.Proposal == nil || again.Proposal.ID != commit.Proposal.ID || again.Proposal.Opened || again.Dashboard.ID != id.String() {
 		t.Fatalf("second commit = proposal %+v, dashboard %s, err %v, want the same proposal replayed", again.Proposal, again.Dashboard.ID, err)
 	}
@@ -789,7 +789,7 @@ func TestListCanBeNarrowedToTheProposalOfOneRun(t *testing.T) {
 	r := newRig(t)
 	id := r.createDashboard(t, steady, second)
 	run := r.runWithABuild(t, id, changed, second)
-	commit, err := r.dashboards.CommitBuild(reading(t.Context()), commenter, run, runAttempt)
+	commit, err := r.dashboards.CommitBuild(reading(t.Context()), commenter, run, runEpoch)
 	if err != nil || commit.Proposal == nil {
 		t.Fatalf("commit = %+v, err %v", commit, err)
 	}
@@ -813,7 +813,7 @@ func TestALostAttemptsCommitWritesNoProposal(t *testing.T) {
 	id := r.createDashboard(t, steady, second)
 	run := r.runWithABuild(t, id, changed, second)
 
-	if _, err := r.dashboards.CommitBuild(reading(t.Context()), commenter, run, runAttempt+1); !errors.Is(err, dashboards.ErrBuildLost) {
+	if _, err := r.dashboards.CommitBuild(reading(t.Context()), commenter, run, runEpoch+1); !errors.Is(err, dashboards.ErrBuildLost) {
 		t.Fatalf("err = %v, want ErrBuildLost", err)
 	}
 	if r.proposalsOfRun(t, run) != 0 {
@@ -832,7 +832,7 @@ func TestAnEditorsRunInProposeModeCommitsAsAProposal(t *testing.T) {
 	id := r.createDashboard(t, steady, second)
 	run := r.runWithABuild(t, id, changed, second)
 
-	commit, err := r.dashboards.CommitBuild(grantmode.With(reading(t.Context()), grantmode.Propose), editor, run, runAttempt)
+	commit, err := r.dashboards.CommitBuild(grantmode.With(reading(t.Context()), grantmode.Propose), editor, run, runEpoch)
 	if err != nil || commit.Proposal == nil || commit.Version.Number != 0 {
 		t.Fatalf("commit = proposal %+v, version %d, err %v", commit.Proposal, commit.Version.Number, err)
 	}

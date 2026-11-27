@@ -109,6 +109,7 @@ type AgentRequest struct {
 	Investigation        bool
 	ReadRestricted       bool
 	AsOf                 pgtype.Timestamptz
+	ClaimEpoch           int32
 }
 
 type AgentRequestBuild struct {
@@ -787,6 +788,7 @@ type RunToken struct {
 	AgentRequestID pgtype.UUID
 	Attempt        int32
 	ExpiresAt      pgtype.Timestamptz
+	ClaimEpoch     pgtype.Int4
 }
 
 type SavedPrompt struct {

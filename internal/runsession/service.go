@@ -50,9 +50,9 @@ func (l slots) acquire(ctx context.Context) (release func(), err error) {
 
 type Builds interface {
 	Build(ctx context.Context, requestID pgtype.UUID) (dashboards.Build, bool, error)
-	CommitBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (dashboards.Commit, error)
-	DiscardBuild(ctx context.Context, requestID pgtype.UUID, attempt int) error
-	RebaseBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (int, bool, error)
+	CommitBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, claimEpoch int) (dashboards.Commit, error)
+	DiscardBuild(ctx context.Context, requestID pgtype.UUID, claimEpoch int) error
+	RebaseBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, claimEpoch int) (int, bool, error)
 }
 
 type Dashboards interface {
@@ -210,7 +210,7 @@ func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Req
 
 func (s *Service) create(ctx context.Context, q *dbsqlc.Queries, req revisions.Request, id pgtype.UUID) ([]byte, error) {
 	row, err := q.GetAgentRequestByID(ctx, id)
-	if errors.Is(err, pgx.ErrNoRows) || (err == nil && (revisions.State(row.State).Terminal() || int(row.Attempts) != req.Attempt)) {
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && (revisions.State(row.State).Terminal() || int(row.ClaimEpoch) != req.ClaimEpoch)) {
 		return nil, errRunNotRunning
 	}
 	if err != nil {

@@ -144,7 +144,7 @@ func (s *Service) openSession(ctx context.Context, c Claimer, row dbsqlc.AgentRe
 			return err
 		}
 		return q.InsertRunToken(ctx, dbsqlc.InsertRunTokenParams{
-			TokenHash: hash, AgentRequestID: row.ID, Attempt: row.Attempts,
+			TokenHash: hash, AgentRequestID: row.ID, Attempt: row.Attempts, ClaimEpoch: row.ClaimEpoch,
 			ExpiresAt: pgtype.Timestamptz{Time: expires, Valid: true},
 		})
 	})

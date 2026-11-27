@@ -108,8 +108,8 @@ func TestReleaseHeldPutsTheRunsAClaimerHoldsBackInTheQueue(t *testing.T) {
 	}
 
 	released := f.stored(t, mustUUID(t, runID))
-	if released.State != string(revisions.StateQueued) || released.Attempts != 0 {
-		t.Fatalf("released run = state %q attempts %d, want queued with attempt 0", released.State, released.Attempts)
+	if released.State != string(revisions.StateQueued) || released.Attempts != 0 || released.ClaimedBy.Valid {
+		t.Fatalf("released run = state %q attempts %d claimed by %q, want queued with attempt 0 and no claimer", released.State, released.Attempts, released.ClaimedBy.String)
 	}
 	if held := f.stored(t, other.ID); held.State != string(revisions.StateRunning) {
 		t.Fatalf("another claimer's run = %q, want it left running", held.State)

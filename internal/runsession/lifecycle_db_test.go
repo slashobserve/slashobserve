@@ -541,10 +541,10 @@ func TestFinishOfARunEndedElsewhereAnswersItsSettledState(t *testing.T) {
 	}
 }
 
-func TestFinishOfAnAttemptThatIsNotTheRunsIsNotYours(t *testing.T) {
+func TestFinishOfAClaimThatIsNotTheRunsIsNotYours(t *testing.T) {
 	r := newRig(t)
 	req := r.revise()
-	req.Attempt = 2
+	req.ClaimEpoch++
 	if _, err := r.svc.Finish(context.Background(), req, tools.RunFinish{Outcome: "failed"}); !errors.Is(err, claims.ErrNotYourRun) {
 		t.Fatalf("err = %v, want ErrNotYourRun", err)
 	}
@@ -557,7 +557,7 @@ func TestAStaleAttemptWithItsOwnSessionCannotEndTheNewAttempt(t *testing.T) {
 	r := newRig(t, withMaxCost(1, pricing.Table{}))
 	req := r.revise()
 	r.read(req, 0)
-	r.d.Exec(t, "UPDATE agent_requests SET attempts = attempts + 1 WHERE id = $1", mustUUID(t, req.ID))
+	r.d.Exec(t, "UPDATE agent_requests SET attempts = attempts + 1, claim_epoch = claim_epoch + 1 WHERE id = $1", mustUUID(t, req.ID))
 	stop, err := r.svc.NoteUsage(context.Background(), req, revisions.Usage{CostUSD: floatPtr(5)})
 	if err != nil || !stop {
 		t.Fatalf("stop %v, err %v", stop, err)
