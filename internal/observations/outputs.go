@@ -26,7 +26,10 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-const madeDashboardSummary = "Made from an observation"
+const (
+	madeDashboardSummary = "Made from an observation"
+	discardTimeout       = 10 * time.Second
+)
 
 var (
 	ErrNoDashboard       = errors.New("the observation names no dashboard to pin to")
@@ -38,6 +41,7 @@ var (
 type Dashboards interface {
 	CreateCopy(ctx context.Context, by auth.Principal, rawSpec []byte, summary string, from placement.Copied) (dashboards.Dashboard, dashboards.Version, error)
 	Get(ctx context.Context, id pgtype.UUID) (dashboards.Dashboard, dashboards.Version, error)
+	Delete(ctx context.Context, by auth.Principal, id pgtype.UUID) error
 }
 
 type Annotations interface {
@@ -129,6 +133,7 @@ func (s *Service) Pin(ctx context.Context, by auth.Principal, id, dashboardID pg
 	}
 	var pin Pin
 	var created bool
+	var createdAnnotation pgtype.UUID
 	err = s.locked(ctx, "pin:"+id.String()+":"+dashboardID.String(), func(q *dbsqlc.Queries) error {
 		existing, err := q.GetObservationPin(ctx, dbsqlc.GetObservationPinParams{ObservationID: id, DashboardID: dashboardID})
 		switch {
@@ -158,6 +163,7 @@ func (s *Service) Pin(ctx context.Context, by auth.Principal, id, dashboardID pg
 		if err != nil {
 			return err
 		}
+		createdAnnotation = annotationID
 		if err := q.InsertObservationPin(ctx, dbsqlc.InsertObservationPinParams{ObservationID: id, DashboardID: dashboardID, AnnotationID: annotationID}); err != nil {
 			return fmt.Errorf("record observation pin: %w", err)
 		}
@@ -165,9 +171,32 @@ func (s *Service) Pin(ctx context.Context, by auth.Principal, id, dashboardID pg
 		return nil
 	})
 	if err != nil {
+		if createdAnnotation.Valid {
+			s.discardAnnotation(ctx, by, id, createdAnnotation)
+		}
 		return Pin{}, false, err
 	}
 	return pin, created, nil
+}
+
+func (s *Service) discardAnnotation(ctx context.Context, by auth.Principal, id, annotationID pgtype.UUID) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), discardTimeout)
+	defer cancel()
+	if err := s.annotations.Delete(ctx, by, annotationID); err != nil {
+		s.logger.WarnContext(ctx, "delete the annotation of a pin that was not recorded", logattrs.Failure("observation_pin_cleanup_failed", err, slog.String("observation_id", id.String()), slog.String("annotation_id", annotationID.String()))...)
+	}
+}
+
+func (s *Service) discardDashboard(ctx context.Context, by auth.Principal, id pgtype.UUID, dashboardID string) {
+	made, err := db.ParseUUID(dashboardID)
+	if err == nil {
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), discardTimeout)
+		defer cancel()
+		err = s.dashboards.Delete(ctx, by, made)
+	}
+	if err != nil {
+		s.logger.WarnContext(ctx, "delete the dashboard made from an observation that was not recorded", logattrs.Failure("observation_dashboard_cleanup_failed", err, slog.String("observation_id", id.String()), slog.String("dashboard_id", dashboardID))...)
+	}
 }
 
 type outputKey struct {
@@ -265,6 +294,9 @@ func (s *Service) MakeDashboard(ctx context.Context, by auth.Principal, id, bloc
 		return err
 	})
 	if err != nil {
+		if created {
+			s.discardDashboard(ctx, by, key.Observation, made.ID)
+		}
 		return none(err)
 	}
 	s.attachRunChat(ctx, by, runToAttach(parent, blockID, panels), made.ID)
@@ -326,10 +358,10 @@ func (s *Service) makeOrReadDashboard(ctx context.Context, q *dbsqlc.Queries, by
 	}
 	dashboardID, err := db.ParseUUID(d.ID)
 	if err != nil {
-		return dashboards.Dashboard{}, dashboards.Version{}, false, err
+		return d, v, true, err
 	}
 	if err := q.InsertObservationDashboard(ctx, dbsqlc.InsertObservationDashboardParams{ObservationID: key.Observation, BlockID: key.Block, DashboardID: dashboardID, CreatedByKind: key.Kind, CreatedByID: key.Principal}); err != nil {
-		return dashboards.Dashboard{}, dashboards.Version{}, false, fmt.Errorf("record made dashboard: %w", err)
+		return d, v, true, fmt.Errorf("record made dashboard: %w", err)
 	}
 	return d, v, true, nil
 }
