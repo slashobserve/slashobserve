@@ -160,7 +160,7 @@ func (w *Worker) settleFailure(ctx context.Context, claimed dbsqlc.AgentRequest,
 		}
 	}
 	if ctx.Err() != nil {
-		w.service.releaseLogged(ctx, claimed, false)
+		_ = w.service.releaseLogged(ctx, claimed, false)
 		return false
 	}
 	failure := result.FailureCode
