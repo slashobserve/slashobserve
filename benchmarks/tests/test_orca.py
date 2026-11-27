@@ -2,6 +2,7 @@ import json
 import re
 
 import pytest
+import yaml
 
 from slashobserve_bench import orca
 
@@ -138,7 +139,63 @@ def test_datasources_read_metrics_logs_and_spans_without_jaeger():
     assert text.count('url: "http://opensearch:9200"') == 2
     assert 'index: "otel-logs-*"' in text
     assert 'index: "jaeger-main-jaeger-span-*"' in text
-    assert "timeField: startTimeMillis" in text
+
+
+def _entry(text, uid):
+    found = yaml.safe_load(text)["datasources"]
+    return next(entry for entry in found if entry["uid"] == uid)
+
+
+def test_by_default_the_span_index_is_a_trace_source():
+    text = orca.datasources_yaml(orca.Endpoints("http://prometheus:9090", "http://opensearch:9200"))
+    spans = _entry(text, orca.SPANS_UID)["opensearch"]
+    assert spans == {
+        "url": "http://opensearch:9200",
+        "index": "jaeger-main-jaeger-span-*",
+        "timeField": "startTimeMillis",
+        "spans": "jaeger",
+    }
+    assert _entry(text, orca.LOGS_UID)["opensearch"] == {"url": "http://opensearch:9200", "index": "otel-logs-*"}
+
+
+def test_an_older_image_reads_the_spans_as_plain_documents_without_the_spans_field():
+    text = orca.datasources_yaml(orca.Endpoints("http://prometheus:9090", "http://opensearch:9200"), span_index=False)
+    spans = _entry(text, orca.SPANS_UID)["opensearch"]
+    assert "spans" not in spans
+    assert "spans:" not in text
+    assert spans["timeField"] == "startTimeMillis"
+    assert spans["fields"] == {"message": "operationName", "service": "process.serviceName", "traceId": "traceID", "spanId": "spanID"}
+
+
+def test_span_index_is_an_option_that_defaults_on():
+    assert orca.Options().span_index is True
+    assert orca.Options(span_index="false").span_index is False
+    with pytest.raises(ValueError):
+        orca.Options(span_index="maybe")
+
+
+def test_the_question_sends_the_agent_to_the_trace_tools_on_a_span_index():
+    text = orca.question("Task text.", "2026-04-18T18:05:00Z")
+    for tool in orca.TRACE_TOOLS:
+        assert tool in text
+    assert "spans are `traces`, which answers the trace tools" in text
+    assert "logs_for_trace reads a trace's log lines from `logs`" in text
+    assert "from its top operation down to the deepest span that failed" in text
+    assert "all 32 hex characters" in text
+    assert "Query DSL" not in text
+
+
+def test_the_question_names_plain_span_documents_for_an_older_image():
+    text = orca.question("Task text.", "2026-04-18T18:05:00Z", span_index=False)
+    assert "spans are `traces` (Jaeger span documents in OpenSearch)." in text
+    assert "trace_stats" not in text
+
+
+def test_the_notes_say_how_the_spans_were_read():
+    assert "spans: jaeger, so the trace tools answer on it" in orca.spans_note_line(True)
+    assert "plain documents" in orca.spans_note_line(False)
+    assert "--ak span_index=false" in orca.spans_mismatch_hint(True)
+    assert orca.spans_mismatch_hint(False) == ""
 
 
 def test_subset_is_four_medium_four_hard_and_two_controls():
@@ -177,6 +234,98 @@ def test_code_context_is_a_module_and_function():
         orca.load_code_context("json")
 
 
+@pytest.mark.parametrize(
+    ("value", "mode"), [(None, "codeserver"), ("off", "off"), ("my.module:register", "hook")]
+)
+def test_code_context_picks_the_code_server_off_or_a_hook(value, mode):
+    assert orca.Options(code_context=value).code_mode == mode
+
+
+def test_a_code_context_that_is_neither_off_nor_a_hook_is_refused():
+    with pytest.raises(ValueError, match="<module>:<function>, or off"):
+        orca.Options(code_context="none")
+
+
+def test_source_names_default_to_the_new_ones_and_take_only_the_two_namings():
+    assert orca.Options().names.setting == "SLASHOBSERVE_MCP_SOURCES_FILE"
+    assert orca.Options(source_names="context").names.key == "contextSources"
+    with pytest.raises(ValueError):
+        orca.Options(source_names="both")
+
+
+@pytest.mark.parametrize(
+    ("option", "key", "setting", "file"),
+    [
+        ("mcp", "mcpSources", "SLASHOBSERVE_MCP_SOURCES_FILE", "mcp-sources.yaml"),
+        ("context", "contextSources", "SLASHOBSERVE_CONTEXT_SOURCES_FILE", "context-sources.yaml"),
+    ],
+)
+def test_the_code_source_is_provisioned_under_either_naming(option, key, setting, file):
+    names = orca.SOURCE_NAMES[option]
+    text = orca.code_files(names)[file]
+    assert text.splitlines()[:2] == [f"{key}:", "  - uid: orca-code"]
+    assert '    url: "http://codeserver.orca.internal:8080/mcp"' in text
+    assert "    allowPrivate: true" in text
+    assert '    approve: ["list_dir", "read_file", "grep"]' in text
+    assert orca.code_settings(names) == (
+        (setting, f"/etc/slashobserve/{file}"),
+        ("SLASHOBSERVE_OUTBOUND_DOMAINS", "codeserver.orca.internal"),
+    )
+
+
+def test_the_code_server_runs_read_only_on_the_trial_network(tmp_path):
+    args = orca.codeserver_args("code-1", "otel-0123456789ab_default", tmp_path, "slashobserve-codeserver:local")
+    assert args[:2] == ["run", "-d"]
+    pairs = list(zip(args, args[1:]))
+    assert ("--network", "otel-0123456789ab_default") in pairs
+    assert ("--network-alias", "codeserver.orca.internal") in pairs
+    assert ("--label", "slashobserve-bench") in pairs
+    assert ("-v", f"{tmp_path.resolve()}:/code:ro") in pairs
+    assert "--read-only" in args
+    assert args[-5:] == ["slashobserve-codeserver:local", "-root", "/code", "-addr", ":8080"]
+
+
+def test_code_tools_are_ready_only_when_all_three_are_approved():
+    approved = [{"name": name, "state": "approved"} for name in orca.CODE_TOOLS]
+    assert orca.code_tools_problem(approved) is None
+    assert orca.code_tools_problem(approved[:2] + [{"name": "grep", "state": "refused"}]) == "grep is refused"
+    assert orca.code_tools_problem([]) == "list_dir is missing, read_file is missing, grep is missing"
+
+
+def test_the_mismatch_hint_names_the_other_naming():
+    assert "pass --ak source_names=context" in orca.code_mismatch_hint(orca.SOURCE_NAMES["mcp"])
+    assert "pass --ak source_names=mcp" in orca.code_mismatch_hint(orca.SOURCE_NAMES["context"])
+
+
+def test_the_notes_say_which_code_context_applied():
+    assert orca.code_note_line(orca.Options()) == (
+        "code context: the code server slashobserve-codeserver:local over a read-only copy of /app/opentelemetry-demo, "
+        "provisioned as the MCP source orca-code with list_dir, read_file, grep approved, "
+        "through SLASHOBSERVE_MCP_SOURCES_FILE with the key mcpSources"
+    )
+    assert orca.code_note_line(orca.Options(code_context="x:y")) == "code context: registered through x:y"
+    assert orca.code_note_line(orca.Options(code_context="off")) == "code context: off, the run had no source code (--ak code_context=off)"
+
+
+def test_the_question_points_at_the_code_and_asks_for_the_flag_key():
+    text = orca.question("Task text.", "2026-04-18T18:05:00Z", orca.code_note("codeserver"))
+    assert "MCP source `orca-code` (tools list_dir, read_file and grep)" in text
+    assert "feature flag" in text
+    assert "spelled exactly as the source spells it" in text
+    assert "the code source registered for this run" in orca.code_note("hook")
+    assert orca.code_note("off") is None
+    assert "feature flag" not in orca.question("Task text.", "2026-04-18T18:05:00Z")
+
+
+@pytest.mark.parametrize("span_index", [True, False])
+def test_the_question_stays_within_the_server_prompt_limit(span_index):
+    note = orca.code_note("codeserver")
+    empty = len(orca.question("", "2026-04-18T18:05:00Z", note, span_index=span_index))
+    assert len(orca.question("x" * (orca.PROMPT_LIMIT - empty), "2026-04-18T18:05:00Z", note, span_index=span_index)) == orca.PROMPT_LIMIT
+    with pytest.raises(orca.UnsupportedTask, match="over the server's 4000"):
+        orca.question("x" * (orca.PROMPT_LIMIT - empty + 1), "2026-04-18T18:05:00Z", note, span_index=span_index)
+
+
 def test_replay_fixture_swaps_only_the_prompt():
     fixture = orca.replay_fixture({"prompt": "x", "turns": []}, "  question \n")
     assert fixture == {"prompt": "question", "turns": []}
@@ -197,7 +346,15 @@ def test_replay_fixture_command_writes_the_fixture_for_a_task_folder(tmp_path):
     assert orca.main(["replay-fixture", "--task-dir", str(task), "--template", str(template), "--out", str(tmp_path / "out")]) == 0
     fixture = json.loads((tmp_path / "out" / "abc.json").read_text())
     assert "2026-04-18T18:05:00Z" in fixture["prompt"]
+    assert "MCP source `orca-code`" in fixture["prompt"]
     assert fixture["turns"] == []
+    args = ["replay-fixture", "--task-dir", str(task), "--template", str(template), "--out", str(tmp_path / "off"), "--code", "off"]
+    assert orca.main(args) == 0
+    assert "feature flag" not in json.loads((tmp_path / "off" / "abc.json").read_text())["prompt"]
+    assert "trace_error_origins" in fixture["prompt"]
+    args = ["replay-fixture", "--task-dir", str(task), "--template", str(template), "--out", str(tmp_path / "plain"), "--span-index", "false"]
+    assert orca.main(args) == 0
+    assert "trace_error_origins" not in json.loads((tmp_path / "plain" / "abc.json").read_text())["prompt"]
 
 
 def test_naive_task_time_is_eastern_like_the_instruction_time():
@@ -223,6 +380,206 @@ def test_headings_in_the_answer_stay_below_the_four_sections():
 def test_a_heading_with_a_time_does_not_become_a_timeline_heading():
     report = orca.render_report({"markdown": "## 09:44 UTC cart slowed\n\nText."})
     assert "## Timeline\n\n09:44 UTC cart slowed\n" in report
+
+
+TRACE_ID = "4bf92f3577b34da6a3ce929d0e0e4736"
+
+
+def cause(name, mechanism, **fields):
+    entry = {
+        "component": {"kind": "service", "name": name, "namespace": None},
+        "kind": "config_or_flag",
+        "mechanism": mechanism,
+        "trigger": None,
+        "onset": None,
+        "affected": [],
+        "relation": "independent",
+        "knock_on_of": None,
+        "evidence": {"facts": [], "trace_ids": [], "queries": []},
+        "estimate": None,
+        "confidence": 0.8,
+        "band": "high",
+        "stated": True,
+    }
+    return {**entry, **fields}
+
+
+AD = cause(
+    "ad",
+    "The ad service threw on every GetAds call",
+    trigger={"kind": "feature_flag", "key": "adFailure", "value": "on"},
+    onset="2026-04-18T05:44:00-04:00",
+    affected=[{"kind": "service", "name": "frontend", "namespace": "otel-demo"}],
+    evidence={"facts": ["f1"], "trace_ids": [TRACE_ID], "queries": ['sum(rate(traces_span_metrics_calls_total{service_name="ad",status_code="STATUS_CODE_ERROR"}[5m]))']},
+)
+CART = cause(
+    "cart",
+    "Cart requests waited on a full Valkey connection pool",
+    trigger={"kind": "feature_flag", "key": "cartFailure", "value": None},
+    onset="2026-04-18T09:30:00Z",
+    evidence={"facts": ["f2"], "trace_ids": [], "queries": ['service.name:cart AND severity_text:ERROR']},
+)
+CHECKOUT = cause(
+    "checkout",
+    "Checkout failed on its calls to cart",
+    kind="dependency",
+    relation="knock_on",
+    knock_on_of=1,
+    onset="2026-04-18T09:32:00Z",
+    evidence={"facts": ["f3"], "trace_ids": [], "queries": ['histogram_quantile(0.99, sum by (le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="checkout"}[5m])))']},
+)
+GUESS = cause("payment", "Payment may have slowed", confidence=0.2, band="low", stated=False)
+
+
+def finding(*causes, **fields):
+    root = next((c for c in causes if c.get("stated", True) and c["relation"] == "independent"), None)
+    base = {
+        "markdown": "The analysis.",
+        "root_cause": root and {"component": root["component"]["name"], "kind": root["kind"], "summary": root["mechanism"]},
+        "causes": list(causes),
+        "onset": None,
+        "impact": None,
+        "ruled_out": [],
+        "next_steps": [],
+        "no_incident": False,
+    }
+    return {**base, **fields}
+
+
+def whys(report):
+    return report.split("## 5 Whys\n\n", 1)[1].split("\n\n## Remediation", 1)[0]
+
+
+def timeline(report):
+    return report.split("## Timeline\n\n", 1)[1].split("\n\n## 5 Whys", 1)[0].splitlines()
+
+
+@pytest.mark.parametrize(
+    ("case", "causes", "roots", "timeline_lines"),
+    [
+        (
+            "one cause",
+            [AD],
+            ["Root cause:\nad (service): The ad service threw on every GetAds call. Triggered by the feature flag `adFailure` set to `on`."],
+            ["2026-04-18 09:44 UTC - Root cause: ad (service): The ad service threw on every GetAds call. Triggered by the feature flag `adFailure` set to `on`."],
+        ),
+        (
+            "two independent causes",
+            [CART, AD],
+            ["Root cause 1:\ncart (service): Cart requests waited", "Root cause 2:\nad (service): The ad service threw"],
+            [
+                "2026-04-18 09:30 UTC - Root cause 1: cart (service): Cart requests waited on a full Valkey connection pool. Triggered by the feature flag `cartFailure`.",
+                "2026-04-18 09:44 UTC - Root cause 2: ad (service): The ad service threw on every GetAds call. Triggered by the feature flag `adFailure` set to `on`.",
+            ],
+        ),
+        (
+            "a cause with a knock-on",
+            [AD, CART, CHECKOUT],
+            ["Root cause 1:\nad (service)", "Root cause 2:\ncart (service)", "Consequence of root cause 2:\ncheckout (service): Checkout failed on its calls to cart."],
+            [
+                "2026-04-18 09:30 UTC - Root cause 2: cart (service): Cart requests waited on a full Valkey connection pool. Triggered by the feature flag `cartFailure`.",
+                "2026-04-18 09:32 UTC - Consequence of root cause 2: checkout (service): Checkout failed on its calls to cart.",
+                "2026-04-18 09:44 UTC - Root cause 1: ad (service): The ad service threw on every GetAds call. Triggered by the feature flag `adFailure` set to `on`.",
+            ],
+        ),
+        (
+            "a stated and an unconfirmed cause",
+            [AD, GUESS],
+            ["Root cause:\nad (service)"],
+            ["2026-04-18 09:44 UTC - Root cause: ad (service): The ad service threw on every GetAds call. Triggered by the feature flag `adFailure` set to `on`."],
+        ),
+    ],
+)
+def test_report_states_each_cause_from_the_list_of_causes(case, causes, roots, timeline_lines):
+    report = orca.render_report(finding(*causes))
+    assert sections(report) == ["Summary", "Timeline", "5 Whys", "Remediation"], case
+    for root in roots:
+        assert root in whys(report), case
+    assert timeline(report) == timeline_lines, case
+
+
+def test_report_gives_each_stated_cause_its_queries_and_full_trace_ids():
+    text = whys(orca.render_report(finding(AD, CART, CHECKOUT)))
+    for cause_entry in (AD, CART, CHECKOUT):
+        for query in cause_entry["evidence"]["queries"]:
+            assert f"- Query: `{query}`" in text
+    assert f"- Trace id: {TRACE_ID}" in text
+    assert text.index(AD["evidence"]["queries"][0]) < text.index("Root cause 2:") < text.index(CART["evidence"]["queries"][0])
+    assert text.index("Consequence of root cause 2:") < text.index(CHECKOUT["evidence"]["queries"][0])
+    assert "Affected: frontend (service, namespace otel-demo)." in text
+
+
+def test_a_knock_on_is_never_written_as_a_root_cause():
+    report = orca.render_report(finding(AD, CART, CHECKOUT))
+    summary = report.split("## Timeline", 1)[0]
+    assert "Consequence of root cause 2: checkout (service)" in summary
+    assert "Root cause 3" not in report
+    assert not re.search(r"Root cause( \d)?:\s*checkout", report)
+
+
+def test_an_unconfirmed_cause_is_an_unexplored_branch_and_never_a_root_cause():
+    report = orca.render_report(finding(AD, GUESS, ruled_out=["cart latency was normal"]))
+    summary = report.split("## Timeline", 1)[0]
+    assert "payment" not in summary
+    assert "payment" not in "\n".join(timeline(report))
+    assert (
+        "Unexplored branches:\n"
+        "- Not confirmed by the evidence read, so not a stated cause: payment (service): Payment may have slowed.\n"
+        "- Checked and ruled out: cart latency was normal"
+    ) in whys(report)
+    assert not re.search(r"Root cause( \d)?:\s*payment", report)
+
+
+def test_a_flag_trigger_keeps_its_key_verbatim():
+    flagged = cause("product-catalog", "The catalog failed for one product", trigger={"kind": "feature_flag", "key": "productCatalogFailure", "value": "on"})
+    report = orca.render_report(finding(flagged))
+    assert report.count("`productCatalogFailure`") == 2
+    namespaced = cause("cart", "The pool filled", component={"kind": "service", "name": "cart", "namespace": "otel-demo"})
+    assert "Root cause:\ncart (service, namespace otel-demo): The pool filled." in orca.render_report(finding(namespaced))
+
+
+def test_summary_names_the_causes_the_impact_and_the_earliest_onset():
+    report = orca.render_report(finding(AD, CART, CHECKOUT, GUESS, impact="Ads and checkouts failed"))
+    summary = report.split("## Summary\n\n", 1)[1].split("\n\n## Timeline", 1)[0]
+    assert summary.startswith("Root cause 1: ad (service)")
+    assert summary.endswith("Impact: Ads and checkouts failed. Started at 2026-04-18 09:30 UTC.")
+    assert "2026-04-18 09:30 UTC - Impact: Ads and checkouts failed" in timeline(report)
+
+
+def test_causes_without_an_onset_take_the_findings_onset():
+    report = orca.render_report(finding({**AD, "onset": None}, onset="2026-04-18T09:44:00Z"))
+    assert timeline(report)[0].startswith("2026-04-18 09:44 UTC - Root cause: ad (service)")
+
+
+@pytest.mark.parametrize(
+    "shape",
+    [
+        {"markdown": "Nothing was wrong.", "causes": [], "root_cause": None, "no_incident": True},
+        finding(GUESS, markdown=""),
+    ],
+)
+def test_no_incident_or_no_stated_cause_and_no_claim_writes_an_empty_report(shape):
+    assert orca.render_report(shape) == ""
+
+
+def test_only_unconfirmed_causes_leave_the_markdown_to_make_the_report():
+    report = orca.render_report(finding(GUESS, markdown="Payment latency rose at 09:44 UTC."))
+    assert "Root cause" not in report
+    assert "## Summary\n\nPayment latency rose at 09:44 UTC." in report
+    assert "Not confirmed by the evidence read, so not a stated cause: payment (service)" in report
+
+
+def test_an_older_server_with_only_root_cause_writes_the_report_as_before():
+    report = orca.render_report(STRUCTURED)
+    assert "Root cause:\nadFailure (config or flag): The adFailure flag made the ad service fail" in report
+    assert "2026-04-18 09:44 UTC - adFailure (config or flag): The adFailure flag made the ad service fail" in report
+    assert "Unexplored branches (checked and ruled out):\n- cart latency was normal" in report
+    assert orca.render_report({**STRUCTURED, "causes": []}) == report
+
+
+def test_unscored_causes_count_as_stated():
+    unscored = {key: value for key, value in AD.items() if key not in ("confidence", "band", "stated")}
+    assert "Root cause:\nad (service)" in orca.render_report(finding(unscored))
 
 
 def test_compose_project_is_named_the_way_harbor_names_it():

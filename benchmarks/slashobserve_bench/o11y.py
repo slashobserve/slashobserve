@@ -10,6 +10,11 @@ SCENARIO_TIME_ENV = "O11Y_SCENARIO_TIME_ISO"
 
 STORE_QUESTION_CATEGORIES = ("prometheus_query", "loki_query", "tempo_query")
 STORE_CATEGORIES = (*STORE_QUESTION_CATEGORIES, "investigation")
+GRAFANA_QUESTION = "grafana_api"
+DASHBOARDING = "dashboarding"
+GRAFANA_CATEGORIES = (GRAFANA_QUESTION, DASHBOARDING)
+QUESTION_CATEGORIES = (*STORE_QUESTION_CATEGORIES, GRAFANA_QUESTION)
+CATEGORIES = (*STORE_CATEGORIES, *GRAFANA_CATEGORIES)
 
 SUBSET: tuple[str, ...] = (
     "promql-error-rate",
@@ -24,24 +29,7 @@ SUBSET: tuple[str, ...] = (
     "dependency-outage-false-lead",
 )
 
-_DASHBOARD_STATE = "graded on the dashboard saved in Grafana, which this agent never writes"
-_GRAFANA_RESOURCES = "graded on Grafana's own datasources and dashboards, which this agent never reads"
-
-SKIPPED: dict[str, str] = {
-    "dashboard-add-cache-lag-panels": _DASHBOARD_STATE,
-    "dashboard-add-deployment-annotation": _DASHBOARD_STATE,
-    "dashboard-add-retry-backlog-panels": _DASHBOARD_STATE,
-    "dashboard-create-cache-incident-review": _DASHBOARD_STATE,
-    "dashboard-create-service-overview": _DASHBOARD_STATE,
-    "dashboard-repair-cache-review": _DASHBOARD_STATE,
-    "dashboard-update-add-service-variable": _DASHBOARD_STATE,
-    "audit-service-overview-datasources": _GRAFANA_RESOURCES,
-    "audit-service-overview-variable": _GRAFANA_RESOURCES,
-    "get-datasource-details": _GRAFANA_RESOURCES,
-    "inspect-dashboard-queries": _GRAFANA_RESOURCES,
-    "list-datasources": _GRAFANA_RESOURCES,
-    "search-dashboards": _GRAFANA_RESOURCES,
-}
+SKIPPED: dict[str, str] = {}
 
 
 class UnsupportedTask(Exception):
@@ -76,13 +64,17 @@ def category_of(task_toml: str) -> str:
 def run_kind(category: str) -> str:
     if category == "investigation":
         return "investigate"
-    if category in STORE_QUESTION_CATEGORIES:
+    if category in QUESTION_CATEGORIES:
         return "ask"
+    if category == DASHBOARDING:
+        return "build"
     raise UnsupportedTask(f"the category {category!r} is not one this agent can answer")
 
 
 def start_body(category: str, prompt: str, as_of: str, observation_id: str | None) -> dict[str, Any]:
     kind = run_kind(category)
+    if kind == "build":
+        raise UnsupportedTask("a dashboard task starts with dashboard_body, because a build or revise takes no as_of")
     body: dict[str, Any] = {"kind": kind, "prompt": prompt, "as_of": as_of}
     if kind == "ask":
         if not observation_id:
@@ -91,11 +83,23 @@ def start_body(category: str, prompt: str, as_of: str, observation_id: str | Non
     return body
 
 
-def store_task_names(tasks_dir: Path) -> list[str]:
+def dashboard_body(prompt: str, dashboard_id: str | None) -> dict[str, Any]:
+    if dashboard_id is None:
+        return {"kind": "ask", "prompt": prompt}
+    return {"kind": "revise", "dashboard_id": dashboard_id, "prompt": prompt}
+
+
+def target_dashboard(instruction: str, titles: dict[str, str]) -> str | None:
+    text = instruction.casefold()
+    named = [(len(title), uid) for uid, title in titles.items() if len(title.strip()) >= 4 and title.strip().casefold() in text]
+    return max(named)[1] if named else None
+
+
+def task_names(tasks_dir: Path) -> list[str]:
     names = []
     for task_toml in sorted(tasks_dir.glob("*/task.toml")):
         task_id = task_toml.parent.name
-        if skip_reason(task_id) is None and category_of(task_toml.read_text(encoding="utf-8")) in STORE_CATEGORIES:
+        if skip_reason(task_id) is None and category_of(task_toml.read_text(encoding="utf-8")) in CATEGORIES:
             names.append(task_id)
     return names
 
@@ -107,7 +111,7 @@ def include_flags(names: list[str]) -> list[str]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m slashobserve_bench.o11y")
     commands = parser.add_subparsers(dest="command", required=True)
-    flags = commands.add_parser("include-flags", help="print --include-task-name flags for the store tasks")
+    flags = commands.add_parser("include-flags", help="print --include-task-name flags for the tasks this agent runs")
     flags.add_argument("--tasks", type=Path, required=True)
     flags.add_argument("--subset", action="store_true", help="keep only the tasks in SUBSET")
     commands.add_parser("skipped", help="print the skipped tasks and why")
@@ -116,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
         for task_id, reason in SKIPPED.items():
             print(f"{task_id}\tskipped: {reason}")
         return 0
-    names = store_task_names(args.tasks)
+    names = task_names(args.tasks)
     if args.subset:
         names = [name for name in names if name in SUBSET]
     print(" ".join(include_flags(names)))

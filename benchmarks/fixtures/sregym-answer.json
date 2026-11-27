@@ -1,0 +1,76 @@
+{
+  "prompt": "replaced by the question the adapter builds from the conductor's app",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "list_labels",
+          "input": {
+            "datasource": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "save_finding",
+          "input": {
+            "title": "Replay answer",
+            "markdown": "This answer comes from the replay model provider, so it holds no analysis of the cluster.\nIt exists to prove that a SREGym problem runs end to end and that a diagnosis reaches the conductor.",
+            "causes": [
+              {
+                "component": {
+                  "kind": "deployment",
+                  "name": "replay",
+                  "namespace": "replay"
+                },
+                "kind": "unknown",
+                "mechanism": "The replay model names no real cause",
+                "affected": [],
+                "estimate": "low"
+              }
+            ],
+            "impact": "None, this is a plumbing check.",
+            "confidence": "low",
+            "ruled_out": [],
+            "next_steps": ["Run the problem with a real model."]
+          }
+        }
+      ]
+    },
+    {
+      "expect": [
+        {
+          "is_error": true
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "save_finding",
+          "input": {
+            "title": "Replay answer",
+            "markdown": "This answer comes from the replay model provider, so it holds no analysis of the cluster.\nIt exists to prove that a SREGym problem runs end to end and that a diagnosis reaches the conductor.",
+            "causes": [
+              {
+                "component": {
+                  "kind": "deployment",
+                  "name": "replay",
+                  "namespace": "replay"
+                },
+                "kind": "unknown",
+                "mechanism": "The replay model names no real cause",
+                "affected": [],
+                "estimate": "low"
+              }
+            ],
+            "impact": "None, this is a plumbing check.",
+            "confidence": "low",
+            "ruled_out": [],
+            "next_steps": ["Run the problem with a real model."]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,9 +1,11 @@
 import asyncio
 import json
 import os
+import secrets
 import subprocess
 import tempfile
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 from harbor.agents.base import BaseAgent
@@ -13,13 +15,15 @@ from harbor.models.agent.context import AgentContext
 from slashobserve_bench import atif, orca
 from slashobserve_bench.api import ApiError, Client, RunTimeout, wait_for_terminal
 from slashobserve_bench.ledger import SpendLedger
-from slashobserve_bench.server import POSTGRES_IMAGE, ServerConfig, Stack, ensure_image
+from slashobserve_bench.server import POSTGRES_IMAGE, ServerConfig, Stack, StackError, ensure_image
 
 AGENT_NAME = "slashobserve"
 AGENT_VERSION = "0.1.0"
 LLM_KEY_FILE_ENV = "SLASHOBSERVE_BENCH_LLM_KEY_FILE"
 CANCEL_GRACE_SEC = 30
 REPORT_STAGING = "/tmp/slashobserve-report.md"
+CODE_READY_SEC = 60
+CODE_TOOLS_WAIT_SEC = 60
 
 
 class RunEndedWithoutFinding(Exception):
@@ -28,6 +32,88 @@ class RunEndedWithoutFinding(Exception):
 
 class ReportNotWritten(Exception):
     pass
+
+
+class CodeContextUnavailable(Exception):
+    pass
+
+
+def image_present(image: str) -> bool:
+    return subprocess.run(["docker", "image", "inspect", image], capture_output=True, check=False).returncode == 0
+
+
+def make_readable(root: Path) -> None:
+    for directory, dirs, files in os.walk(root):
+        for name in (*dirs, *files):
+            path = Path(directory) / name
+            if not path.is_symlink():
+                path.chmod(path.stat().st_mode | (0o555 if path.is_dir() else 0o444))
+    root.chmod(root.stat().st_mode | 0o555)
+
+
+class CodeServer:
+    def __init__(self, image: str, network: str, code_dir: Path, logs_dir: Path):
+        self.name = f"slashobserve-bench-code-{secrets.token_hex(4)}"
+        self.image = image
+        self.network = network
+        self.code_dir = code_dir
+        self.logs_dir = logs_dir
+
+    def start(self, timeout_sec: float = CODE_READY_SEC) -> None:
+        done = subprocess.run(
+            ["docker", *orca.codeserver_args(self.name, self.network, self.code_dir, self.image)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if done.returncode != 0:
+            raise CodeContextUnavailable(f"starting the code server {self.image} failed: {done.stderr.strip()}")
+        deadline = time.monotonic() + timeout_sec
+        while True:
+            status = self._status()
+            if status == "healthy":
+                return
+            if status in ("unhealthy", "exited", "dead") or time.monotonic() >= deadline:
+                raise CodeContextUnavailable(f"the code server {self.name} is {status or 'not running'}: {self._logs()[-500:].strip()}")
+            time.sleep(1)
+
+    def _status(self) -> str:
+        done = subprocess.run(
+            ["docker", "inspect", self.name, "--format", "{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return done.stdout.strip() if done.returncode == 0 else ""
+
+    def _logs(self) -> str:
+        done = subprocess.run(["docker", "logs", self.name], capture_output=True, text=True, check=False)
+        return done.stdout + done.stderr if done.returncode == 0 else ""
+
+    def stop(self) -> None:
+        self.logs_dir.mkdir(parents=True, exist_ok=True)
+        (self.logs_dir / "codeserver.log").write_text(self._logs(), encoding="utf-8")
+        subprocess.run(["docker", "rm", "-f", self.name], capture_output=True, check=False)
+
+
+def wait_for_code_tools(
+    client: Client, names: orca.SourceNames, timeout_sec: float = CODE_TOOLS_WAIT_SEC, sleep: Callable[[float], None] = time.sleep
+) -> None:
+    deadline = time.monotonic() + timeout_sec
+    while True:
+        try:
+            problem = orca.code_tools_problem(client.mcp_tools(orca.CODE_SOURCE, names.collection))
+        except ApiError as error:
+            if error.status != 404:
+                raise CodeContextUnavailable(f"listing the tools of {orca.CODE_SOURCE} failed: {error}") from None
+            raise CodeContextUnavailable(f"the server has no MCP source {orca.CODE_SOURCE}: {orca.code_mismatch_hint(names)}") from None
+        except ValueError:
+            raise CodeContextUnavailable(f"the server does not serve /api/v1/{names.collection}: {orca.code_mismatch_hint(names)}") from None
+        if problem is None:
+            return
+        if time.monotonic() >= deadline:
+            raise CodeContextUnavailable(f"the tools of {orca.CODE_SOURCE} were not approved within {timeout_sec:.0f} seconds: {problem}")
+        sleep(2)
 
 
 def stdout_of(result, what: str) -> str:
@@ -116,8 +202,15 @@ class OrcaAgent(BaseAgent):
 
     async def setup(self, environment: BaseEnvironment) -> None:
         self._provider_and_model()
-        if self.options.code_context:
-            orca.load_code_context(self.options.code_context)
+        options = self.options
+        if options.code_mode == "hook":
+            orca.load_code_context(options.code_context)
+        if options.code_mode == "codeserver" and not await asyncio.to_thread(image_present, options.codeserver_image):
+            raise CodeContextUnavailable(
+                f"the code server image {options.codeserver_image} is not on this host: build it from the repository root with "
+                f"docker build -f tools/codeserver/Dockerfile -t {options.codeserver_image} . "
+                f"or pass --ak code_context={orca.CODE_OFF} to run without source code"
+            )
         ledger = self._ledger
         if ledger is not None:
             await asyncio.to_thread(ledger.ensure_room)
@@ -139,35 +232,58 @@ class OrcaAgent(BaseAgent):
         endpoints = orca.Endpoints.from_ports_file(stdout_of(ready, "waiting for the trial's services"))
         container_id, network = await self._locate(environment)
         provider, model = self._provider_and_model()
+        mode = options.code_mode
+        question = orca.question(instruction, as_of, orca.code_note(mode), span_index=options.span_index)
+        served = mode == "codeserver"
         config = ServerConfig(
             image=options.server_image,
             network=network,
             llm_provider=provider,
             llm_model=model,
             llm_effort=options.llm_effort,
-            investigation_calls=options.investigation_calls,
-            investigation_loop=options.investigation_loop,
-            investigation_calls_max=options.investigation_calls_max,
-            finding_grounding=options.finding_grounding,
+            **options.server_settings(),
             run_max_cost_usd=options.run_max_cost_usd,
             replay_dir=Path(options.replay_dir) if options.replay_dir else None,
+            extra_env=orca.code_settings(options.names) if served else (),
         )
-        stack = Stack(config, orca.datasources_yaml(endpoints), self.logs_dir, self._llm_key(provider))
+        stack = Stack(
+            config,
+            orca.datasources_yaml(endpoints, options.span_index),
+            self.logs_dir,
+            self._llm_key(provider),
+            extra_files=orca.code_files(options.names) if served else None,
+        )
         notes = [
-            "traces: read through the OpenSearch datasource, because the trial's Jaeger is older than the 2.21 the Jaeger datasource needs",
+            orca.spans_note_line(options.span_index),
+            options.grounding_note(),
+            options.loop_note(),
             "scores: judged outside the published ORCA-bench judge, so not comparable with leaderboard numbers",
         ]
         workdir = tempfile.TemporaryDirectory(prefix="orca-code-")
+        code_server: CodeServer | None = None
         try:
-            await stack.start()
+            code_dir = None if mode == "off" else await asyncio.to_thread(copy_code_out, container_id, Path(workdir.name))
+            if served:
+                await asyncio.to_thread(make_readable, code_dir)
+                code_server = CodeServer(options.codeserver_image, network, code_dir, self.logs_dir)
+                await asyncio.to_thread(code_server.start)
+            try:
+                await stack.start()
+            except StackError as error:
+                raise StackError(f"{error}{orca.spans_mismatch_hint(options.span_index)}") from error
             client = Client(stack.base_url, stack.key)
-            notes.append(await self._code_context(client, network, container_id, Path(workdir.name)))
+            await asyncio.to_thread(self._code_context, client, network, code_dir)
+            notes.append(orca.code_note_line(options))
             orca.write_notes(self.logs_dir, notes)
-            request = await self._investigate(client, orca.question(instruction, as_of), as_of, deadline, instruction, context)
+            request = await self._investigate(client, question, as_of, deadline, instruction, context)
             await self._finish(request, instruction, context, environment)
         finally:
-            await asyncio.to_thread(stack.stop)
-            workdir.cleanup()
+            try:
+                await asyncio.to_thread(stack.stop)
+            finally:
+                if code_server is not None:
+                    await asyncio.to_thread(code_server.stop)
+                workdir.cleanup()
 
     async def _locate(self, environment: BaseEnvironment) -> tuple[str, str]:
         container_id = stdout_of(await environment.exec("cat /etc/hostname"), "reading the main container's hostname")
@@ -180,13 +296,12 @@ class OrcaAgent(BaseAgent):
             container_id = await asyncio.to_thread(container_by_project, project)
             return container_id, orca.otel_network(await asyncio.to_thread(host_networks, container_id))
 
-    async def _code_context(self, client: Client, network: str, container_id: str, workdir: Path) -> str:
-        if not self.options.code_context:
-            return "code context: skipped, no code source is configured (--ak code_context=<module>:<function>)"
-        hook = orca.load_code_context(self.options.code_context)
-        code_dir = await asyncio.to_thread(copy_code_out, container_id, workdir)
-        await asyncio.to_thread(hook, client, network, code_dir)
-        return f"code context: registered through {self.options.code_context}"
+    def _code_context(self, client: Client, network: str, code_dir: Path | None) -> None:
+        options = self.options
+        if options.code_mode == "codeserver":
+            wait_for_code_tools(client, options.names, CODE_TOOLS_WAIT_SEC)
+        elif options.code_mode == "hook":
+            orca.load_code_context(options.code_context)(client, network, code_dir)
 
     async def _investigate(
         self, client: Client, question: str, as_of: str, deadline: float, instruction: str, context: AgentContext

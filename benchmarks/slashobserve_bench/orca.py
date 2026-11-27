@@ -8,12 +8,13 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from slashobserve_bench.loop_options import LoopOptions
+from slashobserve_bench.server import CONFIG_DIR, LABEL
 
 DATASET = "orca-bench/orca-bench"
 REPORT_PATH = "/app/report.md"
@@ -25,12 +26,25 @@ INSTRUCTION_TIME = re.compile(r"The current time is (?P<stamp>[A-Z][a-z]{2} \d{1
 TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}|\b\d{1,2}:\d{2}(?::\d{2})?\s*(?:UTC|Z)\b")
 TIMELINE_LINES_MAX = 8
 LINE_RUNES_MAX = 240
+PROMPT_LIMIT = 4000
+TRIGGER_KINDS = {"feature_flag": "feature flag", "config_value": "setting", "deploy": "deploy", "traffic": "traffic change", "dependency": "dependency"}
+
+CODE_OFF = "off"
+CODE_SOURCE = "orca-code"
+CODE_HOST = "codeserver.orca.internal"
+CODE_PORT = 8080
+CODE_MOUNT = "/code"
+CODE_TOOLS = ("list_dir", "read_file", "grep")
+CODESERVER_IMAGE = "slashobserve-codeserver:local"
+CODESERVER_MEMORY = "256m"
 
 LOGS_UID = "logs"
 SPANS_UID = "traces"
 METRICS_UID = "prometheus"
 LOGS_INDEX = "otel-logs-*"
 SPANS_INDEX = "jaeger-main-jaeger-span-*"
+SPANS_TIME_FIELD = "startTimeMillis"
+TRACE_TOOLS = ("get_trace", "trace_stats", "compare_traces", "trace_error_origins", "trace_slow_path")
 
 
 @dataclass(frozen=True)
@@ -58,6 +72,21 @@ class UnsupportedTask(Exception):
     pass
 
 
+@dataclass(frozen=True)
+class SourceNames:
+    option: str
+    setting: str
+    key: str
+    file: str
+    collection: str
+
+
+SOURCE_NAMES = {
+    "mcp": SourceNames("mcp", "SLASHOBSERVE_MCP_SOURCES_FILE", "mcpSources", "mcp-sources.yaml", "mcp-sources"),
+    "context": SourceNames("context", "SLASHOBSERVE_CONTEXT_SOURCES_FILE", "contextSources", "context-sources.yaml", "context-sources"),
+}
+
+
 class Options(LoopOptions):
     model_config = ConfigDict(extra="forbid")
 
@@ -69,12 +98,31 @@ class Options(LoopOptions):
     ledger_path: str | None = None
     wall_timeout_sec: int = Field(default=3300, ge=60)
     code_context: str | None = None
+    codeserver_image: str = CODESERVER_IMAGE
+    source_names: Literal["mcp", "context"] = "mcp"
+    span_index: bool = True
 
     @model_validator(mode="after")
     def _cap_needs_ledger(self) -> "Options":
         if (self.spend_cap_usd is None) != (self.ledger_path is None):
             raise ValueError("spend_cap_usd and ledger_path go together")
         return self
+
+    @model_validator(mode="after")
+    def _code_context_shape(self) -> "Options":
+        if self.code_context is not None and self.code_context != CODE_OFF:
+            hook_parts(self.code_context)
+        return self
+
+    @property
+    def code_mode(self) -> Literal["codeserver", "hook", "off"]:
+        if self.code_context is None:
+            return "codeserver"
+        return "off" if self.code_context == CODE_OFF else "hook"
+
+    @property
+    def names(self) -> SourceNames:
+        return SOURCE_NAMES[self.source_names]
 
 
 def include_flags(tasks: Iterable[Task] = SUBSET) -> list[str]:
@@ -106,7 +154,29 @@ def otel_network(names: Iterable[str]) -> str:
     return found[0]
 
 
-def datasources_yaml(endpoints: Endpoints) -> str:
+def _spans_entry(opensearch: str, span_index: bool) -> list[str]:
+    head = [
+        f"  - uid: {SPANS_UID}",
+        "    type: opensearch",
+        "    name: Spans",
+        "    opensearch:",
+        f"      url: {opensearch}",
+        f"      index: {json.dumps(SPANS_INDEX)}",
+        f"      timeField: {SPANS_TIME_FIELD}",
+    ]
+    if span_index:
+        return [*head, "      spans: jaeger"]
+    return [
+        *head,
+        "      fields:",
+        "        message: operationName",
+        "        service: process.serviceName",
+        "        traceId: traceID",
+        "        spanId: spanID",
+    ]
+
+
+def datasources_yaml(endpoints: Endpoints, span_index: bool = True) -> str:
     prometheus, opensearch = json.dumps(endpoints.prometheus), json.dumps(endpoints.opensearch)
     return "\n".join(
         [
@@ -122,21 +192,37 @@ def datasources_yaml(endpoints: Endpoints) -> str:
             "    opensearch:",
             f"      url: {opensearch}",
             f"      index: {json.dumps(LOGS_INDEX)}",
-            f"  - uid: {SPANS_UID}",
-            "    type: opensearch",
-            "    name: Spans",
-            "    opensearch:",
-            f"      url: {opensearch}",
-            f"      index: {json.dumps(SPANS_INDEX)}",
-            "      timeField: startTimeMillis",
-            "      fields:",
-            "        message: operationName",
-            "        service: process.serviceName",
-            "        traceId: traceID",
-            "        spanId: spanID",
+            *_spans_entry(opensearch, span_index),
             "",
         ]
     )
+
+
+def spans_note(span_index: bool) -> str:
+    stores = f"Metrics are the datasource `{METRICS_UID}`, logs are `{LOGS_UID}` and spans are `{SPANS_UID}`"
+    if not span_index:
+        return f"{stores} (Jaeger span documents in OpenSearch)."
+    tools = f"{', '.join(TRACE_TOOLS[:-1])} and {TRACE_TOOLS[-1]}"
+    return (
+        f"{stores}, which answers the trace tools ({tools}); logs_for_trace reads a trace's log lines from `{LOGS_UID}`. "
+        "Use the trace tools to follow a failing request from its top operation down to the deepest span that failed, "
+        "and quote every trace id in full, all 32 hex characters."
+    )
+
+
+def spans_mismatch_hint(span_index: bool) -> str:
+    if not span_index:
+        return ""
+    return (
+        f"; the datasources file gives `{SPANS_UID}` spans: jaeger, which a server image older than agent-rca-accuracy refuses at start "
+        "as an unknown field (see server.log): pass --ak span_index=false for such an image"
+    )
+
+
+def spans_note_line(span_index: bool) -> str:
+    if span_index:
+        return f"traces: the OpenSearch index {SPANS_INDEX} with spans: jaeger, so the trace tools answer on it; the trial's Jaeger is older than the 2.21 the Jaeger datasource needs"
+    return "traces: read as plain documents through the OpenSearch datasource (--ak span_index=false), without the trace tools; the trial's Jaeger is older than the 2.21 the Jaeger datasource needs"
 
 
 def _utc_text(moment: datetime) -> str:
@@ -173,24 +259,129 @@ def as_of(task_toml: str, instruction: str) -> str:
     return _utc_text(moment)
 
 
-def question(instruction: str, as_of_utc: str) -> str:
+def code_note(mode: str) -> str | None:
+    if mode == "off":
+        return None
+    tools = f"{', '.join(CODE_TOOLS[:-1])} and {CODE_TOOLS[-1]}"
+    where = f"the MCP source `{CODE_SOURCE}` (tools {tools})" if mode == "codeserver" else "the code source registered for this run"
+    return (
+        f"The services' source code, with the definitions of the feature flags, can be read through {where}. "
+        "A fault may have been switched on by a feature flag: when the evidence points to one, name the flag by its key, spelled exactly as the source spells it."
+    )
+
+
+def question(instruction: str, as_of_utc: str, code: str | None = None, limit: int = PROMPT_LIMIT, span_index: bool = True) -> str:
     notes = [
         f"The current time is {as_of_utc} (UTC). Times in the task above are US Eastern; the telemetry is stored in UTC, so convert them before querying and give every time in UTC.",
-        f"Metrics are the datasource `{METRICS_UID}`, logs are `{LOGS_UID}` and spans are `{SPANS_UID}` (Jaeger span documents in OpenSearch).",
+        spans_note(span_index),
+        *([code] if code else []),
         "The Grafana and file instructions above do not apply: your answer is saved as a finding, and the report is written from it. When nothing was wrong, say so and set no_incident.",
     ]
-    return instruction.strip() + "\n\nNotes for this harness:\n" + "\n".join(f"- {note}" for note in notes) + "\n"
+    text = instruction.strip() + "\n\nNotes for this harness:\n" + "\n".join(f"- {note}" for note in notes) + "\n"
+    if len(text) > limit:
+        raise UnsupportedTask(f"the question is {len(text)} characters with the harness notes, over the server's {limit}")
+    return text
 
 
 def start_body(question_text: str, as_of_utc: str) -> dict[str, Any]:
     return {"kind": "investigate", "prompt": question_text, "as_of": as_of_utc}
 
 
-def load_code_context(path: str) -> Callable[..., None]:
+def hook_parts(path: str) -> tuple[str, str]:
     module, separator, name = path.partition(":")
     if not separator or not module or not name:
-        raise ValueError("code_context is <module>:<function>")
+        raise ValueError(f"code_context is <module>:<function>, or {CODE_OFF} to run without code")
+    return module, name
+
+
+def load_code_context(path: str) -> Callable[..., None]:
+    module, name = hook_parts(path)
     return getattr(importlib.import_module(module), name)
+
+
+def code_url() -> str:
+    return f"http://{CODE_HOST}:{CODE_PORT}/mcp"
+
+
+def code_sources_yaml(names: SourceNames) -> str:
+    return "\n".join(
+        [
+            f"{names.key}:",
+            f"  - uid: {CODE_SOURCE}",
+            "    name: OpenTelemetry Demo source code",
+            "    description: The source code of the task's OpenTelemetry Demo, read-only, with its feature flag definitions. List a directory, read a file or search the text of every service.",
+            f"    url: {json.dumps(code_url())}",
+            "    audience: everyone",
+            "    allowPrivate: true",
+            "    approve: [" + ", ".join(json.dumps(tool) for tool in CODE_TOOLS) + "]",
+            "",
+        ]
+    )
+
+
+def code_files(names: SourceNames) -> dict[str, str]:
+    return {names.file: code_sources_yaml(names)}
+
+
+def code_settings(names: SourceNames) -> tuple[tuple[str, str], ...]:
+    return ((names.setting, f"{CONFIG_DIR}/{names.file}"), ("SLASHOBSERVE_OUTBOUND_DOMAINS", CODE_HOST))
+
+
+def codeserver_args(name: str, network: str, code_dir: Path, image: str) -> list[str]:
+    return [
+        "run",
+        "-d",
+        "--name",
+        name,
+        "--network",
+        network,
+        "--network-alias",
+        CODE_HOST,
+        "--label",
+        LABEL,
+        "--read-only",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges:true",
+        "--memory",
+        CODESERVER_MEMORY,
+        "-v",
+        f"{code_dir.resolve()}:{CODE_MOUNT}:ro",
+        image,
+        "-root",
+        CODE_MOUNT,
+        "-addr",
+        f":{CODE_PORT}",
+    ]
+
+
+def code_tools_problem(tools: Iterable[dict[str, Any]]) -> str | None:
+    states = {tool.get("name"): tool.get("state") for tool in tools}
+    unapproved = [f"{name} is {states.get(name) or 'missing'}" for name in CODE_TOOLS if states.get(name) != "approved"]
+    return ", ".join(unapproved) or None
+
+
+def code_mismatch_hint(names: SourceNames) -> str:
+    other = SOURCE_NAMES["context" if names.option == "mcp" else "mcp"]
+    return (
+        f"the server was given {names.setting} with the key {names.key}; "
+        f"if the server image reads {other.setting} with the key {other.key}, pass --ak source_names={other.option}"
+    )
+
+
+def code_note_line(options: Options) -> str:
+    mode = options.code_mode
+    if mode == "off":
+        return f"code context: off, the run had no source code (--ak code_context={CODE_OFF})"
+    if mode == "hook":
+        return f"code context: registered through {options.code_context}"
+    names = options.names
+    return (
+        f"code context: the code server {options.codeserver_image} over a read-only copy of {CODE_DIR}, "
+        f"provisioned as the MCP source {CODE_SOURCE} with {', '.join(CODE_TOOLS)} approved, "
+        f"through {names.setting} with the key {names.key}"
+    )
 
 
 def _moment(value: str) -> datetime | None:
@@ -206,6 +397,146 @@ def clock(value: str) -> str:
     return value.strip() if moment is None else moment.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
 
+def _text(value: Any) -> str | None:
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
+def _texts(values: Any) -> tuple[str, ...]:
+    return tuple(text for text in (_text(value) for value in values or ()) if text) if isinstance(values, list) else ()
+
+
+def _code(text: str) -> str:
+    return text if "`" in text else f"`{text}`"
+
+
+def _sentence(text: str) -> str:
+    return text if text.endswith((".", "!", "?")) else text + "."
+
+
+@dataclass(frozen=True)
+class Component:
+    name: str
+    kind: str | None = None
+    namespace: str | None = None
+
+    @classmethod
+    def read(cls, value: Any) -> "Component | None":
+        if isinstance(value, str):
+            return cls(value.strip()) if value.strip() else None
+        if not isinstance(value, dict) or not (name := _text(value.get("name"))):
+            return None
+        return cls(name, _text(value.get("kind")), _text(value.get("namespace")))
+
+    @property
+    def label(self) -> str:
+        details = [part for part in (self.kind if self.kind != "other" else None, self.namespace and f"namespace {self.namespace}") if part]
+        return f"{self.name} ({', '.join(details)})" if details else self.name
+
+
+@dataclass(frozen=True)
+class Cause:
+    index: int
+    component: Component | None
+    mechanism: str | None
+    trigger_kind: str | None = None
+    trigger_key: str | None = None
+    trigger_value: str | None = None
+    onset: str | None = None
+    affected: tuple[Component, ...] = ()
+    knock_on_of: int | None = None
+    queries: tuple[str, ...] = ()
+    trace_ids: tuple[str, ...] = ()
+    band: str | None = None
+    stated: bool = True
+
+    @classmethod
+    def read(cls, index: int, entry: dict[str, Any]) -> "Cause":
+        trigger = entry.get("trigger") if isinstance(entry.get("trigger"), dict) else {}
+        evidence = entry.get("evidence") if isinstance(entry.get("evidence"), dict) else {}
+        knock_on = entry.get("knock_on_of")
+        if entry.get("relation") == "independent" or not isinstance(knock_on, int) or isinstance(knock_on, bool):
+            knock_on = None
+        return cls(
+            index=index,
+            component=Component.read(entry.get("component")),
+            mechanism=_text(entry.get("mechanism")) or _text(entry.get("summary")),
+            trigger_kind=_text(trigger.get("kind")),
+            trigger_key=_text(trigger.get("key")),
+            trigger_value=_text(trigger.get("value")),
+            onset=_text(entry.get("onset")),
+            affected=tuple(item for item in (Component.read(value) for value in entry.get("affected") or ()) if item),
+            knock_on_of=knock_on,
+            queries=_texts(evidence.get("queries")),
+            trace_ids=_texts(evidence.get("trace_ids")),
+            band=_text(entry.get("band")),
+            stated=entry.get("stated", True) is not False,
+        )
+
+    @property
+    def trigger(self) -> str | None:
+        if not self.trigger_key:
+            return None
+        text = f"{TRIGGER_KINDS.get(self.trigger_kind or '', 'change')} {_code(self.trigger_key)}"
+        return f"{text} set to {_code(self.trigger_value)}" if self.trigger_value else text
+
+    @property
+    def line(self) -> str:
+        head = self.component.label if self.component else "an unnamed component"
+        text = f"{head}: {_sentence(self.mechanism)}" if self.mechanism else f"{head}."
+        return f"{text} Triggered by the {self.trigger}." if self.trigger else text
+
+    def detail(self, label: str) -> str:
+        lines = [f"{label}:", self.line]
+        if self.onset:
+            lines.append(f"Started at {clock(self.onset)}.")
+        if self.affected:
+            lines.append(f"Affected: {', '.join(item.label for item in self.affected)}.")
+        evidence = [*(f"- Query: {_code(query)}" for query in self.queries), *(f"- Trace id: {trace}" for trace in self.trace_ids)]
+        return "\n".join([*lines, *(["Evidence:", *evidence] if evidence else [])])
+
+
+@dataclass(frozen=True)
+class Causes:
+    roots: tuple[Cause, ...]
+    knock_ons: tuple[tuple[Cause, Cause], ...]
+    unconfirmed: tuple[Cause, ...]
+
+    @classmethod
+    def read(cls, entries: list[Any]) -> "Causes":
+        causes = [Cause.read(index, entry) for index, entry in enumerate(entries) if isinstance(entry, dict)]
+        roots = {cause.index: cause for cause in causes if cause.stated and cause.knock_on_of is None}
+        knock_ons = tuple((cause, roots[cause.knock_on_of]) for cause in causes if cause.stated and cause.knock_on_of in roots)
+        followers = {cause.index for cause, _ in knock_ons}
+        unconfirmed = tuple(cause for cause in causes if cause.index not in roots and cause.index not in followers)
+        return cls(tuple(roots.values()), knock_ons, unconfirmed)
+
+    def name(self, root: Cause) -> str:
+        return "Root cause" if len(self.roots) == 1 else f"Root cause {self.roots.index(root) + 1}"
+
+    def lines(self) -> list[str]:
+        roots = [f"{self.name(root)}: {root.line}" for root in self.roots]
+        return [*roots, *(f"Consequence of {self.name(root).lower()}: {cause.line}" for cause, root in self.knock_ons)]
+
+    def onsets(self) -> list[str]:
+        return [cause.onset for cause in (*self.roots, *(cause for cause, _ in self.knock_ons)) if cause.onset]
+
+    def timed(self) -> list[tuple[str, str]]:
+        roots = [(root.onset, f"{self.name(root)}: {root.line}") for root in self.roots if root.onset]
+        return [*roots, *((cause.onset, f"Consequence of {self.name(root).lower()}: {cause.line}") for cause, root in self.knock_ons if cause.onset)]
+
+    def details(self) -> list[str]:
+        blocks = []
+        for root in self.roots:
+            blocks.append(root.detail(self.name(root)))
+            blocks.extend(cause.detail(f"Consequence of {self.name(root).lower()}") for cause, parent in self.knock_ons if parent is root)
+        return blocks
+
+
+def _earliest(stamps: Iterable[str]) -> str | None:
+    known = sorted((moment, stamp) for stamp in stamps if (moment := _moment(stamp)) is not None)
+    return known[0][1] if known else None
+
+
 @dataclass(frozen=True)
 class Answer:
     markdown: str
@@ -217,11 +548,14 @@ class Answer:
     ruled_out: tuple[str, ...] = ()
     next_steps: tuple[str, ...] = ()
     no_incident: bool = False
+    causes: Causes | None = None
 
     @classmethod
     def from_finding(cls, finding: dict[str, Any]) -> "Answer":
         root = finding.get("root_cause") or {}
+        entries = finding.get("causes")
         return cls(
+            causes=Causes.read(entries) if isinstance(entries, list) and entries else None,
             markdown=(finding.get("markdown") or "").strip(),
             component=root.get("component"),
             kind=root.get("kind"),
@@ -266,28 +600,59 @@ def _first_paragraph(markdown: str) -> str:
 
 
 def _summary(answer: Answer) -> str:
-    lines = [line for line in (answer.cause_line, answer.impact and f"Impact: {answer.impact}") if line]
-    if answer.onset:
-        lines.append(f"Started at {clock(answer.onset)}.")
+    if answer.causes:
+        lines = answer.causes.lines()
+        onset = _earliest(answer.causes.onsets()) or answer.onset
+        impact = answer.impact and _sentence(answer.impact.strip())
+    else:
+        lines = [answer.cause_line] if answer.cause_line else []
+        onset, impact = answer.onset, answer.impact
+    if lines or not answer.causes:
+        lines.extend([f"Impact: {impact}"] if impact else [])
+        lines.extend([f"Started at {clock(onset)}."] if onset else [])
     return " ".join(lines) if lines else _first_paragraph(answer.markdown) or "No summary was written."
 
 
+def _cause_timeline(answer: Answer, causes: Causes) -> list[str]:
+    timed = causes.timed()
+    if not timed and answer.onset and causes.roots:
+        timed = [(answer.onset, causes.lines()[0])]
+    if timed and answer.impact:
+        timed.append((_earliest(stamp for stamp, _ in timed) or timed[0][0], f"Impact: {answer.impact}"))
+    far = datetime.max.replace(tzinfo=timezone.utc)
+    ordered = sorted(enumerate(timed), key=lambda item: (_moment(item[1][0]) or far, item[0]))
+    return [f"{clock(stamp)} - {text}" for _, (stamp, text) in ordered]
+
+
 def _timeline(answer: Answer) -> str:
-    if answer.onset:
+    if answer.causes:
+        if lines := _cause_timeline(answer, answer.causes):
+            return "\n".join(lines)
+    elif answer.onset:
         entry = f"{clock(answer.onset)} - {answer.cause_line or 'incident began'}"
         return entry if not answer.impact else f"{entry}\n{clock(answer.onset)} - impact: {answer.impact}"
     lines = [_clip(line) for line in answer.markdown.splitlines() if TIMESTAMP.search(line)]
     return "\n".join(lines[:TIMELINE_LINES_MAX]) or "No incident start time was reported."
 
 
+def _unexplored(answer: Answer) -> str | None:
+    if not answer.causes:
+        return "Unexplored branches (checked and ruled out):\n" + "\n".join(f"- {item}" for item in answer.ruled_out) if answer.ruled_out else None
+    lines = [f"- Not confirmed by the evidence read, so not a stated cause: {cause.line}" for cause in answer.causes.unconfirmed]
+    lines.extend(f"- Checked and ruled out: {item}" for item in answer.ruled_out)
+    return "Unexplored branches:\n" + "\n".join(lines) if lines else None
+
+
 def _whys(answer: Answer) -> str:
     parts = [f"Problem statement:\n{answer.impact or _first_paragraph(answer.markdown) or 'Not stated.'}"]
     if answer.markdown:
         parts.append(f"Analysis:\n{demote_headings(answer.markdown)}")
-    if answer.cause_line:
+    if answer.causes:
+        parts.extend(answer.causes.details())
+    elif answer.cause_line:
         parts.append(f"Root cause:\n{answer.cause_line}")
-    if answer.ruled_out:
-        parts.append("Unexplored branches (checked and ruled out):\n" + "\n".join(f"- {item}" for item in answer.ruled_out))
+    if unexplored := _unexplored(answer):
+        parts.append(unexplored)
     return "\n\n".join(parts)
 
 
@@ -300,7 +665,7 @@ def _remediation(answer: Answer) -> str:
 
 def render_report(finding: dict[str, Any]) -> str:
     answer = Answer.from_finding(finding)
-    if answer.no_incident:
+    if answer.no_incident or answer.causes and not answer.causes.roots and not answer.markdown:
         return ""
     sections = (
         ("Summary", _summary(answer)),
@@ -340,6 +705,8 @@ def main(argv: list[str] | None = None) -> int:
     fixture.add_argument("--task-dir", type=Path, required=True)
     fixture.add_argument("--template", type=Path, required=True)
     fixture.add_argument("--out", type=Path, required=True)
+    fixture.add_argument("--code", choices=("codeserver", "hook", "off"), default="codeserver", help="the code context of the trial the fixture is for")
+    fixture.add_argument("--span-index", choices=("true", "false"), default="true", help="the span_index option of the trial the fixture is for")
     args = parser.parse_args(argv)
     if args.command == "include-flags":
         print("\n".join(include_flags()))
@@ -349,7 +716,7 @@ def main(argv: list[str] | None = None) -> int:
     template = json.loads(args.template.read_text(encoding="utf-8"))
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / f"{args.task_dir.name}.json").write_text(
-        json.dumps(replay_fixture(template, question(instruction, moment)), indent=2) + "\n", encoding="utf-8"
+        json.dumps(replay_fixture(template, question(instruction, moment, code_note(args.code), span_index=args.span_index == "true")), indent=2) + "\n", encoding="utf-8"
     )
     return 0
 

@@ -36,6 +36,14 @@ def test_datasources_file_points_each_store_at_the_stack():
     for uid, url in (("prometheus", "http://stack:9090"), ("loki", "http://stack:3100"), ("tempo", "http://stack:3200")):
         assert f"  - uid: {uid}\n    type: {uid}\n" in text
         assert f'    {uid}:\n      url: "{url}"\n' in text
+    assert "grafanaUids" not in text
+
+
+def test_datasources_file_lists_the_grafana_uids_each_store_stands_for():
+    text = server.datasources_yaml(STORES, {"prometheus": ["graf-prom", "Prometheus"], "loki": ["0123"]})
+    assert '    name: Prometheus\n    grafanaUids: ["graf-prom", "Prometheus"]\n    prometheus:\n' in text
+    assert '    grafanaUids: ["0123"]\n    loki:\n' in text
+    assert text.count("grafanaUids") == 2
 
 
 def test_replay_env_sets_fixture_dir_and_no_model(tmp_path):
@@ -67,8 +75,9 @@ def test_loop_settings_reach_the_server_only_when_given():
     assert env["SLASHOBSERVE_AGENT_FINDING_GROUNDING"] == "enforce"
     off = server.server_env(config(investigation_loop=False), "postgres://db")
     assert off["SLASHOBSERVE_AGENT_INVESTIGATION_LOOP"] == "false"
+    assert server.server_env(config(investigation_brief="off"), "postgres://db")["SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF"] == "off"
     bare = server.server_env(config(), "postgres://db")
-    for name in ("INVESTIGATION_LOOP", "INVESTIGATION_CALLS_MAX", "FINDING_GROUNDING"):
+    for name in ("INVESTIGATION_LOOP", "INVESTIGATION_CALLS_MAX", "FINDING_GROUNDING", "INVESTIGATION_BRIEF"):
         assert f"SLASHOBSERVE_AGENT_{name}" not in bare
 
 
@@ -90,6 +99,28 @@ def test_llm_key_travels_in_an_env_file_never_on_the_command_line(tmp_path):
 def test_replay_fixtures_are_mounted_read_only(tmp_path):
     args = server.server_args("name", config(replay_dir=tmp_path), {}, Path("/cfg"), None)
     assert f"{tmp_path.resolve()}:{server.FIXTURES_DIR}:ro" in args
+
+
+def test_extra_hosts_and_settings_reach_the_server_container(tmp_path):
+    changed = config(add_hosts=("host.docker.internal:host-gateway",), extra_env=(("SLASHOBSERVE_OUTBOUND_DOMAINS", "host.docker.internal"),))
+    env = server.server_env(changed, "postgres://db")
+    assert env["SLASHOBSERVE_OUTBOUND_DOMAINS"] == "host.docker.internal"
+    args = server.server_args("name", changed, env, tmp_path, None)
+    assert args[args.index("--add-host") + 1] == "host.docker.internal:host-gateway"
+    plain = server.server_args("name", config(), server.server_env(config(), "postgres://db"), tmp_path, None)
+    assert "--add-host" not in plain
+    assert "SLASHOBSERVE_OUTBOUND_DOMAINS" not in server.server_env(config(), "postgres://db")
+
+
+def test_stack_writes_extra_config_files_beside_the_others(tmp_path):
+    stack = server.Stack(config(), server.datasources_yaml(STORES), tmp_path, None, {"mcp-sources.yaml": "mcpSources: []\n"})
+    config_dir = stack._write_config()
+    try:
+        assert (config_dir / "mcp-sources.yaml").read_text() == "mcpSources: []\n"
+        assert (config_dir / "mcp-sources.yaml").stat().st_mode & 0o044 == 0o044
+        assert (config_dir / "datasources.yaml").is_file()
+    finally:
+        stack._workdir.cleanup()
 
 
 def test_postgres_runs_in_memory_on_the_shared_network():
