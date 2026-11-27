@@ -126,6 +126,7 @@ describe("errorText and outcomeTone", () => {
   test("map codes and outcomes", () => {
     expect(errorText(null)).toBe("-")
     expect(errorText("too_large")).toBe("The event is larger than 64 KiB")
+    expect(errorText("expired")).toBe("The event was more than 24 hours old")
     expect(errorText("something_new")).toBe("something_new")
     expect(outcomeTone("delivered")).toBe("ok")
     expect(outcomeTone("skipped")).toBe("warning")

@@ -67,8 +67,8 @@ const (
 
 var SourceStates = lifecycle.Derived{Name: "MCP source", States: []lifecycle.DerivedState{
 	{Name: StateUnchecked, When: "No discovery has run since the source was added or its address changed."},
-	{Name: StateUnreachable, When: "The last discovery failed; failure says why, such as the domain not being on the outbound allowlist, the secret being refused or the server not answering."},
-	{Name: StateReady, When: "None of the above: the last discovery listed the server's tools."},
+	{Name: StateUnreachable, When: "The last discovery failed, or an agent's call could not reach the server since; failure says why, such as the domain not being on the outbound allowlist, the secret being refused or the server not answering."},
+	{Name: StateReady, When: "None of the above: the last discovery listed the server's tools, or the server has answered an agent's call since it last failed."},
 }}
 
 func sourceState(checked bool, failure string) string {

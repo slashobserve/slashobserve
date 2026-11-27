@@ -27,8 +27,8 @@ func (r *panelsRig) createRun(t *testing.T) panelsCaller {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.database.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 1, lease_until = clock_timestamp() + interval '1 minute' WHERE id = $1", request.ID)
-	return r.as(WithRun(r.ctx, Run{Mode: ModeCreate, Build: true, RequestID: request.ID.String(), Attempt: 1}))
+	r.database.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 1, claim_epoch = 1, lease_until = clock_timestamp() + interval '1 minute' WHERE id = $1", request.ID)
+	return r.as(WithRun(r.ctx, Run{Mode: ModeCreate, Build: true, RequestID: request.ID.String(), ClaimEpoch: 1}))
 }
 
 func (r *panelsRig) reviseRun(ctx context.Context, t *testing.T, id string) panelsCaller {
@@ -38,8 +38,8 @@ func (r *panelsRig) reviseRun(ctx context.Context, t *testing.T, id string) pane
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.database.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 1, lease_until = clock_timestamp() + interval '1 minute' WHERE id = $1", request.ID)
-	return r.as(WithRun(ctx, Run{Mode: ModeRevise, DashboardID: id, ParentVersion: 1, Build: true, RequestID: request.ID.String(), Attempt: 1}))
+	r.database.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = 1, claim_epoch = 1, lease_until = clock_timestamp() + interval '1 minute' WHERE id = $1", request.ID)
+	return r.as(WithRun(ctx, Run{Mode: ModeRevise, DashboardID: id, ParentVersion: 1, Build: true, RequestID: request.ID.String(), ClaimEpoch: 1}))
 }
 
 func buildCreateJSON(panel string, extra string) string {

@@ -148,7 +148,7 @@ func TestContinueKeepsTheAssigneeAndRefusesOneThatCannotTakeRuns(t *testing.T) {
 				t.Fatal("the assignee did not claim its run")
 			}
 			if _, err := d.Queries().UpsertAgentRequestBuild(ctx, dbsqlc.UpsertAgentRequestBuildParams{
-				AgentRequestID: id, DashboardID: dash, BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, Spec: []byte(`{}`), Panels: 1, Attempt: claimed.Row.Attempts,
+				AgentRequestID: id, DashboardID: dash, BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, Spec: []byte(`{}`), Panels: 1, ClaimEpoch: claimed.Row.ClaimEpoch,
 			}); err != nil {
 				t.Fatal(err)
 			}
