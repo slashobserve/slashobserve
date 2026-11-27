@@ -11,6 +11,7 @@ import (
 	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/inboundmcp"
@@ -50,6 +51,7 @@ func statesReference() string {
 		inboundmcp.ToolMachine.Doc("MCP source tool", "An MCP source tool is one tool of an MCP server an Admin registered, returned by `GET /api/v1/mcp-sources/{uid}/tools`; discovery moves it between `offered`, `changed`, `gone` and `refused`, and an Admin approves or revokes it."),
 		inboundmcp.SourceStates.Doc("MCP source", "`GET /api/v1/mcp-sources` returns the `state` of each MCP source."),
 		presence.States.Doc("Agent presence", "Whether an outside agent is taking runs: derived from when it last asked for work and the runs it holds."),
+		datasource.HealthStates.Doc("Datasource health", "`GET /datasources` and `POST /datasources/{uid}/recheck` return the `health_state` of each datasource, from the last check the answering server ran."),
 		server.PhaseMachine.Doc("Server process", "A server process moves through these phases from start to exit: `GET /readyz` returns the current one as `phase`, the `slashobserve_server_phase` series is 1 for it, and each move writes one server log line with the name in the Event column and the new phase as its `phase` attribute, not an activity event."),
 	)
 }
@@ -94,6 +96,10 @@ func enumOf(t *testing.T, doc *openapi3.T, schema, property string) []string {
 
 func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 	doc := apitest.Load(t)
+	failureKinds := make([]string, len(datasource.FailureKinds))
+	for i, kind := range datasource.FailureKinds {
+		failureKinds[i] = string(kind)
+	}
 	cases := []struct {
 		schema, property string
 		want             []string
@@ -107,6 +113,9 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 		{"PublicLink", "state", public.LinkStates.Names()},
 		{"PublicLink", "unusable_reason", public.UnusableReasons},
 		{"MCPSource", "state", inboundmcp.SourceStates.Names()},
+		{"DatasourceStatus", "health_state", datasource.HealthStates.Names()},
+		{"DatasourceStatus", "failure_kind", failureKinds},
+		{"DatasourceTestResult", "failure_kind", failureKinds},
 		{"GrafanaConnectionTestState", "state", grafanaconn.TestStates.Names()},
 	}
 	var offered []string
