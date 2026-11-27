@@ -8,6 +8,7 @@ updates:
       - /tools/golangci-lint
       - /tools/govulncheck
       - /tools/kind
+      - /tools/helm
     schedule:
       interval: weekly
     cooldown:
@@ -24,6 +25,28 @@ updates:
       default-days: 14
     groups:
       web-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: bun
+    directory: /observe-agent
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    groups:
+      agent-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: uv
+    directories:
+      - /benchmarks
+      - /benchmarks/orca
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    groups:
+      benchmarks-minor-and-patch:
         update-types: [minor, patch]
 
   - package-ecosystem: github-actions
