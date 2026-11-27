@@ -279,8 +279,7 @@ func (s *Service) pending(ctx context.Context, ownerKind, ownerID string, types 
 	if err != nil {
 		return nil, err
 	}
-	page, _, err := s.source.next(ctx, audience, types, time.Now().Add(-expiry), from, limit)
-	return page, err
+	return s.source.unexpired(ctx, audience, types, time.Now(), from, limit)
 }
 
 func (s *Service) waiting(ctx context.Context, ownerKind, ownerID string, types []string, from cursor) *Waiting {
@@ -314,7 +313,7 @@ func (s *Service) SkipEvent(ctx context.Context, by auth.Principal, id pgtype.UU
 			return err
 		}
 		e := page[0]
-		stored, err := q.InsertWebhookDelivery(ctx, deliveryParams(id, id.String()+"."+strconv.FormatInt(e.Seq, 10), e.Type,
+		stored, err := q.InsertWebhookDelivery(ctx, deliveryParams(id, deliveryIDOf(id.String(), e), e.Type,
 			pgtype.Int8{Int64: e.Seq, Valid: true}, attempt{outcome: outcomeSkipped, errorCode: errorSkippedByAdmin}))
 		if err != nil {
 			return err

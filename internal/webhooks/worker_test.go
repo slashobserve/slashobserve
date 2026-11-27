@@ -455,7 +455,7 @@ func (r *rig) dashboardInPersonalFolder(t *testing.T, owner string) pgtype.UUID 
 	return r.uuid(t, raw)
 }
 
-func TestAnEventOlderThanADayIsPassedOver(t *testing.T) {
+func TestAnEventOlderThanADayIsPassedOverAndListedAsExpired(t *testing.T) {
 	r := newRig(t)
 	created := r.create(t)
 	stale := r.append(t, activity.TypeFindingCreated)
@@ -469,6 +469,69 @@ func TestAnEventOlderThanADayIsPassedOver(t *testing.T) {
 	}
 	if row := r.row(t, created.Webhook.ID); row.CursorSeq != fresh {
 		t.Fatalf("cursor at %d, want %d", row.CursorSeq, fresh)
+	}
+	rows := r.deliveries(t, created.Webhook.ID)
+	if len(rows) != 2 || rows[0].Outcome != outcomeDelivered || rows[0].ActivitySeq.Int64 != fresh {
+		t.Fatalf("attempts newest first %+v, want the fresh event delivered after the stale one", rows)
+	}
+	passedOver := rows[1]
+	if passedOver.Outcome != outcomeSkipped || passedOver.ErrorCode.String != errorExpired || passedOver.ActivitySeq.Int64 != stale ||
+		passedOver.StatusCode.Valid || passedOver.DurationMs != 0 || passedOver.DeliveryID != created.Webhook.ID+"."+strconv.FormatInt(stale, 10) {
+		t.Fatalf("the stale event is listed as %+v, want skipped as expired", passedOver)
+	}
+}
+
+func TestARetriedEventThatExpiresIsListedAndEndsTheRetrying(t *testing.T) {
+	r := newRig(t)
+	created := r.create(t, activity.TypeFindingCreated)
+	stuck := r.append(t, activity.TypeFindingCreated)
+	r.sender.script(func(int, call) (egress.SendResult, error) {
+		return egress.SendResult{Status: http.StatusInternalServerError}, nil
+	})
+	r.pass(t)
+	r.db.Exec(t, `UPDATE activity SET created_at = now() - interval '25 hours' WHERE seq = $1`, stuck)
+	r.makeDue(t, created.Webhook.ID)
+
+	r.pass(t)
+
+	if got := len(r.sender.all()); got != 1 {
+		t.Fatalf("sent %d requests, want none for the expired event after the first failure", got)
+	}
+	if row := r.row(t, created.Webhook.ID); row.ConsecutiveFailures != 0 || row.CursorSeq != stuck || row.LeaseID.Valid {
+		t.Fatalf("webhook after its stuck event expired %+v", row)
+	}
+	codes := []string{}
+	for _, d := range r.deliveries(t, created.Webhook.ID) {
+		codes = append(codes, d.ErrorCode.String)
+	}
+	if want := []string{errorExpired, errorStatus}; !slices.Equal(codes, want) {
+		t.Fatalf("attempt error codes newest first %v, want %v", codes, want)
+	}
+}
+
+func TestExpiredEventsDoNotUseUpTheSendsOfAClaim(t *testing.T) {
+	r := newRig(t)
+	created := r.create(t, activity.TypeFindingCreated)
+	const stale = maxPerClaim + pageSize
+	for range stale {
+		r.append(t, activity.TypeFindingCreated)
+	}
+	r.db.Exec(t, `UPDATE activity SET created_at = now() - interval '25 hours' WHERE type = $1`, activity.TypeFindingCreated)
+	fresh := r.append(t, activity.TypeFindingCreated)
+
+	r.pass(t)
+
+	if got, want := seqsSent(t, r.sender.all()), []int64{fresh}; !slices.Equal(got, want) {
+		t.Fatalf("sent %v, want the fresh event in the same pass: %v", got, want)
+	}
+	expiredRows := 0
+	for _, d := range r.deliveries(t, created.Webhook.ID) {
+		if d.Outcome == outcomeSkipped && d.ErrorCode.String == errorExpired {
+			expiredRows++
+		}
+	}
+	if expiredRows != stale {
+		t.Fatalf("%d events listed as expired, want %d", expiredRows, stale)
 	}
 }
 

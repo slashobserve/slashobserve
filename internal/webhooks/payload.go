@@ -27,8 +27,12 @@ type envelope struct {
 	Event      *activity.EventJSON `json:"event"`
 }
 
+func deliveryIDOf(webhookID string, e activity.Event) string {
+	return webhookID + "." + strconv.FormatInt(e.Seq, 10)
+}
+
 func eventPayload(webhookID, format string, e activity.Event) (body []byte, deliveryID string, err error) {
-	deliveryID = webhookID + "." + strconv.FormatInt(e.Seq, 10)
+	deliveryID = deliveryIDOf(webhookID, e)
 	event := activity.JSONOf(e)
 	body, err = encode(format, envelope{DeliveryID: deliveryID, WebhookID: webhookID, Type: e.Type, Event: &event}, eventText(event))
 	if err != nil {

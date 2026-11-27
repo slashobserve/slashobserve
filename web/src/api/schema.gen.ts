@@ -8073,10 +8073,10 @@ export interface components {
             /** @enum {string} */
             outcome: "delivered" | "failed" | "skipped";
             /**
-             * @description Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit; `skipped_by_admin` is `skipped`, because an Admin chose to pass the event over.
+             * @description Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit; `skipped_by_admin` is `skipped`, because an Admin chose to pass the event over; `expired` is `skipped`, because the event was more than 24 hours old when its turn came, and nothing was sent.
              * @enum {string|null}
              */
-            error_code: "status" | "unreachable" | "blocked_address" | "domain_not_allowed" | "too_large" | "skipped_by_admin" | null;
+            error_code: "status" | "unreachable" | "blocked_address" | "domain_not_allowed" | "too_large" | "skipped_by_admin" | "expired" | null;
         };
         WebhookSkipResult: {
             webhook: components["schemas"]["Webhook"];

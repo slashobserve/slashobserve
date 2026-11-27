@@ -366,3 +366,50 @@ func TestOnlyAPatchThatRestartsDeliveryTakesTheLeaseFromTheDeliveryInFlight(t *t
 		}
 	}
 }
+
+func TestAnEventExpiresOnceItIsOlderThanADay(t *testing.T) {
+	now := time.Date(2026, 11, 27, 12, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name string
+		age  time.Duration
+		want bool
+	}{
+		{"just happened", 0, false},
+		{"an hour old", time.Hour, false},
+		{"exactly a day old", 24 * time.Hour, false},
+		{"a moment over a day", 24*time.Hour + time.Millisecond, true},
+		{"a week old", 7 * 24 * time.Hour, true},
+	}
+	for _, tc := range cases {
+		if got := expired(activity.Event{CreatedAt: now.Add(-tc.age)}, now); got != tc.want {
+			t.Errorf("%s: expired %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestAnExpiredRunEndsAtTheFirstEventStillToSend(t *testing.T) {
+	now := time.Date(2026, 11, 27, 12, 0, 0, 0, time.UTC)
+	aged := func(hours ...int) []activity.Event {
+		page := make([]activity.Event, 0, len(hours))
+		for _, h := range hours {
+			page = append(page, activity.Event{CreatedAt: now.Add(-time.Duration(h) * time.Hour)})
+		}
+		return page
+	}
+	cases := []struct {
+		name string
+		page []activity.Event
+		want int
+	}{
+		{"an empty page", nil, 0},
+		{"nothing expired", aged(3, 2, 1), 0},
+		{"everything expired", aged(30, 29, 28), 3},
+		{"expired events before fresh ones", aged(30, 26, 2, 1), 2},
+		{"an expired event behind a fresh one waits its turn", aged(2, 30, 1), 0},
+	}
+	for _, tc := range cases {
+		if got := expiredRun(tc.page, now); got != tc.want {
+			t.Errorf("%s: a run of %d, want %d", tc.name, got, tc.want)
+		}
+	}
+}

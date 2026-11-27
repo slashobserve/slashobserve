@@ -323,6 +323,7 @@ Treat unknown fields as allowed, because a later version may add some: the `run.
   When the receiver answers `429` or `503` with a `Retry-After` header, the server waits that long instead, at least 5 seconds and at most 1 hour.
 - **An event expires after 24 hours.**
   An event that is more than 24 hours old when its turn comes is passed over, so a webhook that was down for days does not replay all of it and one bad event cannot hold the webhook forever.
+  Each one is recorded as a `skipped` attempt with the error `expired`, so the attempts list shows what the receiver never got.
 - **Some answers stop the webhook.**
   A `410 Gone` disables it with the reason `gone`, and 50 failed attempts in a row disable it with `failing`.
 
@@ -338,5 +339,5 @@ Read them with `GET /api/v1/webhooks/{id}/deliveries`, `observe webhooks deliver
 | Outcome | `delivered`, `failed` or `skipped`. |
 | Error code | One of the codes below, when there is one. |
 
-The error codes are `status`, `unreachable`, `blocked_address`, `domain_not_allowed`, `too_large` and `skipped_by_admin`.
+The error codes are `status`, `unreachable`, `blocked_address`, `domain_not_allowed`, `too_large`, `skipped_by_admin` and `expired`.
 The server never stores or logs the address's path, a header, the request body or what the receiver answered, only that status and code.
