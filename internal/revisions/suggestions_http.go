@@ -32,6 +32,7 @@ type suggestionJSON struct {
 	BaseVersion  int             `json:"base_version"`
 	Prompt       string          `json:"prompt"`
 	Status       Status          `json:"status"`
+	State        State           `json:"state"`
 	Steps        []Step          `json:"steps"`
 	Panel        json.RawMessage `json:"panel"`
 	Error        *string         `json:"error"`
@@ -145,7 +146,8 @@ func (s *Service) newSuggestionJSON(c *gin.Context, row dbsqlc.AgentRequest) sug
 		PanelID:      row.PanelID.String,
 		BaseVersion:  int(row.BaseVersion.Int32),
 		Prompt:       row.Prompt,
-		Status:       Status(row.Status),
+		Status:       State(row.State).Status(),
+		State:        State(row.State),
 		Steps:        []Step{},
 		FailureCode:  httpapi.OptionalString(row.FailureCode.String),
 		RequestedBy:  authorJSON{Kind: row.RequestedByKind, ID: row.RequestedByID.String(), Name: row.RequestedByName, Email: row.RequestedByEmail.String},
@@ -156,10 +158,10 @@ func (s *Service) newSuggestionJSON(c *gin.Context, row dbsqlc.AgentRequest) sug
 		FinishedAt:   httpapi.FormatOptionalTime(optionalTime(row.FinishedAt)),
 	}
 	out.Usage = s.decodeUsage(c.Request.Context(), out.ID, row.RunUsage)
-	switch out.Status {
-	case StatusSucceeded:
+	switch out.State {
+	case StateSucceeded:
 		out.Panel = row.Suggestion
-	case StatusFailed:
+	case StateFailed, StateCanceled:
 		out.Error = httpapi.OptionalString(row.Error.String)
 	}
 	if err := json.Unmarshal(row.Steps, &out.Steps); err != nil || out.Steps == nil {

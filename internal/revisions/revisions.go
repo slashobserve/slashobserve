@@ -108,7 +108,11 @@ var (
 	ErrDashboardVersionNotFound = errors.New("dashboard version not found")
 )
 
-const CodeChatReadOnly = "chat_read_only"
+const (
+	CodeChatReadOnly    = "chat_read_only"
+	CodeRequestFinished = "request_finished"
+	CodeNotContinuable  = "not_continuable"
+)
 
 type PanelChecker interface {
 	HasPanel(ctx context.Context, dashboardID pgtype.UUID, version int, panelID string) (bool, error)

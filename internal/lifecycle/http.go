@@ -11,17 +11,25 @@ type refusalJSON struct {
 	Code           string   `json:"code"`
 	State          string   `json:"state"`
 	AllowedActions []string `json:"allowed_actions"`
+	Reason         string   `json:"reason,omitempty"`
 }
+
+const CodeInvalidTransition = "invalid_transition"
 
 func AbortRefusal(c *gin.Context, r *Refusal) {
 	allowed := r.Allowed
 	if allowed == nil {
 		allowed = []string{}
 	}
+	code := r.Code
+	if code == "" {
+		code = CodeInvalidTransition
+	}
 	c.AbortWithStatusJSON(http.StatusConflict, refusalJSON{
 		Error:          r.Error(),
-		Code:           "invalid_transition",
+		Code:           code,
 		State:          r.State,
 		AllowedActions: allowed,
+		Reason:         r.Reason,
 	})
 }

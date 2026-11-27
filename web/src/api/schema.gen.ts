@@ -2546,7 +2546,7 @@ export interface paths {
         put?: never;
         /**
          * Cancel a queued or running agent request.
-         * @description Only the principal that made the request may call it; no editor and no administrator may cancel another principal's request. Someone else gets 403 `forbidden` on a revision they can see, and 404 on a new-dashboard request or a suggestion request. A queued request becomes `canceled` at once: `status` `failed` with the failure code `canceled`. A running request with a live worker is `canceling` (`status` stays `running`) until its worker sees the cancel flag, within about 5 seconds plus the time the in-flight model or tool call takes to return; it then ends `canceled`. A running request whose worker is gone, because its lease expired, ends `canceled` at once, and no worker picks a canceling request up again. The build is kept, so the requester can still save it or continue it. A run that saved its version before the cancel took effect ends `succeeded`, because a saved version always wins. Canceling a request that is already canceled answers 200 with the request; any other finished request answers 409 `request_finished`.
+         * @description Only the principal that made the request may call it; no editor and no administrator may cancel another principal's request. Someone else gets 403 `forbidden` on a revision they can see, and 404 on a new-dashboard request or a suggestion request. A queued request becomes `canceled` at once: `status` `failed` with the failure code `canceled`. A running request with a live worker is `canceling` (`status` stays `running`) until its worker sees the cancel flag, within about 5 seconds plus the time the in-flight model or tool call takes to return; it then ends `canceled`. A running request whose worker is gone, because its lease expired, ends `canceled` at once, and no worker picks a canceling request up again. The build is kept, so the requester can still save it or continue it. A run that saved its version before the cancel took effect ends `succeeded`, because a saved version always wins. Canceling a request that is already canceled answers 200 with the request; any other finished request answers 409 `request_finished` with its `state` and the `allowed_actions` the caller has.
          */
         post: operations["cancelObserveRequest"];
         delete?: never;
@@ -2568,7 +2568,7 @@ export interface paths {
         put?: never;
         /**
          * Continue a stopped agent request in a new request that takes over its build.
-         * @description The new request copies the stopped request's intent, dashboard, comment, panel, prompt and base version, records `continues_id`, and takes the build, so the agent continues from the panels already built with its own model-call budget. The stopped request gains `continued_by` and can no longer be saved or continued. A request is continuable when it is `failed`, its build was not saved, it still has its build, and nothing continues it yet; otherwise the call answers 409 `not_continuable`. Continue and `POST /observe/{id}/build/save` on the same request are exclusive: Continue after a save answers 409 `not_continuable`, and a save after Continue answers 404 `not_found` because the build moved to the new request. Only the principal that made the request may call it, with the same access as starting a run; someone else gets 403 `forbidden` on a revision they can see and 404 on a new-dashboard request. The new request keeps the stopped request's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one. A revision whose dashboard has a newer version than the build's base answers 409 `version_conflict` with `latest_version`. The new request counts against the same caps as `POST /observe`, and is assigned to the same agent as the stopped one. The optional `note` is stored on the new request as `continue_note` and given to the agent in every seed of that run, including its restarts. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description The new request copies the stopped request's intent, dashboard, comment, panel, prompt and base version, records `continues_id`, and takes the build, so the agent continues from the panels already built with its own model-call budget. The stopped request gains `continued_by` and can no longer be saved or continued. A request is continuable when it is `failed`, its build was not saved, it still has its build, and nothing continues it yet; otherwise the call answers 409 `not_continuable` with its `state`, the `allowed_actions` the caller has and, when the state alone does not say why, a `reason`: `no_build`, `kept`, `continued`, `retried`, `investigation`, or `lost_race` when another continue, retry or save took the build while the call ran. Continue and `POST /observe/{id}/build/save` on the same request are exclusive: Continue after a save answers 409 `not_continuable`, and a save after Continue answers 404 `not_found` because the build moved to the new request. Only the principal that made the request may call it, with the same access as starting a run; someone else gets 403 `forbidden` on a revision they can see and 404 on a new-dashboard request. The new request keeps the stopped request's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one. A revision whose dashboard has a newer version than the build's base answers 409 `version_conflict` with `latest_version`. The new request counts against the same caps as `POST /observe`, and is assigned to the same agent as the stopped one. The optional `note` is stored on the new request as `continue_note` and given to the agent in every seed of that run, including its restarts. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["continueObserveRequest"];
         delete?: never;
@@ -2590,7 +2590,7 @@ export interface paths {
         put?: never;
         /**
          * Start a finished agent request again as a new request.
-         * @description Anyone who can see the request and may start that kind of request can call it, not only the requester; being someone else is never a reason to refuse, except that a caller who reads the request `redacted` may not start its words again. The new request is the caller's: its `requested_by` is the caller, not the original requester, and it counts against the caller's caps like `POST /observe`. The original request is left as it was. An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version. A comment or suggestion request cannot be retried, and neither can a request that something continues. An ask from an observation thread whose answer was saved as an observation starts again in that thread for a caller who can comment on the thread's observation; anyone else gets a private ask of their own about the saved observation, with no thread and nothing posted in it. A failed or stopped request can be retried once by its requester: the new request is its `retried_by`, and a second call, including one racing the first or a continue, is refused instead of queuing a duplicate. Anyone else's retry is a request of their own and leaves the original retryable. A request that is not finished, one of those, or one the caller reads `redacted`, answers 409 `invalid_transition` with its `state` and the `allowed_actions` the caller has. A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`. A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`. The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing. The new request keeps the original's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one, because only an Admin may set `as_of`. Retrying a request that succeeded queues a new request on every call. Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
+         * @description Anyone who can see the request and may start that kind of request can call it, not only the requester; being someone else is never a reason to refuse, except that a caller who reads the request `redacted` may not start its words again. The new request is the caller's: its `requested_by` is the caller, not the original requester, and it counts against the caller's caps like `POST /observe`. The original request is left as it was. An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version. A comment or suggestion request cannot be retried, and neither can a request that something continues. An ask from an observation thread whose answer was saved as an observation starts again in that thread for a caller who can comment on the thread's observation; anyone else gets a private ask of their own about the saved observation, with no thread and nothing posted in it. A failed or stopped request can be retried once by its requester: the new request is its `retried_by`, and a second call, including one racing the first or a continue, is refused instead of queuing a duplicate. Anyone else's retry is a request of their own and leaves the original retryable. A request that is not finished, one of those, or one the caller reads `redacted`, answers 409 `invalid_transition` with its `state`, the `allowed_actions` the caller has and the `reason` `continued` or `retried` when that is why. A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`. A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`. The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing. The new request keeps the original's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one, because only an Admin may set `as_of`. Retrying a request that succeeded queues a new request on every call. Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
          */
         post: operations["retryObserveRequest"];
         delete?: never;
@@ -6876,8 +6876,16 @@ export interface components {
             /** @description The version the proposal is judged inside. */
             base_version: number;
             prompt: string;
-            /** @enum {string} */
+            /**
+             * @description Computed from `state`; kept for clients that read it.
+             * @enum {string}
+             */
             status: "queued" | "running" | "succeeded" | "failed";
+            /**
+             * @description Where the suggestion is in its life, the same six states every run has. A suggestion cannot be canceled, so it is never `canceling` or `canceled`.
+             * @enum {string}
+             */
+            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
             steps: components["schemas"]["AgentStep"][];
             /** @description The proposed panel, set only when the status is `succeeded`. It is not saved anywhere; the client decides whether to apply it. */
             panel: {
@@ -7136,6 +7144,15 @@ export interface components {
             build_saved_at: string | null;
             /** @description 1-based place among queued requests in claim order, null unless queued. The worker skips a request whose dashboard already has a running revision, so the order can shift. */
             queue_position: number | null;
+            /**
+             * @description What a `running` or `canceling` request has already settled, before its state changes: `saved` (a version), `proposed` (a proposal), `finding` (an answer or finding), `suggested` (a panel suggestion) or `ended` (the agent stopped and the request is about to finish). Null while the agent is still working and for a queued or finished request, whose `result_kind` says what it produced.
+             * @enum {string|null}
+             */
+            settled: "saved" | "proposed" | "finding" | "suggested" | "ended" | null;
+            /** @description How many times the server could not run a check it makes when a worker takes the request (its saved version, its requester, the requester's access). Each failure puts the request back in the queue, so a request that moves between `queued` and `running` with this count rising is waiting on the server, not on the agent. */
+            check_failures: number;
+            /** @description The count of `check_failures` at which the request fails with the failure code `check_failed`; its `error` then names the check that could not run. */
+            check_failures_max: number;
             /**
              * Format: date-time
              * @description When the requester asked to cancel the request; null when they did not. A running request keeps running until its worker sees the flag, then ends `failed` with the `canceled` failure code and keeps its build.
@@ -7439,6 +7456,27 @@ export interface components {
             state: string;
             /** @description The actions the caller may take in that state, as in the object's own `allowed_actions`. */
             allowed_actions: string[];
+        };
+        /** @description The answer to a cancel, continue or retry the request's state or history does not allow. */
+        RunRefusal: {
+            error: string;
+            /**
+             * @description `request_finished` for a cancel, `not_continuable` for a continue and `invalid_transition` for a retry.
+             * @enum {string}
+             */
+            code: "request_finished" | "not_continuable" | "invalid_transition";
+            /**
+             * @description The state the request is in.
+             * @enum {string}
+             */
+            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
+            /** @description The actions the caller may take now, as in the request's own `allowed_actions`. */
+            allowed_actions: string[];
+            /**
+             * @description Why the action is refused when the state alone does not say; absent otherwise. `no_build`: the request left no build. `kept`: its build was saved as a version. `continued`: another request already continues it. `retried`: it was already retried. `investigation`: an investigation has no build to continue. `lost_race`: another continue, retry or save took the build while this call ran.
+             * @enum {string}
+             */
+            reason?: "no_build" | "kept" | "continued" | "retried" | "investigation" | "lost_race";
         };
         AgentRequestEnvelope: {
             request: components["schemas"]["AgentRequest"];
@@ -16205,13 +16243,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request already finished and was not canceled (`request_finished`). */
+            /** @description The request already finished and was not canceled (`request_finished`, with its `state` and the `allowed_actions` the caller has). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["RunRefusal"];
                 };
             };
             500: components["responses"]["Internal"];
@@ -16254,13 +16292,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request cannot be continued: `not_continuable`, `assignee_unavailable` when the agent it was assigned to is a revoked, expired or foreign grant or a service account that no longer takes runs, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. */
+            /** @description The request cannot be continued: `not_continuable` with its `state`, the `allowed_actions` the caller has and a `reason`, `assignee_unavailable` when the agent it was assigned to is a revoked, expired or foreign grant or a service account that no longer takes runs, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"] | components["schemas"]["VersionConflict"];
+                    "application/json": components["schemas"]["RunRefusal"] | components["schemas"]["Error"] | components["schemas"]["VersionConflict"];
                 };
             };
             /** @description Too many agent requests are queued or running (`too_many_requests` for the caller, `agent_busy` for the instance, `too_many_revisions` for the dashboard). */
@@ -16308,13 +16346,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request cannot be retried now (`invalid_transition`), or the agent it was assigned to cannot take it again (`assignee_unavailable`). */
+            /** @description The request cannot be retried now (`invalid_transition`, with a `reason` when it was already continued or retried), or the agent it was assigned to cannot take it again (`assignee_unavailable`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvalidTransition"] | components["schemas"]["Error"];
+                    "application/json": components["schemas"]["RunRefusal"] | components["schemas"]["Error"];
                 };
             };
             /** @description The panel an investigation was about no longer exists (`unknown_panel`). */

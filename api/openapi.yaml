@@ -4808,6 +4808,7 @@ components:
         - base_version
         - prompt
         - status
+        - state
         - steps
         - panel
         - error
@@ -4840,6 +4841,11 @@ components:
         status:
           type: string
           enum: [queued, running, succeeded, failed]
+          description: Computed from `state`; kept for clients that read it.
+        state:
+          type: string
+          enum: [queued, running, canceling, succeeded, failed, canceled]
+          description: "Where the suggestion is in its life, the same six states every run has. A suggestion cannot be canceled, so it is never `canceling` or `canceled`."
         steps:
           type: array
           maxItems: 2000
@@ -5228,6 +5234,9 @@ components:
         - build
         - build_saved_at
         - queue_position
+        - settled
+        - check_failures
+        - check_failures_max
         - cancel_requested_at
         - canceled_by
         - can_cancel
@@ -5372,6 +5381,23 @@ components:
           minimum: 1
           nullable: true
           description: 1-based place among queued requests in claim order, null unless queued. The worker skips a request whose dashboard already has a running revision, so the order can shift.
+        settled:
+          type: string
+          nullable: true
+          enum: [saved, proposed, finding, suggested, ended]
+          description: >-
+            What a `running` or `canceling` request has already settled, before its state changes:
+            `saved` (a version), `proposed` (a proposal), `finding` (an answer or finding), `suggested` (a panel suggestion)
+            or `ended` (the agent stopped and the request is about to finish).
+            Null while the agent is still working and for a queued or finished request, whose `result_kind` says what it produced.
+        check_failures:
+          type: integer
+          minimum: 0
+          description: How many times the server could not run a check it makes when a worker takes the request (its saved version, its requester, the requester's access). Each failure puts the request back in the queue, so a request that moves between `queued` and `running` with this count rising is waiting on the server, not on the agent.
+        check_failures_max:
+          type: integer
+          minimum: 1
+          description: The count of `check_failures` at which the request fails with the failure code `check_failed`; its `error` then names the check that could not run.
         cancel_requested_at:
           type: string
           format: date-time
@@ -5853,6 +5879,36 @@ components:
           items:
             type: string
           description: The actions the caller may take in that state, as in the object's own `allowed_actions`.
+    RunRefusal:
+      type: object
+      additionalProperties: false
+      required: [error, code, state, allowed_actions]
+      description: The answer to a cancel, continue or retry the request's state or history does not allow.
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [request_finished, not_continuable, invalid_transition]
+          description: "`request_finished` for a cancel, `not_continuable` for a continue and `invalid_transition` for a retry."
+        state:
+          type: string
+          enum: [queued, running, canceling, succeeded, failed, canceled]
+          description: The state the request is in.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+          description: The actions the caller may take now, as in the request's own `allowed_actions`.
+        reason:
+          type: string
+          enum: [no_build, kept, continued, retried, investigation, lost_race]
+          description: >-
+            Why the action is refused when the state alone does not say; absent otherwise.
+            `no_build`: the request left no build. `kept`: its build was saved as a version.
+            `continued`: another request already continues it. `retried`: it was already retried.
+            `investigation`: an investigation has no build to continue.
+            `lost_race`: another continue, retry or save took the build while this call ran.
     AgentRequestEnvelope:
       type: object
       additionalProperties: false

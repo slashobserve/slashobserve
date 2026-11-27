@@ -15,7 +15,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
-	"github.com/slashobserve/slashobserve/internal/lifecycle"
 )
 
 const (
@@ -170,9 +169,29 @@ func (s *Service) continueBlocker(ctx context.Context, row dbsqlc.AgentRequest, 
 		return err
 	}
 	if !slices.Contains(allowedActions(factsOf(row, states[row.ID], by, false, true)), ActionContinue) {
-		return ErrNotContinuable
+		return s.refusal(ctx, row, states[row.ID], by, ActionContinue, "")
 	}
 	return nil
+}
+
+func (s *Service) refusal(ctx context.Context, row dbsqlc.AgentRequest, build buildState, by auth.Principal, a Action, reason string) error {
+	facts, err := s.factsFor(ctx, row, build, by)
+	if err != nil {
+		return err
+	}
+	return refusalOf(facts, a, reason)
+}
+
+func (s *Service) refusalNow(ctx context.Context, id pgtype.UUID, by auth.Principal, a Action, reason string) error {
+	row, err := s.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	states, err := s.buildStates(ctx, []pgtype.UUID{id})
+	if err != nil {
+		return err
+	}
+	return s.refusal(ctx, row, states[id], by, a, reason)
 }
 
 func (s *Service) requesterRow(ctx context.Context, id pgtype.UUID, by auth.Principal) (dbsqlc.AgentRequest, error) {
@@ -202,7 +221,7 @@ func (s *Service) Cancel(ctx context.Context, id pgtype.UUID, by auth.Principal)
 		return dbsqlc.AgentRequest{}, err
 	}
 	if !slices.Contains(allowedActions(factsOf(row, buildState{}, by, false, true)), ActionCancel) {
-		return canceledOrFinished(row)
+		return s.canceledOrRefused(ctx, row, by)
 	}
 	requesterID, err := db.ParseUUID(by.ID)
 	if err != nil {
@@ -235,8 +254,19 @@ func (s *Service) Cancel(ctx context.Context, id pgtype.UUID, by auth.Principal)
 		}
 		return s.recordEnded(ctx, q, savepoint, updated.AgentRequest, ActionCancel)
 	})
+	if errors.Is(err, ErrRequestFinished) {
+		return dbsqlc.AgentRequest{}, s.refusalNow(ctx, row.ID, by, ActionCancel, "")
+	}
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
+	}
+	return out, nil
+}
+
+func (s *Service) canceledOrRefused(ctx context.Context, row dbsqlc.AgentRequest, by auth.Principal) (dbsqlc.AgentRequest, error) {
+	out, err := canceledOrFinished(row)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, s.refusalNow(ctx, row.ID, by, ActionCancel, "")
 	}
 	return out, nil
 }
@@ -305,8 +335,11 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 		}
 		return notifyRevision(ctx, q, row)
 	})
+	if err = continueFailure(err); errors.Is(err, ErrNotContinuable) {
+		return dbsqlc.AgentRequest{}, s.refusalNow(ctx, row.ID, by, ActionContinue, ReasonLostRace)
+	}
 	if err != nil {
-		return dbsqlc.AgentRequest{}, continueFailure(err)
+		return dbsqlc.AgentRequest{}, err
 	}
 	return next, nil
 }
@@ -314,6 +347,8 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 func continueFailure(err error) error {
 	var pgErr *pgconn.PgError
 	switch {
+	case err == nil:
+		return nil
 	case errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && (pgErr.ConstraintName == continuesKeyIndex || pgErr.ConstraintName == successorKeyIndex):
 		return ErrNotContinuable
 	case db.IsForeignKeyViolation(err):
@@ -343,7 +378,7 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 	}
 	build := states[row.ID]
 	if !slices.Contains(allowedActions(factsOf(row, build, by, s.viewOf(ctx, row, by) == viewFull, true)), ActionRetry) {
-		return dbsqlc.AgentRequest{}, s.retryRefusal(ctx, row, build, by)
+		return dbsqlc.AgentRequest{}, s.refusal(ctx, row, build, by, ActionRetry, "")
 	}
 	if err := checkAssignee(ctx, s.db.Queries(), assignee, by); err != nil {
 		return dbsqlc.AgentRequest{}, err
@@ -355,7 +390,7 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 	next, err := s.resubmit(ctx, row, by, assignee, retries)
 	if isRetriesConflict(err) {
 		build.retriedBy = new(string)
-		return dbsqlc.AgentRequest{}, s.retryRefusal(ctx, row, build, by)
+		return dbsqlc.AgentRequest{}, s.refusal(ctx, row, build, by, ActionRetry, "")
 	}
 	return next, err
 }
@@ -363,19 +398,6 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 func isRetriesConflict(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == successorKeyIndex
-}
-
-func (s *Service) retryRefusal(ctx context.Context, row dbsqlc.AgentRequest, build buildState, by auth.Principal) error {
-	facts, err := s.factsFor(ctx, row, build, by)
-	if err != nil {
-		return err
-	}
-	return &lifecycle.Refusal{
-		Machine: RunMachine.Name,
-		State:   row.State,
-		Action:  string(ActionRetry),
-		Allowed: actionStrings(allowedActions(facts)),
-	}
 }
 
 func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth.Principal, assignee Assignee, retries pgtype.UUID) (dbsqlc.AgentRequest, error) {

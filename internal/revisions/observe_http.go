@@ -134,6 +134,10 @@ type agentRequestJSON struct {
 	BlockID       *string         `json:"block_id"`
 	Finding       json.RawMessage `json:"finding"`
 
+	Settled          *string `json:"settled"`
+	CheckFailures    int     `json:"check_failures"`
+	CheckFailuresMax int     `json:"check_failures_max"`
+
 	ObservationRename SharedTitle `json:"observation_rename,omitempty"`
 	Replayed          bool        `json:"replayed,omitempty"`
 }

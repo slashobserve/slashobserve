@@ -449,6 +449,8 @@ Every result of a run session carries `_meta["slashobserve.com/run"]` with `{"se
 - `null` otherwise.
 
 `build` is the saved panel progress, `{"saves", "panels", "planned_panels"}`, or `null` when the run has no build.
+`get_run` and `GET /api/v1/observe/{id}` return the same `settled` value for a running run (never `restarted`, which describes one call), so a reader can tell a run that already has its result from one still working.
+They also return `check_failures` and `check_failures_max`: a run going back to the queue with that count rising is waiting on a server check, and it fails with `check_failed` at the limit.
 Some results also carry a note after the content, which an agent reads like any other tool text.
 
 ### Briefs, usage and live text
