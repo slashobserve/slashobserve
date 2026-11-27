@@ -86,8 +86,7 @@ it("stops reconnecting when the server says the caller lost access, and catches 
   try {
     const onGap = vi.fn()
     const { rerender } = renderHook(
-      ({ enabled }) =>
-        useActivityStream({ enabled, onEvent: vi.fn(), onGap }),
+      ({ enabled }) => useActivityStream({ enabled, onEvent: vi.fn(), onGap }),
       { initialProps: { enabled: true } }
     )
     const source = openSources()[0]
