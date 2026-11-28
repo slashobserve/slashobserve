@@ -327,7 +327,7 @@ A gate fails the run when any of these happens:
 | --- | --- | --- |
 | `changes` | Always. | `scripts/ci-changes.sh`, which decides which of the other jobs run. |
 | `go-lint` | A file outside `web/` and `harness/` changed. | `make lint-go lint-deploy tidy-check`: golangci-lint, `sqlc diff`, the docs lint, the Helm chart checks and the tidy check. |
-| `go-test` | A file outside `web/` and `harness/` changed. | `make test-go` in eight shards: `grafana`, `db`, `datasource`, `agent` and `rest-1` to `rest-4`, split by `scripts/go-test-shard.sh`, which deals the packages outside the four named shards to the four rest shards by their measured test seconds. Each shard saves its own Go build cache. |
+| `go-test` | A file outside `web/` and `harness/` changed. | `make test-go` in eight shards: `grafana`, `db`, `datasource`, `agent` and `rest-1` to `rest-4`, split by `scripts/go-test-shard.sh`, which deals the packages outside the four named shards to the four rest shards by their measured test seconds. A pull request runs without the race detector; the merge queue, `main` and manual runs keep it. Each shard saves its own Go build cache. |
 | `web-lint` | A file other than Go or prose changed. | `make lint-web lint-harness test-harness test-scripts test-benchmarks`. |
 | `web-test` | A file other than Go or prose changed. | The web Vitest suite in two shards. |
 | `build` | Non-prose files changed. | `make build`, then `make generate`, which must leave every file unchanged. |

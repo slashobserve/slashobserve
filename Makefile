@@ -9,7 +9,8 @@ GO_LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)
 
 SQLC := go tool -modfile=tools/sqlc/go.mod sqlc
 GOLANGCI_LINT := go tool -modfile=tools/golangci-lint/go.mod golangci-lint
-GO_TEST_FLAGS := -race -timeout 20m $(if $(COVER),-coverprofile=coverage.out -covermode=atomic)
+GO_TEST_RACE ?= -race
+GO_TEST_FLAGS := $(GO_TEST_RACE) -timeout 20m $(if $(COVER),-coverprofile=coverage.out -covermode=atomic)
 GO_TEST_PKGS ?= ./...
 WEB_TEST_FLAGS := $(if $(COVER),--coverage)
 # zod 3 under the shadcn CLI, a dev-only tool that pins zod ^3 and ships in no build

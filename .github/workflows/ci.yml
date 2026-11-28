@@ -109,12 +109,14 @@ jobs:
       - name: Set up Go
         uses: ./.github/actions/setup-go
         with:
-          cache-name: race
+          cache-name: ${{ github.event_name == 'pull_request' && 'test' || 'race' }}
           shard: ${{ matrix.shard }}
 
+      # The race detector doubles compile and test time, so a pull request runs without it and the merge queue, main and the nightly run with it.
       - name: Go tests
         env:
           SHARD: ${{ matrix.shard }}
+          GO_TEST_RACE: ${{ github.event_name == 'pull_request' && ' ' || '-race' }}
         run: |
           packages="$(scripts/go-test-shard.sh "$SHARD")"
           [[ -n "${packages// /}" ]] || { echo "shard $SHARD has no packages" >&2; exit 1; }
