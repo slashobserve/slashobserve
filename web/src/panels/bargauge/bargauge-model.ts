@@ -32,7 +32,7 @@ export type Bar = {
   frame: PreparedFrame
   field: PreparedField
   config: FieldConfig
-  row?: number
+  row?: number | undefined
 }
 
 export type BargaugeModel = { bars: Bar[] }
@@ -40,12 +40,15 @@ export type BargaugeModel = { bars: Bar[] }
 export type NamePlacement = "above" | "below" | "left" | "hidden"
 
 export type BarLimits = {
-  minWidth?: number
-  minHeight?: number
-  maxHeight?: number
+  minWidth?: number | undefined
+  minHeight?: number | undefined
+  maxHeight?: number | undefined
 }
 
-export type BarSizes = { titleSize?: number; valueSize?: number }
+export type BarSizes = {
+  titleSize?: number | undefined
+  valueSize?: number | undefined
+}
 
 export type BarStyle = "basic" | "lcd"
 
@@ -136,11 +139,7 @@ export function bargaugeModel(
   )
   const shared = dataRange(new Set(entries.map((entry) => entry.field)))
   const decimals = decimalsByUnit(
-    entries.map(({ config, value }) => ({
-      unit: config.unit,
-      decimals: config.decimals,
-      value,
-    }))
+    entries.map(({ config, value }) => ({ ...config, value }))
   )
   const bars = entries.map(
     ({ key, label, frame, field, config, value, raw, row }): Bar => {
@@ -149,8 +148,9 @@ export function bargaugeModel(
         config.fieldMinMax ? fieldRange(field) : shared
       )
       const { min, max } = range
+      const common = decimals.get(config.unit)
       const shown = displayValue(raw, config, {
-        decimals: decimals.get(config.unit),
+        ...(common === undefined ? {} : { decimals: common }),
         fieldMin: min,
         fieldMax: max,
       })
@@ -181,7 +181,7 @@ function lastPresent(values: readonly unknown[]): unknown {
   return values.findLast((value) => value !== null && value !== undefined)
 }
 
-function rowOf(bar: Bar, reducer: Reducer): LinkScope["row"] {
+function rowOf(bar: Bar, reducer: Reducer): NonNullable<LinkScope["row"]> {
   const { frame } = bar
   if (bar.row !== undefined) return { frame, index: bar.row }
   const fields = frame.fields.map((field) => ({
@@ -205,13 +205,15 @@ export function barScope(
   reducer: Reducer,
   scope: LinkScope
 ): LinkScope {
-  return {
+  const out: LinkScope = {
     ...scope,
     row: rowOf(bar, reducer),
-    labels: bar.frame.labels,
     seriesName: fields.seriesName(bar.frame, bar.field),
     fieldName: bar.field.name,
     value: bar.value,
     valueText: bar.text,
   }
+  if (bar.frame.labels === undefined) delete out.labels
+  else out.labels = bar.frame.labels
+  return out
 }
