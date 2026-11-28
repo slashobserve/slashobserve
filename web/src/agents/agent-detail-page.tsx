@@ -59,7 +59,7 @@ function Stat({
   children,
 }: {
   label: string
-  note?: string
+  note?: string | undefined
   children: ReactNode
 }) {
   return (

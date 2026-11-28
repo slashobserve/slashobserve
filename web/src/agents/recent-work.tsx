@@ -50,7 +50,14 @@ function runsQuery(agentRef: AgentRef) {
     }) =>
       api
         .GET("/agents/runs", {
-          params: { query: { kind, id, limit: pageSize, cursor: pageParam } },
+          params: {
+            query: {
+              kind,
+              ...(id === undefined ? {} : { id }),
+              limit: pageSize,
+              ...(pageParam === undefined ? {} : { cursor: pageParam }),
+            },
+          },
           signal,
         })
         .then(unwrap),

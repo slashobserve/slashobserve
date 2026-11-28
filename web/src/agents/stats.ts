@@ -38,7 +38,11 @@ function unpricedNote(runs: number): string | undefined {
   return `${runs} ${runs === 1 ? "run" : "runs"} without usage`
 }
 
-export type StatCell = { label: string; value: string; note?: string }
+export type StatCell = {
+  label: string
+  value: string
+  note?: string | undefined
+}
 
 export function statCells(stats: Stats | null): StatCell[] {
   if (stats === null) return []

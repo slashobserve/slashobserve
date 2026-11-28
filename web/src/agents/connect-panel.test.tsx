@@ -9,6 +9,7 @@ import { renderWithProviders } from "@/test/render"
 
 import { ConnectPanel } from "./connect-panel"
 import type { AgentsOverview } from "./queries"
+import { must } from "@/test/must"
 
 function overview(grantIds: string[]): AgentsOverview {
   return {
@@ -66,7 +67,7 @@ function serve(answers: string[][]) {
       if (pathname === "/api/v1/agents") {
         const index = Math.min(reads, answers.length - 1)
         reads += 1
-        return json(overview(answers[index]))
+        return json(overview(must(answers[index])))
       }
       return json({})
     })
