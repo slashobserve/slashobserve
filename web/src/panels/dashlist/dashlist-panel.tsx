@@ -32,8 +32,8 @@ const DashlistPanel: StaticPanelRenderer = ({ panel, vars, from, to }) => {
         .GET("/dashboards", {
           params: {
             query: {
-              q: query === "" ? undefined : query,
-              tag: tags.length === 0 ? undefined : tags,
+              ...(query === "" ? {} : { q: query }),
+              ...(tags.length === 0 ? {} : { tag: tags }),
               limit,
             },
           },
