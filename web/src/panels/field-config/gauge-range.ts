@@ -40,5 +40,8 @@ export function dataRange(fields: Iterable<WireField>): {
       max = range.max
     }
   }
-  return { min, max }
+  return {
+    ...(min === undefined ? {} : { min }),
+    ...(max === undefined ? {} : { max }),
+  }
 }

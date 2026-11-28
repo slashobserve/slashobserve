@@ -71,29 +71,32 @@ export function matchSpecial(
   )
 }
 
+function hit(mapping: Mapping, text: string | undefined): MappingHit {
+  return text === undefined ? { mapping } : { mapping, text }
+}
+
 export function matchMapping(
   mappings: readonly Mapping[],
   value: unknown
 ): MappingHit | null {
   for (const mapping of mappings) {
     if ("value" in mapping) {
-      if (matchesValue(mapping, value)) return { mapping, text: mapping.text }
+      if (matchesValue(mapping, value)) return hit(mapping, mapping.text)
     } else if ("range" in mapping) {
-      if (matchesRange(mapping, value)) return { mapping, text: mapping.text }
+      if (matchesRange(mapping, value)) return hit(mapping, mapping.text)
     } else if ("regex" in mapping) {
       const pattern = patternOf(mapping)
       const source = String(value)
       if (pattern && pattern.test(source)) {
-        return {
+        return hit(
           mapping,
-          text:
-            mapping.text === undefined
-              ? undefined
-              : source.replace(pattern, mapping.text),
-        }
+          mapping.text === undefined
+            ? undefined
+            : source.replace(pattern, mapping.text)
+        )
       }
     } else if (mapping.special === specialKindOf(value)) {
-      return { mapping, text: mapping.text }
+      return hit(mapping, mapping.text)
     }
   }
   return null

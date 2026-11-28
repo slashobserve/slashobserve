@@ -32,6 +32,7 @@ export function selectedValues(
 ): string[] | null {
   if (!Object.hasOwn(vars, name)) return null
   const values = vars[name]
+  if (values === undefined) return null
   return values.includes(ALL) ? [allLabel] : values
 }
 

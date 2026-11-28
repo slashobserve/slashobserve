@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { WireFrame } from "@/dashboards/queries"
 import type { DashboardLink, DataPanel, Link } from "@/spec"
+import { defined } from "@/panels/must"
 
 import {
   appendLinkParams,
@@ -472,6 +473,7 @@ describe("dashboardLinks", () => {
       now,
       {}
     )
+    defined(withTip)
     expect(withTip.tooltip).toBe("Open the runbook")
     expect(plain).not.toHaveProperty("tooltip")
   })
@@ -483,6 +485,7 @@ describe("dashboardLinks", () => {
       now,
       {}
     )
+    defined(link)
     expect(link.href).toBe(
       `/d?from=${Date.parse("2026-10-21T00:00:00Z")}&to=${Date.parse("2026-10-21T23:59:59.999Z")}`
     )
@@ -495,6 +498,7 @@ describe("dashboardLinks", () => {
       now,
       { zone: "Asia/Kolkata" }
     )
+    defined(link)
     expect(link.href).toBe(
       `/d?from=${Date.parse("2026-10-20T18:30:00Z")}&to=${Date.parse("2026-10-21T18:29:59.999Z")}`
     )
@@ -507,6 +511,7 @@ describe("dashboardLinks", () => {
       now,
       {}
     )
+    defined(link)
     expect(link.href).toBe(
       `/d?from=1700000000000&to=${Date.parse("2026-01-02T01:04:05Z")}`
     )
