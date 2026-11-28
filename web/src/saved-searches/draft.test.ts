@@ -14,6 +14,7 @@ import {
   tracesDraft,
   type SearchDraft,
 } from "./draft"
+import { must } from "@/test/must"
 
 const range = { from: "now-6h", to: "now" }
 
@@ -28,15 +29,17 @@ function folder(id: string, extra: Partial<Folder> = {}, create = true) {
   } as Folder
 }
 
-const pills = encodePills(
-  addPill([], {
-    kind: "is",
-    field: "service",
-    value: "checkout",
-    negate: false,
-    pinned: false,
-    paused: false,
-  })
+const pills = must(
+  encodePills(
+    addPill([], {
+      kind: "is",
+      field: "service",
+      value: "checkout",
+      negate: false,
+      pinned: false,
+      paused: false,
+    })
+  )
 )
 
 describe("defaultTitle", () => {
@@ -271,9 +274,9 @@ describe("matchesSaved", () => {
   })
 
   it("treats no columns the same whether the filters are missing or empty", () => {
-    expect(
-      matchesSaved({ ...draft, filters: undefined }, { ...saved, filters: {} })
-    ).toBe(true)
+    const bare = { ...draft }
+    delete bare.filters
+    expect(matchesSaved(bare, { ...saved, filters: {} })).toBe(true)
   })
 
   it.each([

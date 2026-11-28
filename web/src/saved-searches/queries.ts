@@ -23,8 +23,10 @@ export function savedSearchesQuery(params: SavedSearchListParams) {
         .GET("/saved-searches", {
           params: {
             query: {
-              kind: params.kind,
-              folder_id: params.folderId,
+              ...(params.kind === undefined ? {} : { kind: params.kind }),
+              ...(params.folderId === undefined
+                ? {}
+                : { folder_id: params.folderId }),
               limit: savedSearchesPage,
             },
           },

@@ -6,6 +6,7 @@ import { renderWithProviders } from "@/test/render"
 
 import type { SavedSearch } from "./queries"
 import { SavedSearchRowMenu } from "./saved-search-row-menu"
+import { must } from "@/test/must"
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
 
@@ -115,14 +116,16 @@ afterEach(() => {
 describe("SavedSearchRowMenu", () => {
   it("is absent without Edit", () => {
     stubServer()
-    renderWithProviders(<SavedSearchRowMenu saved={saved(folders[1], false)} />)
+    renderWithProviders(
+      <SavedSearchRowMenu saved={saved(must(folders[1]), false)} />
+    )
     expect(screen.queryByRole("button", { name: /^More for/ })).toBeNull()
   })
 
   it("renames through a dialog", async () => {
     const sent = stubServer()
     const { user } = renderWithProviders(
-      <SavedSearchRowMenu saved={saved(folders[1])} />
+      <SavedSearchRowMenu saved={saved(must(folders[1]))} />
     )
     await user.click(
       screen.getByRole("button", { name: "More for Checkout errors" })
@@ -148,7 +151,7 @@ describe("SavedSearchRowMenu", () => {
   it("moves to a shared folder the caller can edit, never into My Dashboards", async () => {
     const sent = stubServer()
     const { user } = renderWithProviders(
-      <SavedSearchRowMenu saved={saved(folders[0])} />
+      <SavedSearchRowMenu saved={saved(must(folders[0]))} />
     )
     await user.click(
       screen.getByRole("button", { name: "More for Checkout errors" })
@@ -170,7 +173,7 @@ describe("SavedSearchRowMenu", () => {
   it("shows the server's message when a move is refused", async () => {
     stubServer(true)
     const { user } = renderWithProviders(
-      <SavedSearchRowMenu saved={saved(folders[0])} />
+      <SavedSearchRowMenu saved={saved(must(folders[0]))} />
     )
     await user.click(
       screen.getByRole("button", { name: "More for Checkout errors" })
@@ -186,7 +189,7 @@ describe("SavedSearchRowMenu", () => {
   it("deletes only after a confirmation", async () => {
     const sent = stubServer()
     const { user } = renderWithProviders(
-      <SavedSearchRowMenu saved={saved(folders[1])} />
+      <SavedSearchRowMenu saved={saved(must(folders[1]))} />
     )
     await user.click(
       screen.getByRole("button", { name: "More for Checkout errors" })

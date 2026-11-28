@@ -18,8 +18,8 @@ export function savedSearchLocation(
   if (saved.kind === "logs") {
     const columns = filters.columns ?? []
     return logsLink(uid, {
-      q: query,
-      cols: columns.length === 0 ? undefined : columns.join(","),
+      ...(query === undefined ? {} : { q: query }),
+      ...(columns.length === 0 ? {} : { cols: columns.join(",") }),
       from,
       to,
       saved: saved.id,
@@ -35,12 +35,12 @@ export function savedSearchLocation(
     })
   }
   return tracesLink(uid, {
-    service: filters.service,
-    span: filters.span,
-    min: filters.min,
-    max: filters.max,
-    errors: filters.errors === true ? "1" : undefined,
-    q: query,
+    ...(filters.service === undefined ? {} : { service: filters.service }),
+    ...(filters.span === undefined ? {} : { span: filters.span }),
+    ...(filters.min === undefined ? {} : { min: filters.min }),
+    ...(filters.max === undefined ? {} : { max: filters.max }),
+    ...(filters.errors === true ? { errors: "1" } : {}),
+    ...(query === undefined ? {} : { q: query }),
     from,
     to,
     saved: saved.id,

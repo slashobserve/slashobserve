@@ -153,13 +153,10 @@ describe("OpenSavedSearch", () => {
         return Response.json({ ...logsSaved, query: "level:warn" })
       })
     )
+    const draft = { ...logsDraft, query: "level:warn", from: "now-1h" }
+    delete draft.filters
     const { user } = setup({
-      draft: {
-        ...logsDraft,
-        query: "level:warn",
-        filters: undefined,
-        from: "now-1h",
-      },
+      draft,
     })
     await user.click(updateButton()!)
     await waitFor(() =>
@@ -204,10 +201,9 @@ describe("OpenSavedSearch", () => {
   it("offers Update on a metrics search when its mode changed", () => {
     setup({ stored: metricsSaved, draft: metricsDraft })
     expect(updateButton()).toBeNull()
-    setup({
-      stored: metricsSaved,
-      draft: { ...metricsDraft, filters: undefined },
-    })
+    const draft = { ...metricsDraft }
+    delete draft.filters
+    setup({ stored: metricsSaved, draft })
     expect(updateButton()).toBeVisible()
   })
 
