@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 type FilterToolbarProps = {
   children: ReactNode
   summary?: ReactNode
-  onClear?: () => void
+  onClear?: (() => void) | undefined
   label: string
 }
 

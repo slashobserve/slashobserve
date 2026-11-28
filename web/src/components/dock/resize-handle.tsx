@@ -28,7 +28,7 @@ type Props = {
   side?: HandleSide
   label?: string
   fitViewport?: boolean
-  className?: string
+  className?: string | undefined
 }
 
 export function ResizeHandle({

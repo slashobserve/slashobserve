@@ -5,7 +5,7 @@ export type StatusTone = "ok" | "warning" | "critical" | "running" | "none"
 type Props = {
   tone: StatusTone
   children: ReactNode
-  title?: string
+  title?: string | undefined
 }
 
 const iconProps = {

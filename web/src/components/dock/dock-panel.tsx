@@ -26,7 +26,7 @@ type Props = {
   bounds: WidthBounds
   onWidthChange: (width: number) => void
   stacked: DockStacking
-  hidden?: boolean
+  hidden?: boolean | undefined
   isInbox?: boolean
   onKeyDown?: (event: KeyboardEvent<HTMLElement>) => void
   ref?: Ref<HTMLElement>

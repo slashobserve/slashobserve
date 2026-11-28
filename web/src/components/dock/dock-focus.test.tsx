@@ -17,7 +17,7 @@ function Pane({
   active,
 }: {
   onClose: () => void
-  holdClose?: () => boolean
+  holdClose?: (() => boolean) | undefined
   modeKey?: string
   active?: boolean
 }) {
@@ -47,7 +47,7 @@ function Page({
   holdClose,
 }: {
   startOpen?: boolean
-  holdClose?: () => boolean
+  holdClose?: (() => boolean) | undefined
 }) {
   const [open, setOpen] = useState(startOpen)
   const [mode, setMode] = useState("a")

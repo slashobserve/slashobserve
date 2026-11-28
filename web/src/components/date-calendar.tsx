@@ -80,7 +80,7 @@ export function DateCalendar({ initial, selection, onPick }: Props) {
         </thead>
         <tbody>
           {monthWeeks(shown.year, shown.month).map((week) => (
-            <tr key={dayText(week[0])}>
+            <tr key={week[0] === undefined ? undefined : dayText(week[0])}>
               {week.map((day) => {
                 const text = dayText(day)
                 const endpoint =

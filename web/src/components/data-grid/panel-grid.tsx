@@ -143,13 +143,15 @@ function isDetail<T>({ rowNode }: IsFullWidthRowParams<Item<T>>): boolean {
   return data !== undefined && !isFooter(data) && data.detail
 }
 
-function cellStyleOf<T>(
+function cellStyleProp<T>(
   column: PanelGridColumn<T>
-): ColDef<Item<T>>["cellStyle"] {
+): Pick<ColDef<Item<T>>, "cellStyle"> {
   const style = column.cellStyle
-  if (style === undefined) return undefined
-  return ({ data }) =>
-    data === undefined || isFooter(data) ? undefined : style(data.row)
+  if (style === undefined) return {}
+  return {
+    cellStyle: ({ data }) =>
+      data === undefined || isFooter(data) ? undefined : style(data.row),
+  }
 }
 
 function fitColumnsToContent(api: GridApi, available: number) {
@@ -231,15 +233,21 @@ export function PanelGrid<T>({
         pinned: column.pinned ? "left" : null,
         cellRenderer: PanelCell,
         cellRendererParams: { spec: column },
-        cellStyle: cellStyleOf(column),
+        ...cellStyleProp(column),
         headerComponent: PanelHeader,
         headerComponentParams: { spec: column },
-        width: column.width,
-        minWidth: column.minWidth,
-        flex: column.width === undefined && !sizeToContent ? 1 : undefined,
-        autoHeight: column.autoHeight,
-        wrapHeaderText: column.wrapHeader,
-        autoHeaderHeight: column.wrapHeader,
+        ...(column.width === undefined ? {} : { width: column.width }),
+        ...(column.minWidth === undefined ? {} : { minWidth: column.minWidth }),
+        ...(column.width === undefined && !sizeToContent ? { flex: 1 } : {}),
+        ...(column.autoHeight === undefined
+          ? {}
+          : { autoHeight: column.autoHeight }),
+        ...(column.wrapHeader === undefined
+          ? {}
+          : {
+              wrapHeaderText: column.wrapHeader,
+              autoHeaderHeight: column.wrapHeader,
+            }),
         suppressKeyboardEvent: keepKeysOnFocusedControl,
         suppressHeaderKeyboardEvent: ({ event }) => tabStaysInHeader(event),
       })),

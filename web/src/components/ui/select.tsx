@@ -32,8 +32,8 @@ function SelectTrigger({
   icon,
   ...props
 }: SelectPrimitive.Trigger.Props & {
-  size?: "sm" | "default"
-  icon?: React.ReactElement
+  size?: "sm" | "default" | undefined
+  icon?: React.ReactElement | undefined
 }) {
   return (
     <SelectPrimitive.Trigger

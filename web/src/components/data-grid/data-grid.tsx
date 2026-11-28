@@ -73,7 +73,7 @@ export type DataGridColumn<T> = {
   cell: (row: T) => ReactNode
   align?: "left" | "right"
   width?: number
-  minWidth?: number
+  minWidth?: number | undefined
   flex?: number
   sortable?: boolean
   autoHeight?: boolean
@@ -385,10 +385,15 @@ export function DataGrid<T>({
         ...(narrow
           ? { flex: 1, minWidth: 1 }
           : {
-              width: column.width,
-              minWidth: column.minWidth,
-              flex: column.width === undefined ? (column.flex ?? 1) : undefined,
-              autoHeight: column.autoHeight,
+              ...(column.width === undefined
+                ? { flex: column.flex ?? 1 }
+                : { width: column.width }),
+              ...(column.minWidth === undefined
+                ? {}
+                : { minWidth: column.minWidth }),
+              ...(column.autoHeight === undefined
+                ? {}
+                : { autoHeight: column.autoHeight }),
             }),
       })),
     [columns, narrow, sorts, sortKey, sortDirection]
@@ -576,9 +581,9 @@ export function DataGrid<T>({
             suppressMovableColumns
             tabToNextCell={leaveGridOnTab}
             focusGridInnerElement={focusEntryCell}
-            isFullWidthRow={isFullWidthRow}
+            {...(isFullWidthRow === undefined ? {} : { isFullWidthRow })}
             fullWidthCellRenderer={FullWidthRow}
-            getRowHeight={getRowHeight}
+            {...(getRowHeight === undefined ? {} : { getRowHeight })}
             rowClassRules={rowClassRules}
             processRowPostCreate={processRowPostCreate}
             onCellMouseOver={onCellMouseOver}
