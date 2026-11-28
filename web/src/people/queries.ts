@@ -30,7 +30,12 @@ async function fetchAllUsers(signal: AbortSignal): Promise<User[]> {
     (cursor) =>
       api
         .GET("/users", {
-          params: { query: { limit: pageSize, cursor } },
+          params: {
+            query: {
+              limit: pageSize,
+              ...(cursor === undefined ? {} : { cursor }),
+            },
+          },
           signal,
         })
         .then(unwrap)

@@ -23,7 +23,12 @@ function fetchAllInvites(signal: AbortSignal): Promise<Invite[]> {
     (cursor) =>
       api
         .GET("/invites", {
-          params: { query: { limit: pageSize, cursor } },
+          params: {
+            query: {
+              limit: pageSize,
+              ...(cursor === undefined ? {} : { cursor }),
+            },
+          },
           signal,
         })
         .then(unwrap)
