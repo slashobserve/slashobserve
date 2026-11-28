@@ -59,8 +59,8 @@ export function useDashboardSearch(search: HomeSearch, enabled: boolean) {
         .GET("/dashboards", {
           params: {
             query: {
-              q: search.q,
-              tag: search.tag.length > 0 ? search.tag : undefined,
+              ...(search.q === undefined ? {} : { q: search.q }),
+              ...(search.tag.length > 0 ? { tag: search.tag } : {}),
               limit: searchLimit,
             },
           },

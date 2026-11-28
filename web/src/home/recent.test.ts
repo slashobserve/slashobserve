@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest"
 
 import { parseRecent, readRecent, recentLimit, recordRecent } from "./recent"
+import { must } from "@/test/must"
 
 const principal = vi.hoisted(() => ({ id: "u1" as string | undefined }))
 vi.mock("@/lib/auth", () => ({ signedInPrincipalId: () => principal.id }))
@@ -39,7 +40,7 @@ describe("recordRecent", () => {
     const list = Array.from({ length: recentLimit }, (_, i) => entry(`d${i}`))
     const next = recordRecent(list, { id: "new", title: "New" }, now)
     expect(next).toHaveLength(20)
-    expect(next[0].id).toBe("new")
+    expect(must(next[0]).id).toBe("new")
     expect(next.at(-1)?.id).toBe("d18")
   })
 
