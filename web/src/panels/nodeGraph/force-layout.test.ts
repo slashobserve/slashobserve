@@ -3,6 +3,11 @@ import { describe, expect, it } from "vitest"
 import { forceLayout } from "./force-layout"
 import type { Layout, LayoutEdge, LayoutNode } from "./layout"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 const area = { width: 800, height: 480, seed: 7 }
 
 function nodes(...ids: string[]): LayoutNode[] {
@@ -28,7 +33,10 @@ function everyPointIsFinite(layout: Layout): boolean {
 
 function ring(count: number): [LayoutNode[], LayoutEdge[]] {
   const ids = Array.from({ length: count }, (_, at) => `n${at}`)
-  return [nodes(...ids), ids.map((id, at) => edge(id, ids[(at + 1) % count]))]
+  return [
+    nodes(...ids),
+    ids.map((id, at) => edge(id, must(ids[(at + 1) % count]))),
+  ]
 }
 
 describe("forceLayout", () => {
@@ -66,7 +74,7 @@ describe("forceLayout", () => {
     const far: number[] = []
     for (let a = 0; a < ids.length; a++) {
       for (let b = a + 1; b < ids.length; b++) {
-        const gap = distance(layout, ids[a], ids[b])
+        const gap = distance(layout, must(ids[a]), must(ids[b]))
         ;(joined.has(`${ids[a]}${ids[b]}`) ? near : far).push(gap)
       }
     }
@@ -80,7 +88,9 @@ describe("forceLayout", () => {
     const layout = forceLayout(graph, links, area)
     for (let a = 0; a < graph.length; a++) {
       for (let b = a + 1; b < graph.length; b++) {
-        expect(distance(layout, graph[a].id, graph[b].id)).toBeGreaterThan(1)
+        expect(
+          distance(layout, must(graph[a]).id, must(graph[b]).id)
+        ).toBeGreaterThan(1)
       }
     }
   })

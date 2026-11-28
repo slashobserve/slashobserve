@@ -7,6 +7,11 @@ import {
   type LayoutNode,
 } from "./layout"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 function nodes(...ids: string[]): LayoutNode[] {
   return ids.map((id) => ({ id, title: id }))
 }
@@ -106,8 +111,8 @@ describe("layeredLayout", () => {
   it("returns the same positions for the same input", () => {
     const ids = Array.from({ length: 40 }, (_, i) => `n${i}`)
     const links = ids.flatMap((id, i) => [
-      edge(id, ids[(i * 7 + 3) % ids.length]),
-      edge(id, ids[(i * 11 + 5) % ids.length]),
+      edge(id, must(ids[(i * 7 + 3) % ids.length])),
+      edge(id, must(ids[(i * 11 + 5) % ids.length])),
     ])
     const first = layeredLayout(nodes(...ids), links)
     const second = layeredLayout(nodes(...ids), links)
@@ -117,7 +122,7 @@ describe("layeredLayout", () => {
   it("lays out 300 nodes and 1000 edges within 200 ms", () => {
     const ids = Array.from({ length: 300 }, (_, i) => `n${i}`)
     const links = Array.from({ length: 1000 }, (_, i) =>
-      edge(ids[(i * 13) % 300], ids[(i * 29 + 7) % 300])
+      edge(must(ids[(i * 13) % 300]), must(ids[(i * 29 + 7) % 300]))
     )
     const started = performance.now()
     const layout = layeredLayout(nodes(...ids), links)
