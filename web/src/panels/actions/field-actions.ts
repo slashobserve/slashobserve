@@ -72,8 +72,8 @@ export function oneClickTarget(
   actions: FieldAction[]
 ): OneClickTarget | null {
   if (links.length + actions.length !== 1) return null
-  if (links.length === 1) {
-    return links[0].oneClick ? { kind: "link", link: links[0] } : null
-  }
-  return actions[0].oneClick ? { kind: "action", action: actions[0] } : null
+  const [link] = links
+  if (link) return link.oneClick ? { kind: "link", link } : null
+  const [action] = actions
+  return action?.oneClick ? { kind: "action", action } : null
 }

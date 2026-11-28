@@ -87,7 +87,7 @@ export function disabledReason(context: ActionContext | null): string | null {
 export function actionHost(url: unknown): string | null {
   if (typeof url !== "string") return null
   const match = hostOfUrl.exec(url)
-  return match ? match[1].toLowerCase() : null
+  return match?.[1]?.toLowerCase() ?? null
 }
 
 function referenceNames(template: string): string[] {
@@ -99,7 +99,7 @@ function referenceNames(template: string): string[] {
       const closing = rest.indexOf("}")
       if (closing < 0) break
       const [name] = rest.slice(1, closing).split(":", 1)
-      if (name !== "") names.push(name)
+      if (name !== undefined && name !== "") names.push(name)
       at += closing + 1
       continue
     }
