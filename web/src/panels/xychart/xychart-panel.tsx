@@ -153,7 +153,10 @@ function Tooltip({
   options: XyOptions
 }) {
   const onRight = at.x > width / 2
-  const first = pointSummary(model, hits[0])
+  const head = hits[0]
+  const first = head === undefined ? null : pointSummary(model, head)
+  const headSeries = head === undefined ? undefined : model.series[head.series]
+  if (first === null || headSeries === undefined) return null
   return (
     <div
       role="tooltip"
@@ -168,21 +171,23 @@ function Tooltip({
       }}
     >
       <div className="mb-1 flex justify-between gap-3 text-muted-foreground tabular-nums">
-        <span className="min-w-0 truncate">
-          {model.series[hits[0].series].xName}
-        </span>
+        <span className="min-w-0 truncate">{headSeries.xName}</span>
         <span>{first.x}</span>
       </div>
       {hits.map((hit) => {
         const series = model.series[hit.series]
         const text = pointSummary(model, hit)
+        const point = series?.points[hit.index]
+        if (series === undefined || text === null || point === undefined) {
+          return null
+        }
         return (
           <div key={series.key}>
             <div className="flex items-center gap-1.5">
               <span
                 aria-hidden="true"
                 className="size-2 shrink-0"
-                style={{ backgroundColor: series.points[hit.index][2] }}
+                style={{ backgroundColor: point[2] }}
               />
               <span className="min-w-0 flex-1 truncate">{series.name}</span>
               <span className="font-medium tabular-nums">{text.y}</span>
@@ -286,19 +291,19 @@ const XychartPanel: PanelRenderer = ({
       radius: hoverRadius,
     })
     if (!nearest) return []
+    const point = model.series[nearest.series]?.points[nearest.index]
     const found =
       tooltip === "single"
         ? [nearest]
-        : pointsAtX(
-            model,
-            model.series[nearest.series].points[nearest.index][0]
-          )
+        : point === undefined
+          ? []
+          : pointsAtX(model, point[0])
     return tooltipHits(model, found, options)
   }, [hover, tooltip, ready, model, plotWidth, plotHeight, options])
 
   const marked = hits[0]
   const markedPoint = marked
-    ? model.series[marked.series].points[marked.index]
+    ? (model.series[marked.series]?.points[marked.index] ?? null)
     : null
   const markerSize = markedPoint
     ? Math.max(minMarker, markedPoint[3] + markerPadding)
