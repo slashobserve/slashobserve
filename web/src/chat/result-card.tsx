@@ -127,7 +127,7 @@ export function Thumbnail({ panel, index }: { panel: Panel; index: number }) {
 }
 
 type Props = {
-  partial?: { prompt: string }
+  partial?: { prompt: string } | undefined
   addMissing: boolean
   dashboardId: string
   version: number
@@ -136,7 +136,7 @@ type Props = {
 }
 
 type BodyProps = {
-  partial?: { prompt: string }
+  partial?: { prompt: string } | undefined
   addMissing: boolean
   data: DashboardEnvelope | undefined
   dashboardId: string

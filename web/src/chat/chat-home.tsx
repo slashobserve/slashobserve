@@ -17,7 +17,10 @@ import { RecentChats } from "./recent-chats"
 import { useChooseExample } from "./use-choose-example"
 import { useExamples } from "./use-examples"
 
-type Props = { initialPrompt?: string; dashboardId?: string }
+type Props = {
+  initialPrompt?: string | undefined
+  dashboardId?: string | undefined
+}
 
 function HomeComposer({
   initialPrompt,
@@ -25,7 +28,7 @@ function HomeComposer({
   disabled,
   onRemoveDashboard,
 }: {
-  initialPrompt?: string
+  initialPrompt?: string | undefined
   about: { id: string; title: string } | undefined
   disabled: boolean
   onRemoveDashboard: () => void

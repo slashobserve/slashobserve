@@ -36,11 +36,13 @@ function chatsQuery(filters: ChatsFilters, limit: number) {
         .GET("/chats", {
           params: {
             query: {
-              q: filters.q,
-              dashboard_id: filters.dashboardId,
-              scope: filters.scope,
+              ...(filters.q === undefined ? {} : { q: filters.q }),
+              ...(filters.dashboardId === undefined
+                ? {}
+                : { dashboard_id: filters.dashboardId }),
+              ...(filters.scope === undefined ? {} : { scope: filters.scope }),
               limit,
-              cursor: pageParam,
+              ...(pageParam === undefined ? {} : { cursor: pageParam }),
             },
           },
           signal,

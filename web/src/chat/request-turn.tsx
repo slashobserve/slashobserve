@@ -90,7 +90,7 @@ export type TurnSummary = OriginFields & {
 
 type Props = {
   summary: TurnSummary
-  dashboardTitle?: string
+  dashboardTitle?: string | undefined
   loadSteps: boolean
   onRetried: (request: ObserveRequest) => void
   buildOnScreen?: boolean

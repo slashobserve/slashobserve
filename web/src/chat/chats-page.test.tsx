@@ -7,6 +7,7 @@ import { renderWithProviders } from "@/test/render"
 import type { Chat } from "./chats-queries"
 import { ChatsPage } from "./chats-page"
 import type { ChatsSearch } from "./chats-search"
+import { must } from "@/test/must"
 
 const session = vi.hoisted(() => ({ role: "editor", id: "u1" }))
 const observation = vi.hoisted(() => ({ allowed: [] as string[] }))
@@ -247,7 +248,7 @@ describe("ChatsPage rows", () => {
           Number(a.getAttribute("row-index")) -
           Number(b.getAttribute("row-index"))
       )
-      .map((row) => within(row).getAllByRole("link")[0].textContent)
+      .map((row) => must(within(row).getAllByRole("link")[0]).textContent)
     expect(titles).toEqual([
       "Pinned older chat",
       "Newest chat",

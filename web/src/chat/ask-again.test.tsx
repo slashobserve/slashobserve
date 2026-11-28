@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { renderWithProviders } from "@/test/render"
 
 import { AskAgainButton } from "./ask-again"
+import { must } from "@/test/must"
 
 function stubCreate() {
   const fetch = vi.fn<(request: Request) => Promise<Response>>(
@@ -39,8 +40,8 @@ describe("AskAgainButton", () => {
     const { user, onSent } = render({ chatId: "c1" })
     await user.click(await screen.findByRole("button", { name: "Ask again" }))
     await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
-    expect(onSent.mock.calls[0][1]).toBe("same")
-    const sent = (await fetch.mock.calls[0][0].json()) as Record<
+    expect(must(onSent.mock.calls[0])[1]).toBe("same")
+    const sent = (await must(fetch.mock.calls[0])[0].json()) as Record<
       string,
       unknown
     >
@@ -67,7 +68,7 @@ describe("AskAgainButton", () => {
     })
     await user.click(await screen.findByRole("button", { name: "Ask again" }))
     await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
-    const sent = (await fetch.mock.calls[0][0].json()) as Record<
+    const sent = (await must(fetch.mock.calls[0])[0].json()) as Record<
       string,
       unknown
     >

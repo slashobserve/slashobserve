@@ -50,7 +50,7 @@ export function OpenDashboardLink({
   variant,
 }: {
   dashboardId: string
-  title?: string
+  title?: string | undefined
   variant: "primary" | "outline"
 }) {
   const onDashboard = useOnDashboard(dashboardId)

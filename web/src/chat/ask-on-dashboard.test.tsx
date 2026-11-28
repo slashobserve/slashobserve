@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { renderWithProviders } from "@/test/render"
 
 import { AskOnDashboard } from "./ask-on-dashboard"
+import { must } from "@/test/must"
 
 const permissions = vi.hoisted(() => ({ comment: true, edit: false }))
 
@@ -60,7 +61,7 @@ describe("AskOnDashboard", () => {
       screen.getByRole("button", { name: "Ask this on Checkout" })
     )
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
-    const sent = fetch.mock.calls[0][0]
+    const sent = must(fetch.mock.calls[0])[0]
     expect(new URL(sent.url).pathname).toBe("/api/v1/observe")
     expect(await sent.json()).toEqual({
       prompt,

@@ -52,9 +52,11 @@ export function ChatsPage({ search, onSearch }: Props) {
   const filtered = search.q !== undefined || search.dashboard !== undefined
   const { chats, query } = useChats(
     {
-      q: search.q,
-      dashboardId: search.dashboard,
-      scope: everyone ? "all" : undefined,
+      ...(search.q === undefined ? {} : { q: search.q }),
+      ...(search.dashboard === undefined
+        ? {}
+        : { dashboardId: search.dashboard }),
+      ...(everyone ? { scope: "all" } : {}),
     },
     pageSize
   )

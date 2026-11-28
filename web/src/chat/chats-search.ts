@@ -1,7 +1,7 @@
 export type ChatsSearch = {
-  q?: string
-  dashboard?: string
-  scope?: "all"
+  q?: string | undefined
+  dashboard?: string | undefined
+  scope?: "all" | undefined
 }
 
 const maxQueryLength = 200

@@ -30,12 +30,12 @@ export type AnswerTarget = { observationId: string | null; elementId: string }
 const noneExpanded: ReadonlySet<string> = new Set()
 
 type Props = {
-  answer?: AnswerTarget
+  answer?: AnswerTarget | undefined
   steps: Step[]
   working: boolean
   reconnecting: boolean
   latest?: number
-  liveText?: string | null
+  liveText?: string | null | undefined
   requestId?: string
   pane?: boolean
   withMessages?: boolean
@@ -57,7 +57,13 @@ function showAnswer(elementId: string) {
   element.focus({ preventScroll: true })
 }
 
-function StepText({ step, answer }: { step: Step; answer?: AnswerTarget }) {
+function StepText({
+  step,
+  answer,
+}: {
+  step: Step
+  answer?: AnswerTarget | undefined
+}) {
   const text = stepText(step)
   if (answer === undefined || !isSavedAnswerStep(step)) return text
   if (answer.observationId !== null) {
@@ -88,7 +94,7 @@ function StepMessages({
 }: {
   id?: string
   steps: Step[]
-  answer?: AnswerTarget
+  answer?: AnswerTarget | undefined
 }) {
   return (
     <ul id={id} className="flex flex-col gap-0.5 text-muted-foreground">
@@ -137,11 +143,12 @@ function PhaseItem({
   expanded: boolean
   onToggle: () => void
   withMessages: boolean
-  answer?: AnswerTarget
+  answer?: AnswerTarget | undefined
 }) {
   const listId = useId()
   const count = run.steps.length
   const single = count === 1
+  const [onlyStep] = run.steps
   const alwaysOpen = run.phase === "save" && !single
   return (
     <li className="flex items-start gap-2 text-[13px]">
@@ -159,9 +166,9 @@ function PhaseItem({
           <span className="min-w-0 wrap-anywhere text-muted-foreground">
             {toolText(run.tools)}
           </span>
-          {single && withMessages ? (
+          {single && withMessages && onlyStep !== undefined ? (
             <span className="min-w-0 wrap-anywhere text-muted-foreground">
-              <StepText step={run.steps[0]} answer={answer} />
+              <StepText step={onlyStep} answer={answer} />
             </span>
           ) : null}
           {withMessages && !single && !alwaysOpen ? (

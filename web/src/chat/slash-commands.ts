@@ -22,8 +22,11 @@ export function takeCommand(
   available: readonly SlashCommand[]
 ): { command: SlashCommand; rest: string } | null {
   const match = /^\/([a-z]+)\s([\s\S]*)$/.exec(text)
-  if (match === null || !isAvailable(match[1], available)) return null
-  return { command: match[1], rest: match[2].trimStart() }
+  if (match === null) return null
+  const [, name, rest] = match
+  if (name === undefined || rest === undefined || !isAvailable(name, available))
+    return null
+  return { command: name, rest: rest.trimStart() }
 }
 
 export function matchingCommands(
@@ -31,8 +34,9 @@ export function matchingCommands(
   available: readonly SlashCommand[]
 ): SlashCommand[] {
   const match = /^\/([a-z]*)$/.exec(text)
-  if (match === null) return []
-  return available.filter((name) => name.startsWith(match[1]))
+  const prefix = match?.[1]
+  if (prefix === undefined) return []
+  return available.filter((name) => name.startsWith(prefix))
 }
 
 export function withCommand(

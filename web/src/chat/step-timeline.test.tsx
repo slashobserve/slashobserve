@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { Step } from "@/observe/request-model"
+import { must } from "@/test/must"
 import { renderWithProviders } from "@/test/render"
 
 import { StepTimeline } from "./step-timeline"
@@ -280,7 +281,7 @@ describe("StepTimeline", () => {
         <StepTimeline
           steps={[
             {
-              ...saved[0],
+              ...must(saved[0]),
               status: "error",
               message:
                 "The save_finding call was sent back for a fix: it was a second save in the same turn",
