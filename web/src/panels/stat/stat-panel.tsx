@@ -170,7 +170,7 @@ const StatPanel: PanelRenderer = ({
         {tiles.map((tile, index) => {
           const filled = background && tile.color !== null
           const aria = tiles.length > 1 ? tile.name : panel.title
-          const line = lines[index]
+          const line = lines[index] ?? []
           const drawn = line.length > 0
           const primary = nameAsValue ? tile.name : tile.amount
           const unit = nameAsValue ? "" : tile.unit

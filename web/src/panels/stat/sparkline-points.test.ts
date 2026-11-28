@@ -6,6 +6,12 @@ import {
   sparklinePoints,
 } from "./sparkline-points"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 describe("sparklinePoints", () => {
   it("scales a short series to the 600 by 40 viewBox with a 2px inset", () => {
     expect(
@@ -57,7 +63,7 @@ describe("sparklinePoints", () => {
     const ys = line.map((point) => Number(point.split(",")[1]))
     expect(Math.min(...ys)).toBe(2)
     expect(Math.max(...ys)).toBeLessThanOrEqual(sparklineHeight - 2)
-    expect(line[0].startsWith("0.0,")).toBe(true)
+    expect(nth(line, 0).startsWith("0.0,")).toBe(true)
     expect(line.at(-1)?.startsWith("600.0,")).toBe(true)
   })
 })
