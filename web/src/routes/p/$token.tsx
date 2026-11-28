@@ -20,9 +20,9 @@ import { publicDashboardQuery, useLinkGone } from "@/public/queries"
 
 function publicSearch(state: DashboardSearch): DashboardSearch {
   return {
-    from: state.from,
-    to: state.to,
-    refresh: state.refresh,
+    ...(state.from === undefined ? {} : { from: state.from }),
+    ...(state.to === undefined ? {} : { to: state.to }),
+    ...(state.refresh === undefined ? {} : { refresh: state.refresh }),
     vars: state.vars,
   }
 }

@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { parseSearchKind, type SearchKind } from "@/search/queries"
 import { SearchPage } from "@/search/search-page"
 
-type SearchParams = { q?: string; kind?: SearchKind }
+type SearchParams = { q?: string | undefined; kind?: SearchKind | undefined }
 
 export const Route = createFileRoute("/_authed/_shell/search")({
   staticData: { crumbs: [{ label: "Search" }] },

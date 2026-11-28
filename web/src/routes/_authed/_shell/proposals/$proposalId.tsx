@@ -7,7 +7,9 @@ export const Route = createFileRoute("/_authed/_shell/proposals/$proposalId")({
   staticData: {
     crumbs: [{ label: "Dashboards", to: "/dashboards" }, { label: "Proposal" }],
   },
-  validateSearch: (search: Record<string, unknown>): { thread?: string } => ({
+  validateSearch: (
+    search: Record<string, unknown>
+  ): { thread?: string | undefined } => ({
     thread: threadParam(search.thread),
   }),
   component: ProposalRoute,

@@ -6,7 +6,10 @@ import { forgetHomeChecked } from "@/home/home-dashboard"
 import { getSession, loginHref, sessionEnded } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 
-type LoginSearch = { return_to?: string; error?: string }
+type LoginSearch = {
+  return_to?: string | undefined
+  error?: string | undefined
+}
 
 const errorMessages: Record<string, string> = {
   access_denied: "Sign-in was cancelled.",

@@ -31,10 +31,10 @@ import { SignInSection } from "@/settings/sign-in-section"
 import { WebhooksSettings } from "@/settings/webhooks/webhooks-settings"
 
 type SettingsSearch = {
-  connection?: string
-  sync?: string
-  panel?: string
-  webhook?: string
+  connection?: string | undefined
+  sync?: string | undefined
+  panel?: string | undefined
+  webhook?: string | undefined
 }
 
 function optionalText(value: unknown): string | undefined {
