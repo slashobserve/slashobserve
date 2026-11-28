@@ -8,6 +8,8 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 - Bun is the package manager and script runtime.
   `web/bunfig.toml` forces the Bun runtime for every `bun run` script.
   Node and pnpm are not used.
+- Every tsconfig is `strict` with `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`.
+  Narrow an index read or an optional key instead of casting it; app code adds no `!` and no `as` to get past either flag, and tests take a value that must exist through `must()` (`web/src/panels/must.ts`).
 - Add shadcn components with `bun x shadcn add <name>` from `web/`; they live in `web/src/components/ui`.
   Restyle every new one to the M6 rule set below before commit: controls `rounded-control` and `h-8`, popups and dialogs `border border-border` with no shadow, ring or backdrop blur, badges never pill-shaped, focus a solid 2px `ring-ring`.
 - Import `cn` only from `@/lib/utils`, which knows the custom `control` and `card` radii.
