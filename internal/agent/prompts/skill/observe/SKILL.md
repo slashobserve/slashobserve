@@ -1,6 +1,6 @@
 ---
 name: observe
-description: Use for work in SlashObserve, the observability workspace - building or changing a dashboard, investigating why a metric, log or trace changed, searching logs or traces, answering comments on dashboards, observations and annotations, or doing a run assigned to you - through the slashobserve mcp-sources tools or the observe CLI.
+description: Use for work in SlashObserve, the observability workspace - building or changing a dashboard, investigating why a metric, log or trace changed, searching logs or traces, answering comments on dashboards, observations and annotations, or doing a run assigned to you - through the SlashObserve MCP tools or the observe CLI.
 ---
 
 # /observe
