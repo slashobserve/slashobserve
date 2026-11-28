@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { DataPanel } from "@/spec"
+import { must } from "@/panels/must"
 
 import { createFieldResolver } from "../field-config"
 import { alignFrames } from "../timeseries/align"
@@ -368,7 +369,7 @@ describe("candleConfigs", () => {
       0,
       () => true
     )
-    expect(rows.map(({ index }) => series[index].label)).toEqual(prices)
+    expect(rows.map(({ index }) => must(series[index]).label)).toEqual(prices)
   })
 
   it("keeps the candle columns un-transformed and in the legend only when listed", () => {

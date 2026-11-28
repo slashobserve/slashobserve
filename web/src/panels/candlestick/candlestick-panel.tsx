@@ -97,12 +97,13 @@ function candlesPlugin(paint: Paint): uPlot.Plugin {
               typeof value === "number" && value > best ? value : best,
             0
           )
-          xs.forEach((_x, row) => {
+          centers.forEach((center, row) => {
             const bar = volumeHeight(volume[row], maxVolume, height)
-            if (bar <= 0) return
-            ctx.fillStyle = fills[row]
+            const fill = fills[row]
+            if (bar <= 0 || fill === undefined) return
+            ctx.fillStyle = fill
             ctx.fillRect(
-              Math.round(centers[row]) - half,
+              Math.round(center) - half,
               Math.round(top + height - bar),
               half * 2,
               Math.max(stroke, Math.round(bar))
@@ -111,14 +112,16 @@ function candlesPlugin(paint: Paint): uPlot.Plugin {
         }
 
         if (mode !== "volume") {
-          xs.forEach((_x, row) => {
+          centers.forEach((center, row) => {
             const direction = moves[row]
+            const fill = fills[row]
             const hi = high[row]
             const lo = low[row]
             const opened = open[row]
             const closed = close[row]
             if (
               !direction ||
+              fill === undefined ||
               typeof hi !== "number" ||
               typeof lo !== "number" ||
               typeof opened !== "number" ||
@@ -126,12 +129,12 @@ function candlesPlugin(paint: Paint): uPlot.Plugin {
             ) {
               return
             }
-            const x = Math.round(centers[row])
+            const x = Math.round(center)
             const yHigh = at(hi)
             const yLow = at(lo)
             const yOpen = at(opened)
             const yClose = at(closed)
-            ctx.fillStyle = fills[row]
+            ctx.fillStyle = fill
             ctx.fillRect(
               x - Math.floor(stroke / 2),
               yHigh,
@@ -227,7 +230,7 @@ const CandlestickPanel: PanelRenderer = (props) => {
     if (!aligned) return undefined
     const values = (role: CandleRole) => {
       const index = columns.findIndex((column) => column.role === role)
-      return index < 0 ? [] : aligned.series[index].values
+      return aligned.series[index]?.values ?? []
     }
     const colors = rowColors(
       values("open"),
