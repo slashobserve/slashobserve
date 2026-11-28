@@ -49,11 +49,11 @@ type SaveDefault = {
 type ControlProps = {
   value: TimeRangeValue
   onChange: (next: TimeRangeValue) => void
-  quickRanges?: QuickRange[]
-  zone?: string | null
-  saveDefault?: SaveDefault
-  defaultOpen?: boolean
-  onDismiss?: () => void
+  quickRanges?: QuickRange[] | undefined
+  zone?: string | null | undefined
+  saveDefault?: SaveDefault | undefined
+  defaultOpen?: boolean | undefined
+  onDismiss?: (() => void) | undefined
 }
 
 export function TimeRangeControl({
@@ -297,7 +297,7 @@ type Props = {
   quickRanges: QuickRange[]
   hidden: boolean
   timezone: string | undefined
-  defaultRange?: { spec: Dashboard; version: number } | null
+  defaultRange?: { spec: Dashboard; version: number } | null | undefined
 }
 
 export function TimeRangePicker({

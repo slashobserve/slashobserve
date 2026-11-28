@@ -52,7 +52,7 @@ type Props = {
   idle: boolean
   onCanvas: boolean
   menu: ReactNode
-  observationVariables?: readonly Variable[]
+  observationVariables?: readonly Variable[] | undefined
 }
 
 function enabledButtons(root: HTMLElement): HTMLButtonElement[] {
@@ -184,7 +184,7 @@ export function PanelToolbar({
         return
     }
     event.preventDefault()
-    buttons[next].focus()
+    buttons[next]?.focus()
   }
 
   const finishFirst = (name: string) =>

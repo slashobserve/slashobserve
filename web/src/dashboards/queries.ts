@@ -289,7 +289,7 @@ export function useRestoreVersion(id: string) {
           params: { path: { id, version: input.version } },
           body: {
             parent_version: input.parent_version,
-            summary: input.summary,
+            ...(input.summary === undefined ? {} : { summary: input.summary }),
           },
         })
         .then(unwrap),

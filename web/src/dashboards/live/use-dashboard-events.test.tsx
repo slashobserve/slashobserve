@@ -67,6 +67,12 @@ function openSources() {
   return FakeEventSource.instances.filter((source) => !source.closed)
 }
 
+function openSource() {
+  const [source] = openSources()
+  if (source === undefined) throw new Error("no open event source")
+  return source
+}
+
 function wrapperWith(client = testQueryClient()) {
   return function Wrapper({ children }: { children: ReactNode }) {
     return <QueryClientProvider client={client}>{children}</QueryClientProvider>
@@ -87,7 +93,7 @@ it("closes the dashboard stream while the page sits in the back/forward cache an
     wrapper,
   })
   act(() =>
-    openSources()[0].send("ready", { dashboard_id: "d1", latest_version: 1 })
+    openSource().send("ready", { dashboard_id: "d1", latest_version: 1 })
   )
   expect(result.current.status).toBe("live")
 
@@ -96,7 +102,7 @@ it("closes the dashboard stream while the page sits in the back/forward cache an
 
   act(() => window.dispatchEvent(pageTransition("pageshow", true)))
   expect(openSources()).toHaveLength(1)
-  expect(openSources()[0].url).toBe("/api/v1/dashboards/d1/events")
+  expect(openSources()[0]?.url).toBe("/api/v1/dashboards/d1/events")
 })
 
 it("refetches the dashboard and the list when the dashboard moves to another folder", () => {
@@ -106,7 +112,7 @@ it("refetches the dashboard and the list when the dashboard moves to another fol
     wrapper: wrapperWith(client),
   })
   act(() =>
-    openSources()[0].send("dashboard.moved", {
+    openSource().send("dashboard.moved", {
       type: "dashboard.moved",
       dashboard_id: "d1",
     })
@@ -130,7 +136,7 @@ it("closes the stream 15 seconds after the tab is hidden and catches up when it 
       wrapper: wrapperWith(client),
     })
     act(() =>
-      openSources()[0].send("ready", { dashboard_id: "d1", latest_version: 1 })
+      openSource().send("ready", { dashboard_id: "d1", latest_version: 1 })
     )
 
     hidden = true
@@ -149,7 +155,7 @@ it("closes the stream 15 seconds after the tab is hidden and catches up when it 
     act(() => document.dispatchEvent(new Event("visibilitychange")))
     expect(openSources()).toHaveLength(1)
     act(() =>
-      openSources()[0].send("ready", { dashboard_id: "d1", latest_version: 1 })
+      openSource().send("ready", { dashboard_id: "d1", latest_version: 1 })
     )
     const refetched = invalidate.mock.calls.map(
       ([filters]) => filters?.queryKey
@@ -178,14 +184,14 @@ it("refetches the dashboard and the list on every reconnect, so a move made whil
     invalidate.mock.calls.map(([filters]) => filters?.queryKey)
 
   act(() =>
-    openSources()[0].send("ready", { dashboard_id: "d1", latest_version: 3 })
+    openSource().send("ready", { dashboard_id: "d1", latest_version: 3 })
   )
   expect(refetched()).not.toContainEqual(dashboardKeys.latest("d1"))
 
   act(() => window.dispatchEvent(pageTransition("pagehide", true)))
   act(() => window.dispatchEvent(pageTransition("pageshow", true)))
   act(() =>
-    openSources()[0].send("ready", { dashboard_id: "d1", latest_version: 3 })
+    openSource().send("ready", { dashboard_id: "d1", latest_version: 3 })
   )
   expect(refetched()).toEqual(
     expect.arrayContaining([dashboardKeys.latest("d1"), dashboardKeys.list()])
@@ -200,7 +206,7 @@ it.each(["comment.created", "comment.updated", "revision.updated"])(
     renderHook(() => useDashboardEvents("d1", {}), {
       wrapper: wrapperWith(client),
     })
-    act(() => openSources()[0].send(event, { dashboard_id: "d1" }))
+    act(() => openSource().send(event, { dashboard_id: "d1" }))
     expect(
       invalidate.mock.calls.map(([filters]) => filters?.queryKey)
     ).toContainEqual(threadKeys.list("dashboard:d1"))
@@ -223,7 +229,7 @@ it("checks the dashboard as soon as its stream ends, so a dashboard the caller l
   renderHook(() => useDashboardEvents("d1", {}), {
     wrapper: wrapperWith(testQueryClient()),
   })
-  const source = openSources()[0]
+  const source = openSource()
   act(() => source.send("ready", { dashboard_id: "d1", latest_version: 1 }))
 
   source.readyState = FakeEventSource.CONNECTING
@@ -255,7 +261,7 @@ function liveStream() {
   const rendered = renderHook(() => useDashboardEvents("d1", {}), {
     wrapper: wrapperWith(testQueryClient()),
   })
-  const source = openSources()[0]
+  const source = openSource()
   act(() => source.send("ready", { dashboard_id: "d1", latest_version: 1 }))
   return { source, ...rendered }
 }
@@ -266,7 +272,7 @@ it("reopens the stream at once, without checking the dashboard, when the server 
 
   act(() => source.send("closed", { reason: "lifetime" }))
 
-  expect(source.closed).toBe(true)
+  expect(source?.closed).toBe(true)
   expect(openSources()).toHaveLength(1)
   expect(openSources()[0]).not.toBe(source)
   expect(result.current.status).toBe("live")
@@ -282,7 +288,7 @@ it("stops the stream and shows the dashboard as gone when the server says the ca
 
   await waitFor(() => expect(router.invalidate).toHaveBeenCalledTimes(1))
   expect(requested).toEqual(["/api/v1/dashboards/d1"])
-  expect(source.closed).toBe(true)
+  expect(source?.closed).toBe(true)
   await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
   expect(FakeEventSource.instances).toHaveLength(1)
 })
@@ -309,7 +315,7 @@ it("reconnects after a delay when the server closed the stream for any other rea
     const { source } = liveStream()
 
     act(() => source.send("closed", { reason: "stopping" }))
-    expect(source.closed).toBe(true)
+    expect(source?.closed).toBe(true)
     await act(() => vi.advanceTimersByTimeAsync(499))
     expect(openSources()).toHaveLength(0)
 

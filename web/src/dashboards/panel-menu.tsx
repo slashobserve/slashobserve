@@ -67,19 +67,19 @@ type Props = {
   idle: boolean
   viewing: boolean
   onCanvas: boolean
-  ownerId?: string
-  onDownloadCsv?: () => void
-  onSavePng?: () => void
-  downloadsReady?: boolean
+  ownerId?: string | undefined
+  onDownloadCsv?: (() => void) | undefined
+  onSavePng?: (() => void) | undefined
+  downloadsReady?: boolean | undefined
   canComment: boolean
   canEdit: boolean
   canPropose: boolean
-  onToggleResponsive?: () => void
-  layoutActions?: PanelLayoutActions
+  onToggleResponsive?: (() => void) | undefined
+  layoutActions?: PanelLayoutActions | undefined
   composerRef: RefObject<HTMLTextAreaElement | null>
-  inToolbar?: boolean
-  observationVariables?: readonly Variable[]
-  block?: BlockMenuHost
+  inToolbar?: boolean | undefined
+  observationVariables?: readonly Variable[] | undefined
+  block?: BlockMenuHost | undefined
   executed?: (ref: string) => string | undefined
 }
 
@@ -106,12 +106,12 @@ export type MenuItem = {
   onSelect: () => void
   disabled?: boolean
   destructive?: boolean
-  shortcut?: string
+  shortcut?: string | undefined
   opensPopup?: boolean
 }
 
 export type BlockMenuHost = {
-  onInspect?: () => void
+  onInspect?: (() => void) | undefined
   actions: MenuItem[]
 }
 
@@ -401,8 +401,10 @@ export function PanelMenu({
           {items.map((item) => (
             <DropdownMenuItem
               key={item.id}
-              disabled={item.disabled}
-              variant={item.destructive ? "destructive" : undefined}
+              {...(item.disabled === undefined
+                ? {}
+                : { disabled: item.disabled })}
+              {...(item.destructive ? { variant: "destructive" } : {})}
               onClick={() => {
                 if (item.opensPopup) focusAfterClose = "none"
                 item.onSelect()

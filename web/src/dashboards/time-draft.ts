@@ -54,7 +54,9 @@ export function calendarMonthOf(
 ): CalendarMonth {
   const value = parseUserTime(draft, zone)
   const ms =
-    value === null ? now : resolveTime(value, now, false, { zone: zone })
+    value === null
+      ? now
+      : resolveTime(value, now, false, zone === undefined ? {} : { zone })
   const at = zonedDateTime(Number.isNaN(ms) ? now : ms, zone)
   return { year: Number(at.slice(0, 4)), month: Number(at.slice(5, 7)) - 1 }
 }

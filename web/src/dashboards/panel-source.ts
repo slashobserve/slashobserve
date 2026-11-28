@@ -4,6 +4,7 @@ import {
   observeKeys,
   publicKeys,
   type PanelDataParams,
+  type Selections,
   type VariableValuesParams,
 } from "@/api/keys"
 import { stableJson } from "@/lib/json"
@@ -35,7 +36,7 @@ export function sourceScope(source: PanelSource): string {
 
 export function loadRangeScope(
   source: PanelSource,
-  range: { from?: string; to?: string }
+  range: { from?: string | undefined; to?: string | undefined }
 ): string {
   return source.kind === "build"
     ? `${sourceScope(source)}:${range.from ?? ""}:${range.to ?? ""}`
@@ -55,12 +56,34 @@ export function stateScope(source: PanelSource): string {
   }
 }
 
+type PanelDataInput = {
+  from?: string | undefined
+  to?: string | undefined
+  selections: Selections
+  maxDataPoints?: number | undefined
+}
+
+function panelDataParams({
+  from,
+  to,
+  selections,
+  maxDataPoints,
+}: PanelDataInput): PanelDataParams {
+  return {
+    ...(from === undefined ? {} : { from }),
+    ...(to === undefined ? {} : { to }),
+    selections,
+    ...(maxDataPoints === undefined ? {} : { maxDataPoints }),
+  }
+}
+
 export function panelDataKey(
   source: PanelSource,
   panelId: string,
   fingerprint: string,
-  params: PanelDataParams
+  input: PanelDataInput
 ) {
+  const params = panelDataParams(input)
   switch (source.kind) {
     case "version":
       return dashboardKeys.panelData(
@@ -87,8 +110,21 @@ export function variableValuesKey(
   source: VariableSource,
   name: string,
   fingerprint: string,
-  params: VariableValuesParams
+  {
+    from,
+    to,
+    selections,
+  }: {
+    from?: string | undefined
+    to?: string | undefined
+    selections: Selections
+  }
 ) {
+  const params: VariableValuesParams = {
+    ...(from === undefined ? {} : { from }),
+    ...(to === undefined ? {} : { to }),
+    selections,
+  }
   switch (source.kind) {
     case "version":
       return dashboardKeys.variableValues(

@@ -179,7 +179,7 @@ describe("panel repeat", () => {
       expand(repeated({}), { selections: { env: ["a", "b", "c", "d", "e"] } })
     ).filter((item) => item.panel.id === "p")
     expect(items.map((item) => item.gridPos.x)).toEqual([0, 6, 12, 18, 0])
-    expect(items[4].gridPos.y).toBe(4)
+    expect(items[4]?.gridPos.y).toBe(4)
   })
 
   it("stacks clones in the v direction at the panel's own size", () => {
@@ -202,9 +202,9 @@ describe("panel repeat", () => {
     const items = panels(
       expand(repeated({}), { selections: { env: ["a", "b"], zone: ["z"] } })
     )
-    expect(items[1].selections).toEqual({ env: ["b"], zone: ["z"] })
-    expect(items[0].selections).toEqual({ env: ["a"], zone: ["z"] })
-    expect(items[2].selections).toEqual({ env: ["a", "b"], zone: ["z"] })
+    expect(items[1]?.selections).toEqual({ env: ["b"], zone: ["z"] })
+    expect(items[0]?.selections).toEqual({ env: ["a"], zone: ["z"] })
+    expect(items[2]?.selections).toEqual({ env: ["a", "b"], zone: ["z"] })
   })
 
   it("expands All into the loaded values", () => {

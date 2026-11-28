@@ -28,25 +28,25 @@ type KioskCycle = "rows" | "folder"
 export type InspectTab = "data" | "query" | "stats"
 
 export type DashboardSearch = {
-  from?: string
-  to?: string
-  refresh?: string
-  tz?: string
-  cursor?: CursorSync
-  version?: number
-  panel?: string
-  edit?: EditView
-  share?: boolean
-  ann?: string[]
-  kiosk?: boolean
-  cycle?: KioskCycle
-  interval?: number
-  viewPanel?: string
-  inspect?: string
-  inspectTab?: InspectTab
-  tab?: SidePanelTab
-  chat?: string
-  thread?: string
+  from?: string | undefined
+  to?: string | undefined
+  refresh?: string | undefined
+  tz?: string | undefined
+  cursor?: CursorSync | undefined
+  version?: number | undefined
+  panel?: string | undefined
+  edit?: EditView | undefined
+  share?: boolean | undefined
+  ann?: string[] | undefined
+  kiosk?: boolean | undefined
+  cycle?: KioskCycle | undefined
+  interval?: number | undefined
+  viewPanel?: string | undefined
+  inspect?: string | undefined
+  inspectTab?: InspectTab | undefined
+  tab?: SidePanelTab | undefined
+  chat?: string | undefined
+  thread?: string | undefined
   vars: Record<string, string[]>
 }
 
@@ -319,7 +319,7 @@ export function useSetDashboardSearch() {
         search: (prev: DashboardSearchParams) =>
           searchFromState(update(validateDashboardSearch(prev))),
         replace: options?.replace ?? false,
-        state: options?.state,
+        ...(options?.state === undefined ? {} : { state: options.state }),
       })
     },
     [navigate]

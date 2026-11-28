@@ -11,7 +11,7 @@ import {
 const link = (tags?: string[]): DashboardsLink => ({
   type: "dashboards",
   title: "Related",
-  tags,
+  ...(tags === undefined ? {} : { tags }),
 })
 
 const listed = [

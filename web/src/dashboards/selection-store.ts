@@ -36,17 +36,19 @@ export function nextSelection(
   current: string | null,
   key: SelectionKey
 ): string | null {
-  if (order.length === 0) return null
+  const first = order[0]
+  const last = order.at(-1)
+  if (first === undefined || last === undefined) return null
   const index = current === null ? -1 : order.indexOf(current)
-  if (index < 0) return order[0]
+  if (index < 0) return first
   switch (key) {
     case "Home":
-      return order[0]
+      return first
     case "End":
-      return order[order.length - 1]
+      return last
     case "ArrowDown":
-      return order[Math.min(index + 1, order.length - 1)]
+      return order[Math.min(index + 1, order.length - 1)] ?? last
     case "ArrowUp":
-      return order[Math.max(index - 1, 0)]
+      return order[Math.max(index - 1, 0)] ?? first
   }
 }

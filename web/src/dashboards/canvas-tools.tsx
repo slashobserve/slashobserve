@@ -176,6 +176,7 @@ const toolShortcuts: Record<CanvasTool, ShortcutAction> = {
 function ariaShortcut(keys: readonly string[]): string | undefined {
   if (keys.length !== 1) return undefined
   const [key] = keys
+  if (key === undefined) return undefined
   return key.length === 1 ? key.toUpperCase() : key
 }
 

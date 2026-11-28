@@ -15,7 +15,10 @@ export type AdhocFilter = {
   condition?: "or"
 }
 
-export type FilterLabels = { keyLabel?: string; valueLabel?: string }
+export type FilterLabels = {
+  keyLabel?: string | undefined
+  valueLabel?: string | undefined
+}
 
 export const maxAdhocFilters = 20
 

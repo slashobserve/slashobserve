@@ -61,7 +61,7 @@ type Edits = {
   title?: string
   description?: string
   tags?: string
-  folder?: string
+  folder?: string | undefined
 }
 
 type Props = {
@@ -429,7 +429,7 @@ function Field({
   id: string
   label: string
   error: string | null
-  hint?: string
+  hint?: string | undefined
   children: ReactNode
 }) {
   return (

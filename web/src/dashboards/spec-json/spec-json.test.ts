@@ -65,9 +65,9 @@ describe("evaluateSpecJson", () => {
   it("reports only the type of a panel whose type is unknown, at the top or in a row", () => {
     const result = evaluate((spec) => {
       const panels = panelsOf(spec)
-      panels[0].type = "timeseriesx"
-      const row = panels[1].panels as Record<string, unknown>[]
-      Reflect.deleteProperty(row[0], "type")
+      panels[0]!.type = "timeseriesx"
+      const row = panels[1]!.panels as Record<string, unknown>[]
+      Reflect.deleteProperty(row[0]!, "type")
     })
     expect(result).toEqual({
       kind: "invalid",
@@ -80,7 +80,7 @@ describe("evaluateSpecJson", () => {
 
   it("keeps one line per problem elsewhere", () => {
     const result = evaluate((spec) => {
-      panelsOf(spec)[0].decimals = -3
+      panelsOf(spec)[0]!.decimals = -3
     })
     expect(result).toEqual({
       kind: "invalid",

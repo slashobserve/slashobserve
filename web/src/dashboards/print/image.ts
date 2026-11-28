@@ -20,7 +20,7 @@ export async function saveDashboardImage(
     .trim()
   const blob = await toBlob(element, {
     pixelRatio: imagePixelRatio(element.scrollWidth, element.scrollHeight),
-    backgroundColor: background === "" ? undefined : background,
+    ...(background === "" ? {} : { backgroundColor: background }),
   })
   if (blob === null) {
     throw new Error("The dashboard could not be drawn as an image")

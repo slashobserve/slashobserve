@@ -122,7 +122,7 @@ const interactiveTarget =
   'button, a, input, select, textarea, [role="menuitem"], [role="toolbar"]'
 
 type PanelContainerProps = {
-  dashboardId?: string
+  dashboardId?: string | undefined
   source: PanelSource
   cursor: SharedCursor
   panel: LayoutPanel
@@ -144,29 +144,29 @@ type PanelContainerProps = {
   refreshMs: number | null
   mixedDatasources: boolean
   editable: boolean
-  arrangeable?: boolean
+  arrangeable?: boolean | undefined
   layoutSession: boolean
   openComments: number
   unverifiedReason: string | undefined
-  health?: PanelHealth
+  health?: PanelHealth | undefined
   highlighted: boolean
-  selected?: boolean
+  selected?: boolean | undefined
   editingPanel: boolean
   canComment: boolean
   canEdit: boolean
-  onCanvas?: boolean
+  onCanvas?: boolean | undefined
   canPropose: boolean
-  onToggleResponsive?: (panel: LayoutPanel) => void
-  layoutActions?: PanelLayoutActions
+  onToggleResponsive?: ((panel: LayoutPanel) => void) | undefined
+  layoutActions?: PanelLayoutActions | undefined
   focusOnRender: boolean
   onFocused: () => void
   composerRef: RefObject<HTMLTextAreaElement | null>
-  annotations?: readonly Annotation[]
-  viewing?: boolean
-  inspected?: boolean
-  onInspectTarget?: (target: InspectTarget | null) => void
-  blockMenu?: BlockMenuHost
-  onPinRange?: (fromMs: number, toMs: number) => void
+  annotations?: readonly Annotation[] | undefined
+  viewing?: boolean | undefined
+  inspected?: boolean | undefined
+  onInspectTarget?: ((target: InspectTarget | null) => void) | undefined
+  blockMenu?: BlockMenuHost | undefined
+  onPinRange?: ((fromMs: number, toMs: number) => void) | undefined
 }
 
 export const PanelContainer = memo(function PanelContainer({
@@ -613,7 +613,7 @@ export const PanelContainer = memo(function PanelContainer({
                   from={rangeFrom}
                   to={rangeTo}
                   asTable={tableView}
-                  reusedFilter={reusedFilter}
+                  {...(reusedFilter === undefined ? {} : { reusedFilter })}
                   annotations={annotations}
                 />
               ) : null}

@@ -222,7 +222,7 @@ function tagsQuery(excludeAudit: boolean) {
       api
         .GET("/dashboards/tags", {
           params: {
-            query: { exclude_audit: excludeAudit ? true : undefined },
+            query: excludeAudit ? { exclude_audit: true } : {},
           },
           signal,
         })

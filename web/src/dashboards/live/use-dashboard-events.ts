@@ -67,7 +67,7 @@ export function useDashboardEvents(
   {
     pinnedVersion,
     toastVersions = true,
-  }: { pinnedVersion?: number; toastVersions?: boolean }
+  }: { pinnedVersion?: number | undefined; toastVersions?: boolean }
 ): { status: LiveStatus } {
   const queryClient = useQueryClient()
   const router = useRouter()

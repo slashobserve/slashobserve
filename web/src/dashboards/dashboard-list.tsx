@@ -73,16 +73,16 @@ const skeletonCount = 5
 const searchDelayMs = 250
 const emptyList: DashboardSummary[] = []
 const groupedColumns = [...dashboardColumns, actionsColumn]
+const [titleColumn, ...restColumns] = dashboardColumns
+if (titleColumn === undefined) throw new Error("no dashboard columns")
 const flatColumns = [
-  dashboardColumns[0],
+  titleColumn,
   folderColumn,
-  ...dashboardColumns
-    .slice(1)
-    .map((column) =>
-      column.hideBelow === undefined
-        ? column
-        : { ...column, hideBelow: column.hideBelow + folderColumnWidth }
-    ),
+  ...restColumns.map((column) =>
+    column.hideBelow === undefined
+      ? column
+      : { ...column, hideBelow: column.hideBelow + folderColumnWidth }
+  ),
   actionsColumn,
 ]
 const dashboardRowId = (row: DashboardRow) => row.id
@@ -104,13 +104,21 @@ function useDashboardList(
             query: {
               limit: listPageSize,
               offset,
-              q: filters.q,
-              made_by: filters.madeBy,
-              datasource: filters.datasource,
-              tag: filters.tags,
-              folder: filters.folder,
-              problem: filters.problem,
-              exclude_audit: filters.excludeAudit ? true : undefined,
+              ...(filters.q === undefined ? {} : { q: filters.q }),
+              ...(filters.madeBy === undefined
+                ? {}
+                : { made_by: filters.madeBy }),
+              ...(filters.datasource === undefined
+                ? {}
+                : { datasource: filters.datasource }),
+              ...(filters.tags === undefined ? {} : { tag: filters.tags }),
+              ...(filters.folder === undefined
+                ? {}
+                : { folder: filters.folder }),
+              ...(filters.problem === undefined
+                ? {}
+                : { problem: filters.problem }),
+              ...(filters.excludeAudit ? { exclude_audit: true } : {}),
               order: filters.order ?? "folder",
             },
           },

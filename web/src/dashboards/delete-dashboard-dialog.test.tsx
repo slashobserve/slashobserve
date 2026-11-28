@@ -61,7 +61,7 @@ describe("DeleteDashboardDialog", () => {
     expect(confirm).toHaveAttribute("aria-busy", "true")
     await user.click(confirm)
     expect(fetch).toHaveBeenCalledOnce()
-    const request = fetch.mock.calls[0][0]
+    const request = fetch.mock.calls[0]![0]
     expect(request.method).toBe("DELETE")
     expect(new URL(request.url).pathname).toBe("/api/v1/dashboards/d1")
     expect(onDeleted).not.toHaveBeenCalled()

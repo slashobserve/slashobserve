@@ -130,10 +130,10 @@ function TaggedLinks({
       api
         .GET("/dashboards", {
           params: {
-            query: {
-              tag: tags.length === 0 ? undefined : tags,
-              limit: tagLinkLimit,
-            },
+            query:
+              tags.length === 0
+                ? { limit: tagLinkLimit }
+                : { tag: tags, limit: tagLinkLimit },
           },
           signal,
         })

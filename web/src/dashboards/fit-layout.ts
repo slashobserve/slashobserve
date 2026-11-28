@@ -80,26 +80,19 @@ function splitLines(placed: readonly Placed[]): Placed[][] {
   return lines
 }
 
-function widenLine(line: readonly Placed[]): number[] {
-  const widths = line.map(({ width }) => width)
-  const room = gridColumns - widths.reduce((sum, width) => sum + width, 0)
-  const responsive = line.flatMap((entry, index) =>
-    entry.fixed ? [] : [index]
-  )
-  if (room <= 0 || responsive.length === 0) return widths
-  const responsiveSum = responsive.reduce(
-    (sum, index) => sum + widths[index],
-    0
-  )
-  const grown = [...widths]
-  let given = 0
-  for (const index of responsive) {
-    const gain = Math.floor((widths[index] * room) / responsiveSum)
-    grown[index] += gain
-    given += gain
-  }
-  for (const index of responsive.slice(0, room - given)) grown[index] += 1
-  return grown
+function widenLine(line: readonly Placed[]): Placed[] {
+  const room = gridColumns - line.reduce((sum, { width }) => sum + width, 0)
+  const responsive = line.filter(({ fixed }) => !fixed)
+  if (room <= 0 || responsive.length === 0) return [...line]
+  const responsiveSum = responsive.reduce((sum, { width }) => sum + width, 0)
+  const gainOf = (entry: Placed) =>
+    entry.fixed ? 0 : Math.floor((entry.width * room) / responsiveSum)
+  const given = line.reduce((sum, entry) => sum + gainOf(entry), 0)
+  const extra = new Set(responsive.slice(0, room - given))
+  return line.map((entry) => ({
+    ...entry,
+    width: entry.width + gainOf(entry) + (extra.has(entry) ? 1 : 0),
+  }))
 }
 
 export function fitLayout(
@@ -117,7 +110,9 @@ export function fitLayout(
   let dy = 0
 
   for (const band of bandsOf(sorted)) {
-    const top = band[0].y
+    const [first] = band
+    if (first === undefined) continue
+    const top = first.y
     const bottom = Math.max(...band.map((item) => item.y + item.h))
     const narrow = band.some((item) => item.w < wanted(item))
 
@@ -135,16 +130,15 @@ export function fitLayout(
     }))
     let lineTop = top + dy
     for (const line of splitLines(placed)) {
-      const widths = widenLine(line)
       let x = 0
-      for (const [index, entry] of line.entries()) {
+      for (const entry of widenLine(line)) {
         fitted.set(entry.item.i, {
           ...entry.item,
           x,
           y: lineTop,
-          w: widths[index],
+          w: entry.width,
         })
-        x += widths[index]
+        x += entry.width
       }
       lineTop += Math.max(...line.map(({ item }) => item.h))
     }

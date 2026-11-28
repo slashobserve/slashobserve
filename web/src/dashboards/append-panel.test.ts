@@ -60,7 +60,7 @@ describe("appendPanel", () => {
       input
     )
     expect(next.panels).toHaveLength(3)
-    expect(next.panels[2].gridPos).toEqual({ x: 0, y: 10, w: 24, h: 10 })
+    expect(next.panels[2]?.gridPos).toEqual({ x: 0, y: 10, w: 24, h: 10 })
   })
 
   it("appends below the children of an expanded last row", () => {
@@ -78,7 +78,7 @@ describe("appendPanel", () => {
       input
     )
     expect(next.panels).toHaveLength(3)
-    expect(next.panels[2].gridPos.y).toBe(13)
+    expect(next.panels[2]?.gridPos.y).toBe(13)
   })
 
   it("puts the panel under the children of a collapsed last row", () => {
@@ -99,7 +99,7 @@ describe("appendPanel", () => {
     expect(next.panels).toHaveLength(2)
     const row = next.panels[1]
     expect(
-      row.type === "row" && row.panels?.map((p) => [p.id, p.gridPos.y])
+      row?.type === "row" && row.panels?.map((p) => [p.id, p.gridPos.y])
     ).toEqual([
       ["c", 5],
       ["logs", 13],
@@ -120,7 +120,7 @@ describe("appendPanel", () => {
       input
     )
     const row = next.panels[0]
-    expect(row.type === "row" && row.panels?.[0].gridPos.y).toBe(8)
+    expect(row?.type === "row" && row?.panels?.[0]?.gridPos.y).toBe(8)
   })
 
   it("never mutates the dashboard it is given", () => {
@@ -154,7 +154,7 @@ describe("freePanelId", () => {
       },
     ])
     expect(freePanelId(spec, "logs")).toBe("logs-3")
-    expect(appendLogsPanel(spec, input).panels[2].id).toBe("logs-3")
+    expect(appendLogsPanel(spec, input).panels[2]?.id).toBe("logs-3")
   })
 
   it("uses the base when it is free", () => {

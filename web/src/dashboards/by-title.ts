@@ -37,12 +37,12 @@ export function pickDashboard(
   candidates: Candidate[]
 ): string | undefined {
   const exact = candidates.filter((candidate) => candidate.title === title)
-  if (exact.length > 0) return exact.length === 1 ? exact[0].id : undefined
+  if (exact.length > 0) return exact.length === 1 ? exact[0]?.id : undefined
   const lower = title.toLowerCase()
   const folded = candidates.filter(
     (candidate) => candidate.title.toLowerCase() === lower
   )
-  return folded.length === 1 ? folded[0].id : undefined
+  return folded.length === 1 ? folded[0]?.id : undefined
 }
 
 export function targetFor(
@@ -61,7 +61,7 @@ export function findByTitle(
   return api
     .GET("/dashboards", {
       params: { query: { q: title, limit: 200 } },
-      signal,
+      ...(signal === undefined ? {} : { signal }),
     })
     .then(unwrap)
     .then((page) => page.dashboards)

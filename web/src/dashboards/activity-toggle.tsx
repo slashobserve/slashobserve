@@ -28,7 +28,7 @@ export function ActivityToggle({
       label={label}
       count={openCount}
       pressed={pressed}
-      disabled={disabled}
+      disabled={disabled ?? false}
       onToggle={() => {
         closeControls()
         onToggle()

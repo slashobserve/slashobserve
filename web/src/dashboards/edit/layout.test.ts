@@ -72,7 +72,7 @@ describe("resizeItem", () => {
     const [first] = layoutFromSpec({
       panels: [{ id: "a", gridPos: { x: 0, y: 0, w: 6, h: 4 } }],
     } as never)
-    expect(first.maxH).toBe(100)
+    expect(first?.maxH).toBe(100)
   })
 })
 
@@ -268,8 +268,8 @@ describe("rows in the layout", () => {
       moveItem(settle(layoutFromSpec(expanded), membership), "top", 6, 0)
     )
     const rowPanel = moved.panels[1]
-    expect(rowPanel.gridPos).toEqual({ x: 0, y: 4, w: 24, h: 1 })
-    expect(moved.panels[0].gridPos).toMatchObject({ x: 6, y: 0 })
+    expect(rowPanel?.gridPos).toEqual({ x: 0, y: 4, w: 24, h: 1 })
+    expect(moved.panels[0]?.gridPos).toMatchObject({ x: 6, y: 0 })
   })
 
   it("saves a layout pushed around a row without overlap", () => {
@@ -282,7 +282,7 @@ describe("rows in the layout", () => {
       3
     )
     const saved = applyLayout(expanded, layout)
-    expect(saved.panels[1].gridPos).toEqual({ x: 0, y: 7, w: 24, h: 1 })
+    expect(saved.panels[1]?.gridPos).toEqual({ x: 0, y: 7, w: 24, h: 1 })
     expectNoOverlap(layoutFromSpec(saved))
   })
 
@@ -301,7 +301,7 @@ describe("rows in the layout", () => {
       { x: 0, y: 5, w: 12, h: 8 },
       { x: 12, y: 5, w: 12, h: 8 },
     ])
-    expect(saved.panels[1].gridPos).toEqual({ x: 0, y: 4, w: 24, h: 1 })
+    expect(saved.panels[1]?.gridPos).toEqual({ x: 0, y: 4, w: 24, h: 1 })
     expectNoOverlap(layoutFromSpec(saved))
   })
 })
@@ -401,10 +401,10 @@ describe("resizing inside a row", () => {
       panels: { id: string; gridPos: { y: number; h: number } }[]
     }[]
     expect(rows.map((entry) => entry.gridPos.y)).toEqual([0, 8, 16, 17])
-    expect(rows[0].panels[0].gridPos).toMatchObject({ y: 1, h: 7 })
-    expect(rows[1].panels.map((child) => child.gridPos.y)).toEqual([9, 9])
-    expect(rows[2].panels[0].gridPos.y).toBe(17)
-    expect(rows[3].panels[0].gridPos.y).toBe(18)
+    expect(rows[0]?.panels[0]?.gridPos).toMatchObject({ y: 1, h: 7 })
+    expect(rows[1]?.panels.map((child) => child.gridPos.y)).toEqual([9, 9])
+    expect(rows[2]?.panels[0]?.gridPos.y).toBe(17)
+    expect(rows[3]?.panels[0]?.gridPos.y).toBe(18)
     expect(
       sameLayout(
         settle(layoutFromSpec(saved), savedMembership),

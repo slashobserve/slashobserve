@@ -77,7 +77,7 @@ function PanelProblemState({
     <PanelErrorState
       title={problem.title}
       message={problem.message}
-      onRetry={problem.retry ? onRetry : undefined}
+      {...(problem.retry && onRetry !== undefined ? { onRetry } : {})}
     />
   )
 }
@@ -85,24 +85,24 @@ function PanelProblemState({
 type Props = {
   panel: LayoutPanel
   state: PanelState
-  error?: unknown
-  refreshing?: boolean
-  staleNotice?: string
-  onRetry?: () => void
-  badge?: ReactNode
-  links?: ResolvedLink[]
-  menu?: ReactNode
-  datasourceLabel?: string
-  seriesCap?: SeriesCap | null
-  editing?: boolean
-  highlighted?: boolean
-  selected?: boolean
-  onSelect?: () => void
-  dragHandle?: boolean
-  arrangeable?: boolean
-  grabbable?: boolean
-  repeatOf?: string
-  children?: ReactNode
+  error?: unknown | undefined
+  refreshing?: boolean | undefined
+  staleNotice?: string | undefined
+  onRetry?: (() => void) | undefined
+  badge?: ReactNode | undefined
+  links?: ResolvedLink[] | undefined
+  menu?: ReactNode | undefined
+  datasourceLabel?: string | undefined
+  seriesCap?: SeriesCap | null | undefined
+  editing?: boolean | undefined
+  highlighted?: boolean | undefined
+  selected?: boolean | undefined
+  onSelect?: (() => void) | undefined
+  dragHandle?: boolean | undefined
+  arrangeable?: boolean | undefined
+  grabbable?: boolean | undefined
+  repeatOf?: string | undefined
+  children?: ReactNode | undefined
 }
 
 export function PanelChrome({

@@ -101,7 +101,7 @@ describe("ExportSheet", () => {
     await waitFor(() => expect(saveDashboardImage).toHaveBeenCalledTimes(1), {
       timeout: 3000,
     })
-    expect(vi.mocked(saveDashboardImage).mock.calls[0][1]).toBe(
+    expect(vi.mocked(saveDashboardImage).mock.calls[0]?.[1]).toBe(
       "checkout-v7.png"
     )
     await waitFor(() => expect(useExportStore.getState().mode).toBeNull())
@@ -119,7 +119,7 @@ describe("ExportSheet", () => {
     await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1), {
       timeout: 3000,
     })
-    expect(toast.error.mock.calls[0][0]).toMatch(/Print or save as PDF/)
+    expect(toast.error.mock.calls[0]?.[0]).toMatch(/Print or save as PDF/)
     await waitFor(() => expect(useExportStore.getState().mode).toBeNull())
   })
 
@@ -145,7 +145,7 @@ describe("ExportSheet", () => {
     await waitFor(() => expect(toast.warning).toHaveBeenCalledTimes(1), {
       timeout: 3000,
     })
-    expect(toast.warning.mock.calls[0][0]).toMatch(/Still loading: p1/)
+    expect(toast.warning.mock.calls[0]?.[0]).toMatch(/Still loading: p1/)
     expect(print).not.toHaveBeenCalled()
     expect(screen.getByRole("status")).toHaveTextContent(
       "Some panels are still loading."

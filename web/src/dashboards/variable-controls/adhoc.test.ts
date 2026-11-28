@@ -121,18 +121,18 @@ describe("saved filters from the Spec", () => {
   ]
 
   it("maps a Spec filter to a chip filter, writing only the or condition", () => {
-    expect(fromSpecFilter(saved[0])).toEqual({
+    expect(fromSpecFilter(saved[0]!)).toEqual({
       key: "job",
       op: "=",
       value: "api",
     })
-    expect(fromSpecFilter(saved[1])).toEqual({
+    expect(fromSpecFilter(saved[1]!)).toEqual({
       key: "n",
       op: ">",
       value: "1",
       condition: "or",
     })
-    expect(fromSpecFilter(saved[2])).toEqual({
+    expect(fromSpecFilter(saved[2]!)).toEqual({
       key: "plain",
       op: "!=",
       value: "x",

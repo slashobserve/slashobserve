@@ -487,7 +487,7 @@ describe("CanvasTools", () => {
     scrollArea()
     scrollArea()
     expect(queued).toHaveLength(1)
-    act(() => queued[0](0))
+    act(() => queued[0]!(0))
     expect(screen.getByRole("toolbar").parentElement).toHaveStyle({
       bottom: "316px",
     })

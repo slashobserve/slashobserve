@@ -137,7 +137,7 @@ export function AddPanelToDashboard({
     queryFn: ({ signal }) =>
       api
         .GET("/dashboards", {
-          params: { query: { q: search || undefined, limit: 50 } },
+          params: { query: search ? { q: search, limit: 50 } : { limit: 50 } },
           signal,
         })
         .then(unwrap),

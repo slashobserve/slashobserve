@@ -14,14 +14,14 @@ export const listSorts = ["updated", "name", "views"] as const
 type ListSort = (typeof listSorts)[number]
 
 export type ListSearch = {
-  q?: string
-  made_by?: string
-  datasource?: string
-  tag?: string[]
-  folder?: string
-  kind?: ProblemFilter
-  sort?: ListSort
-  page?: number
+  q?: string | undefined
+  made_by?: string | undefined
+  datasource?: string | undefined
+  tag?: string[] | undefined
+  folder?: string | undefined
+  kind?: ProblemFilter | undefined
+  sort?: ListSort | undefined
+  page?: number | undefined
 }
 
 const uuid =
@@ -125,14 +125,17 @@ export function withoutPage(search: ListSearch): ListSearch {
 }
 
 export function toFilters(search: ListSearch): DashboardListFilters {
+  const problem = search.kind === importedFilter ? undefined : search.kind
   return {
-    q: search.q,
-    madeBy: search.made_by,
-    datasource: search.datasource,
-    tags: search.tag,
-    folder: search.folder,
-    problem: search.kind === importedFilter ? undefined : search.kind,
-    order: search.sort,
+    ...(search.q === undefined ? {} : { q: search.q }),
+    ...(search.made_by === undefined ? {} : { madeBy: search.made_by }),
+    ...(search.datasource === undefined
+      ? {}
+      : { datasource: search.datasource }),
+    ...(search.tag === undefined ? {} : { tags: search.tag }),
+    ...(search.folder === undefined ? {} : { folder: search.folder }),
+    ...(problem === undefined ? {} : { problem }),
+    ...(search.sort === undefined ? {} : { order: search.sort }),
   }
 }
 
@@ -188,9 +191,10 @@ export function madeByText(
 }
 
 export function tagsText(tags: string[] | undefined): string {
-  if (tags === undefined || tags.length === 0) return "any"
-  if (tags.length === 1) return tags[0]
-  return `${tags[0]} +${tags.length - 1}`
+  const first = tags?.[0]
+  if (tags === undefined || first === undefined) return "any"
+  if (tags.length === 1) return first
+  return `${first} +${tags.length - 1}`
 }
 
 export function folderText(

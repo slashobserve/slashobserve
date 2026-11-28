@@ -272,7 +272,7 @@ describe("selection helpers", () => {
       parents: { pod: ["a"], route: ["/x"] },
       parentsReady: true,
     })
-    expect(requests[0].parents).toEqual({})
+    expect(requests[0]?.parents).toEqual({})
   })
 
   it("repairs a stale datasource value before asking for dependent values", () => {
@@ -287,7 +287,7 @@ describe("selection helpers", () => {
     expect(
       valuesRequests([ds, job], stale, { ds: ["prom", "other"] })[1]
     ).toEqual({ parents: { ds: ["prom"] }, parentsReady: true })
-    expect(valuesRequests([ds, job], stale, {})[1].parentsReady).toBe(false)
+    expect(valuesRequests([ds, job], stale, {})[1]?.parentsReady).toBe(false)
   })
 
   it("drops extra values on a single-value parent", () => {
@@ -298,7 +298,7 @@ describe("selection helpers", () => {
     }
     const job: Variable = { ...route, name: "job" }
     expect(
-      valuesRequests([single, job], { env: ["a", "b"] }, {})[1].parents
+      valuesRequests([single, job], { env: ["a", "b"] }, {})[1]!.parents
     ).toEqual({ env: ["a"] })
   })
 
