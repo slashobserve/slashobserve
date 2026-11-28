@@ -7,6 +7,12 @@ import {
   type SparkOptions,
 } from "./sparkline-shape"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 const base: SparkOptions = {
   style: "line",
   interpolation: "linear",
@@ -78,7 +84,7 @@ describe("sparkShape", () => {
 
   it("fills under the line only when a fill is set", () => {
     expect(sparkShape([1, 2], base).areas).toEqual([])
-    const [area] = sparkShape([1, 2], { ...base, fill: 30 }).areas
+    const area = nth(sparkShape([1, 2], { ...base, fill: 30 }).areas, 0)
     expect(
       area.endsWith(`L94.0,${sparkHeight - 2}.0 L2.0,${sparkHeight - 2}.0 Z`)
     ).toBe(true)
@@ -97,7 +103,7 @@ describe("sparkShape", () => {
     const shape = sparkShape([1, null, 3], { ...base, style: "bars" })
     expect(shape.paths).toEqual([])
     expect(shape.bars).toHaveLength(2)
-    expect(shape.bars[1].y).toBeLessThan(shape.bars[0].y)
+    expect(nth(shape.bars, 1).y).toBeLessThan(nth(shape.bars, 0).y)
   })
 
   it("draws only dots for the points style", () => {

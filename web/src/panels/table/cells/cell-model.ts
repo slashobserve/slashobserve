@@ -10,8 +10,8 @@ export type CellSpec = {
   wholeRow: boolean
   wrap: boolean
   dynamicHeight: boolean
-  imageAlt?: string
-  imageTitle?: string
+  imageAlt?: string | undefined
+  imageTitle?: string | undefined
 }
 
 const seriesHues = 8

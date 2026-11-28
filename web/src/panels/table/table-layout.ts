@@ -12,7 +12,10 @@ export type RowSizing = {
 }
 export type Sort = { key: string; direction: "ascending" | "descending" }
 
-export type ColumnSizes = { width?: number; minWidth?: number }
+export type ColumnSizes = {
+  width?: number | undefined
+  minWidth?: number | undefined
+}
 export type ColumnWidths = { widths: number[]; total: number }
 
 const rowHeights = ["sm", "md", "lg"] as const

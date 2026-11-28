@@ -44,7 +44,8 @@ function columnAt(
   const index = layout.columns.findIndex(
     ({ left, width }) => x >= left && x <= left + width
   )
-  return index < 0 ? null : { index, column: layout.columns[index] }
+  const column = layout.columns[index]
+  return column === undefined ? null : { index, column }
 }
 
 function rowLabels(

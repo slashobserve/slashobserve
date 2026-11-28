@@ -791,6 +791,7 @@ const TablePanel: PanelRenderer = ({
       ...views.map((view, index): PanelGridColumn<ModelRow> => {
         const key = view.column.key
         const autoHeight = growsWith(fields, display, view.column, samples)
+        const columnWidth = layout?.widths[index]
         return {
           id: key,
           label: view.column.label,
@@ -810,12 +811,12 @@ const TablePanel: PanelRenderer = ({
               onClear={(column) => changeFilters(clearFilter(filters, column))}
             />
           ),
-          sort: showHeader
-            ? sort?.key === key
-              ? sort.direction
-              : "none"
-            : undefined,
-          onSort: showHeader ? () => toggleSort(key) : undefined,
+          ...(showHeader
+            ? {
+                sort: sort?.key === key ? sort.direction : "none",
+                onSort: () => toggleSort(key),
+              }
+            : {}),
           cell: (row) => (
             <BodyCell
               view={view}
@@ -831,10 +832,13 @@ const TablePanel: PanelRenderer = ({
           cellStyle: (row) => ({
             backgroundColor: cellFill(fields, views, view.column, row) ?? "",
           }),
-          footer: (row) => (
-            <FooterCell footer={footer[row]} index={index} view={view} />
-          ),
-          width: layout?.widths[index],
+          footer: (row) => {
+            const line = footer[row]
+            return line === undefined ? null : (
+              <FooterCell footer={line} index={index} view={view} />
+            )
+          },
+          ...(columnWidth === undefined ? {} : { width: columnWidth }),
           pinned: index < frozen,
           autoHeight,
           wrapHeader: showHeader && view.wrapHeader,
@@ -939,7 +943,7 @@ const TablePanel: PanelRenderer = ({
           headerHeight={showHeader ? headerPx : 0}
           footerRows={footer.length}
           footerHeight={footerRowPx}
-          details={expandable ? details : undefined}
+          {...(expandable ? { details } : {})}
           sizeToContent={layout === null}
           onLayout={measure}
         />
