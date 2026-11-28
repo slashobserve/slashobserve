@@ -6,6 +6,7 @@ import type { Finding } from "@/findings/queries"
 import { renderWithProviders } from "@/test/render"
 
 import { Discussion, DiscussionFeed } from "./discussion"
+import { must } from "@/test/must"
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -347,7 +348,7 @@ describe("Discussion", () => {
     await user.paste("@[Grace](user:2f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f) look")
     await user.click(screen.getByRole("button", { name: "Send" }))
     await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].body).toEqual({
+    expect(must(posts[0]).body).toEqual({
       body: "@[Grace](user:2f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f) look",
       client_id: expect.any(String),
       time_zone: expect.any(String),
@@ -522,7 +523,7 @@ describe("Discussion with a run", () => {
     const posts = mockServer({
       threads: [thread],
       messages: () => listed,
-      sent: { run: asked.run },
+      sent: { run: must(asked.run) },
     })
     const { user } = renderDiscussion({ route: { path: "/", url: "/" } })
     await screen.findByRole("list", { name: "Discussion" })
@@ -548,7 +549,7 @@ describe("Discussion with a run", () => {
     const posts = mockServer({
       threads: [thread],
       messages: () => listed,
-      sent: { run: asked.run },
+      sent: { run: must(asked.run) },
     })
     const { user } = renderWithProviders(
       <DiscussionFeed
@@ -688,7 +689,7 @@ describe("DiscussionFeed on an observation", () => {
     await user.type(screen.getByRole("textbox", { name: "Message" }), "Hi")
     await user.click(screen.getByRole("button", { name: "Send" }))
     await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].body).toEqual({
+    expect(must(posts[0]).body).toEqual({
       body: "Hi",
       client_id: expect.any(String),
       time_zone: expect.any(String),
@@ -730,7 +731,7 @@ describe("DiscussionFeed on an observation", () => {
     await user.type(screen.getByRole("textbox", { name: "Message" }), "Hi")
     await user.click(screen.getByRole("button", { name: "Send" }))
     await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].body).toEqual({
+    expect(must(posts[0]).body).toEqual({
       body: "Hi",
       client_id: expect.any(String),
       time_zone: expect.any(String),

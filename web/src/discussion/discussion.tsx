@@ -76,7 +76,7 @@ type DiscussionFeedProps = {
     tools: { reply: (() => void) | null }
   ) => ReactNode
   readOnlyAction?: ReactNode
-  focusedThreadId?: string
+  focusedThreadId?: string | undefined
 }
 
 type DiscussionProps = Omit<
