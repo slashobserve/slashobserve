@@ -110,7 +110,7 @@ export function annotationActivityQuery(dashboardId: string) {
               query: {
                 dashboard_id: dashboardId,
                 limit: activityLimit,
-                cursor,
+                ...(cursor === undefined ? {} : { cursor }),
               },
             },
             signal,

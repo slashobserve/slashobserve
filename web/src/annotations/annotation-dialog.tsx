@@ -37,7 +37,12 @@ import type { Annotation } from "./queries"
 import { zoneLabel } from "./time"
 
 export type Draft =
-  | { kind: "new"; fromMs: number; toMs: number | null; panelId?: string }
+  | {
+      kind: "new"
+      fromMs: number
+      toMs: number | null
+      panelId?: string | undefined
+    }
   | { kind: "edit"; annotation: Annotation }
 
 type DialogContext = {

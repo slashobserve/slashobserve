@@ -23,7 +23,7 @@ export function annotationMarkersPlugin(
   return {
     hooks: {
       draw: (u) => {
-        const { min, max } = u.scales.x
+        const { min, max } = u.scales.x ?? {}
         if (min == null || max == null) return
         const fromMs = min * 1000
         const toMs = max * 1000
