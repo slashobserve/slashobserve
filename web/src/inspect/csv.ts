@@ -62,8 +62,9 @@ function frameLabel(frame: PreparedFrame): string {
 function joinsOnTime(frames: readonly PreparedFrame[]): boolean {
   return frames.every((frame) => {
     const times = frame.fields.filter((field) => field.type === "time")
-    if (times.length !== 1) return false
-    return new Set(times[0].values).size === times[0].values.length
+    const [time] = times
+    if (times.length !== 1 || time === undefined) return false
+    return new Set(time.values).size === time.values.length
   })
 }
 
@@ -95,7 +96,8 @@ function joined(
       .filter((field) => field.type !== "time")
       .map((field) => ({ name: seriesName(frame, field), frame, field, rows }))
   })
-  const timeField = firstTimeField(frames[0])
+  const [first] = frames
+  const timeField = first === undefined ? undefined : firstTimeField(first)
   const times = [
     ...new Set(frames.flatMap((frame) => firstTimeField(frame)?.values ?? [])),
   ]
@@ -107,7 +109,9 @@ function joined(
       ...columns.map((column) => column.name),
     ],
     rows: times.map((time) => [
-      timeField ? format(frames[0], timeField, time) : timeText(time),
+      first !== undefined && timeField
+        ? format(first, timeField, time)
+        : timeText(time),
       ...columns.map(({ frame, field, rows }) => {
         const row = rows.get(time)
         return row === undefined ? "" : format(frame, field, cell(field, row))
@@ -145,7 +149,9 @@ export function framesToTable(
   format: CellFormat = rawCell
 ): DataTable {
   if (frames.length === 0) return { columns: [], rows: [] }
-  if (frames.length === 1) return singleFrame(frames[0], format)
+  const [only] = frames
+  if (frames.length === 1 && only !== undefined)
+    return singleFrame(only, format)
   return joinsOnTime(frames)
     ? joined(frames, format)
     : concatenated(frames, format)
