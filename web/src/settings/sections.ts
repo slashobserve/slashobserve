@@ -123,7 +123,7 @@ export function sectionNotice(
 
 export function settingsPanel(
   section: SettingsSectionId,
-  search: { panel?: string; webhook?: string }
+  search: { panel?: string | undefined; webhook?: string | undefined }
 ): SettingsPanel | null {
   if (section === "grafana" && search.panel === "grafana-add") {
     return { kind: "grafana-add" }
