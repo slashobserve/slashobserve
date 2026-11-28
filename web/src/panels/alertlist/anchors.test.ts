@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 
+import { must } from "@/panels/must"
+
 import { edgeHeight } from "../list-anchors"
 
 import { hitTest, locate, reveal, type AlertAnchorLayout } from "./anchors"
@@ -47,7 +49,7 @@ describe("alert list locate", () => {
     const point = { x: 30, y: 45 }
     const anchor = hitTest(layout, point)
     expect(anchor).not.toBeNull()
-    expect(locate(layout, anchor!)).toEqual(layout.rows[1].rect)
+    expect(locate(layout, anchor!)).toEqual(must(layout.rows[1]).rect)
   })
 
   it("finds a row by the alert name alone", () => {
@@ -57,7 +59,7 @@ describe("alert list locate", () => {
         pos: { x: 0, y: 0 },
         row: { alertname: "HighErrorRate" },
       })
-    ).toEqual(layout.rows[0].rect)
+    ).toEqual(must(layout.rows[0]).rect)
   })
 
   it("points at the bottom edge for an alert scrolled out of view", () => {

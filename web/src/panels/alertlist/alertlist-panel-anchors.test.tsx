@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import { panelOf, renderPublishing, stubRects } from "../anchor-harness"
 import type { PreparedFrame } from "../transforms"
 import { locate } from "./anchors"
@@ -94,7 +96,7 @@ describe("alert list anchors", () => {
       "Alert0",
       "Alert1",
     ])
-    expect(layout.rows[1].rect).toEqual({
+    expect(must(layout.rows[1]).rect).toEqual({
       x: 0,
       y: 50,
       width: 400,
@@ -125,6 +127,7 @@ describe("alert list anchors", () => {
     )
     const layout = store.current()?.layout as AlertAnchorLayout
     const hidden = alertModel(many, {}, now).alerts[4]
+    defined(hidden)
     layout.reveal?.(hidden.key)
     expect(view.container.querySelector("ul")?.scrollTop).toBe(150)
     expect(page).not.toHaveBeenCalled()
