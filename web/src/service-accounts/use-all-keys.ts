@@ -35,9 +35,10 @@ export function useAllKeys(): AllKeys {
   }) =>
     query.data === undefined && (query.isError || query.errorUpdateCount > 0)
   const failed = keyQueries.filter(hasFailed)
-  const failedAccounts = accounts.filter((_, index) =>
-    hasFailed(keyQueries[index])
-  )
+  const failedAccounts = accounts.filter((_, index) => {
+    const query = keyQueries[index]
+    return query !== undefined && hasFailed(query)
+  })
   const fetching =
     accountsQuery.isFetching || failed.some((query) => query.isFetching)
 
@@ -61,8 +62,9 @@ export function useAllKeys(): AllKeys {
       rows: [],
     }
   }
-  if (failed.length > 0 && failed.length === accounts.length) {
-    return { ...base, status: "error", error: failed[0].error, rows: [] }
+  const [firstFailed] = failed
+  if (firstFailed !== undefined && failed.length === accounts.length) {
+    return { ...base, status: "error", error: firstFailed.error, rows: [] }
   }
 
   const owner = new Map<string, ServiceAccount>()

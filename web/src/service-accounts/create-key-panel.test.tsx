@@ -9,6 +9,7 @@ import { renderWithProviders, testQueryClient } from "@/test/render"
 
 import { CreateKeyPanel } from "./create-key-panel"
 import type { ServiceAccount } from "./queries"
+import { must } from "@/test/must"
 
 function account(over: Partial<ServiceAccount> = {}): ServiceAccount {
   return {
@@ -132,8 +133,8 @@ describe("CreateKeyPanel takes agent runs", () => {
     )
     const patches = calls.filter((call) => call.method === "PATCH")
     expect(patches).toHaveLength(1)
-    expect(patches[0].url).toMatch(/\/service-accounts\/a1$/)
-    expect(patches[0].body).toEqual({ takes_runs: true })
+    expect(must(patches[0]).url).toMatch(/\/service-accounts\/a1$/)
+    expect(must(patches[0]).body).toEqual({ takes_runs: true })
   })
 
   it("turns an account that takes runs off", async () => {
@@ -221,7 +222,7 @@ describe("CreateKeyPanel role", () => {
     const { user } = renderPanel(account(), onClose)
     await user.click(await screen.findByLabelText("Expires"))
     const options = await screen.findAllByRole("option")
-    await user.click(options[options.length - 1])
+    await user.click(must(options[options.length - 1]))
     expect(onClose).not.toHaveBeenCalled()
   })
 })
@@ -253,7 +254,7 @@ describe("CreateKeyPanel after the account was created and the key was not", () 
     expect(accountPosts).toHaveLength(1)
     const keyPosts = calls.filter((call) => call.url.endsWith("/keys"))
     expect(keyPosts).toHaveLength(2)
-    expect(keyPosts[1].url).toMatch(/\/service-accounts\/a2\/keys$/)
+    expect(must(keyPosts[1]).url).toMatch(/\/service-accounts\/a2\/keys$/)
   })
 
   it("keeps the plain form when an existing account's key fails", async () => {
