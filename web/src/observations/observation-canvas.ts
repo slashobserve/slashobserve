@@ -160,7 +160,7 @@ export function useObservationCanvas({
       if (action.kind === "enterMode") leave("ask")
       if (action.kind === "panel") openKeyDraft(action.panelId, "ask")
     },
-    close: tool !== "select" || composing ? () => leave("select") : undefined,
+    ...(tool !== "select" || composing ? { close: () => leave("select") } : {}),
   })
 
   return host

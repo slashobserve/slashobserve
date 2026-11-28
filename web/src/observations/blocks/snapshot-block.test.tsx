@@ -88,7 +88,7 @@ describe("SnapshotBlock", () => {
     renderSnapshot(snapshotBlock({ snapshot_id: snapshotId }))
 
     expect(await screen.findByText(/^Frozen, /)).toBeTruthy()
-    expect(new URL(fetch.mock.calls[0][0].url).pathname).toBe(
+    expect(new URL(fetch.mock.calls[0]![0].url).pathname).toBe(
       `/api/v1/snapshots/${snapshotId}`
     )
   })

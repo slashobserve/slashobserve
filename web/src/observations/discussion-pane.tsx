@@ -42,7 +42,7 @@ type Props = {
   canEdit: boolean
   hidden: boolean
   headingRef: RefObject<HTMLHeadingElement | null>
-  focusedThreadId?: string
+  focusedThreadId?: string | undefined
   onClose: () => void
   onShowBlock: (blockId: string) => void
   onAdded: (blockId: string) => void
@@ -51,7 +51,7 @@ type Props = {
 type FrozenPanel = { id: string; panel: { [key: string]: unknown } }
 
 function snapshotTitlesOf(
-  results: readonly { data?: FrozenPanel }[]
+  results: readonly { data?: FrozenPanel | undefined }[]
 ): ReadonlyMap<string, string> {
   const titles = new Map<string, string>()
   for (const { data } of results) {
@@ -89,7 +89,7 @@ function useChangeEvents(observation: Observation) {
                 observation_id: observation.id,
                 type: [...changeEventTypes],
                 limit: changeEventLimit,
-                cursor,
+                ...(cursor === undefined ? {} : { cursor }),
               },
             },
             signal,
@@ -221,7 +221,9 @@ export function DiscussionPane({
           onShow: onShowBlock,
         }}
         view={{ filter, onClear: clearFilter }}
-        focusedThreadId={hidden ? undefined : focusedThreadId}
+        {...(hidden || focusedThreadId === undefined
+          ? {}
+          : { focusedThreadId })}
         readOnlyAction={
           <RequestCommentAccess
             object={{ kind: "observation", id: observation.id }}

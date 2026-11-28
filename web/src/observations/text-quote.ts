@@ -29,8 +29,9 @@ function indexText(root: Node): TextIndex {
   for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
     const value = node.nodeValue ?? ""
     for (let offset = 0; offset < value.length; offset += 1) {
-      if (space.test(value[offset])) continue
-      index.text += value[offset]
+      const char = value[offset]
+      if (char === undefined || space.test(char)) continue
+      index.text += char
       index.at.push({ node: node as Text, offset })
     }
   }
@@ -40,6 +41,9 @@ function indexText(root: Node): TextIndex {
 function rangeOf(index: TextIndex, start: number, length: number): Range {
   const first = index.at[start]
   const last = index.at[start + length - 1]
+  if (first === undefined || last === undefined) {
+    throw new RangeError(`no text at ${start}+${length}`)
+  }
   const range = document.createRange()
   range.setStart(first.node, first.offset)
   range.setEnd(last.node, last.offset + 1)

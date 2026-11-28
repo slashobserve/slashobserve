@@ -11,14 +11,14 @@ const defaultPageSize = 20
 const maxPage = 5000
 
 export type ObservationsSearch = {
-  state?: "resolved" | "all"
-  q?: string
-  mine?: "1"
-  sort?: "created" | "title"
-  order?: ObservationOrder
-  page?: number
-  size?: Exclude<ObservationPageSize, 20>
-  new?: "1"
+  state?: "resolved" | "all" | undefined
+  q?: string | undefined
+  mine?: "1" | undefined
+  sort?: "created" | "title" | undefined
+  order?: ObservationOrder | undefined
+  page?: number | undefined
+  size?: Exclude<ObservationPageSize, 20> | undefined
+  new?: "1" | undefined
 }
 
 export type ObservationListView = {

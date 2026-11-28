@@ -35,9 +35,9 @@ function samePlacements(a: Placement[], b: Placement[]): boolean {
     a.length === b.length &&
     a.every(
       (entry, index) =>
-        entry.id === b[index].id &&
-        entry.width === b[index].width &&
-        entry.height === b[index].height
+        entry.id === b[index]?.id &&
+        entry.width === b[index]?.width &&
+        entry.height === b[index]?.height
     )
   )
 }

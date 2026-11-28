@@ -131,7 +131,7 @@ export function observationsInfiniteQuery(
           params: {
             query: {
               limit,
-              cursor: pageParam,
+              ...(pageParam === undefined ? {} : { cursor: pageParam }),
               ...(filters.state === undefined ? {} : { state: filters.state }),
               ...(filters.folderId === undefined
                 ? {}

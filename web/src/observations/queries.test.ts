@@ -630,7 +630,7 @@ class FakeEventSource {
 
   emit(name: string, data?: unknown) {
     for (const listener of this.listeners.get(name) ?? []) {
-      listener({ data: data === undefined ? undefined : JSON.stringify(data) })
+      listener(data === undefined ? {} : { data: JSON.stringify(data) })
     }
   }
 

@@ -205,9 +205,9 @@ describe("BlockEditorDock", { timeout: 20_000 }, () => {
     await user.click(screen.getByRole("button", { name: "Save" }))
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith("b1"), saveWait)
     const [write] = writes()
-    expect(write.method).toBe("PATCH")
-    expect(write.path).toBe("/api/v1/blocks/b1")
-    const body = write.body as {
+    expect(write?.method).toBe("PATCH")
+    expect(write?.path).toBe("/api/v1/blocks/b1")
+    const body = write!.body as {
       version: number
       body: { panel: Record<string, unknown>; from: string }
     }
@@ -231,9 +231,9 @@ describe("BlockEditorDock", { timeout: 20_000 }, () => {
     await user.click(screen.getByRole("button", { name: "Suggest edit" }))
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith("b2"), saveWait)
     const [write] = writes()
-    expect(write.method).toBe("POST")
-    expect(write.path).toBe("/api/v1/observations/o1/blocks")
-    const body = write.body as {
+    expect(write?.method).toBe("POST")
+    expect(write?.path).toBe("/api/v1/observations/o1/blocks")
+    const body = write!.body as {
       kind: string
       position: number
       width: string
@@ -269,8 +269,8 @@ describe("BlockEditorDock", { timeout: 20_000 }, () => {
     await user.click(screen.getByRole("button", { name: "Add" }))
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith("b2"), saveWait)
     const [write] = writes()
-    expect(write.path).toBe("/api/v1/observations/o1/blocks")
-    const body = write.body as {
+    expect(write?.path).toBe("/api/v1/observations/o1/blocks")
+    const body = write!.body as {
       position?: number
       body: { panel: Record<string, unknown>; from?: string }
     }
@@ -299,9 +299,9 @@ describe("BlockEditorDock", { timeout: 20_000 }, () => {
     await user.click(screen.getByRole("button", { name: "Add as a new block" }))
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith("b2"), saveWait)
     const [write] = writes()
-    expect(write.method).toBe("POST")
-    expect(write.path).toBe("/api/v1/observations/o1/blocks")
-    expect(write.body).toMatchObject({
+    expect(write?.method).toBe("POST")
+    expect(write?.path).toBe("/api/v1/observations/o1/blocks")
+    expect(write?.body).toMatchObject({
       kind: "panel",
       position: 2,
       width: "half",

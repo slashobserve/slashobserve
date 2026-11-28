@@ -26,7 +26,7 @@ type Choice = { id: string; title: string }
 
 type Props = {
   observation: Observation
-  confined?: Confined
+  confined?: Confined | undefined
   onClose: () => void
   trigger: RefObject<HTMLElement | null>
 }

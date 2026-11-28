@@ -36,12 +36,12 @@ import {
 
 type Props = {
   panel: DataPanel
-  variables?: readonly Variable[]
-  from?: string
-  to?: string
+  variables?: readonly Variable[] | undefined
+  from?: string | undefined
+  to?: string | undefined
   onClose: () => void
   trigger: RefObject<HTMLElement | null>
-  defaultObservationId?: string
+  defaultObservationId?: string | undefined
 }
 
 type Where = "open" | "new"

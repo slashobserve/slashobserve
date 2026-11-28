@@ -110,7 +110,8 @@ describe("blockVariables", () => {
 
   it("leaves the variable as defined when nothing is selected", () => {
     const [kept] = blockVariables(used, [service], {})
-    expect("default" in kept).toBe(false)
+    expect(kept).toBeDefined()
+    expect("default" in kept!).toBe(false)
   })
 })
 
@@ -220,7 +221,7 @@ describe("blockVariableStates", () => {
       pod: ["checkout-0"],
       step: ["1m"],
     })
-    expect(states[0].selected).toEqual(["cart", "search"])
+    expect(states[0]?.selected).toEqual(["cart", "search"])
   })
 
   it("keeps free-entry variables at their stored value and out of the pickers", () => {

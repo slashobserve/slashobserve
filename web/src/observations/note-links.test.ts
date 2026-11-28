@@ -138,9 +138,9 @@ describe("link blocks", () => {
     const panel = traceLinkBody(link, "clickhouse", now).panel
     expect(panel).toMatchObject({ type: "traces", datasource: "ch" })
     const [query] = panel.queries as { query: string; format: string }[]
-    expect(query.format).toBe("table")
-    expect(query.query).toMatch(/^SELECT /)
-    expect(query.query).toContain(
+    expect(query?.format).toBe("table")
+    expect(query?.query).toMatch(/^SELECT /)
+    expect(query?.query).toContain(
       `FROM otel_traces WHERE TraceId = '${traceId}'`
     )
   })

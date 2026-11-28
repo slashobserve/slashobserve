@@ -107,7 +107,7 @@ describe("AddToPage", () => {
     await waitFor(() => expect(onAdded).toHaveBeenCalledWith("b1"))
     expect(mutateAsync).toHaveBeenCalledTimes(3)
     expect(toasts.success).toHaveBeenCalledWith("Added to the page")
-    expect(mutateAsync.mock.calls[0][0]).toEqual({
+    expect(mutateAsync.mock.calls[0]?.[0]).toEqual({
       kind: "text",
       body: { markdown: "## Checkout is slow\n\nThe 5xx rate rose." },
     })
@@ -159,7 +159,7 @@ describe("AddToPage", () => {
     )
     await user.click(screen.getByText("Add to page"))
     await waitFor(() => expect(toasts.error).toHaveBeenCalledTimes(1))
-    expect(toasts.error.mock.calls[0][0]).toMatch(/^Added 2 of 3 blocks: /)
+    expect(toasts.error.mock.calls[0]?.[0]).toMatch(/^Added 2 of 3 blocks: /)
     expect(toasts.success).not.toHaveBeenCalled()
     expect(onAdded).toHaveBeenCalledWith("b1")
   })

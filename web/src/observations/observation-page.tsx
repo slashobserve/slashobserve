@@ -82,7 +82,7 @@ function LoadedObservation({
 }: {
   envelope: ObservationEnvelope
   rca: RcaControl
-  focusedThreadId?: string
+  focusedThreadId?: string | undefined
   onClearThread: () => void
 }) {
   const { observation, permissions } = envelope
@@ -303,14 +303,14 @@ function LoadedObservation({
           onShowBlock={onShowBlock}
           onClose={() => rca.onOpenChange(false)}
           personal={isPrivate}
-          privateFolder={
-            mustMoveToPublish
-              ? () => {
+          {...(mustMoveToPublish
+            ? {
+                privateFolder: () => {
                   rca.onOpenChange(false)
                   setMoving(true)
-                }
-              : undefined
-          }
+                },
+              }
+            : {})}
         />
       ) : null}
       {moving ? (
@@ -333,7 +333,7 @@ export function ObservationPage({
 }: {
   observationId: string
   rca: RcaControl
-  focusedThreadId?: string
+  focusedThreadId?: string | undefined
   onClearThread: () => void
 }) {
   const query = useObservation(observationId)

@@ -13,7 +13,9 @@ const variableName = /\$\{?(?!__)([A-Za-z_]\w*)/g
 
 function collectNames(value: unknown, into: Set<string>) {
   if (typeof value === "string") {
-    for (const match of value.matchAll(variableName)) into.add(match[1])
+    for (const [, name] of value.matchAll(variableName)) {
+      if (name !== undefined) into.add(name)
+    }
   } else if (Array.isArray(value)) {
     for (const item of value) collectNames(item, into)
   } else if (typeof value === "object" && value !== null) {
@@ -108,26 +110,27 @@ export function blockVariableStates(
       )
     )
   )
-  const displays = variables.map((variable) =>
-    variableDisplay(variable, {
+  const displays = variables.map((variable) => ({
+    variable,
+    display: variableDisplay(variable, {
       data: { values: bakedValues(variable), truncated: false },
       last: undefined,
       parentKey: "",
       isError: false,
       isFetching: false,
-    })
-  )
+    }),
+  }))
   const options: VariableOptions = {}
-  variables.forEach((variable, index) => {
-    options[variable.name] = displays[index].selectable
+  displays.forEach(({ variable, display }) => {
+    options[variable.name] = display.selectable
   })
   const { selections } = resolveSelections([...variables], picked, options)
-  const all = variables.map((variable, index) => ({
+  const all = displays.map(({ variable, display }) => ({
     variable,
-    options: displays[index].shown?.values,
-    texts: displays[index].shown?.texts,
+    options: display.shown?.values,
+    texts: display.shown?.texts,
     truncated: false,
-    status: displays[index].status,
+    status: display.status,
     selected: selections[variable.name] ?? [],
     retry: ignoreRetry,
   }))

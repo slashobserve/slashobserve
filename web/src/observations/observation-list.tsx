@@ -140,7 +140,7 @@ export function ObservationList({ view, creating, onChange }: Props) {
   const newButton = useRef<HTMLButtonElement>(null)
   const list = useQuery(
     observationsPageQuery({
-      state: view.state === "all" ? undefined : view.state,
+      ...(view.state === "all" ? {} : { state: view.state }),
       q: view.q,
       mine: view.mine,
       sort: view.sort,
@@ -693,9 +693,12 @@ const skeletonColumns = observationColumns({
   onResolve: () => undefined,
   onReopen: () => undefined,
   onDelete: () => undefined,
-}).map((column) =>
-  column.id === "title" ? { ...column, headerCell: undefined } : column
-)
+}).map((column) => {
+  if (column.id !== "title") return column
+  const plain = { ...column }
+  delete plain.headerCell
+  return plain
+})
 
 function ObservationSkeleton() {
   return (
