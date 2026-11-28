@@ -63,6 +63,7 @@ test-scripts:
 	scripts/ci-changes-test.sh
 	scripts/astronomy-test.sh
 	scripts/replicas-test.sh
+	scripts/redact-test.sh
 
 test-benchmarks:
 	uv run --locked --project benchmarks pytest benchmarks/tests

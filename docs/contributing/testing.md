@@ -237,6 +237,7 @@ Details of `make test-scripts`:
 - `scripts/ci-changes-test.sh` tests which CI jobs a set of changed files needs.
 - `scripts/astronomy-test.sh` tests the Astronomy Shop's flag target against a fixture flag file.
 - `scripts/replicas-test.sh` tests the replicas stack's wait for a request rate in Prometheus, against a stubbed `curl`.
+- `scripts/redact-test.sh` tests `scripts/redact.sh`, the one rule that keeps every token the server mints and other secrets out of the e2e and replicas stacks' failure output.
 
 ### E2E stack settings
 
