@@ -6,6 +6,12 @@ import type { PreparedFrame } from "../transforms"
 import { hides, type PieAnchorLayout } from "./anchors"
 import PiechartPanel from "./piechart-panel"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 function status(name: string, value: number): PreparedFrame {
   return {
     ref: name,
@@ -32,8 +38,8 @@ describe("pie chart anchors", () => {
     const layout = published?.layout as PieAnchorLayout
     expect(layout.body).toEqual({ width: 400, height: 240 })
     expect(layout.slices.map(({ name }) => name)).toEqual(["200", "500"])
-    expect(layout.slices[0].startAngle).toBe(0)
-    expect(layout.slices[1].endAngle).toBeCloseTo(Math.PI * 2)
+    expect(nth(layout.slices, 0).startAngle).toBe(0)
+    expect(nth(layout.slices, 1).endAngle).toBeCloseTo(Math.PI * 2)
   })
 
   it("has no hole for a pie", () => {
