@@ -44,6 +44,7 @@ WITH running AS (
     AND r.state = ANY(@from_states::text[])
     AND (r.state = 'queued' OR r.lease_until < clock_timestamp())
     AND r.cancel_requested_at IS NULL
+    AND r.committed_kind IS NULL
     AND r.attempts < @max_attempts::integer
     AND r.assigned_kind = @assigned_kind::text
     AND r.assigned_id IS NOT DISTINCT FROM sqlc.narg('assigned_id')::uuid
@@ -95,7 +96,7 @@ LEFT JOIN dashboard_versions saved ON saved.agent_request_id = e.id AND (e.dashb
 LEFT JOIN findings f ON f.agent_request_id = e.id
 LEFT JOIN LATERAL (SELECT p.id FROM proposals p WHERE p.run_id = e.id LIMIT 1) pr ON true
 WHERE r.id = e.id AND r.status = 'running' AND r.state = ANY(@from_states::text[])
-  AND r.lease_until < clock_timestamp() AND r.attempts >= @max_attempts::integer
+  AND r.lease_until < clock_timestamp() AND (r.attempts >= @max_attempts::integer OR r.committed_kind IS NOT NULL)
 RETURNING r.*;
 
 -- name: SettleCanceledAgentRequests :many
@@ -219,7 +220,7 @@ RETURNING *;
 UPDATE agent_requests
 SET state = 'queued', status = 'queued', attempts = attempts - 1, lease_until = NULL, claimed_by = NULL,
   check_failures = check_failures + CASE WHEN @check_failed::boolean THEN 1 ELSE 0 END
-WHERE id = @id AND state = ANY(@from_states::text[]) AND claim_epoch = @claim_epoch
+WHERE id = @id AND state = ANY(@from_states::text[]) AND claim_epoch = @claim_epoch AND committed_kind IS NULL
 RETURNING *;
 
 -- name: GetAgentRequest :one

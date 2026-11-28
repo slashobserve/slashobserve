@@ -613,6 +613,7 @@ It then logs `harness stopped` with `shutdown` `drained` and exits with status 0
 The same line counts the runs: `released` for the ones the server took back, and `not_released` for the ones whose `release_run` failed or whose loop had not stopped.
 A sidecar that has not finished 5 seconds after the signal logs `shutdown` `forced` and exits with status 124.
 The server then hands back whatever the sidecar still held, so a run returns to the queue either way.
+A run that already saved its dashboard version, proposal or answer is never requeued: once its lease expires, it ends succeeded with what it saved.
 
 When an LLM provider is configured, the server looks for `slashobserve-harness` on `PATH`.
 It does not start when the binary is missing or when `SLASHOBSERVE_HTTP_ADDR` names a host other than a loopback address or all addresses.

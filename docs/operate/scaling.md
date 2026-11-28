@@ -178,6 +178,7 @@ Details of why a limit has its scope:
 - After a crash, the other servers count the dead one for up to 30 seconds, so their shares are briefly smaller.
   A new server is counted within 10 seconds.
 - Another server retries a killed server's running agent requests once their 60 second lease expires, up to 2 attempts in all.
+  A request that had already saved its result ends succeeded with it instead.
 - Streams on a stopped server end, and the client reconnects.
   An activity stream resumes from `Last-Event-ID`.
 - A rolling upgrade migrates on the first new pod while the others wait on the lock; see [Upgrades and backups](upgrades-and-backups.md).

@@ -270,3 +270,44 @@ func TestDeletingTheDashboardOfACommittedRunClearsItsMarkedVersion(t *testing.T)
 		t.Errorf("state %s, result_version %v, dashboard %v; want a failed run, because its version is gone", got.State, got.ResultVersion, got.DashboardID)
 	}
 }
+
+func TestACommittedRunIsNeverHandedOutAgainAndSettlesAsSucceeded(t *testing.T) {
+	for _, release := range []bool{false, true} {
+		name := "lease expired"
+		if release {
+			name = "released"
+		}
+		t.Run(name, func(t *testing.T) {
+			svc, d := newService(t, succeedWith(2))
+			ctx := reading(context.Background())
+			c := claimedCreateRun(t, svc, d, terminalSweep{prepare: "SELECT $1::uuid, $2::int"})
+			if err := d.InTx(ctx, func(q *dbsqlc.Queries) error {
+				if err := c.writeVersion(ctx, q); err != nil {
+					return err
+				}
+				return c.mark(ctx, q)
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if release {
+				if err := svc.Release(ctx, c.run); err != nil {
+					t.Fatalf("release: %v", err)
+				}
+				if got := storedRun(t, svc, c.run.ID.String()); got.State != string(revisions.StateRunning) || got.Attempts != c.run.Attempts {
+					t.Fatalf("released committed run = state %s, attempts %d, want it left running at attempt %d", got.State, got.Attempts, c.run.Attempts)
+				}
+			}
+			d.Exec(t, "UPDATE agent_requests SET lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", c.run.ID)
+			if again, found := claimOne(t, svc); found {
+				t.Fatalf("claimed the committed run %v again", again.ID)
+			}
+			if err := svc.Sweep(ctx); err != nil {
+				t.Fatal(err)
+			}
+			got := storedRun(t, svc, c.run.ID.String())
+			if got.State != string(revisions.StateSucceeded) || !got.ResultVersion.Valid || got.ResultVersion.Int32 != 1 || got.DashboardID != c.dashboard {
+				t.Fatalf("settled run = state %s, version %v, dashboard %v, want succeeded with version 1 on %v", got.State, got.ResultVersion, got.DashboardID, c.dashboard)
+			}
+		})
+	}
+}

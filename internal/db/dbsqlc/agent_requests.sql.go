@@ -293,6 +293,7 @@ WITH running AS (
     AND r.state = ANY($3::text[])
     AND (r.state = 'queued' OR r.lease_until < clock_timestamp())
     AND r.cancel_requested_at IS NULL
+    AND r.committed_kind IS NULL
     AND r.attempts < $4::integer
     AND r.assigned_kind = $5::text
     AND r.assigned_id IS NOT DISTINCT FROM $6::uuid
@@ -1393,7 +1394,7 @@ LEFT JOIN dashboard_versions saved ON saved.agent_request_id = e.id AND (e.dashb
 LEFT JOIN findings f ON f.agent_request_id = e.id
 LEFT JOIN LATERAL (SELECT p.id FROM proposals p WHERE p.run_id = e.id LIMIT 1) pr ON true
 WHERE r.id = e.id AND r.status = 'running' AND r.state = ANY($1::text[])
-  AND r.lease_until < clock_timestamp() AND r.attempts >= $2::integer
+  AND r.lease_until < clock_timestamp() AND (r.attempts >= $2::integer OR r.committed_kind IS NOT NULL)
 RETURNING r.id, r.dashboard_id, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note, r.context_from, r.context_to, r.title, r.pinned_at, r.archived_at, r.trigger, r.state, r.result_kind, r.assigned_kind, r.assigned_id, r.claimed_by, r.observation_id, r.thread_message_id, r.thread_context, r.chat_id, r.retries_id, r.time_zone, r.thread_replied_at, r.anchor, r.block_id, r.client_id, r.intent, r.kind, r.applies_finding_id, r.subject_observation_id, r.investigation, r.read_restricted, r.as_of, r.claim_epoch, r.thread_reply_abandoned_at, r.committed_kind, r.committed_version, r.committed_dashboard_id
 `
 
@@ -2587,7 +2588,7 @@ const releaseAgentRequest = `-- name: ReleaseAgentRequest :one
 UPDATE agent_requests
 SET state = 'queued', status = 'queued', attempts = attempts - 1, lease_until = NULL, claimed_by = NULL,
   check_failures = check_failures + CASE WHEN $1::boolean THEN 1 ELSE 0 END
-WHERE id = $2 AND state = ANY($3::text[]) AND claim_epoch = $4
+WHERE id = $2 AND state = ANY($3::text[]) AND claim_epoch = $4 AND committed_kind IS NULL
 RETURNING id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation, read_restricted, as_of, claim_epoch, thread_reply_abandoned_at, committed_kind, committed_version, committed_dashboard_id
 `
 
