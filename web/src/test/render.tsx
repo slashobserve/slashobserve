@@ -13,8 +13,8 @@ import userEvent from "@testing-library/user-event"
 import { parseSearch, stringifySearch } from "@/lib/search"
 
 type Options = {
-  queryClient?: QueryClient
-  route?: { path: string; url: string }
+  queryClient?: QueryClient | undefined
+  route?: { path: string; url: string } | undefined
 }
 
 export function testQueryClient(): QueryClient {
