@@ -216,9 +216,9 @@ function TraceHeader({
   actions,
 }: {
   id: string
-  datasource?: DatasourceStatus
-  model?: TraceModelData
-  traceActions?: TraceActions
+  datasource?: DatasourceStatus | undefined
+  model?: TraceModelData | undefined
+  traceActions?: TraceActions | undefined
   actions: PageActions
 }) {
   const phone = useNarrow()
@@ -758,7 +758,8 @@ function TraceExplorer({
           ? 0
           : matchIds.length - 1
         : (matchIndex + step + matchIds.length) % matchIds.length
-    changeOpenId(matchIds[next])
+    const id = matchIds[next]
+    if (id !== undefined) changeOpenId(id)
   }
   const toggleService = (name: string) =>
     setHiddenServices((current) => {
@@ -894,12 +895,12 @@ function TraceExplorer({
               </>
             }
             highlighted={filtered.matched}
-            criticalPathIds={showPath ? pathIds : undefined}
-            dimmed={dimmed}
+            {...(showPath ? { criticalPathIds: pathIds } : {})}
+            {...(dimmed === undefined ? {} : { dimmed })}
             zoom={zoom}
             onZoom={setZoom}
             header={false}
-            fold={folded ? groups : undefined}
+            {...(folded ? { fold: groups } : {})}
           />
         ) : null}
       </div>

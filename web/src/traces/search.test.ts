@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest"
-import { exploreRange } from "@/lib/time"
 
 import {
   askAfterSubmit,
@@ -7,6 +6,7 @@ import {
   linkWithoutPage,
   normaliseTraceId,
   rangeInFuture,
+  searchRange,
   traceViewDatasource,
   traceViewRange,
   validateTraceEntrySearch,
@@ -92,7 +92,7 @@ describe("validateTraceSearch", () => {
   })
 
   it("defaults the search range to the last hour", () => {
-    expect(exploreRange(validateTraceSearch({ from: "now-1d" }))).toEqual({
+    expect(searchRange(validateTraceSearch({ from: "now-1d" }))).toEqual({
       from: "now-1h",
       to: "now",
     })

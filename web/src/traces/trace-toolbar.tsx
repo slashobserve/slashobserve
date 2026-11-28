@@ -21,12 +21,12 @@ export type TraceService = {
 type TraceToolbarProps = {
   search: string
   onSearchChange: (text: string) => void
-  searchRef?: Ref<HTMLInputElement>
+  searchRef?: Ref<HTMLInputElement> | undefined
   matchIndex: number | null
   matchCount: number
   criticalPath: boolean
   onCriticalPathChange: (on: boolean) => void
-  criticalPathDisabled?: string
+  criticalPathDisabled?: string | undefined
   errorsOnly: boolean
   onErrorsOnlyChange: (on: boolean) => void
   onCollapseAll: () => void

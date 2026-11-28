@@ -28,7 +28,7 @@ function traceRequest(
               ...(timezone !== undefined && { timezone }),
             },
           },
-          signal,
+          ...(signal === undefined ? {} : { signal }),
         })
         .then(unwrap),
     signal

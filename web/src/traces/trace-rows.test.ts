@@ -73,6 +73,9 @@ describe("traceRows", () => {
       ],
     }
     const [lost, whole] = traceRows([frame])
+    if (lost === undefined || whole === undefined) {
+      throw new Error("expected two rows")
+    }
     expect(lost).toMatchObject({ durationMs: null, incomplete: true })
     expect(whole.durationMs).toBe(5)
     expect(whole.incomplete).toBeUndefined()

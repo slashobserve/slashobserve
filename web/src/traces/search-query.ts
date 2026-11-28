@@ -1,10 +1,9 @@
 import type { ExploreParams } from "@/api/keys"
 import { defaultPageSize } from "@/lib/paging"
 import { matcherInsert } from "@/panel-editor/insert-text"
-import { exploreRange } from "@/lib/time"
 
 import type { Selection } from "./scatter"
-import { hasQueryText, type TraceSearch } from "./search"
+import { hasQueryText, searchRange, type TraceSearch } from "./search"
 import { decodeSort, pageSortParam } from "./trace-rows"
 
 const durationPattern = /^(\d+(?:\.\d+)?)(ns|us|µs|ms|s|m|h)$/
@@ -20,9 +19,9 @@ const nanosecondsPer: Record<string, number> = {
 }
 
 export function parseDuration(text: string): number | null {
-  const match = durationPattern.exec(text)
-  if (match === null) return null
-  return Math.round(Number(match[1]) * nanosecondsPer[match[2]])
+  const [, amount, unit] = durationPattern.exec(text) ?? []
+  if (amount === undefined || unit === undefined) return null
+  return Math.round(Number(amount) * (nanosecondsPer[unit] ?? Number.NaN))
 }
 
 export function durationField(ms: number, round: "down" | "up"): string {
@@ -74,7 +73,8 @@ function traceQLCondition(
   const comparisons = traceQLValues(value).map(
     (typed) => `${scope}.${name} ${negate ? "!=" : "="} ${typed}`
   )
-  if (comparisons.length === 1) return comparisons[0]
+  const [only] = comparisons
+  if (comparisons.length === 1 && only !== undefined) return only
   return `(${comparisons.join(negate ? " && " : " || ")})`
 }
 
@@ -348,7 +348,7 @@ export function traceSearchParams(
       ? textSearchFor(type, search)
       : clickhouseTraceSearch(traceForm(search)),
     kind: "instant",
-    ...exploreRange(search),
+    ...searchRange(search),
     pageSize: search.size ?? defaultPageSize,
     page: search.page ?? 1,
     ...(type === "clickhouse" && sortFor(search)),

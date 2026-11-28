@@ -37,7 +37,7 @@ import {
 import { isModEnter } from "@/lib/shortcuts"
 import { tracesLink } from "@/lib/links"
 import { lowerFirst } from "@/lib/text"
-import { describeRange, exploreRange } from "@/lib/time"
+import { describeRange } from "@/lib/time"
 import { useAfterMainQuery } from "@/lib/use-after-main-query"
 import { usePageCursors } from "@/lib/use-page-cursors"
 import { cn } from "@/lib/utils"
@@ -62,6 +62,7 @@ import {
   hasTraceStats,
   linkWithoutPage,
   rangeInFuture,
+  searchRange,
   type TraceSearch,
 } from "./search"
 import {
@@ -111,7 +112,7 @@ function useTraceSearch() {
   const update: UpdateSearch = (next, options) =>
     void navigate({
       search: (state) => ({ ...state, page: undefined, ...next }),
-      replace: options?.replace,
+      ...(options?.replace === undefined ? {} : { replace: options.replace }),
     })
   return { search, update }
 }
@@ -132,7 +133,7 @@ export function TracesPage({ uid }: { uid: string }) {
       useSourceMemory.getState().remember("traces", rememberedUid)
     }
   }, [rememberedUid])
-  const range = exploreRange(search)
+  const range = searchRange(search)
   const folders = useQuery(foldersQuery())
   const saveBlocked = saveBlockedText(folders.data)
   const [saving, setSaving] = useState(false)
@@ -257,7 +258,7 @@ function TraceSearchWorkspace({
   const uid = datasource.uid
   const type = datasource.type
   const clickhouse = type === "clickhouse"
-  const range = exploreRange(search)
+  const range = searchRange(search)
   const agent = useAgentInfo()
   const agentAvailable = agent.data?.available === true
   const inputMode = useTraceInputMode({ type, search, agentAvailable })
@@ -332,7 +333,9 @@ function TraceSearchWorkspace({
       <SourceTitle
         kind="traces"
         source={datasource}
-        language={inputMode.language}
+        {...(inputMode.language === undefined
+          ? {}
+          : { language: inputMode.language })}
       />
       <section
         aria-label="Query"
@@ -529,7 +532,7 @@ function TraceResults({
   update: UpdateSearch
   live: boolean
 }) {
-  const range = exploreRange(search)
+  const range = searchRange(search)
   const [openedAt] = useState(Date.now)
   const polling = {
     refetchInterval: liveRefreshMs(live, range),
@@ -649,7 +652,7 @@ function TraceResults({
       state={state}
       noun="traces"
       qualifier=" in range"
-      note={datasource.type === "tempo" ? tempoPagingNote : undefined}
+      {...(datasource.type === "tempo" ? { note: tempoPagingNote } : {})}
       label="Trace pages"
       busy={results.isFetching}
       onPage={(next) => {
@@ -802,7 +805,7 @@ function SelectableTraceTable({
   label: string
   fitWindow: boolean
 }) {
-  const range = exploreRange(search)
+  const range = searchRange(search)
   const panel = tracesPanelFor({
     id: "traces",
     title: tracePanelTitle(search),

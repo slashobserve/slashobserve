@@ -59,7 +59,7 @@ function traceCompareRequest(
         .POST("/datasources/{uid}/trace-compare", {
           params: { path: { uid } },
           body,
-          signal,
+          ...(signal === undefined ? {} : { signal }),
         })
         .then(unwrap),
     signal

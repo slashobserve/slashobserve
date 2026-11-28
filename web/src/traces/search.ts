@@ -1,6 +1,6 @@
 import { firstString } from "@/lib/search"
 import type { TimeRangeValue } from "@/dashboards/time-range-picker"
-import { resolveTime } from "@/lib/time"
+import { exploreRange, resolveTime } from "@/lib/time"
 import type { DatasourceStatus } from "@/datasources/queries"
 import {
   validAsk,
@@ -22,20 +22,20 @@ import { parseDuration } from "./search-query"
 import { encodeSort, decodeSort, isSortText } from "./trace-rows"
 
 export type TraceSearch = {
-  service?: string
-  span?: string
-  min?: string
-  max?: string
-  errors?: "1"
-  q?: string
-  ask?: string
-  from?: string
-  to?: string
-  observation?: string
-  saved?: string
-  page?: number
-  size?: PageSize
-  sort?: string
+  service?: string | undefined
+  span?: string | undefined
+  min?: string | undefined
+  max?: string | undefined
+  errors?: "1" | undefined
+  q?: string | undefined
+  ask?: string | undefined
+  from?: string | undefined
+  to?: string | undefined
+  observation?: string | undefined
+  saved?: string | undefined
+  page?: number | undefined
+  size?: PageSize | undefined
+  sort?: string | undefined
 }
 
 export type TraceFormSearch = Pick<
@@ -44,11 +44,11 @@ export type TraceFormSearch = Pick<
 >
 
 export type TraceViewSearch = {
-  ds?: string
-  span?: string
-  from?: string
-  to?: string
-  observation?: string
+  ds?: string | undefined
+  span?: string | undefined
+  from?: string | undefined
+  to?: string | undefined
+  observation?: string | undefined
 }
 
 const traceIdPattern = /^(?:[0-9a-f]{16}|[0-9a-f]{32})$/
@@ -132,12 +132,22 @@ export function changesQuery(next: Partial<TraceSearch>): boolean {
   return formKeys.some((key) => key in next)
 }
 
-export type TraceEntrySearch = TraceSearch & { ds?: string }
+export type TraceEntrySearch = TraceSearch & { ds?: string | undefined }
 
 export function validateTraceEntrySearch(
   raw: Record<string, unknown>
 ): TraceEntrySearch {
   return { ...validateTraceSearch(raw), ds: validDatasource(raw.ds) }
+}
+
+export function searchRange(search: {
+  from?: string | undefined
+  to?: string | undefined
+}): { from: string; to: string } {
+  return exploreRange({
+    ...(search.from === undefined ? {} : { from: search.from }),
+    ...(search.to === undefined ? {} : { to: search.to }),
+  })
 }
 
 export function validateTraceViewSearch(

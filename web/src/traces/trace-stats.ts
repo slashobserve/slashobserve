@@ -23,7 +23,7 @@ function traceStatsRequest(
         .POST("/datasources/{uid}/trace-stats", {
           params: { path: { uid } },
           body: params,
-          signal,
+          ...(signal === undefined ? {} : { signal }),
         })
         .then(unwrap),
     signal

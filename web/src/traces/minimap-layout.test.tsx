@@ -17,7 +17,7 @@ describe("TraceMinimap layout", () => {
     })
     const row = strip.parentElement?.parentElement
     const [wide] = spanColumns.split(" ")
-    expect(row?.classList.contains(wide)).toBe(true)
+    expect(row?.classList.contains(wide!)).toBe(true)
     expect(strip.parentElement?.classList.contains("px-2")).toBe(true)
   })
 
