@@ -333,8 +333,8 @@ A gate fails the run when any of these happens:
 | `web-test` | A file other than Go or prose changed. | The web Vitest suite in two shards. |
 | `build` | Non-prose files changed. | `make build`, then `make generate`, which must leave every file unchanged. |
 | `image` | `Dockerfile` or `.dockerignore` changed. | A build of the `Dockerfile` from its own stages. |
-| `e2e-api` | In the merge queue, on `main` and in a manual run, when non-test, non-prose files changed. | `make e2e`, with a 30 minute limit. |
-| `e2e-browser` | In the merge queue, on `main` and in a manual run, when non-test, non-prose files changed. | `make e2e-browser` in two shards, each on its own stack, with a 30 minute limit; a test that passes on its retry is reported as flaky and does not fail the shard. |
+| `e2e-api` | Only in the merge queue for `main`, when non-test, non-prose files changed. | `make e2e`, with a 30 minute limit. |
+| `e2e-browser` | Only in the merge queue for `main`, when non-test, non-prose files changed. | `make e2e-browser` in two shards, each on its own stack, with a 30 minute limit; a test that passes on its retry is reported as flaky and does not fail the shard. |
 | `audit` | A lockfile, `package.json`, `go.mod` or `tools/` changed, on `main` and daily. | `make audit`. |
 | `check` | Always. | Passes when every job that ran has passed, the end-to-end jobs included; `audit` is separate. It is the one required check. |
 
@@ -342,7 +342,7 @@ Details of how CI picks jobs:
 
 - A pull request runs only the fast jobs its changed files need, never the end-to-end ones, and a skipped job counts as passed.
 - `main` merges through GitHub's merge queue, which runs every job, the end-to-end ones included, on the change as it will land, so `main` stays green while a pull request waits only for the fast jobs.
-- `main` and a manual run start every job; to run the end-to-end jobs on a branch before it is queued, start the CI workflow on it by hand.
+- A push to `main` and a manual run start every job but the end-to-end ones, which already ran in the queue; to run them before queueing, run `make e2e-all` locally.
 - The daily run starts only `audit`.
 - A web-only change skips the Go jobs, except when it changes `web/src/spec/defaults.gen.ts`, `harness/src/protocol.ts` or `harness/test/fixtures/prompts/guide-prometheus.md`, which Go tests read.
 - A Go-only change skips the web jobs.
