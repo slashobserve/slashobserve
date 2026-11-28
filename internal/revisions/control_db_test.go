@@ -51,7 +51,12 @@ func TestCancelFinishesARunningRequestWhoseLeaseExpired(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	claimOne(t, svc)
+	claimed, _ := claimOne(t, svc)
+	if _, err := d.Queries().UpsertAgentRequestBuild(reading(context.Background()), dbsqlc.UpsertAgentRequestBuildParams{
+		AgentRequestID: row.ID, Spec: []byte(`{}`), ClaimEpoch: claimed.ClaimEpoch,
+	}); err != nil {
+		t.Fatal(err)
+	}
 	expireLease(t, d, row.ID)
 
 	got, err := svc.Cancel(reading(context.Background()), row.ID, user)
@@ -65,30 +70,11 @@ func TestCancelFinishesARunningRequestWhoseLeaseExpired(t *testing.T) {
 	if err != nil || stored.Status != string(revisions.StatusFailed) {
 		t.Fatalf("stored = %+v, %v; want the failed row persisted", stored, err)
 	}
-	if _, found := claimOne(t, svc); found {
-		t.Fatal("a canceled request was claimed again")
-	}
-}
-
-func TestCancelKeepsTheBuildOfARunningRequestWhoseLeaseExpired(t *testing.T) {
-	svc, d := newService(t, succeedWith(2))
-	row, err := svc.SubmitObserve(reading(context.Background()), user, "crashed")
-	if err != nil {
-		t.Fatal(err)
-	}
-	claimed, _ := claimOne(t, svc)
-	if _, err := d.Queries().UpsertAgentRequestBuild(reading(context.Background()), dbsqlc.UpsertAgentRequestBuildParams{
-		AgentRequestID: row.ID, Spec: []byte(`{}`), ClaimEpoch: claimed.ClaimEpoch,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	expireLease(t, d, row.ID)
-
-	if _, err := svc.Cancel(reading(context.Background()), row.ID, user); err != nil {
-		t.Fatalf("cancel: %v", err)
-	}
 	if _, err := d.Queries().GetAgentRequestBuild(reading(context.Background()), row.ID); err != nil {
 		t.Fatalf("build after cancel: %v, want it kept", err)
+	}
+	if _, found := claimOne(t, svc); found {
+		t.Fatal("a canceled request was claimed again")
 	}
 }
 
