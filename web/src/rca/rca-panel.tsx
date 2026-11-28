@@ -23,9 +23,9 @@ type Props = {
   onClose: () => void
   trigger: RefObject<HTMLElement | null>
   personal: boolean
-  privateFolder?: () => void
+  privateFolder?: (() => void) | undefined
   blocks?: readonly Block[]
-  onShowBlock?: (blockId: string) => void
+  onShowBlock?: ((blockId: string) => void) | undefined
 }
 
 export function RcaPanel({

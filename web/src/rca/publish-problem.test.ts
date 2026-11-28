@@ -5,6 +5,7 @@ import { ApiError, NetworkError, unreachableText } from "@/api/errors"
 import type { Block } from "@/observations/queries"
 
 import { publishProblem } from "./publish-problem"
+import { must } from "@/test/must"
 
 function failure(
   status: number,
@@ -97,7 +98,7 @@ describe("publishProblem", () => {
     })
 
     it("keeps the generic wording when no block has that position", () => {
-      expect(publishProblem(error, [blocks[0]])).toEqual({
+      expect(publishProblem(error, [must(blocks[0])])).toEqual({
         text: "A panel could not be frozen: ran out of time",
       })
     })

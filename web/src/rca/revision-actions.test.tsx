@@ -6,6 +6,7 @@ import { renderWithProviders } from "@/test/render"
 
 import type { RcaSummary } from "./queries"
 import { RevisionActions, withdrawProblems } from "./revision-actions"
+import { must } from "@/test/must"
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
 vi.mock("sonner", () => ({ toast: toasts }))
@@ -98,7 +99,7 @@ describe("RevisionActions", () => {
     )
     await waitFor(() => expect(toasts.error).toHaveBeenCalledOnce())
     expect(onWithdrawn).not.toHaveBeenCalled()
-    expect(String(toasts.error.mock.calls[0][0])).toContain(
+    expect(String(must(toasts.error.mock.calls[0])[0])).toContain(
       "Revoke its public links"
     )
   })
