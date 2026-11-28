@@ -22,7 +22,7 @@ import { folderQuery, type Folder } from "./queries"
 
 type Props = {
   folderId: string
-  search: ListSearch
+  search: Omit<ListSearch, "folder">
   onSearchChange: (next: ListSearch) => void
   settingsOpen: boolean
   onSettings: (open: boolean) => void
