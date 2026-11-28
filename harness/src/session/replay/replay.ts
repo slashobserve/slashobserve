@@ -24,7 +24,6 @@ import {
   promptKey,
   turnsFor,
 } from "./fixture"
-import { goQuote } from "./goquote"
 
 const name = "replay"
 const promptHashLength = 12
@@ -325,7 +324,7 @@ class ReplaySession implements Session {
       const want = this.previous[i]?.id ?? ""
       if (result.callId !== want) {
         throw new ReplayError(
-          `${prefix}: tool result ${i} answers ${goQuote(result.callId)}, want ${goQuote(want)}`
+          `${prefix}: tool result ${i} answers ${JSON.stringify(result.callId)}, want ${JSON.stringify(want)}`
         )
       }
     }
@@ -365,7 +364,7 @@ class ReplaySession implements Session {
         expectation.contains
       )
       throw new ReplayError(
-        `${where}: result does not contain ${goQuote(expectation.contains)}`
+        `${where}: result does not contain ${JSON.stringify(expectation.contains)}`
       )
     }
   }

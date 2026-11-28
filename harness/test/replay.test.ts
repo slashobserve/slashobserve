@@ -526,7 +526,7 @@ describe("loading", () => {
     })
     const error = await failureOf(ReplayProvider.load(dir, 0, capture().logger))
     expect((error as Error).message.split("\n")).toEqual([
-      "replay fixture a.json: unexpected EOF",
+      expect.stringMatching(/^replay fixture a\.json: not valid JSON/),
       "replay fixture b.json: turns: turn 0: needs text or tool_calls",
     ])
   })

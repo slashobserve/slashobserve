@@ -81,7 +81,7 @@ describe("run loop success", () => {
     const claim = new FakeClaim()
     claim.tools.handler = savedWith()
     await drive(claim, claimed("create happy path"))
-    const inputs = ["{}", '{ "datasource": "prom" }', '{ "title": "t" }']
+    const inputs = ["{}", '{"datasource":"prom"}', '{"title":"t"}']
     expect(claim.finishes[0]?.usage).toMatchObject({
       provider: "replay",
       model: "replay",
@@ -206,7 +206,7 @@ describe("run loop success", () => {
     const claim = new FakeClaim()
     claim.tools.handler = async () => reply({ meta: meta("ended") })
     await drive(claim, claimed("create happy path"))
-    const inputs = ["{}", '{ "datasource": "prom" }', '{ "title": "t" }']
+    const inputs = ["{}", '{"datasource":"prom"}', '{"title":"t"}']
     expect(claim.tools.calls.length).toBeGreaterThan(0)
     for (const call of claim.tools.calls) {
       expect(call.turn?.usage).toMatchObject({

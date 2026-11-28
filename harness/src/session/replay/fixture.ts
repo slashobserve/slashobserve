@@ -1,6 +1,3 @@
-import { goQuote } from "./goquote"
-import { type JsonNode, JsonSyntaxError, parseJsonDocument } from "./raw"
-
 export type Fault = { kind: string; delayMs: number }
 export type FixtureCall = { name: string; input: string }
 export type Expectation = { isError: boolean | undefined; contains: string }
@@ -33,269 +30,167 @@ export const faultKinds = [
 
 const saveTools = ["create_dashboard", "update_dashboard", "update_panels"]
 
-const goSpace = new RegExp(
-  "[\\t-\\r \\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]+"
-)
-
-function goLower(text: string): string {
-  let lowered = ""
-  for (const rune of text) {
-    const single = rune.toLowerCase()
-    lowered += [...single].length === 1 ? single : rune === "İ" ? "i" : rune
-  }
-  return lowered
-}
-
 export function promptKey(prompt: string): string {
-  return goLower(prompt)
-    .split(goSpace)
+  return prompt
+    .toLowerCase()
+    .split(/\s+/u)
     .filter((part) => part !== "")
     .join(" ")
 }
 
-type Path = readonly string[]
+type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
+type JsonObject = { [key: string]: Json }
 
-const rootStruct = "fixture"
+class ShapeError extends Error {}
 
-function pointerToken(token: string): string {
-  return token.replaceAll("~", "~0").replaceAll("/", "~1")
+function where(path: string): string {
+  return path === "" ? "" : `${path}: `
 }
 
-class Decoder {
-  private saved: string | undefined
+function isObject(value: Json): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
 
-  get error(): string | undefined {
-    return this.saved
+function object(
+  value: Json,
+  path: string,
+  keys: readonly string[]
+): JsonObject {
+  if (!isObject(value)) {
+    throw new ShapeError(`${where(path)}must be an object`)
   }
-
-  private save(message: string): void {
-    this.saved ??= message
+  for (const key of Object.keys(value)) {
+    if (!keys.includes(key)) {
+      throw new ShapeError(`${where(path)}unknown field ${JSON.stringify(key)}`)
+    }
   }
+  return value
+}
 
-  private mismatch(value: string, type: string, at: Path): void {
-    if (at.length === 0) {
-      this.save(`json: cannot unmarshal ${value} into Go value of type ${type}`)
-      return
-    }
-    const field = at.map(pointerToken).join(".")
-    const last = field.slice(field.lastIndexOf(".") + 1)
-    const into = /^\d+$/.test(last) ? "" : "Go struct field "
-    this.save(
-      `json: cannot unmarshal ${value} into ${into}${rootStruct}.${field} of type ${type}`
-    )
-  }
-
-  text(node: JsonNode, at: Path): string {
-    if (node.kind === "string") {
-      return node.value
-    }
-    if (node.kind !== "null") {
-      this.mismatch(node.kind, "string", at)
-    }
+function text(value: Json | undefined, path: string): string {
+  if (value === undefined) {
     return ""
   }
+  if (typeof value !== "string") {
+    throw new ShapeError(`${path}: must be a string`)
+  }
+  return value
+}
 
-  flag(node: JsonNode, at: Path): boolean | undefined {
-    if (node.kind === "bool") {
-      return node.raw === "true"
-    }
-    if (node.kind !== "null") {
-      this.mismatch(node.kind, "bool", at)
-    }
+function flag(value: Json | undefined, path: string): boolean | undefined {
+  if (value === undefined) {
     return undefined
   }
+  if (typeof value !== "boolean") {
+    throw new ShapeError(`${path}: must be true or false`)
+  }
+  return value
+}
 
-  integer(node: JsonNode, at: Path): number {
-    if (node.kind === "number") {
-      if (
-        /^-?\d+$/.test(node.raw) &&
-        BigInt(node.raw) >= -(2n ** 63n) &&
-        BigInt(node.raw) < 2n ** 63n
-      ) {
-        return Number(node.raw)
-      }
-      this.mismatch(`number ${node.raw}`, "int", at)
-    } else if (node.kind !== "null") {
-      this.mismatch(node.kind, "int", at)
-    }
+function integer(value: Json | undefined, path: string): number {
+  if (value === undefined) {
     return 0
   }
+  if (typeof value !== "number" || !Number.isSafeInteger(value)) {
+    throw new ShapeError(`${path}: must be a whole number`)
+  }
+  return value
+}
 
-  list<T>(
-    node: JsonNode,
-    at: Path,
-    type: string,
-    element: (item: JsonNode, at: Path) => T
-  ): T[] | undefined {
-    if (node.kind === "array") {
-      return node.items.map((item, i) => element(item, [...at, String(i)]))
-    }
-    if (node.kind !== "null") {
-      this.mismatch(node.kind, type, at)
-    }
+function list<T>(
+  value: Json | undefined,
+  path: string,
+  item: (value: Json, path: string) => T
+): T[] | undefined {
+  if (value === undefined) {
     return undefined
   }
-
-  fields(
-    node: JsonNode,
-    struct: string,
-    at: Path,
-    handlers: Record<string, (value: JsonNode, inner: Path) => void>
-  ): void {
-    if (node.kind === "null") {
-      return
-    }
-    if (node.kind !== "object") {
-      this.mismatch(node.kind, `replay.${struct}`, at)
-      return
-    }
-    const names = Object.keys(handlers)
-    for (const { key, value } of node.members) {
-      const name = names.includes(key)
-        ? key
-        : names.find((candidate) => candidate === key.toLowerCase())
-      const handler = name === undefined ? undefined : handlers[name]
-      if (handler === undefined) {
-        this.save(`json: unknown field ${goQuote(key)}`)
-        continue
-      }
-      handler(value, [...at, key])
-    }
+  if (!Array.isArray(value)) {
+    throw new ShapeError(`${path}: must be an array`)
   }
+  return value.map((entry, i) => item(entry, `${path}[${i}]`))
+}
 
-  fault(node: JsonNode, at: Path): Fault | undefined {
-    if (node.kind === "null") {
-      return undefined
-    }
-    const fault: Fault = { kind: "", delayMs: 0 }
-    this.fields(node, "fault", at, {
-      kind: (value, inner) => {
-        fault.kind = this.text(value, inner)
-      },
-      delay_ms: (value, inner) => {
-        fault.delayMs = this.integer(value, inner)
-      },
-    })
-    return fault
+function decodeFault(value: Json, path: string): Fault {
+  const o = object(value, path, ["kind", "delay_ms"])
+  return {
+    kind: text(o.kind, `${path}.kind`),
+    delayMs: integer(o.delay_ms, `${path}.delay_ms`),
   }
+}
 
-  call(node: JsonNode, at: Path): FixtureCall {
-    const call: FixtureCall = { name: "", input: "" }
-    this.fields(node, "fixtureCall", at, {
-      name: (value, inner) => {
-        call.name = this.text(value, inner)
-      },
-      input: (value) => {
-        call.input = value.raw
-      },
-    })
-    return call
+function decodeCall(value: Json, path: string): FixtureCall {
+  const o = object(value, path, ["name", "input"])
+  if (o.input !== undefined && !isObject(o.input)) {
+    throw new ShapeError(`${path}.input: must be an object`)
   }
-
-  expectation(node: JsonNode, at: Path): Expectation {
-    const expectation: Expectation = { isError: undefined, contains: "" }
-    this.fields(node, "expectation", at, {
-      is_error: (value, inner) => {
-        expectation.isError = this.flag(value, inner)
-      },
-      contains: (value, inner) => {
-        expectation.contains = this.text(value, inner)
-      },
-    })
-    return expectation
+  return {
+    name: text(o.name, `${path}.name`),
+    input: JSON.stringify(o.input ?? {}),
   }
+}
 
-  turn(node: JsonNode, at: Path): FixtureTurn {
-    const turn: FixtureTurn = {
-      text: "",
-      toolCalls: [],
-      expect: undefined,
-      fault: undefined,
-    }
-    this.fields(node, "turn", at, {
-      text: (value, inner) => {
-        turn.text = this.text(value, inner)
-      },
-      tool_calls: (value, inner) => {
-        turn.toolCalls =
-          this.list(value, inner, "[]replay.fixtureCall", (item, where) =>
-            this.call(item, where)
-          ) ?? []
-      },
-      expect: (value, inner) => {
-        turn.expect = this.list(
-          value,
-          inner,
-          "[]replay.expectation",
-          (item, where) => this.expectation(item, where)
-        )
-      },
-      fault: (value, inner) => {
-        turn.fault = this.fault(value, inner)
-      },
-    })
-    return turn
+function decodeExpectation(value: Json, path: string): Expectation {
+  const o = object(value, path, ["is_error", "contains"])
+  return {
+    isError: flag(o.is_error, `${path}.is_error`),
+    contains: text(o.contains, `${path}.contains`),
   }
+}
 
-  turns(value: JsonNode, at: Path): FixtureTurn[] {
-    return (
-      this.list(value, at, "[]replay.turn", (item, where) =>
-        this.turn(item, where)
-      ) ?? []
-    )
+function decodeTurn(value: Json, path: string): FixtureTurn {
+  const o = object(value, path, ["text", "tool_calls", "expect", "fault"])
+  return {
+    text: text(o.text, `${path}.text`),
+    toolCalls: list(o.tool_calls, `${path}.tool_calls`, decodeCall) ?? [],
+    expect: list(o.expect, `${path}.expect`, decodeExpectation),
+    fault:
+      o.fault === undefined ? undefined : decodeFault(o.fault, `${path}.fault`),
   }
+}
 
-  segment(node: JsonNode, at: Path): Segment {
-    const segment: Segment = { turns: [] }
-    this.fields(node, "segment", at, {
-      turns: (value, inner) => {
-        segment.turns = this.turns(value, inner)
-      },
-    })
-    return segment
-  }
+function decodeTurns(value: Json | undefined, path: string): FixtureTurn[] {
+  return list(value, path, decodeTurn) ?? []
+}
 
-  resumes(node: JsonNode, at: Path): Map<string, Segment> {
-    const resumes = new Map<string, Segment>()
-    if (node.kind === "object") {
-      for (const { key, value } of node.members) {
-        resumes.set(key, this.segment(value, [...at, key]))
-      }
-    } else if (node.kind !== "null") {
-      this.mismatch(node.kind, "map[string]replay.segment", at)
-    }
+function decodeResumes(
+  value: Json | undefined,
+  path: string
+): Map<string, Segment> {
+  const resumes = new Map<string, Segment>()
+  if (value === undefined) {
     return resumes
   }
+  if (!isObject(value)) {
+    throw new ShapeError(`${path}: must be an object`)
+  }
+  for (const [key, segment] of Object.entries(value)) {
+    const at = `${path}.${key}`
+    const o = object(segment, at, ["turns"])
+    resumes.set(key, { turns: decodeTurns(o.turns, `${at}.turns`) })
+  }
+  return resumes
+}
 
-  fixture(node: JsonNode, file: string): Fixture {
-    const fixture: Fixture = {
-      file,
-      prompt: "",
-      turns: [],
-      resumes: new Map(),
-      resumeAfterSaves: false,
-    }
-    this.fields(node, "fixture", [], {
-      prompt: (value, inner) => {
-        fixture.prompt = this.text(value, inner)
-      },
-      turns: (value, inner) => {
-        fixture.turns = this.turns(value, inner)
-      },
-      resumes: (value, inner) => {
-        fixture.resumes = this.resumes(value, inner)
-      },
-      resume_after_saves: (value, inner) => {
-        fixture.resumeAfterSaves = this.flag(value, inner) ?? false
-      },
-    })
-    return fixture
+function decodeFixture(value: Json, file: string): Fixture {
+  const o = object(value, "", [
+    "prompt",
+    "turns",
+    "resumes",
+    "resume_after_saves",
+  ])
+  return {
+    file,
+    prompt: text(o.prompt, "prompt"),
+    turns: decodeTurns(o.turns, "turns"),
+    resumes: decodeResumes(o.resumes, "resumes"),
+    resumeAfterSaves: flag(o.resume_after_saves, "resume_after_saves") ?? false,
   }
 }
 
 function describeFault(fault: Fault): string | undefined {
   if (!(faultKinds as readonly string[]).includes(fault.kind)) {
-    return `kind ${goQuote(fault.kind)} is not one of ${faultKinds.join(", ")}`
+    return `kind ${JSON.stringify(fault.kind)} is not one of ${faultKinds.join(", ")}`
   }
   if (fault.delayMs < 0) {
     return "delay_ms must not be negative"
@@ -307,11 +202,7 @@ function describeCall(call: FixtureCall): string | undefined {
   if (call.name === "") {
     return "name is required"
   }
-  if (call.input.trim() === "") {
-    call.input = "{}"
-    return undefined
-  }
-  return call.input.startsWith("{") ? undefined : "input must be a JSON object"
+  return undefined
 }
 
 function describeTurn(
@@ -399,10 +290,6 @@ function isResumeKey(key: string): boolean {
   return /^[1-9]\d*$/.test(key) && BigInt(key) <= maxInt64
 }
 
-function byteOrder(a: string, b: string): number {
-  return Buffer.compare(Buffer.from(a), Buffer.from(b))
-}
-
 function describeFixture(fixture: Fixture): string | undefined {
   if (promptKey(fixture.prompt) === "") {
     return "prompt is required"
@@ -417,12 +304,12 @@ function describeFixture(fixture: Fixture): string | undefined {
       return problem
     }
   }
-  for (const key of [...fixture.resumes.keys()].sort(byteOrder)) {
+  for (const key of [...fixture.resumes.keys()].sort()) {
     if (!isResumeKey(key)) {
-      return `resumes key ${goQuote(key)} is not a positive integer`
+      return `resumes key ${JSON.stringify(key)} is not a positive integer`
     }
     const problem = describeTurns(
-      `resumes.${goQuote(key)}.turns`,
+      `resumes.${JSON.stringify(key)}.turns`,
       fixture.resumes.get(key)?.turns ?? []
     )
     if (problem !== undefined) {
@@ -443,22 +330,20 @@ export function parseFixture(file: string, content: string): Fixture {
   const fail = (reason: string): never => {
     throw new FixtureError(`replay fixture ${file}: ${reason}`)
   }
-  let document
+  let document: Json
   try {
-    document = parseJsonDocument(content)
+    document = JSON.parse(content) as Json
   } catch (error) {
-    if (error instanceof JsonSyntaxError) {
+    return fail(`not valid JSON: ${(error as Error).message}`)
+  }
+  let fixture: Fixture
+  try {
+    fixture = decodeFixture(document, file)
+  } catch (error) {
+    if (error instanceof ShapeError) {
       return fail(error.message)
     }
     throw error
-  }
-  const decoder = new Decoder()
-  const fixture = decoder.fixture(document.node, file)
-  if (decoder.error !== undefined) {
-    return fail(decoder.error)
-  }
-  if (document.trailing) {
-    return fail("unexpected content after the fixture object")
   }
   const problem = describeFixture(fixture)
   if (problem !== undefined) {
