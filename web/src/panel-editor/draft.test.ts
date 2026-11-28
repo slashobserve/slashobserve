@@ -97,7 +97,7 @@ describe("isEditablePanel", () => {
 describe("query actions", () => {
   it("sets the query text", () => {
     const state = apply(dataPanel(), { type: "setQuery", index: 0, query: "x" })
-    expect(queriesOf(state)[0].query).toBe("x")
+    expect(queriesOf(state)[0]?.query).toBe("x")
   })
 
   it("sets a legend and removes it when empty", () => {
@@ -106,13 +106,13 @@ describe("query actions", () => {
       index: 0,
       legend: "{{pod}}",
     })
-    expect(queriesOf(withLegend)[0].legend).toBe("{{pod}}")
+    expect(queriesOf(withLegend)[0]?.legend).toBe("{{pod}}")
     const cleared = draftReducer(withLegend, {
       type: "setLegend",
       index: 0,
       legend: "",
     })
-    expect("legend" in queriesOf(cleared)[0]).toBe(false)
+    expect("legend" in queriesOf(cleared)[0]!).toBe(false)
   })
 
   it("sets exemplars and removes the key when turned off", () => {
@@ -121,13 +121,13 @@ describe("query actions", () => {
       index: 0,
       exemplar: true,
     })
-    expect(queriesOf(on)[0].exemplar).toBe(true)
+    expect(queriesOf(on)[0]?.exemplar).toBe(true)
     const off = draftReducer(on, {
       type: "setExemplar",
       index: 0,
       exemplar: false,
     })
-    expect("exemplar" in queriesOf(off)[0]).toBe(false)
+    expect("exemplar" in queriesOf(off)[0]!).toBe(false)
   })
 
   it("leaves the state alone when the exemplar index is out of range", () => {
@@ -143,13 +143,13 @@ describe("query actions", () => {
       index: 0,
       uid: "other",
     })
-    expect(queriesOf(set)[0].datasource).toBe("other")
+    expect(queriesOf(set)[0]?.datasource).toBe("other")
     const cleared = draftReducer(set, {
       type: "setQueryDatasource",
       index: 0,
       uid: null,
     })
-    expect("datasource" in queriesOf(cleared)[0]).toBe(false)
+    expect("datasource" in queriesOf(cleared)[0]!).toBe(false)
   })
 
   it("leaves the state alone for an index out of range or a text panel", () => {
@@ -350,7 +350,7 @@ describe("setThresholds", () => {
       type: "setThresholds",
       thresholds: given,
     })
-    given[1].value = 99
+    given[1]!.value = 99
     given.push({ value: 100, color: "critical" })
     expect((state.panel as DataPanel).thresholds).toEqual(steps)
   })

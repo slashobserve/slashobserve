@@ -63,8 +63,8 @@ export function NameRow({
   text: string
   onClick: () => void
   pressed?: boolean
-  title?: string
-  note?: string
+  title?: string | undefined
+  note?: string | undefined
 }) {
   return (
     <li>

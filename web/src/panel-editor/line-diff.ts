@@ -15,30 +15,38 @@ export function lineDiff(before: string, after: string): DiffLine[] {
   const lcs = Array.from({ length: a.length + 1 }, () =>
     new Array<number>(b.length + 1).fill(0)
   )
+  const cell = (i: number, j: number) => lcs[i]?.[j] ?? 0
   for (let i = a.length - 1; i >= 0; i--) {
+    const row = lcs[i]
+    if (row === undefined) continue
     for (let j = b.length - 1; j >= 0; j--) {
-      lcs[i][j] =
+      row[j] =
         a[i] === b[j]
-          ? lcs[i + 1][j + 1] + 1
-          : Math.max(lcs[i + 1][j], lcs[i][j + 1])
+          ? cell(i + 1, j + 1) + 1
+          : Math.max(cell(i + 1, j), cell(i, j + 1))
     }
   }
 
   const lines: DiffLine[] = []
   let i = 0
   let j = 0
-  while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) {
-      lines.push({ kind: "same", text: a[i] })
+  for (;;) {
+    const x = a[i]
+    const y = b[j]
+    if (x === undefined || y === undefined) break
+    if (x === y) {
+      lines.push({ kind: "same", text: x })
       i++
       j++
-    } else if (lcs[i + 1][j] >= lcs[i][j + 1]) {
-      lines.push({ kind: "del", text: a[i++] })
+    } else if (cell(i + 1, j) >= cell(i, j + 1)) {
+      lines.push({ kind: "del", text: x })
+      i++
     } else {
-      lines.push({ kind: "add", text: b[j++] })
+      lines.push({ kind: "add", text: y })
+      j++
     }
   }
-  while (i < a.length) lines.push({ kind: "del", text: a[i++] })
-  while (j < b.length) lines.push({ kind: "add", text: b[j++] })
+  for (const text of a.slice(i)) lines.push({ kind: "del", text })
+  for (const text of b.slice(j)) lines.push({ kind: "add", text })
   return lines
 }

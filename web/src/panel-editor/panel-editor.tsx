@@ -397,8 +397,9 @@ export default function PanelEditor({
           })
           return
         }
-        if (onlyEmptyResult(error.issues)) {
-          setProblem({ kind: "empty", message: error.issues[0].message })
+        const [firstIssue] = error.issues
+        if (firstIssue !== undefined && onlyEmptyResult(error.issues)) {
+          setProblem({ kind: "empty", message: firstIssue.message })
           return
         }
         setProblem({

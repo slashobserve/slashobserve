@@ -339,7 +339,7 @@ const fieldLabels: { [K in FieldKey]: string } = {
 const coveredKeys = new Set<string>(coveredKeyList)
 
 function labelFor(labels: Record<string, string>, key: string): string {
-  return Object.hasOwn(labels, key) ? labels[key] : key
+  return (Object.hasOwn(labels, key) ? labels[key] : undefined) ?? key
 }
 
 function sortedUnion(a: Fields, b: Fields): string[] {
@@ -389,11 +389,14 @@ function sameQueries(a: unknown, b: unknown): boolean {
   const after = b as DataQuery[]
   return (
     before.length === after.length &&
-    before.every(
-      (query, index) =>
-        queryRef(query, index) === queryRef(after[index], index) &&
-        !queryChanged(query, after[index])
-    )
+    before.every((query, index) => {
+      const other = after[index]
+      return (
+        other !== undefined &&
+        queryRef(query, index) === queryRef(other, index) &&
+        !queryChanged(query, other)
+      )
+    })
   )
 }
 
@@ -578,7 +581,10 @@ export function panelChanges(
   return changes
 }
 
-export type Overlap = Change & { theirs?: string; yours?: string }
+export type Overlap = Change & {
+  theirs?: string | undefined
+  yours?: string | undefined
+}
 
 const shownValueKeys = ["title", "datasource", "type", "unit"]
 

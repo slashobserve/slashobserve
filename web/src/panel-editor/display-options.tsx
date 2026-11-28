@@ -61,8 +61,8 @@ function Choice({
   label: string
   name: string
   options: readonly Option[]
-  absent?: string
-  numeric?: boolean
+  absent?: string | undefined
+  numeric?: boolean | undefined
 }) {
   const stored = controls.display[name]
   return (
@@ -116,7 +116,7 @@ function ReducerChoice({
   label: string
   name: string
   options: readonly Option[]
-  absent?: string
+  absent?: string | undefined
   more: ReducerPool
 }) {
   const { shown, offered } = reducerChoices(
@@ -155,8 +155,8 @@ function Reducers({
   label: string
   name: string
   options: readonly Option[]
-  max?: number
-  more?: ReducerPool
+  max?: number | undefined
+  more?: ReducerPool | undefined
 }) {
   const selected = list(controls.display, name)
   const { shown, offered } =
@@ -219,12 +219,12 @@ export function EntryField({
   children,
 }: {
   label: string
-  hint?: string
+  hint?: string | undefined
   invalid: boolean
   children: (props: {
     id: string
     "aria-invalid": boolean
-    "aria-describedby"?: string
+    "aria-describedby"?: string | undefined
   }) => ReactNode
 }) {
   const id = useId()
@@ -448,7 +448,7 @@ function ListOption({
   label: string
   name: string
   max: number
-  placeholder?: string
+  placeholder?: string | undefined
 }) {
   const { parse, allowed } = listKinds[kind]
   const stored = list(controls.display, name).join(", ")

@@ -37,7 +37,7 @@ export type JsonViewProps = {
   onLeaveRequest: (guard: LeaveGuard) => void
 }
 
-type PendingLeave = { leave: () => void; stay?: () => void }
+type PendingLeave = { leave: () => void; stay?: (() => void) | undefined }
 
 const validateDelayMs = 250
 

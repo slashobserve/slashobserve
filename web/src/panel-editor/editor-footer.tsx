@@ -11,7 +11,7 @@ type Props = {
   summary: string
   noteOpen: boolean
   note: string
-  onNoteOpen?: () => void
+  onNoteOpen?: (() => void) | undefined
   onNoteChange: (note: string) => void
   saving: boolean
   canSave: boolean

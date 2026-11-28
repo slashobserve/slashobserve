@@ -39,6 +39,7 @@ export function withPanel(
     copy.panels[Number(top)] = panel
   } else {
     const row = copy.panels[Number(top)]
+    if (row === undefined) throw new Error(`no panel at ${entry.pointer}`)
     if (row.type === "row" && row.panels) row.panels[Number(child)] = panel
   }
   return copy

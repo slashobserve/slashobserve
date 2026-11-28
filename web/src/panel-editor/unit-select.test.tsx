@@ -58,7 +58,7 @@ describe("UnitSelect", () => {
       "decibel (dB)",
       "decibel-milliwatts (dBm)",
     ])
-    await user.click(options[0])
+    await user.click(options[0]!)
     expect(dispatch).toHaveBeenCalledWith({ type: "setUnit", unit: "dB" })
   })
 

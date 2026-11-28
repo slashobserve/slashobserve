@@ -188,8 +188,8 @@ describe("blockPreviewQuery", () => {
     )
     const [request] = requests
     return {
-      path: new URL(request.url).pathname,
-      body: (await request.json()) as Record<string, unknown>,
+      path: new URL(request!.url).pathname,
+      body: (await request!.json()) as Record<string, unknown>,
     }
   }
 

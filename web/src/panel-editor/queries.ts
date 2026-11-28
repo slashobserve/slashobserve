@@ -10,6 +10,7 @@ import {
   datasourceKeys,
   editorKeys,
   type NameListParams,
+  type PreviewKeyParams,
   type Selections,
 } from "@/api/keys"
 import { panelRequestLimiter } from "@/dashboards/limiter"
@@ -27,13 +28,30 @@ function retryTwice(count: number, error: unknown): boolean {
   return count < 2 && isRetryable(error)
 }
 
-function nameQuery(params: NameListParams) {
+export type NameScope = {
+  [K in keyof NameListParams]?: NameListParams[K] | undefined
+}
+
+function nameParams({
+  search,
+  metric,
+  table,
+  from,
+  to,
+}: NameScope): NameListParams {
   return {
-    search: params.search || undefined,
-    metric: params.metric,
-    table: params.table,
-    from: params.from,
-    to: params.to,
+    ...(search === undefined ? {} : { search }),
+    ...(metric === undefined ? {} : { metric }),
+    ...(table === undefined ? {} : { table }),
+    ...(from === undefined ? {} : { from }),
+    ...(to === undefined ? {} : { to }),
+  }
+}
+
+function nameQuery({ search, ...params }: NameListParams) {
+  return {
+    ...(search ? { search } : {}),
+    ...params,
     limit: nameLimit,
   }
 }
@@ -48,7 +66,9 @@ export function metricNamesQuery(uid: string, search: string) {
             .GET("/datasources/{uid}/metrics", {
               params: {
                 path: { uid },
-                query: { search: search || undefined, limit: nameLimit },
+                query: search
+                  ? { search, limit: nameLimit }
+                  : { limit: nameLimit },
               },
               signal,
             })
@@ -60,7 +80,8 @@ export function metricNamesQuery(uid: string, search: string) {
   })
 }
 
-export function labelNamesQuery(uid: string, params: NameListParams) {
+export function labelNamesQuery(uid: string, scope: NameScope) {
+  const params = nameParams(scope)
   return queryOptions({
     queryKey: datasourceKeys.labels(uid, params),
     queryFn: ({ signal }) =>
@@ -79,11 +100,8 @@ export function labelNamesQuery(uid: string, params: NameListParams) {
   })
 }
 
-export function labelValuesQuery(
-  uid: string,
-  label: string,
-  params: NameListParams
-) {
+export function labelValuesQuery(uid: string, label: string, scope: NameScope) {
+  const params = nameParams(scope)
   return queryOptions({
     queryKey: datasourceKeys.labelValues(uid, label, params),
     queryFn: ({ signal }) =>
@@ -109,11 +127,29 @@ export type PreviewArgs = {
   dashboardId: string
   version: number
   panel: DataPanel
-  from?: string
-  to?: string
-  timezone?: string
+  from?: string | undefined
+  to?: string | undefined
+  timezone?: string | undefined
   selections: Selections
-  maxDataPoints?: number
+  maxDataPoints?: number | undefined
+}
+
+function previewKey(
+  panel: EditablePanel,
+  {
+    from,
+    to,
+    selections,
+    maxDataPoints,
+  }: Pick<PreviewArgs, "from" | "to" | "selections" | "maxDataPoints">
+): PreviewKeyParams {
+  return {
+    panel: stableJson(panel),
+    ...(from === undefined ? {} : { from }),
+    ...(to === undefined ? {} : { to }),
+    selections,
+    ...(maxDataPoints === undefined ? {} : { maxDataPoints }),
+  }
 }
 
 export function previewQuery({
@@ -129,13 +165,17 @@ export function previewQuery({
   const tz = requestZone(timezone)
   const datasource = panel.datasource ?? ""
   return queryOptions<PanelDataResponse>({
-    queryKey: editorKeys.preview(dashboardId, version, panel.id, {
-      panel: stableJson(panel),
-      from,
-      to,
-      selections,
-      maxDataPoints,
-    }),
+    queryKey: editorKeys.preview(
+      dashboardId,
+      version,
+      panel.id,
+      previewKey(panel, {
+        from,
+        to,
+        selections,
+        maxDataPoints,
+      })
+    ),
     queryFn: ({ signal }) =>
       panelRequestLimiter.run(
         () =>
@@ -199,13 +239,17 @@ export function blockPreviewQuery({
 }: BlockPreviewArgs) {
   const tz = requestZone(timezone)
   return queryOptions<PanelDataResponse>({
-    queryKey: editorKeys.blockPreview(observationId, blockId, version, {
-      panel: stableJson(panel),
-      from,
-      to,
-      selections,
-      maxDataPoints,
-    }),
+    queryKey: editorKeys.blockPreview(
+      observationId,
+      blockId,
+      version,
+      previewKey(panel, {
+        from,
+        to,
+        selections,
+        maxDataPoints,
+      })
+    ),
     queryFn: ({ signal }) =>
       panelRequestLimiter.run(
         () =>
@@ -248,7 +292,7 @@ export function useCreateSuggestion(dashboardId: string) {
       api
         .POST("/dashboards/{id}/suggestions", {
           params: { path: { id: dashboardId } },
-          body: { ...rest, panel: panel ? { ...panel } : undefined },
+          body: { ...rest, ...(panel ? { panel: { ...panel } } : {}) },
         })
         .then(unwrap)
         .then((created) => created.suggestion),

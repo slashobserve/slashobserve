@@ -116,7 +116,7 @@ function editQuery(
   if (!target || !isPanelQuery(target)) return state
   return editData(state, (panel) => {
     const query = panel.queries[index]
-    if (isPanelQuery(query)) edit(query)
+    if (query !== undefined && isPanelQuery(query)) edit(query)
   })
 }
 

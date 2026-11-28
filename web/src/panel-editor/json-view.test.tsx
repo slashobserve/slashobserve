@@ -82,7 +82,7 @@ describe("JsonView", () => {
       vi.advanceTimersByTime(250)
     })
     expect(evaluateJson).toHaveBeenCalledTimes(1)
-    expect(evaluateJson.mock.calls[0][0]).toBe("abc")
+    expect(evaluateJson.mock.calls[0]?.[0]).toBe("abc")
     expect(dispatch).toHaveBeenCalledTimes(1)
     expect(onValidityChange).toHaveBeenLastCalledWith(true)
   })

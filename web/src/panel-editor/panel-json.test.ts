@@ -126,9 +126,9 @@ describe("parsePanelJson", () => {
   it("reports a syntax error at path root", () => {
     const issues = failure('{\n  "id": "top",\n  "type": \n}', "top")
     expect(issues).toHaveLength(1)
-    expect(issues[0].path).toBe("")
-    expect(issues[0].message).not.toBe("")
-    expect(issues[0].scope).toBe("panel")
+    expect(issues[0]?.path).toBe("")
+    expect(issues[0]?.message).not.toBe("")
+    expect(issues[0]?.scope).toBe("panel")
   })
 
   it("reports a non-object", () => {

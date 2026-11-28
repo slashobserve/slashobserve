@@ -57,7 +57,7 @@ describe("DatasourceSelect", () => {
       "prom (Prometheus)",
       "ch (ClickHouse)",
     ])
-    await user.click(options[0])
+    await user.click(options[0]!)
     expect(onChange).toHaveBeenCalledExactlyOnceWith("")
   })
 

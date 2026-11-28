@@ -107,7 +107,7 @@ export function CheckboxGroup({
   label: string
   options: readonly Option[]
   selected: readonly string[]
-  max?: number
+  max?: number | undefined
   onToggle: (value: string, on: boolean) => void
   disabled: boolean
 }) {

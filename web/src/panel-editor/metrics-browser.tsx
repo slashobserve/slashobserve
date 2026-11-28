@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query"
 import { useState } from "react"
 
 import { useDebouncedValue } from "@/lib/use-debounced-value"
-import type { NameListParams } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import { Button } from "@/components/ui/button"
 
@@ -15,7 +14,12 @@ import {
   SearchBox,
   TruncatedNote,
 } from "./name-list"
-import { labelNamesQuery, labelValuesQuery, metricNamesQuery } from "./queries"
+import {
+  labelNamesQuery,
+  labelValuesQuery,
+  metricNamesQuery,
+  type NameScope,
+} from "./queries"
 
 export type MetricsBrowserProps = {
   datasourceUid: string
@@ -26,14 +30,14 @@ export type MetricsBrowserProps = {
 type MetricName = components["schemas"]["MetricName"]
 
 type Selection =
-  | { kind: "metric"; name: string; table?: string }
+  | { kind: "metric"; name: string; table?: string | undefined }
   | { kind: "table"; table: string }
 
 type Entry = {
   id: string
   text: string
-  title?: string
-  note?: string
+  title?: string | undefined
+  note?: string | undefined
   selection: Selection
 }
 
@@ -71,7 +75,7 @@ function metricEntries(
   return entries
 }
 
-function selectionScope(selection: Selection | null): NameListParams | null {
+function selectionScope(selection: Selection | null): NameScope | null {
   if (selection === null) return null
   if (selection.kind === "table") return { table: selection.table }
   return { metric: selection.name, table: selection.table }
