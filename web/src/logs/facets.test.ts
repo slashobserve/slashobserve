@@ -54,10 +54,12 @@ describe("facet counts", () => {
 
   it("scales the bar to the field's top count", () => {
     const level = field()
-    expect(barPercent(level, level.values[0])).toBe(100)
-    expect(barPercent(level, level.values[1])).toBe(25)
-    const empty = field({ values: [{ value: "x", count: 0 }] })
-    expect(barPercent(empty, empty.values[0])).toBe(0)
+    const [error, info] = level.values
+    expect(barPercent(level, error!)).toBe(100)
+    expect(barPercent(level, info!)).toBe(25)
+    const zero = { value: "x", count: 0 }
+    const empty = field({ values: [zero] })
+    expect(barPercent(empty, zero)).toBe(0)
   })
 
   it.each([
@@ -122,8 +124,8 @@ describe("field list", () => {
       "level",
       "service",
     ])
-    expect(rows[1].facet).toBe(counted)
-    expect(rows[0].facet).toBeNull()
+    expect(rows[1]?.facet).toBe(counted)
+    expect(rows[0]?.facet).toBeNull()
     expect(
       fieldRows([], [field({ name: "b" }), field({ name: "a" })]).map(
         (row) => row.name

@@ -71,7 +71,9 @@ function mount(running = true, seed: WireFrame[] = []) {
 }
 
 function latestSource(): FakeEventSource {
-  return FakeEventSource.instances[FakeEventSource.instances.length - 1]
+  const source = FakeEventSource.instances.at(-1)
+  if (source === undefined) throw new Error("no event source opened")
+  return source
 }
 
 describe("useLiveTail", () => {

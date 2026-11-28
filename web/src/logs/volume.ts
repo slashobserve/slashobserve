@@ -48,7 +48,7 @@ function logVolumeRequest(
         .POST("/datasources/{uid}/log-volume", {
           params: { path: { uid } },
           body: { query, from, to, buckets: volumeBuckets },
-          signal,
+          ...(signal === undefined ? {} : { signal }),
         })
         .then(unwrap),
     signal
@@ -108,8 +108,13 @@ export function selectionEdges(
   toIndex: number,
   zone: string | undefined
 ): { start: string; end: string } {
-  const startMs = Date.parse(volume.buckets[fromIndex].start)
-  const endMs = Date.parse(volume.buckets[toIndex].start) + volume.step_ms
+  const first = volume.buckets[fromIndex]
+  const last = volume.buckets[toIndex]
+  if (first === undefined || last === undefined) {
+    throw new RangeError(`no volume bucket at ${fromIndex} or ${toIndex}`)
+  }
+  const startMs = Date.parse(first.start)
+  const endMs = Date.parse(last.start) + volume.step_ms
   const start = zonedDateTime(startMs, zone)
   const end = zonedDateTime(endMs, zone)
   const cut = volume.step_ms % 60_000 === 0 ? 16 : 19

@@ -75,7 +75,12 @@ function rowNode(row: BuilderRow): KqlNode {
 export function textOf(rows: BuilderRow[]): string {
   if (rows.length === 0) return ""
   const nodes = rows.map(rowNode)
-  return kqlText(nodes.length === 1 ? nodes[0] : { kind: "and", items: nodes })
+  const [only] = nodes
+  return kqlText(
+    nodes.length === 1 && only !== undefined
+      ? only
+      : { kind: "and", items: nodes }
+  )
 }
 
 function blankRow(id: string): BuilderRow {
@@ -199,7 +204,7 @@ export function equivalentField(
         lower.endsWith(`.${other}`))
     )
   })
-  return matches.length === 1 ? matches[0] : null
+  return matches.length === 1 ? (matches[0] ?? null) : null
 }
 
 export function rowLabel(row: BuilderRow): string {

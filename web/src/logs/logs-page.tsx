@@ -66,7 +66,7 @@ function useLogsSearch() {
     (next, options) =>
       void navigate({
         search: (state) => searchAfter(state, next),
-        replace: options?.replace,
+        ...(options?.replace === undefined ? {} : { replace: options.replace }),
       }),
     [navigate]
   )
@@ -165,7 +165,10 @@ function LogsWorkspaceView({
   const notRunId = useId()
   const uid = datasource.uid
   const type = datasource.type
-  const range = exploreRange(search)
+  const range = exploreRange({
+    ...(search.from === undefined ? {} : { from: search.from }),
+    ...(search.to === undefined ? {} : { to: search.to }),
+  })
   const q = search.q
   const filters = search.f
   const effectiveQuery = useMemo(
@@ -371,7 +374,7 @@ function LogsWorkspaceView({
           toggle: () => (tailing ? stopTail() : startTail()),
         }}
         saveBlocked={saveHint(savable)}
-        describedBy={q === undefined ? notRunId : undefined}
+        {...(q === undefined ? { describedBy: notRunId } : {})}
         saveTrigger={saveTrigger}
         onSave={() => setSaving(true)}
       />

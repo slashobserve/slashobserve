@@ -47,14 +47,14 @@ function unclosedGroup(text: string, before: number): number | null {
       open.pop()
     }
   }
-  return open.length === 0 ? null : open[open.length - 1]
+  return open.at(-1) ?? null
 }
 
 function closeGroupAtNextAnd(text: string, open: number): string {
   let depth = 0
   let quoted = false
   for (let i = open + 1; i < text.length; i++) {
-    const c = text[i]
+    const c = text.charAt(i)
     if (quoted) {
       if (c === "\\") i++
       else if (c === '"') quoted = false
@@ -160,7 +160,7 @@ function describe(
     }
   }
   return {
-    headline: `${message[0].toUpperCase()}${message.slice(1)}, column ${column}`,
+    headline: `${message.charAt(0).toUpperCase()}${message.slice(1)}, column ${column}`,
     explanation:
       `Check the query at the marked column. ${token === "" ? "" : `The reader stopped at ${token}.`}`.trim(),
   }

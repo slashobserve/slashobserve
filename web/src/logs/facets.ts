@@ -44,7 +44,7 @@ async function logFacetsRequest(
             ...(timezone !== undefined && { timezone }),
             ...(fields !== undefined && { fields }),
           },
-          signal,
+          ...(signal === undefined ? {} : { signal }),
         })
         .then(unwrap),
     signal
@@ -227,12 +227,13 @@ function clickhouseFilter(
   value: string,
   mode: FilterMode
 ): string | null {
-  const attribute = attributeName.exec(field)
-  const column = attribute
-    ? `LogAttributes[${sqlString(attribute[1])}]`
-    : columnName.test(field)
-      ? field
-      : null
+  const attribute = attributeName.exec(field)?.[1]
+  const column =
+    attribute !== undefined
+      ? `LogAttributes[${sqlString(attribute)}]`
+      : columnName.test(field)
+        ? field
+        : null
   const where = clickhouseWhere.exec(query)
   if (column === null || where === null) return null
   if ((query.match(/\bSELECT\b/gi) ?? []).length !== 1) return null

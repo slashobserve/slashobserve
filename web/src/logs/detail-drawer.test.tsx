@@ -322,8 +322,8 @@ describe("DetailDrawer", () => {
       await user.click(await screen.findByRole("button", { name: button }))
       const [pills] = written(update)
       expect(pills).toHaveLength(1)
-      expect(pills[0]).toMatchObject({ kind: "is", ...expected })
-      expect(pills[0].line).toBe(expected.line)
+      expect(pills?.[0]).toMatchObject({ kind: "is", ...expected })
+      expect(pills?.[0]?.line).toBe(expected.line)
     })
 
     it("keeps the pills already there when it adds one", async () => {
@@ -338,7 +338,7 @@ describe("DetailDrawer", () => {
       await user.click(
         await screen.findByRole("button", { name: "Include trace_id abc" })
       )
-      expect(written(update)[0].map((pill) => pill.field)).toEqual([
+      expect(written(update)[0]?.map((pill) => pill.field)).toEqual([
         "status",
         "trace_id",
       ])

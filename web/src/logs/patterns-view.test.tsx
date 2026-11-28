@@ -79,10 +79,10 @@ describe("PatternsView", () => {
     ).toBeTruthy()
     const grid = await screen.findByRole("grid")
     await waitFor(() => expect(grid).toHaveAttribute("aria-label", "Patterns"))
-    const rows = within(grid).getAllByRole("row")
-    expect(within(rows[1]).getByText("90")).toBeTruthy()
-    expect(within(rows[1]).getByText("90%")).toBeTruthy()
-    expect(within(rows[2]).getByText("10%")).toBeTruthy()
+    const [, first, second] = within(grid).getAllByRole("row")
+    expect(within(first!).getByText("90")).toBeTruthy()
+    expect(within(first!).getByText("90%")).toBeTruthy()
+    expect(within(second!).getByText("10%")).toBeTruthy()
   })
 
   it("says a server heading counts the newest lines, not every line", () => {
@@ -223,10 +223,10 @@ describe("patternColumns", () => {
       onApply: () => {},
     })
     const [pattern, ...rest] = columns
-    expect(pattern.width).toBeUndefined()
-    expect(pattern.flex).toBeGreaterThan(0)
+    expect(pattern?.width).toBeUndefined()
+    expect(pattern?.flex).toBeGreaterThan(0)
     expect(rest.every((column) => column.width !== undefined)).toBe(true)
     const fixed = rest.reduce((sum, column) => sum + (column.width ?? 0), 0)
-    expect(fixed + (pattern.minWidth ?? 0)).toBeLessThanOrEqual(868)
+    expect(fixed + (pattern?.minWidth ?? 0)).toBeLessThanOrEqual(868)
   })
 })

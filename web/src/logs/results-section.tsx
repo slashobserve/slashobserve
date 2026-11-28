@@ -150,8 +150,12 @@ const emptyKeys: ReadonlySet<string> = new Set()
 const emptyTimes: ReadonlySet<number> = new Set()
 const listSelector = "ul[data-logs-count]"
 
+function withNote(note: string | undefined): { note?: string } {
+  return note === undefined ? {} : { note }
+}
+
 function capitalized(text: string): string {
-  return `${text[0].toUpperCase()}${text.slice(1)}`
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`
 }
 
 function TailBody({
@@ -554,8 +558,9 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
         </div>
       )
     }
-    if (data !== undefined && isPlainResult(data))
-      return <PlainTable frame={frames[0]} />
+    const [plain] = frames
+    if (data !== undefined && isPlainResult(data) && plain !== undefined)
+      return <PlainTable frame={plain} />
     return height > 0 ? (
       <LogsResults frames={frames} height={height} {...resultsProps()} />
     ) : null
@@ -667,7 +672,7 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
             state={pageState}
             noun={isSearchFamily(datasource.type) ? "hits" : "lines"}
             qualifier=" in range"
-            note={pagingNote(datasource.type, pageState)}
+            {...withNote(pagingNote(datasource.type, pageState))}
             label="Document pages"
             busy={results.isFetching}
             onPage={(next) => update({ page: next })}

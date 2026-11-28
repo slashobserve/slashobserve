@@ -127,8 +127,11 @@ function lokiGroups(
   const { entry, fields, streamLabels } = selection
   const labels: FieldRowData[] = []
   const metadata: FieldRowData[] = []
-  for (const name of Object.keys(streamLabels).sort()) {
-    const row = { name, value: streamLabels[name], filterable: true }
+  const sorted = Object.entries(streamLabels).sort(([a], [b]) =>
+    a < b ? -1 : a > b ? 1 : 0
+  )
+  for (const [name, value] of sorted) {
+    const row = { name, value, filterable: true }
     const indexedLabel = isStreamLabel(name, streamLabels, indexed)
     ;(indexedLabel ? labels : metadata).push(row)
   }
@@ -428,7 +431,7 @@ export function DetailDrawer({
   return (
     <SidePanel
       title={searchFamily ? "Document" : "Line"}
-      description={description === "" ? undefined : description}
+      {...(description === "" ? {} : { description })}
       onClose={onClose}
       trigger={trigger}
     >

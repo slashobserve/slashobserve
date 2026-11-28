@@ -10,20 +10,20 @@ import { isTimeValue } from "@/lib/time"
 import { levelsParam, parseLevels } from "./levels"
 
 export type LogsSearch = {
-  q?: string
-  ask?: string
-  from?: string
-  to?: string
-  f?: string
-  cols?: string
-  line?: string
-  view?: "patterns"
-  levels?: string
-  tail?: "1"
-  observation?: string
-  saved?: string
-  page?: number
-  size?: PageSize
+  q?: string | undefined
+  ask?: string | undefined
+  from?: string | undefined
+  to?: string | undefined
+  f?: string | undefined
+  cols?: string | undefined
+  line?: string | undefined
+  view?: "patterns" | undefined
+  levels?: string | undefined
+  tail?: "1" | undefined
+  observation?: string | undefined
+  saved?: string | undefined
+  page?: number | undefined
+  size?: PageSize | undefined
 }
 
 const pageResetKeys = ["q", "f", "from", "to", "size"] as const
@@ -177,7 +177,7 @@ export function validateLogsSearch(raw: Record<string, unknown>): LogsSearch {
   }
 }
 
-export type LogsEntrySearch = LogsSearch & { ds?: string }
+export type LogsEntrySearch = LogsSearch & { ds?: string | undefined }
 
 export function validateLogsEntrySearch(
   raw: Record<string, unknown>

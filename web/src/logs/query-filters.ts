@@ -75,12 +75,12 @@ function afterQuoted(text: string, at: number): number {
 function selectorSpan(query: string): { start: number; end: number } | null {
   let index = 0
   while (index < query.length) {
-    if (quoteCharacters.includes(query[index])) {
+    if (quoteCharacters.includes(query.charAt(index))) {
       index = afterQuoted(query, index)
     } else if (query[index] === "{") {
       let end = index + 1
       while (end < query.length && query[end] !== "}") {
-        end = quoteCharacters.includes(query[end])
+        end = quoteCharacters.includes(query.charAt(end))
           ? afterQuoted(query, end)
           : end + 1
       }
@@ -117,7 +117,7 @@ function selectorMatchers(body: string): SelectorMatcher[] {
   let from = 0
   let index = 0
   while (index < body.length) {
-    if (quoteCharacters.includes(body[index])) {
+    if (quoteCharacters.includes(body.charAt(index))) {
       index = afterQuoted(body, index)
     } else if (body[index] === ",") {
       close(from, index)

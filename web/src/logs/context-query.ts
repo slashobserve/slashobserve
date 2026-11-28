@@ -48,9 +48,11 @@ export function lokiStreamSelector(
     indexed !== undefined && indexed.length > 0
       ? (name: string) => indexed.includes(name)
       : (name: string) => !perLineLokiLabels.has(name)
-  const names = Object.keys(labels).filter(keep).sort()
-  if (names.length === 0) return null
-  return `{${names.map((name) => matcherInsert("loki", name, labels[name])).join(", ")}}`
+  const kept = Object.entries(labels)
+    .filter(([name]) => keep(name))
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  if (kept.length === 0) return null
+  return `{${kept.map(([name, value]) => matcherInsert("loki", name, value)).join(", ")}}`
 }
 
 export function serviceNameOf(entry: LogEntry): string | null {
@@ -175,7 +177,7 @@ function contextRequest(
         .POST("/datasources/{uid}/log-context", {
           params: { path: { uid } },
           body,
-          signal,
+          ...(signal === undefined ? {} : { signal }),
         })
         .then(unwrap),
     signal

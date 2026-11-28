@@ -12,10 +12,10 @@ export class DiscoverUrlError extends Error {
 }
 
 export type DiscoverImport = {
-  q?: string
-  from?: string
-  to?: string
-  cols?: string[]
+  q?: string | undefined
+  from?: string | undefined
+  to?: string | undefined
+  cols?: string[] | undefined
   pills: NewPill[]
   dropped: number
 }

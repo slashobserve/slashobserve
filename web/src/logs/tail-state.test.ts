@@ -127,14 +127,14 @@ describe("tailVolume", () => {
 
   it("counts a line at the current time in the last bucket and ignores others outside the window", () => {
     const buckets = tailVolume([now, now - 300_001, now + 1], now)
-    expect(buckets[29].count).toBe(1)
+    expect(buckets[29]?.count).toBe(1)
     expect(buckets.reduce((sum, bucket) => sum + bucket.count, 0)).toBe(1)
   })
 
   it("lists buckets oldest first", () => {
     const buckets = tailVolume([], now)
-    expect(buckets[0].start).toBe(now - 300_000)
-    expect(buckets[1].start - buckets[0].start).toBe(10_000)
+    expect(buckets[0]?.start).toBe(now - 300_000)
+    expect(buckets[1]!.start - buckets[0]!.start).toBe(10_000)
   })
 })
 

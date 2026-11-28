@@ -95,17 +95,17 @@ function isWordChar(c: string): boolean {
 const escapes: Record<string, string> = { n: "\n", t: "\t", r: "\r" }
 
 function unescaped(c: string): string {
-  return Object.hasOwn(escapes, c) ? escapes[c] : c
+  return (Object.hasOwn(escapes, c) ? escapes[c] : undefined) ?? c
 }
 
 function lexQuoted(text: string, start: number): Token {
   let value = ""
   for (let i = start + 1; i < text.length; i++) {
-    const c = text[i]
+    const c = text.charAt(i)
     if (c === "\\") {
       if (i + 1 < text.length) {
         i++
-        value += unescaped(text[i])
+        value += unescaped(text.charAt(i))
       }
     } else if (c === '"') {
       return { kind: "quoted", text: value, segments: [], start, end: i + 1 }
@@ -126,10 +126,10 @@ function lexWord(text: string, start: number): Token {
     segments.push({ text: literal, star: false })
     literal = ""
   }
-  while (pos < text.length && isWordChar(text[pos])) {
-    const c = text[pos]
+  while (pos < text.length && isWordChar(text.charAt(pos))) {
+    const c = text.charAt(pos)
     if (c === "\\" && pos + 1 < text.length) {
-      const next = text[pos + 1]
+      const next = text.charAt(pos + 1)
       if (isSpace(next)) {
         throw new KqlSyntaxError(
           "quote a value that contains spaces",
@@ -170,24 +170,27 @@ function lex(text: string): Token[] {
   const tokens: Token[] = []
   let pos = 0
   for (;;) {
-    while (pos < text.length && isSpace(text[pos])) pos++
+    while (pos < text.length && isSpace(text.charAt(pos))) pos++
     if (pos >= text.length) {
       tokens.push({ kind: "eof", text: "", segments: [], start: pos, end: pos })
       return tokens
     }
-    const c = text[pos]
+    const c = text.charAt(pos)
     const start = pos
     let token: Token
-    if (Object.hasOwn(punctuation, c)) {
+    const punctuationKind = Object.hasOwn(punctuation, c)
+      ? punctuation[c]
+      : undefined
+    if (punctuationKind !== undefined) {
       token = {
-        kind: punctuation[c],
+        kind: punctuationKind,
         text: c,
         segments: [],
         start,
         end: start + 1,
       }
     } else if (c === "<" || c === ">") {
-      const end = text[start + 1] === "=" ? start + 2 : start + 1
+      const end = text.charAt(start + 1) === "=" ? start + 2 : start + 1
       token = {
         kind: "rangeop",
         text: text.slice(start, end),
@@ -240,7 +243,9 @@ class Parser {
 
   private peek(ahead = 0): Token {
     const index = Math.min(this.pos + ahead, this.tokens.length - 1)
-    return this.tokens[index]
+    const token = this.tokens[index]
+    if (token === undefined) throw new Error("the lexer gave no tokens")
+    return token
   }
 
   private advance(): Token {
@@ -269,7 +274,7 @@ class Parser {
         this.advance()
       } else if (!(kind === "and" && startsPrimary(this.peek()))) {
         if (children.length === 1) return first
-        const last = children[children.length - 1]
+        const last = children.at(-1) ?? first
         return this.node({
           node: { kind, items: children.map((child) => child.node) },
           start: first.start,
@@ -427,7 +432,7 @@ class Parser {
     const quoted = value.kind === "quoted"
     const wildcard = !quoted && value.segments.some((s) => s.star)
     const onlyStar =
-      !quoted && value.segments.length === 1 && value.segments[0].star
+      !quoted && value.segments.length === 1 && value.segments[0]?.star === true
     const span = { start: value.start, end: value.end }
     if (kind === "match" && field !== null) {
       if (onlyStar) {
@@ -492,6 +497,7 @@ class Parser {
     const token = this.peek()
     if (token.kind === "eof") {
       const previous = this.tokens[this.pos - 1]
+      if (previous === undefined) throw new Error("no token before the end")
       return new KqlSyntaxError(
         "expected a value after " + quoteToken(previous.text),
         previous.start,
@@ -527,7 +533,7 @@ class Parser {
 
 function parseText(text: string): Parsed | null {
   const tokens = lex(text)
-  if (tokens[0].kind === "eof") return null
+  if (tokens[0]?.kind === "eof") return null
   return new Parser(text, tokens).parse()
 }
 

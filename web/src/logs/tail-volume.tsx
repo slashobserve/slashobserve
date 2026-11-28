@@ -17,7 +17,7 @@ export function TailVolume({
     <div className="flex shrink-0 flex-col gap-1 border-b border-border px-3 py-2">
       <div
         role="img"
-        aria-label={`${noun[0].toUpperCase()}${noun.slice(1)} per 10 seconds over the last 5 minutes, newest on the right`}
+        aria-label={`${noun.charAt(0).toUpperCase()}${noun.slice(1)} per 10 seconds over the last 5 minutes, newest on the right`}
         className="flex h-12 items-end gap-px"
       >
         {buckets.map((bucket) => (

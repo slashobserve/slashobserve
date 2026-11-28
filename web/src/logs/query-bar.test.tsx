@@ -16,7 +16,7 @@ function status(uid: string, type: string): DatasourceStatus {
     uid,
     type,
     name: uid,
-    index: type === "elasticsearch" ? "logs-*" : undefined,
+    ...(type === "elasticsearch" ? { index: "logs-*" } : {}),
     source: "file",
     healthy: true,
     health_state: "healthy",
@@ -83,7 +83,7 @@ function setup({
     labels: ["service_name", "level"],
     truncated: false,
   })
-  queryClient.setQueryData(datasourceKeys.labels("ds", { search: undefined }), {
+  queryClient.setQueryData(datasourceKeys.labels("ds", {}), {
     labels: ["service_name", "level"],
     truncated: false,
   })
@@ -328,7 +328,7 @@ describe("QueryBar", () => {
     await user.click(await screen.findByRole("button", { name: "Run query" }))
     expect(run).not.toHaveBeenCalled()
     await user.click(
-      screen.getAllByRole("button", { name: "Switch to Lucene" })[0]
+      screen.getAllByRole("button", { name: "Switch to Lucene" })[0]!
     )
     const text = "lucene: +level:error -message:(a"
     expect(setDraft).toHaveBeenCalledWith(text)

@@ -159,10 +159,8 @@ function ModeSwitch() {
     event.preventDefault()
     const reachable = modes.filter(available)
     const index = reachable.indexOf(shown)
-    choose(
-      reachable[(index + step + reachable.length) % reachable.length],
-      "key"
-    )
+    const next = reachable[(index + step + reachable.length) % reachable.length]
+    if (next !== undefined) choose(next, "key")
   }
 
   function segment(value: InputMode) {
@@ -478,8 +476,8 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
   const unknownFields =
     lint?.status === "ok" && lint.query === draft
       ? lint.items.flatMap((item) => {
-          const match = unknownFieldMessage.exec(item.message)
-          return match === null ? [] : [match[1]]
+          const field = unknownFieldMessage.exec(item.message)?.[1]
+          return field === undefined ? [] : [field]
         })
       : []
 
@@ -555,7 +553,7 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
                 ariaLabel={`${modeLabel} query`}
                 onLint={setLint}
                 editorRef={editorRef}
-                completionNames={completionNames}
+                {...(completionNames === undefined ? {} : { completionNames })}
               />
             </div>
             {problem !== null ? (

@@ -123,7 +123,7 @@ class Reader {
     const start = this.at
     while (
       this.at < this.text.length &&
-      !notIdCharacters.includes(this.text[this.at])
+      !notIdCharacters.includes(this.text.charAt(this.at))
     ) {
       this.at++
     }

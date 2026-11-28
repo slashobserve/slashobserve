@@ -91,9 +91,9 @@ function SuggestBox({
   label: string
   value: string
   onChange: (next: string) => void
-  onEnter?: (event: FormEvent) => void
+  onEnter?: ((event: FormEvent) => void) | undefined
   items: readonly string[]
-  placeholder?: string
+  placeholder?: string | undefined
   autoFocus?: boolean
 }) {
   return (

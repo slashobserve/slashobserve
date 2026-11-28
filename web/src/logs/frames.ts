@@ -116,6 +116,7 @@ function dropOldest(frames: WireFrame[], cap: number): WireFrame[] {
   if (excess <= 0) return frames
   const dropped = oldestFirstTimes(frames).slice(0, excess)
   const cutoff = dropped[excess - 1]
+  if (cutoff === undefined) return frames
   let atCutoff = dropped.filter((time) => time === cutoff).length
   return keepRows(frames, (frame, row) => {
     const time = rowTime(frame, row) ?? Number.NEGATIVE_INFINITY

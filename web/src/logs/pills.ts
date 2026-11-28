@@ -183,7 +183,7 @@ function renumbered(pills: Pill[]): Pill[] {
 export function addPill(pills: Pill[], next: NewPill): Pill[] {
   const twin = pills.findIndex((pill) => sameClause(pill, next))
   if (twin >= 0) {
-    if (!pills[twin].paused) return pills
+    if (!pills[twin]?.paused) return pills
     return pills.map((pill, index) =>
       index === twin ? { ...pill, paused: false } : pill
     )
