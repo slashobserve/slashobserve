@@ -39,7 +39,7 @@ function modeOf(
   value: unknown
 ): AxisMode | null {
   return typeof value === "string" && Object.hasOwn(table, value)
-    ? table[value]
+    ? (table[value] ?? null)
     : null
 }
 

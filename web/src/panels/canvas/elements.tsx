@@ -187,9 +187,9 @@ function IconBody({ element }: { element: CanvasElement }) {
     )
   }
   const Icon =
-    element.icon !== null && hasIcon(element.icon)
+    (element.icon !== null && hasIcon(element.icon)
       ? iconsByName[element.icon]
-      : unknownIcon
+      : undefined) ?? unknownIcon
   const glyph = (
     <Icon
       role="img"

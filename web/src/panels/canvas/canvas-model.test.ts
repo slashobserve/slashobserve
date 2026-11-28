@@ -13,6 +13,11 @@ import {
   type RgbOf,
 } from "./canvas-model"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
   return {
     id: "p1",
@@ -88,11 +93,11 @@ const rect = (id: string, left: number, top: number, extra = {}) => ({
 describe("canvasModel metrics", () => {
   it("reduces the first number field by display.reduce when no field is named", () => {
     const frames = [series("a", [1, 9, 4])]
-    expect(build(frames, { elements: [metric()] }).elements[0].valueText).toBe(
-      "4"
-    )
     expect(
-      build(frames, { reduce: "max", elements: [metric()] }).elements[0]
+      must(build(frames, { elements: [metric()] }).elements[0]).valueText
+    ).toBe("4")
+    expect(
+      must(build(frames, { reduce: "max", elements: [metric()] }).elements[0])
         .valueText
     ).toBe("9")
   })
@@ -100,35 +105,42 @@ describe("canvasModel metrics", () => {
   it("finds the named field by field name, series name or display name", () => {
     const frames = [series("a", [1], "cpu"), series("b", [7], "mem")]
     const named = (field: string) =>
-      build(frames, { elements: [metric({ field })] }).elements[0].valueText
+      must(build(frames, { elements: [metric({ field })] }).elements[0])
+        .valueText
     expect(named("mem")).toBe("7")
     expect(named("a")).toBe("1")
   })
 
   it("shows No data for a missing field and when there is no data", () => {
     expect(
-      build([series("a", [1])], { elements: [metric({ field: "nope" })] })
-        .elements[0].valueText
+      must(
+        build([series("a", [1])], { elements: [metric({ field: "nope" })] })
+          .elements[0]
+      ).valueText
     ).toBe("No data")
-    expect(build([], { elements: [metric()] }).elements[0].valueText).toBe(
-      "No data"
-    )
+    expect(
+      must(build([], { elements: [metric()] }).elements[0]).valueText
+    ).toBe("No data")
   })
 
   it("keeps the label text apart from the value", () => {
-    const [element] = build([series("a", [3])], {
-      elements: [metric({ text: "Orders" })],
-    }).elements
+    const element = must(
+      build([series("a", [3])], {
+        elements: [metric({ text: "Orders" })],
+      }).elements[0]
+    )
     expect(element.text).toBe("Orders")
     expect(element.valueText).toBe("3")
   })
 
   it("takes the threshold color and state of the field for field colors", () => {
-    const [element] = build(
-      [series("a", [95])],
-      { elements: [metric({ textColor: "field" })] },
-      { thresholds: [{ color: "ok" }, { value: 80, color: "critical" }] }
-    ).elements
+    const element = must(
+      build(
+        [series("a", [95])],
+        { elements: [metric({ textColor: "field" })] },
+        { thresholds: [{ color: "ok" }, { value: 80, color: "critical" }] }
+      ).elements[0]
+    )
     expect(element.textColor).toBe("var(--threshold-critical)")
     expect(element.state).toEqual({
       level: "critical",
@@ -155,9 +167,9 @@ describe("canvasModel metrics", () => {
       { elements: [metric({ stroke: "field" })] },
       { thresholds }
     ).elements[0]
-    expect(plain.state?.labelColor).toBe(foregroundColor)
-    expect(filled.state?.labelColor).toBeNull()
-    expect(stroked.state?.labelColor).toBeNull()
+    expect(must(plain).state?.labelColor).toBe(foregroundColor)
+    expect(must(filled).state?.labelColor).toBeNull()
+    expect(must(stroked).state?.labelColor).toBeNull()
   })
 
   it("falls back to the series color when the field has no threshold or mapping color", () => {
@@ -172,25 +184,29 @@ describe("canvasModel metrics", () => {
       "var(--series-1)",
       "var(--series-2)",
     ])
-    expect(elements[0].state).toBeNull()
+    expect(must(elements[0]).state).toBeNull()
   })
 
   it("uses a fixed color of the field as a state-less color", () => {
-    const [element] = build(
-      [series("a", [1])],
-      { elements: [metric({ textColor: "field" })] },
-      { color: "ok" }
-    ).elements
+    const element = must(
+      build(
+        [series("a", [1])],
+        { elements: [metric({ textColor: "field" })] },
+        { color: "ok" }
+      ).elements[0]
+    )
     expect(element.textColor).toBe("var(--threshold-ok)")
     expect(element.state).toMatchObject({ level: "base", label: "" })
   })
 
   it("has no state unless a color asks for the field", () => {
-    const [element] = build(
-      [series("a", [95])],
-      { elements: [metric()] },
-      { thresholds: [{ color: "ok" }, { value: 80, color: "critical" }] }
-    ).elements
+    const element = must(
+      build(
+        [series("a", [95])],
+        { elements: [metric()] },
+        { thresholds: [{ color: "ok" }, { value: 80, color: "critical" }] }
+      ).elements[0]
+    )
     expect(element.state).toBeNull()
     expect(element.textColor).toBeNull()
   })
@@ -215,9 +231,11 @@ describe("canvasModel colors and text", () => {
   })
 
   it("maps semantic colors to threshold tokens and keeps hex", () => {
-    const [element] = build([], {
-      elements: [rect("a", 0, 0, { fill: "warning", stroke: "#12abEF" })],
-    }).elements
+    const element = must(
+      build([], {
+        elements: [rect("a", 0, 0, { fill: "warning", stroke: "#12abEF" })],
+      }).elements[0]
+    )
     expect(element.fill).toBe("var(--threshold-warning)")
     expect(element.stroke).toBe("#12abEF")
   })
@@ -246,15 +264,17 @@ describe("canvasModel colors and text", () => {
         stroke: null,
         textColor: null,
       })
-      expect(model.lines[0].color).toBe(defaultLineColor)
+      expect(must(model.lines[0]).color).toBe(defaultLineColor)
     }
   })
 
   it("passes element text through untouched for the renderer to print as text", () => {
     const html = '<svg onload="alert(1)"> <script>1</script>'
-    const [element] = build([], {
-      elements: [{ ...rect("a", 0, 0), kind: "text", text: html }],
-    }).elements
+    const element = must(
+      build([], {
+        elements: [{ ...rect("a", 0, 0), kind: "text", text: html }],
+      }).elements[0]
+    )
     expect(element.text).toBe(html)
   })
 
@@ -284,8 +304,8 @@ describe("canvasModel colors and text", () => {
         },
       ],
     }).elements
-    expect(bare.text).toBe("web-1: 12 cores")
-    expect(bound.text).toBe("now 12")
+    expect(must(bare).text).toBe("web-1: 12 cores")
+    expect(must(bound).text).toBe("now 12")
   })
 
   it("shows an empty string for a template reference to a missing field", () => {
@@ -303,8 +323,8 @@ describe("canvasModel colors and text", () => {
         },
       ],
     }).elements
-    expect(missing.text).toBe("[]")
-    expect(none.text).toBeNull()
+    expect(must(missing).text).toBe("[]")
+    expect(must(none).text).toBeNull()
   })
 
   it("resolves the icon outline width into the Spec range, none by default", () => {
@@ -320,12 +340,12 @@ describe("canvasModel colors and text", () => {
         rect("c", 0, 0, { kind: "icon", icon: "server", strokeWidth: 90 }),
       ],
     }).elements
-    expect(plain.strokeWidth).toBe(0)
+    expect(must(plain).strokeWidth).toBe(0)
     expect(wide).toMatchObject({
       strokeWidth: 3,
       stroke: "var(--threshold-info)",
     })
-    expect(huge.strokeWidth).toBe(20)
+    expect(must(huge).strokeWidth).toBe(20)
   })
 
   it("converts an outline width in pixels to the 24 unit icon grid", () => {
@@ -361,9 +381,11 @@ describe("canvasModel colors and text", () => {
   })
 
   it("clamps the box into the panel", () => {
-    const [element] = build([], {
-      elements: [rect("a", 120, -5, { width: 400 })],
-    }).elements
+    const element = must(
+      build([], {
+        elements: [rect("a", 120, -5, { width: 400 })],
+      }).elements[0]
+    )
     expect(element.box).toEqual({ left: 100, top: 0, width: 100, height: 10 })
   })
 
@@ -393,8 +415,8 @@ describe("canvasModel connections", () => {
       ],
       connections: [{ from: "a", to: "b" }],
     })
-    expect(lines[0].x1).toBeCloseTo(20)
-    expect(lines[0].y1).toBeCloseTo(10)
+    expect(must(lines[0]).x1).toBeCloseTo(20)
+    expect(must(lines[0]).y1).toBeCloseTo(10)
   })
 
   it("leaves a rectangle through the top edge for a vertical line", () => {
@@ -420,8 +442,8 @@ describe("canvasModel connections", () => {
       ],
       connections: [{ from: "a", to: "b", width: 5, color: "text" }],
     })
-    expect(lines[0].color).toBe(foregroundColor)
-    expect(elements[0].textColor).toBe(foregroundColor)
+    expect(must(lines[0]).color).toBe(foregroundColor)
+    expect(must(elements[0]).textColor).toBe(foregroundColor)
   })
 
   it("drops connections with a missing end or no length", () => {
@@ -447,7 +469,7 @@ describe("canvasModel connections", () => {
       },
       { thresholds: [{ color: "ok" }, { value: 80, color: "critical" }] }
     )
-    expect(lines[0].color).toBe("var(--threshold-critical)")
+    expect(must(lines[0]).color).toBe("var(--threshold-critical)")
   })
 })
 
@@ -486,7 +508,7 @@ describe("canvasModel element kinds and styling", () => {
   })
 
   it("applies the element defaults of the Spec to a plain element", () => {
-    const [element] = build([], { elements: [rect("a", 0, 0)] }).elements
+    const element = must(build([], { elements: [rect("a", 0, 0)] }).elements[0])
     expect(element).toMatchObject({
       valign: "middle",
       rotation: 0,
@@ -590,7 +612,7 @@ describe("canvasModel element kinds and styling", () => {
     const { elements } = build([series("a", [1])], {
       elements: [rect("a", 0, 0, { kind: "icon", image: { field: "Value" } })],
     })
-    expect(elements[0].image).toBeNull()
+    expect(must(elements[0]).image).toBeNull()
   })
 
   it("reads an element background and sizes it to contain by default", () => {
@@ -612,16 +634,16 @@ describe("canvasModel element kinds and styling", () => {
         rect("d", 0, 0, { backgroundSize: "cover" }),
       ],
     }).elements
-    expect(sized.background).toEqual({
+    expect(must(sized).background).toEqual({
       url: "https://a.example/b.png",
       size: "tile",
     })
-    expect(fallback.background?.size).toBe("contain")
-    expect(bound.background).toEqual({
+    expect(must(fallback).background?.size).toBe("contain")
+    expect(must(bound).background).toEqual({
       url: "https://a.example/map.png",
       size: "cover",
     })
-    expect(none.background).toBeNull()
+    expect(must(none).background).toBeNull()
   })
 
   it("reads the server variant and a status light color", () => {
@@ -637,8 +659,8 @@ describe("canvasModel element kinds and styling", () => {
       ],
     }).elements
     expect(stack).toMatchObject({ server: "stack", accent: "#112233" })
-    expect(plain.server).toBe("single")
-    expect(hostile.accent).toBeNull()
+    expect(must(plain).server).toBe("single")
+    expect(must(hostile).accent).toBeNull()
   })
 
   it("reads the button style and falls back to primary", () => {
@@ -660,53 +682,59 @@ describe("canvasModel placement", () => {
   const body = { width: 400, height: 200 }
 
   it("turns the percent box into pixels of the body", () => {
-    const [element] = build(
-      [],
-      { elements: [rect("a", 10, 20, { width: 25, height: 50 })] },
-      {},
-      body
-    ).elements
+    const element = must(
+      build(
+        [],
+        { elements: [rect("a", 10, 20, { width: 25, height: 50 })] },
+        {},
+        body
+      ).elements[0]
+    )
     expect(element.box).toEqual({ left: 40, top: 40, width: 100, height: 100 })
   })
 
   it("lets a placement win over the percent box", () => {
-    const [element] = build(
-      [],
-      {
-        elements: [
-          rect("a", 10, 20, {
-            placement: {
-              horizontal: "right",
-              vertical: "bottom",
-              right: 10,
-              bottom: 5,
-              width: 80,
-              height: 30,
-            },
-          }),
-        ],
-      },
-      {},
-      body
-    ).elements
+    const element = must(
+      build(
+        [],
+        {
+          elements: [
+            rect("a", 10, 20, {
+              placement: {
+                horizontal: "right",
+                vertical: "bottom",
+                right: 10,
+                bottom: 5,
+                width: 80,
+                height: 30,
+              },
+            }),
+          ],
+        },
+        {},
+        body
+      ).elements[0]
+    )
     expect(element.box).toEqual({ left: 310, top: 165, width: 80, height: 30 })
   })
 
   it("ignores a placement the Spec would not accept", () => {
-    const [element] = build(
-      [],
-      {
-        elements: [
-          rect("a", 10, 20, {
-            width: 25,
-            height: 50,
-            placement: { horizontal: "middle", vertical: "top" },
-          }),
-        ],
-      },
-      {},
-      body
-    ).elements
+    const element = must(
+      build(
+        [],
+        {
+          elements: [
+            rect("a", 10, 20, {
+              width: 25,
+              height: 50,
+              placement: { horizontal: "middle", vertical: "top" },
+            }),
+          ],
+        },
+        {},
+        body
+      ).elements[0]
+    )
     expect(element.box).toEqual({ left: 40, top: 40, width: 100, height: 100 })
   })
 
@@ -743,12 +771,12 @@ describe("canvasModel tooltips and bound values", () => {
         rect("u", 0, 80, { fill: "field" }),
       ],
     })
-    expect(elements[0].details).toHaveLength(1)
-    expect(elements[0].details[0].text).toBe("7")
-    expect(elements[1].details).toHaveLength(1)
-    expect(elements[1].details[0].text).toBe("7")
-    expect(elements[2].details).toEqual([])
-    expect(elements[3].details).toEqual([])
+    expect(must(elements[0]).details).toHaveLength(1)
+    expect(must(must(elements[0]).details[0]).text).toBe("7")
+    expect(must(elements[1]).details).toHaveLength(1)
+    expect(must(must(elements[1]).details[0]).text).toBe("7")
+    expect(must(elements[2]).details).toEqual([])
+    expect(must(elements[3]).details).toEqual([])
   })
 
   it("adds the rate of a wind turbine", () => {
@@ -759,8 +787,8 @@ describe("canvasModel tooltips and bound values", () => {
         rect("b", 0, 0, { kind: "rectangle", rateField: "rpm" }),
       ],
     }).elements
-    expect(turbine.details.map((detail) => detail.text)).toEqual(["42"])
-    expect(other.details).toEqual([])
+    expect(must(turbine).details.map((detail) => detail.text)).toEqual(["42"])
+    expect(must(other).details).toEqual([])
   })
 
   it("rotates each drone by its own angle field in degrees", () => {
@@ -843,10 +871,12 @@ describe("canvasModel styled connections", () => {
   const body = { width: 400, height: 200 }
 
   it("draws a straight solid line without arrows by default", () => {
-    const [line] = build([], {
-      elements: two,
-      connections: [{ from: "a", to: "b" }],
-    }).lines
+    const line = must(
+      build([], {
+        elements: two,
+        connections: [{ from: "a", to: "b" }],
+      }).lines[0]
+    )
     expect(line).toMatchObject({
       path: "straight",
       lineStyle: "solid",
@@ -885,33 +915,35 @@ describe("canvasModel styled connections", () => {
   })
 
   it("bends through vertices given in percent of the body, clamped, and aims the ends at them", () => {
-    const [line] = build(
-      [],
-      {
-        elements: [rect("a", 0, 0), rect("b", 80, 0)],
-        connections: [
-          {
-            from: "a",
-            to: "b",
-            vertices: [
-              { x: 50, y: 100 },
-              { x: "x", y: 5 },
-              { x: 150, y: 5 },
-              { x: 75, y: 90 },
-            ],
-          },
-        ],
-      },
-      {},
-      body
-    ).lines
+    const line = must(
+      build(
+        [],
+        {
+          elements: [rect("a", 0, 0), rect("b", 80, 0)],
+          connections: [
+            {
+              from: "a",
+              to: "b",
+              vertices: [
+                { x: 50, y: 100 },
+                { x: "x", y: 5 },
+                { x: 150, y: 5 },
+                { x: 75, y: 90 },
+              ],
+            },
+          ],
+        },
+        {},
+        body
+      ).lines[0]
+    )
     expect(line.points.slice(1, -1)).toEqual([
       { x: 200, y: 200 },
       { x: 400, y: 10 },
       { x: 300, y: 180 },
     ])
-    const start = line.points[0]
-    const end = line.points[line.points.length - 1]
+    const start = must(line.points[0])
+    const end = must(line.points[line.points.length - 1])
     expect(start.x).toBeGreaterThan(0)
     expect(start.y).toBeGreaterThan(0)
     expect(end.x).toBeLessThan(400)
@@ -936,7 +968,7 @@ describe("canvasModel styled connections", () => {
           connections: [{ from: "a", to: "b", widthField: "rate", ...extra }],
         },
         panelExtra
-      ).lines[0].width
+      ).lines[0]?.width
     expect(widthOf({})).toBeCloseTo(4.6)
     expect(widthOf({ minWidth: 2, maxWidth: 6 })).toBeCloseTo(3.6)
     expect(
@@ -952,17 +984,19 @@ describe("canvasModel styled connections", () => {
         { from: "a", to: "b", width: 5, widthField: "rate" },
       ],
     }).lines
-    expect(missing.width).toBe(5)
-    expect(empty.width).toBe(5)
+    expect(must(missing).width).toBe(5)
+    expect(must(empty).width).toBe(5)
   })
 
   it("gives a constant field the narrow width", () => {
-    const [line] = build([series("a", [7, 7], "rate")], {
-      elements: two,
-      connections: [
-        { from: "a", to: "b", widthField: "rate", minWidth: 3, maxWidth: 9 },
-      ],
-    }).lines
+    const line = must(
+      build([series("a", [7, 7], "rate")], {
+        elements: two,
+        connections: [
+          { from: "a", to: "b", widthField: "rate", minWidth: 3, maxWidth: 9 },
+        ],
+      }).lines[0]
+    )
     expect(line.width).toBe(3)
   })
 })

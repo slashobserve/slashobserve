@@ -1,3 +1,5 @@
+import { pairedAt } from "../timeseries/paired"
+
 export type Point = { x: number; y: number }
 export type ConnectionPath = "straight" | "curved"
 export type LineStyle = "solid" | "dashed" | "dotted"
@@ -27,13 +29,10 @@ function mirror(point: Point, through: Point): Point {
 function curve(points: Point[]): string {
   const last = points.length - 1
   const segments = points.slice(0, -1).map((from, index) => {
-    const to = points[index + 1]
-    const before =
-      index === 0 ? mirror(points[1], points[0]) : points[index - 1]
+    const to = pairedAt(points, index + 1)
+    const before = index === 0 ? mirror(to, from) : pairedAt(points, index - 1)
     const after =
-      index + 1 === last
-        ? mirror(points[last - 1], points[last])
-        : points[index + 2]
+      index + 1 === last ? mirror(from, to) : pairedAt(points, index + 2)
     const first = {
       x: from.x + (to.x - before.x) / 6,
       y: from.y + (to.y - before.y) / 6,
@@ -44,13 +43,14 @@ function curve(points: Point[]): string {
     }
     return `C ${at(first)} ${at(second)} ${at(to)}`
   })
-  return `M ${at(points[0])} ${segments.join(" ")}`
+  return `M ${at(pairedAt(points, 0))} ${segments.join(" ")}`
 }
 
 export function connectionPath(points: Point[], path: ConnectionPath): string {
-  if (points.length < 2) return ""
+  const [start] = points
+  if (start === undefined || points.length < 2) return ""
   if (path === "curved") return curve(points)
-  return `M ${at(points[0])} ${points
+  return `M ${at(start)} ${points
     .slice(1)
     .map((point) => `L ${at(point)}`)
     .join(" ")}`
@@ -74,7 +74,7 @@ export function arrowEnds(arrow: ArrowMode): { start: boolean; end: boolean } {
 export function scaledWidth(
   value: number,
   range: { min: number; max: number },
-  limits: { min?: number; max?: number }
+  limits: { min?: number | undefined; max?: number | undefined }
 ): number {
   const low = limits.min ?? defaultMinWidth
   const high = limits.max ?? defaultMaxWidth
