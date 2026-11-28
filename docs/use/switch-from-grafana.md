@@ -141,7 +141,8 @@ Repair every panel and variable listed as unverified so its query runs and retur
 
 A repair that ran but left failures shows as repaired and still failing, and you can send it again.
 A dashboard with a revision already queued or running is skipped, and so is one with only placeholders, because the agent never edits a placeholder; replace those by hand.
-Each person can have 20 repairs queued or running, so on a large import run Repair all again when the first ones finish.
+A dashboard has one repair at a time, and it is the run of whoever asked first; anyone else who asks while it is queued or running sees that dashboard skipped as `active`.
+There is no limit on how many dashboards one person repairs at once.
 
 From an MCP client, read the dashboard with `get_dashboard`, whose `unverified` list names the failing panels and variables, and fix those panels with `update_panels`.
 
@@ -337,7 +338,6 @@ Without a configured model provider the call answers 503 `agent_unavailable`.
 | `not_found` | It does not exist or is in a folder you cannot see. |
 | `forbidden_role` | You can see it but not edit it. |
 | `provisioned` | It is a starter dashboard the server keeps current with each release; duplicate it to repair a copy. |
-| `queue_full` | You already have 20 repairs queued or running; send the request again when they finish. |
 
 ### Answers of the Grafana API
 

@@ -11,7 +11,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
-	"github.com/slashobserve/slashobserve/internal/health/repairprompt"
 	"github.com/slashobserve/slashobserve/internal/repairs"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -35,7 +34,7 @@ func (r *Repairs) Repair(ctx context.Context, by auth.Principal, ids []pgtype.UU
 	return batch.Outcome(), nil
 }
 
-func healthPlan(ctx context.Context, q *dbsqlc.Queries, requester pgtype.UUID, levels folders.Levels, id pgtype.UUID) (int, string, string, error) {
+func healthPlan(ctx context.Context, q *dbsqlc.Queries, levels folders.Levels, id pgtype.UUID) (int, string, string, error) {
 	target, err := q.HealthRepairTarget(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, "", repairs.ReasonNotFound, nil
@@ -56,13 +55,6 @@ func healthPlan(ctx context.Context, q *dbsqlc.Queries, requester pgtype.UUID, l
 	prompt, ok := repairPrompt(problems)
 	if !ok {
 		return 0, "", repairs.ReasonNothingToRepair, nil
-	}
-	mine, err := q.CountActiveHealthRepairsBy(ctx, dbsqlc.CountActiveHealthRepairsByParams{RequesterID: requester, PromptPrefix: repairprompt.Prefix})
-	if err != nil {
-		return 0, "", "", fmt.Errorf("count active health repairs: %w", err)
-	}
-	if mine >= repairs.MaxActivePerRequester {
-		return 0, "", repairs.ReasonQueueFull, nil
 	}
 	return int(target.LatestVersion), prompt, "", nil
 }

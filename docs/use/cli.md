@@ -1549,7 +1549,7 @@ Listing exits 0 whatever it finds, and `--json` prints the response of `GET /api
 
 `health repair <dashboard-id>...` asks the agent to repair 1 to 50 dashboards.
 It prints one row per dashboard with `queued` and the request id, or the reason it was skipped.
-The reasons are `active`, `nothing_to_repair`, `not_found`, `forbidden_role`, `provisioned` (a starter dashboard, which only a release changes) and `queue_full`.
+The reasons are `active`, `nothing_to_repair`, `not_found`, `forbidden_role`, and `provisioned` (a starter dashboard, which only a release changes).
 It needs an Editor key and a model on the server, and exits 1 when it queued no repair.
 
 `health run` starts a check of every dashboard now and needs an Admin key.

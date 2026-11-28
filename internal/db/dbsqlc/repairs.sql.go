@@ -11,24 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const countActiveRepairsBy = `-- name: CountActiveRepairsBy :one
-SELECT count(*) FROM agent_requests
-WHERE requested_by_id = $1 AND intent = 'apply' AND base_version IS NOT NULL AND prompt = $2::text
-  AND status IN ('queued', 'running')
-`
-
-type CountActiveRepairsByParams struct {
-	RequesterID  pgtype.UUID
-	RepairPrompt string
-}
-
-func (q *Queries) CountActiveRepairsBy(ctx context.Context, arg CountActiveRepairsByParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countActiveRepairsBy, arg.RequesterID, arg.RepairPrompt)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
 const listRepairs = `-- name: ListRepairs :many
 SELECT d.id, d.title, d.updated_at, d.folder_id,
   f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal,

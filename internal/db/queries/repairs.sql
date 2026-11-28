@@ -39,8 +39,3 @@ SELECT d.folder_id, d.latest_version, v.unverified,
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 WHERE d.id = @dashboard_id;
-
--- name: CountActiveRepairsBy :one
-SELECT count(*) FROM agent_requests
-WHERE requested_by_id = @requester_id AND intent = 'apply' AND base_version IS NOT NULL AND prompt = @repair_prompt::text
-  AND status IN ('queued', 'running');

@@ -154,7 +154,6 @@ describe("outcomeLines", () => {
       | "not_found"
       | "forbidden_role"
       | "provisioned"
-      | "queue_full"
     )[]
   ) {
     return reasons.map((reason, i) => ({ dashboard_id: `d${i}`, reason }))
@@ -173,18 +172,6 @@ describe("outcomeLines", () => {
       [
         "Queued 3 repairs",
         "Skipped 2: already queued or running, or nothing the agent can repair",
-      ],
-    ],
-    [
-      "the requester cap",
-      {
-        queued: queued(0),
-        skipped: skipped("queue_full", "queue_full", "active"),
-      },
-      [
-        "No repairs queued",
-        "Skipped 1: already queued or running, or nothing the agent can repair",
-        "2 not queued yet: you can have 20 repairs queued or running. Run Repair all again when these finish.",
       ],
     ],
   ])("%s", (_name, outcome, want) => {

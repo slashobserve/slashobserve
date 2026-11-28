@@ -24,14 +24,11 @@ import (
 
 const Prompt = "Repair every panel and variable listed as unverified so its query runs and returns data; keep every other panel unchanged and never delete an unverified panel."
 
-const MaxActivePerRequester = 20
-
 const (
 	ReasonActive          = "active"
 	ReasonNothingToRepair = "nothing_to_repair"
 	ReasonNotFound        = "not_found"
 	ReasonForbidden       = "forbidden_role"
-	ReasonQueueFull       = "queue_full"
 	ReasonProvisioned     = "provisioned"
 )
 
@@ -163,7 +160,7 @@ func (s *Service) Request(ctx context.Context, by auth.Principal, t Target) (Out
 	}
 }
 
-func importPlan(ctx context.Context, q *dbsqlc.Queries, requester pgtype.UUID, levels folders.Levels, id pgtype.UUID) (int, string, string, error) {
+func importPlan(ctx context.Context, q *dbsqlc.Queries, levels folders.Levels, id pgtype.UUID) (int, string, string, error) {
 	target, err := q.RepairTarget(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, "", ReasonNotFound, nil
@@ -182,13 +179,6 @@ func importPlan(ctx context.Context, q *dbsqlc.Queries, requester pgtype.UUID, l
 	}
 	if unverified.Empty() {
 		return 0, "", ReasonNothingToRepair, nil
-	}
-	mine, err := q.CountActiveRepairsBy(ctx, dbsqlc.CountActiveRepairsByParams{RequesterID: requester, RepairPrompt: Prompt})
-	if err != nil {
-		return 0, "", "", fmt.Errorf("count active repairs: %w", err)
-	}
-	if mine >= MaxActivePerRequester {
-		return 0, "", ReasonQueueFull, nil
 	}
 	return int(target.LatestVersion), Prompt, "", nil
 }

@@ -7573,7 +7573,7 @@ components:
                 format: uuid
               reason:
                 type: string
-                enum: [active, nothing_to_repair, not_found, forbidden_role, provisioned, queue_full]
+                enum: [active, nothing_to_repair, not_found, forbidden_role, provisioned]
     GrafanaResolved:
       type: object
       additionalProperties: false

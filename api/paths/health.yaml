@@ -83,7 +83,7 @@ health-repairs:
     description: >-
       Editors and Admins can call this endpoint.
       Each dashboard gets one ordinary revision (`intent` `apply`) whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check.
-      A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable or was of an older version than the latest, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, `provisioned` when it is a starter dashboard the server keeps current with each release, and `queue_full` when the caller already has 20 health repairs queued or running.
+      A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable or was of an older version than the latest, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `provisioned` when it is a starter dashboard the server keeps current with each release.
       Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
     requestBody:
       required: true

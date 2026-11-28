@@ -13,7 +13,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
-type Planner func(ctx context.Context, q *dbsqlc.Queries, requester pgtype.UUID, levels folders.Levels, id pgtype.UUID) (latest int, prompt, reason string, err error)
+type Planner func(ctx context.Context, q *dbsqlc.Queries, levels folders.Levels, id pgtype.UUID) (latest int, prompt, reason string, err error)
 
 type Queue struct {
 	db        *db.DB
@@ -26,28 +26,23 @@ func NewQueue(d *db.DB, access *folders.Access, revisions *revisions.Service) *Q
 }
 
 type Batch struct {
-	queue     *Queue
-	by        auth.Principal
-	requester pgtype.UUID
-	Levels    folders.Levels
-	plan      Planner
-	seen      map[pgtype.UUID]bool
-	out       Outcome
+	queue  *Queue
+	by     auth.Principal
+	Levels folders.Levels
+	plan   Planner
+	seen   map[pgtype.UUID]bool
+	out    Outcome
 }
 
 func (q *Queue) Begin(ctx context.Context, by auth.Principal, plan Planner) (*Batch, error) {
 	if !q.revisions.Available() {
 		return nil, revisions.ErrUnavailable
 	}
-	requester, err := db.ParseUUID(by.ID)
-	if err != nil {
-		return nil, fmt.Errorf("requester id: %w", err)
-	}
 	levels, err := q.access.Levels(ctx, by)
 	if err != nil {
 		return nil, err
 	}
-	return &Batch{queue: q, by: by, requester: requester, Levels: levels, plan: plan, seen: map[pgtype.UUID]bool{}, out: Outcome{Queued: []Queued{}, Skipped: []Skipped{}}}, nil
+	return &Batch{queue: q, by: by, Levels: levels, plan: plan, seen: map[pgtype.UUID]bool{}, out: Outcome{Queued: []Queued{}, Skipped: []Skipped{}}}, nil
 }
 
 func (b *Batch) Outcome() Outcome { return b.out }
@@ -72,7 +67,7 @@ func (b *Batch) Add(ctx context.Context, id pgtype.UUID) error {
 		if err := q.LockAgentRequestsForDashboard(ctx, id); err != nil {
 			return fmt.Errorf("lock agent requests: %w", err)
 		}
-		latest, prompt, why, err := b.plan(ctx, q, b.requester, b.Levels, id)
+		latest, prompt, why, err := b.plan(ctx, q, b.Levels, id)
 		if err != nil || why != "" {
 			reason = why
 			return err

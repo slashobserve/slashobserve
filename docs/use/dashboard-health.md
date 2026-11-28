@@ -290,7 +290,8 @@ It is null when the dashboard never had one, and always null for a starter dashb
 `POST /api/v1/health/repairs` takes `{"dashboard_ids": [...]}` with up to 50 dashboards and needs the Editor role.
 It answers 202 with the repairs it queued and the dashboards it skipped.
 
-- The skip reasons are `active`, `nothing_to_repair`, `not_found`, `forbidden_role`, `provisioned` and `queue_full`.
+- The skip reasons are `active`, `nothing_to_repair`, `not_found`, `forbidden_role` and `provisioned`.
+- A dashboard has one repair at a time: whoever asks first holds it, and a later request skips it as `active` until that run ends.
 - A starter dashboard is skipped as `provisioned`, because the server keeps it current with each release.
   Duplicate it to repair a copy.
 - It answers 503 `agent_unavailable` when no LLM provider is configured.

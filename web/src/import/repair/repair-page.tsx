@@ -26,7 +26,6 @@ import { useAgentInfo } from "@/observe/queries"
 
 import { repairsQuery, useRequestRepairs, type RepairsQueued } from "./queries"
 import {
-  maxActiveRepairs,
   outcomeLines,
   repairState,
   unverifiedText,
@@ -153,8 +152,8 @@ function RepairAll({
               Queue a repair for every dashboard in this list?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Each one is an agent run, queued behind other requests. You can
-              have {maxActiveRepairs} repairs queued or running at a time.
+              Each one is an agent run, queued behind other requests. A
+              dashboard that already has a run queued or running is skipped.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

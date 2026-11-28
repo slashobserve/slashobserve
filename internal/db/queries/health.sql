@@ -114,8 +114,3 @@ SELECT d.folder_id, d.latest_version, coalesce(h.version, 0)::integer AS checked
 FROM dashboards d
 LEFT JOIN dashboard_health h ON h.dashboard_id = d.id
 WHERE d.id = @dashboard_id;
-
--- name: CountActiveHealthRepairsBy :one
-SELECT count(*) FROM agent_requests
-WHERE requested_by_id = @requester_id AND intent = 'apply' AND base_version IS NOT NULL AND starts_with(prompt, @prompt_prefix::text)
-  AND status IN ('queued', 'running');

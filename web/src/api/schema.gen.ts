@@ -3835,7 +3835,7 @@ export interface paths {
         put?: never;
         /**
          * Queue the agent to repair the failing panels of dashboards.
-         * @description Editors and Admins can call this endpoint. Send `dashboard_ids` to repair those dashboards, or `all` to repair every dashboard the list shows, in `folder_id` when it is set. Each dashboard gets one ordinary revision with source `prompt` and the fixed prompt "Repair every panel and variable listed as unverified so its query runs and returns data; keep every other panel unchanged and never delete an unverified panel." The agent never edits a placeholder panel, so a dashboard whose only problems are placeholders is skipped. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when it has no unverified panel or variable, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, `provisioned` when it is a starter dashboard the server keeps current with each release, and `queue_full` when the caller already has 20 repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description Editors and Admins can call this endpoint. Send `dashboard_ids` to repair those dashboards, or `all` to repair every dashboard the list shows, in `folder_id` when it is set. Each dashboard gets one ordinary revision with source `prompt` and the fixed prompt "Repair every panel and variable listed as unverified so its query runs and returns data; keep every other panel unchanged and never delete an unverified panel." The agent never edits a placeholder panel, so a dashboard whose only problems are placeholders is skipped. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when it has no unverified panel or variable, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `provisioned` when it is a starter dashboard the server keeps current with each release. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["requestRepairs"];
         delete?: never;
@@ -4116,7 +4116,7 @@ export interface paths {
         put?: never;
         /**
          * Queue the agent to repair the failing panels and variables the health check found.
-         * @description Editors and Admins can call this endpoint. Each dashboard gets one ordinary revision (`intent` `apply`) whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable or was of an older version than the latest, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, `provisioned` when it is a starter dashboard the server keeps current with each release, and `queue_full` when the caller already has 20 health repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description Editors and Admins can call this endpoint. Each dashboard gets one ordinary revision (`intent` `apply`) whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable or was of an older version than the latest, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `provisioned` when it is a starter dashboard the server keeps current with each release. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["requestHealthRepairs"];
         delete?: never;
@@ -8262,7 +8262,7 @@ export interface components {
                 /** Format: uuid */
                 dashboard_id: string;
                 /** @enum {string} */
-                reason: "active" | "nothing_to_repair" | "not_found" | "forbidden_role" | "provisioned" | "queue_full";
+                reason: "active" | "nothing_to_repair" | "not_found" | "forbidden_role" | "provisioned";
             }[];
         };
         GrafanaResolved: {

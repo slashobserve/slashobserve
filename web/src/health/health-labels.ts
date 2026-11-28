@@ -314,8 +314,6 @@ const skipTexts: Record<RepairsQueued["skipped"][number]["reason"], string> = {
   forbidden_role: "You cannot edit this dashboard.",
   provisioned:
     "This is a starter dashboard that releases keep current. Duplicate it to repair a copy.",
-  queue_full:
-    "You already have 20 repairs queued or running. Try again when some finish.",
 }
 
 export function repairOutcomeText(outcome: RepairsQueued): string {
