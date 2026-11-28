@@ -2650,7 +2650,7 @@ DO $$
 DECLARE
   day DATE;
 BEGIN
-  FOR day IN SELECT generate_series((now() AT TIME ZONE 'UTC')::date, (now() AT TIME ZONE 'UTC')::date + 14, interval '1 day')::date LOOP
+  FOR day IN SELECT generate_series(((now() - interval '1 hour') AT TIME ZONE 'UTC')::date, (now() AT TIME ZONE 'UTC')::date + 14, interval '1 day')::date LOOP
     PERFORM audit_events_add_partition(day);
   END LOOP;
 END
