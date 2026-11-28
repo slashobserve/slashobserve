@@ -318,7 +318,7 @@ jobs:
           if-no-files-found: ignore
 
   e2e-browser:
-    name: e2e-browser (${{ matrix.shard }}/4)
+    name: e2e-browser (${{ matrix.shard }}/2)
     needs: changes
     if: needs.changes.outputs.stack == 'true' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
@@ -326,7 +326,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2]
     env:
       SLASHOBSERVE_IMAGE: slashobserve-e2e:ci
     steps:
@@ -360,7 +360,7 @@ jobs:
 
       - name: Browser suite shard
         env:
-          PW_SHARD: ${{ matrix.shard }}/4
+          PW_SHARD: ${{ matrix.shard }}/2
         run: make e2e-browser
 
       - name: Collect compose logs

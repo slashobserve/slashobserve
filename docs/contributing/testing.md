@@ -88,6 +88,7 @@ The fault checks read only the last two minutes of data, so an error from an ear
 ## Run the browser suite
 
 The browser suite runs the Playwright specs in `web/e2e` against the e2e stack.
+It holds only the journeys a unit test cannot see break, each walked through the real stack: sign-in, dashboards and their data, live updates, layout and versions, the panel editor, comments with the agent, the Observe chat, the review, Claude Code and Grafana import journeys, and a sweep of the shell pages.
 
 1. Run `make e2e-browser`.
    It reuses the running, healthy e2e stack, or boots one, installs Chromium, and runs the specs.
@@ -104,8 +105,8 @@ The `setup` project signs in through Dex once and saves `web/e2e/.auth/user.json
 
 ## Run part of the browser suite
 
-Set `PW_SHARD` to the part you want, for example `PW_SHARD=2/4 make e2e-browser` for the second of four.
-List what a shard holds without a stack by running `PW_SHARD=2/4 bunx playwright test --list` from `web/`.
+Set `PW_SHARD` to the part you want, for example `PW_SHARD=2/2 make e2e-browser` for the second of two.
+List what a shard holds without a stack by running `PW_SHARD=2/2 bunx playwright test --list` from `web/`.
 Every shard runs the sign-in setup first.
 
 ## Start the stack early
@@ -118,8 +119,8 @@ The warm step needs the shop's images, never the server image.
 
 ## Read a CI failure
 
-CI runs the browser suite as four shards, each on its own stack, with two workers and one retry.
-A test that passes only on the retry still fails the run.
+CI runs the browser suite as two shards, each on its own stack, with two workers and one retry.
+A test that passes only on the retry is reported as flaky and does not fail the run.
 Playwright records a trace on the retry, a screenshot on a failure and a video it keeps on a failure.
 Locally the suite runs with one worker, no retries and the list reporter.
 
@@ -333,7 +334,7 @@ A gate fails the run when any of these happens:
 | `build` | Non-prose files changed. | `make build`, then `make generate`, which must leave every file unchanged. |
 | `image` | `Dockerfile` or `.dockerignore` changed. | A build of the `Dockerfile` from its own stages. |
 | `e2e-api` | In the merge queue, on `main` and in a manual run, when non-test, non-prose files changed. | `make e2e`, with a 30 minute limit. |
-| `e2e-browser` | In the merge queue, on `main` and in a manual run, when non-test, non-prose files changed. | `make e2e-browser` in four shards, each on its own stack, with a 30 minute limit; a test that passes on its retry is reported as flaky and does not fail the shard. |
+| `e2e-browser` | In the merge queue, on `main` and in a manual run, when non-test, non-prose files changed. | `make e2e-browser` in two shards, each on its own stack, with a 30 minute limit; a test that passes on its retry is reported as flaky and does not fail the shard. |
 | `audit` | A lockfile, `package.json`, `go.mod` or `tools/` changed, on `main` and daily. | `make audit`. |
 | `check` | Always. | Passes when every job that ran has passed, the end-to-end jobs included; `audit` is separate. It is the one required check. |
 
@@ -353,7 +354,7 @@ Details of how the end-to-end jobs start:
 
 - Each job compiles the server and the agent on the runner and builds the server image `slashobserve-e2e:ci` from those binaries.
 - Each job runs `make e2e-warm` in the background first, so the shop starts while the image builds.
-- Each browser shard starts the stack with `make e2e-up` while Chromium installs, then runs `make e2e-browser` with `PW_SHARD=N/4`.
+- Each browser shard starts the stack with `make e2e-up` while Chromium installs, then runs `make e2e-browser` with `PW_SHARD=N/2`.
 
 ### Docs lint rules
 

@@ -176,5 +176,5 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
   Fixing an existing failing check is allowed.
 - Do not commit ADRs, decision records or the brief; decisions live in the `CLAUDE.md` files, and implementation plans live outside the repository.
 - Create repositories, push, and open PRs only after Ishan says go.
-- `main` takes changes only through GitHub's merge queue, and branch protection requires only the `check` job, which waits for every job that ran: on a pull request the fast jobs, in the merge queue also `e2e-api` and the four `e2e-browser` shards.
+- `main` takes changes only through GitHub's merge queue, and branch protection requires only the `check` job, which waits for every job that ran: on a pull request the fast jobs, in the merge queue also `e2e-api` and the two `e2e-browser` shards.
 - Markdown: one sentence per line; never use an em dash.
