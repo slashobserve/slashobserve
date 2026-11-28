@@ -28,8 +28,8 @@ export function searchPageQuery(q: string, kind: SearchKind | null) {
           params: {
             query: {
               q,
-              kind: kind === null ? undefined : [kind],
-              cursor: pageParam,
+              ...(kind === null ? {} : { kind: [kind] }),
+              ...(pageParam === undefined ? {} : { cursor: pageParam }),
               limit: 20,
             },
           },
