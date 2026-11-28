@@ -37,7 +37,9 @@ export async function draftPreviewRejectionLogged(consoleErrors: string[]) {
   const rejections = () =>
     consoleErrors.filter((message) => message.includes("status of 422"))
   await expect.poll(() => rejections().length).toBe(1)
-  consoleErrors.splice(consoleErrors.indexOf(rejections()[0]), 1)
+  const [rejection] = rejections()
+  if (rejection === undefined) throw new Error("no draft preview rejection")
+  consoleErrors.splice(consoleErrors.indexOf(rejection), 1)
 }
 
 export { expect, type Page }

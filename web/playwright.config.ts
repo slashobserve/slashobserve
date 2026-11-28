@@ -8,6 +8,9 @@ const baseURL =
 function parseShard(value: string | undefined) {
   if (!value) return null
   const [current, total] = value.split("/").map(Number)
+  if (current === undefined || total === undefined) {
+    throw new Error(`PW_SHARD must look like 1/2, not ${value}`)
+  }
   return { current, total }
 }
 
