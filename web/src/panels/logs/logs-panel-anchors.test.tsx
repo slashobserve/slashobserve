@@ -8,6 +8,12 @@ import { locate } from "./anchors"
 import type { LogAnchorLayout } from "./anchors"
 import LogsPanel from "./logs-panel"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 const frames: PreparedFrame[] = [
   {
     ref: "A",
@@ -70,7 +76,7 @@ function hiddenKeys(
   frames: PreparedFrame[]
 ): string[] {
   const shown = new Set(layout.lines.map(({ entry }) => entry.key))
-  const count = frames[0].fields[0].values.length
+  const count = nth(nth(frames, 0).fields, 0).values.length
   return Array.from(document.querySelectorAll("li[data-key]"))
     .map((row) => (row as HTMLElement).dataset.key ?? "")
     .filter((key) => !shown.has(key))
@@ -94,8 +100,8 @@ describe("log anchors", () => {
       "second",
       "third",
     ])
-    expect(layout.resolve?.(clip(layout.lines[0].entry.key))).toBe(
-      layout.lines[0].entry.key
+    expect(layout.resolve?.(clip(nth(layout.lines, 0).entry.key))).toBe(
+      nth(layout.lines, 0).entry.key
     )
   })
 
@@ -104,7 +110,7 @@ describe("log anchors", () => {
     const { store } = renderPublishing(LogsPanel, panelOf("logs"), lines(6))
     const layout = store.current()?.layout as LogAnchorLayout
     expect(layout.lines).toHaveLength(2)
-    expect(layout.lines[1].rect).toEqual({
+    expect(nth(layout.lines, 1).rect).toEqual({
       x: 0,
       y: 50,
       width: 400,
@@ -113,7 +119,11 @@ describe("log anchors", () => {
     const hidden = hiddenKeys(layout, lines(6))
     expect(hidden).toHaveLength(4)
     expect(
-      locate(layout, { kind: "log_line", pos: { x: 0, y: 0 }, id: hidden[0] })
+      locate(layout, {
+        kind: "log_line",
+        pos: { x: 0, y: 0 },
+        id: nth(hidden, 0),
+      })
     ).toEqual({ x: 0, y: 238, width: 400, height: 2 })
   })
 

@@ -4,6 +4,12 @@ import { edgeHeight } from "../list-anchors"
 
 import { hitTest, locate, reveal, type LogAnchorLayout } from "./anchors"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 const layout: LogAnchorLayout = {
   body: { width: 400, height: 100 },
   lines: [
@@ -52,7 +58,7 @@ describe("logs locate", () => {
   it("finds the line a hit test named", () => {
     const anchor = hitTest(layout, { x: 40, y: 30 })
     expect(anchor).not.toBeNull()
-    expect(locate(layout, anchor!)).toEqual(layout.lines[1].rect)
+    expect(locate(layout, anchor!)).toEqual(nth(layout.lines, 1).rect)
   })
 
   it("points at the bottom edge for a line scrolled out of view", () => {

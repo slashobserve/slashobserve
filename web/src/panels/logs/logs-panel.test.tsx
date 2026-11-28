@@ -9,6 +9,12 @@ import { displayWithDefaults, type DataPanel } from "@/spec"
 import type { LogEntry, LogsDisplay } from "./logs-model"
 import { columnTemplate, LogsView, type LogsViewProps } from "./logs-panel"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 const panel = {
   id: "p1",
   title: "Panel",
@@ -70,8 +76,8 @@ describe("new lines in the log view", () => {
       true,
       true,
     ])
-    expect(within(rows[2]).getByText(", new")).toBeInTheDocument()
-    expect(within(rows[0]).queryByText(", new")).not.toBeInTheDocument()
+    expect(within(nth(rows, 2)).getByText(", new")).toBeInTheDocument()
+    expect(within(nth(rows, 0)).queryByText(", new")).not.toBeInTheDocument()
   })
 
   it("does not call an arrived row selected", () => {
@@ -86,15 +92,17 @@ describe("new lines in the log view", () => {
     })
     expect(dividers).toHaveLength(1)
     const rows = screen.getAllByRole("listitem")
-    expect(within(rows[2]).getByRole("separator")).toBe(dividers[0])
-    expect(within(rows[1]).queryByRole("separator")).not.toBeInTheDocument()
+    expect(within(nth(rows, 2)).getByRole("separator")).toBe(dividers[0])
+    expect(
+      within(nth(rows, 1)).queryByRole("separator")
+    ).not.toBeInTheDocument()
   })
 
   it("moves between rows with j and k across the divider", async () => {
     const user = userEvent.setup()
     view({ newSince: { isFirst: atTime(3_000), label: "New since 14:14" } })
     const buttons = screen.getAllByRole("button")
-    buttons[1].focus()
+    nth(buttons, 1).focus()
     await user.keyboard("j")
     expect(buttons[2]).toHaveFocus()
     await user.keyboard("k")
@@ -111,7 +119,7 @@ describe("row tab stop", () => {
       "0",
       ...buttons.slice(1).map(() => "-1"),
     ])
-    buttons[1].focus()
+    nth(buttons, 1).focus()
     await user.keyboard("j")
     const stops = screen
       .getAllByRole("button")

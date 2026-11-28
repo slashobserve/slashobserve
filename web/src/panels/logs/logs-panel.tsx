@@ -647,9 +647,9 @@ function useViewportHeight(element: HTMLDivElement | null) {
   const [height, setHeight] = useState(0)
   useEffect(() => {
     if (!element) return
-    const observer = new ResizeObserver(([record]) =>
-      setHeight(record.contentRect.height)
-    )
+    const observer = new ResizeObserver(([record]) => {
+      if (record) setHeight(record.contentRect.height)
+    })
     observer.observe(element)
     return () => observer.disconnect()
   }, [element])
@@ -847,7 +847,7 @@ export function LogsView({
       const index = keys.indexOf(key)
       if (index < 0 || scrollElement === null) return
       if (windowed) {
-        scrollElement.scrollTo({ top: offsets[index] })
+        scrollElement.scrollTo({ top: offsets[index] ?? 0 })
         return
       }
       const row = Array.from(listRef.current?.children ?? []).find(
@@ -909,10 +909,13 @@ export function LogsView({
         ?.scrollIntoView?.({ block: "nearest" })
       return
     }
+    const top = offsets[index]
+    const bottom = offsets[index + 1]
+    if (top === undefined || bottom === undefined) return
     const hidden =
-      offsets[index] < scrollElement.scrollTop ||
-      offsets[index + 1] > scrollElement.scrollTop + viewport
-    if (hidden) scrollElement.scrollTo({ top: offsets[index] })
+      top < scrollElement.scrollTop ||
+      bottom > scrollElement.scrollTop + viewport
+    if (hidden) scrollElement.scrollTo({ top })
   }, [controlledKey, keys, windowed, offsets, scrollElement, viewport])
 
   useEffect(() => {

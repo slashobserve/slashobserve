@@ -8,8 +8,10 @@ export function rowOffsets(
   estimate = estimatedRowHeight
 ): number[] {
   const offsets = [0]
+  let total = 0
   for (const key of keys) {
-    offsets.push(offsets[offsets.length - 1] + (heights.get(key) ?? estimate))
+    total += heights.get(key) ?? estimate
+    offsets.push(total)
   }
   return offsets
 }
@@ -19,7 +21,7 @@ function rowAt(offsets: readonly number[], offset: number): number {
   let high = offsets.length - 1
   while (low < high) {
     const middle = Math.ceil((low + high) / 2)
-    if (offsets[middle] <= offset) low = middle
+    if ((offsets[middle] ?? Infinity) <= offset) low = middle
     else high = middle - 1
   }
   return low
@@ -44,7 +46,7 @@ export function logWindow({
   return {
     start,
     end,
-    before: offsets[start],
-    after: offsets[count] - offsets[end],
+    before: offsets[start] ?? 0,
+    after: (offsets[count] ?? 0) - (offsets[end] ?? 0),
   }
 }
