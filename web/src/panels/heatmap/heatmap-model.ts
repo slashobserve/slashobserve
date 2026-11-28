@@ -11,6 +11,7 @@ import type { FieldConfig, FieldResolver } from "../field-config"
 import { rangePosition, schemeColor, type ColorScheme } from "../color-scheme"
 import { isNumber } from "../reducers"
 import { thresholdColor } from "../thresholds"
+import { pairedAt } from "../timeseries/paired"
 import {
   matchesName,
   type PreparedField,
@@ -22,8 +23,8 @@ type HeatmapMode = "buckets" | "ordinal" | "calculated"
 type HeatmapRow = {
   label: string
   range: string
-  from?: number
-  to?: number
+  from?: number | undefined
+  to?: number | undefined
 }
 
 export type HeatmapModel = {
@@ -76,7 +77,11 @@ function niceStep(raw: number): number {
 
 function sampleStep(xs: number[]): number {
   let step = Infinity
-  for (let i = 1; i < xs.length; i++) step = Math.min(step, xs[i] - xs[i - 1])
+  let previous: number | undefined
+  for (const x of xs) {
+    if (previous !== undefined) step = Math.min(step, x - previous)
+    previous = x
+  }
   return Number.isFinite(step) && step > 0 ? step : 1000
 }
 
@@ -84,12 +89,11 @@ type Columns = { xs: number[]; column: number[] }
 
 function scaledColumns(
   xs: number[],
+  [first, last]: [number, number],
   spec: BucketSpec | null,
   scale: BucketScale,
   base: number
 ): Columns {
-  const first = xs[0]
-  const last = xs[xs.length - 1]
   if (!(last > first)) return { xs: [first], column: xs.map(() => 0) }
   const grid = bucketGrid(first, last, spec, scale, base)
   return {
@@ -105,12 +109,14 @@ function groupColumns(
   base: number
 ): Columns {
   const own: Columns = { xs, column: xs.map((_, i) => i) }
-  if (xs.length === 0) return own
-  if (scale !== "linear") return scaledColumns(xs, spec, scale, base)
+  const first = xs[0]
+  const last = xs.at(-1)
+  if (first === undefined || last === undefined) return own
+  if (scale !== "linear") {
+    return scaledColumns(xs, [first, last], spec, scale, base)
+  }
   if (!spec) return own
   if (spec.mode === "count" && spec.value === null) return own
-  const first = xs[0]
-  const last = xs[xs.length - 1]
   const span = last - first
   let width: number
   let origin = first
@@ -282,7 +288,7 @@ function sumInto(
   values: (number | null)[]
 ): (number | null)[] {
   return total.map((value, i) => {
-    const other = values[i]
+    const other = pairedAt(values, i)
     if (other === null) return value
     return value === null ? other : value + other
   })
@@ -292,7 +298,7 @@ function deaccumulate(columns: (number | null)[][]): (number | null)[][] {
   return columns.map((column, row) =>
     column.map((value, col) => {
       if (value === null) return null
-      const lower = row > 0 ? (columns[row - 1][col] ?? 0) : 0
+      const lower = row > 0 ? (columns[row - 1]?.[col] ?? 0) : 0
       return Math.max(0, value - lower)
     })
   )
@@ -326,7 +332,8 @@ function deaccumulateFromAbove(
   return columns.map((column, row) =>
     column.map((value, col) => {
       if (value === null) return null
-      const upper = row < columns.length - 1 ? (columns[row + 1][col] ?? 0) : 0
+      const upper =
+        row < columns.length - 1 ? (columns[row + 1]?.[col] ?? 0) : 0
       return Math.max(0, value - upper)
     })
   )
@@ -414,8 +421,8 @@ function scaledRows(
     return {
       label,
       from,
-      to: grid.edges[i + 1],
-      range: `${label} - ${format(grid.edges[i + 1])}`,
+      to: pairedAt(grid.edges, i + 1),
+      range: `${label} - ${format(pairedAt(grid.edges, i + 1))}`,
     }
   })
   return { rows, indexOf: grid.indexOf }
@@ -458,9 +465,9 @@ export function calculatedModel(
   for (const { values } of entries) {
     values.forEach((value, col) => {
       if (value === null) return
-      const row = indexOf(value)
-      const target = columns.column[col]
-      cells[row][target] = (cells[row][target] ?? 0) + 1
+      const cellsRow = pairedAt(cells, indexOf(value))
+      const target = pairedAt(columns.column, col)
+      cellsRow[target] = (cellsRow[target] ?? 0) + 1
     })
   }
   return { rows, cells, xs: columns.xs }
@@ -524,7 +531,8 @@ function countedModel(
   for (const cell of counted) {
     const at = row.get(bandKey(cell.from, cell.to)) ?? 0
     const target = column.get(cell.x) ?? 0
-    cells[at][target] = (cells[at][target] ?? 0) + cell.count
+    const cellsRow = pairedAt(cells, at)
+    cellsRow[target] = (cellsRow[target] ?? 0) + cell.count
   }
   const bounds = [...new Set(edges.flatMap((edge) => [edge.from, edge.to]))]
   const format = boundFormatter(
@@ -572,8 +580,8 @@ function arranged(
   )
   const order = reversed ? kept.reverse() : kept
   return {
-    rows: order.map((index) => shape.rows[index]),
-    cells: order.map((index) => shape.cells[index]),
+    rows: order.map((index) => pairedAt(shape.rows, index)),
+    cells: order.map((index) => pairedAt(shape.cells, index)),
   }
 }
 
@@ -913,9 +921,10 @@ export function stepCell(
 }
 
 export function columnAt(xs: readonly number[], x: number): number | null {
-  if (xs.length === 0) return null
   const first = xs[0]
-  const step = (xs[xs.length - 1] - first) / (xs.length - 1)
+  const last = xs.at(-1)
+  if (first === undefined || last === undefined) return null
+  const step = (last - first) / (xs.length - 1)
   if (!(step > 0)) return x === first ? 0 : null
   const position = (x - first) / step
   if (position < -0.5 || position > xs.length - 0.5) return null
@@ -959,12 +968,12 @@ function timeRange(
   col: number,
   zone: string | undefined
 ): string {
-  const start = xs[col]
+  const start = pairedAt(xs, col)
   const next =
     col + 1 < xs.length
-      ? xs[col + 1]
+      ? pairedAt(xs, col + 1)
       : xs.length > 1
-        ? start + (start - xs[col - 1])
+        ? start + (start - pairedAt(xs, col - 1))
         : null
   return next === null
     ? zonedDateTime(start, zone)
@@ -977,9 +986,9 @@ export function cellText(
   format: (value: number) => string,
   zone: string | undefined
 ): string {
-  const value = model.cells[cell.row][cell.col]
+  const value = pairedAt(pairedAt(model.cells, cell.row), cell.col)
   const text = value === null ? "-" : format(value)
-  const row = model.rows[cell.row].range
+  const row = pairedAt(model.rows, cell.row).range
   const range = timeRange(model.xs, cell.col, zone)
   return model.mode === "ordinal"
     ? `${range}, series ${row}, value ${text}`

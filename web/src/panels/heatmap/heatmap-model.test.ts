@@ -26,6 +26,11 @@ import {
   type HeatmapKey,
 } from "./heatmap-model"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
   return {
     id: "h1",
@@ -135,7 +140,7 @@ describe("bucket mode", () => {
       [0.1, 0.5],
       [0.5, Infinity],
     ])
-    expect(model.rows[1].range).toBe("100 ms - 500 ms")
+    expect(must(model.rows[1]).range).toBe("100 ms - 500 ms")
   })
 
   it("leaves a series without a bound out of bucket mode", () => {
@@ -199,20 +204,20 @@ describe("calculated mode", () => {
     const values = Array.from({ length: count }, (_, i) => i % 100)
     const model = build([series(times, values)], {}, { calculate: true })
     expect(model.rows).toHaveLength(calculatedRows)
-    expect(model.rows[0].from).toBe(0)
+    expect(must(model.rows[0]).from).toBe(0)
   })
 
   it("counts values into 16 linear rows", () => {
     const model = build(frames, {}, { calculate: true })
     expect(model.mode).toBe("calculated")
     expect(model.rows).toHaveLength(calculatedRows)
-    expect(model.rows[0].from).toBe(0)
-    expect(model.rows[1].from).toBe(1)
+    expect(must(model.rows[0]).from).toBe(0)
+    expect(must(model.rows[1]).from).toBe(1)
     expect(model.cells[0]).toEqual([1, 0])
     expect(model.cells[8]).toEqual([1, 0])
     expect(model.cells[15]).toEqual([0, 2])
     expect(model.max).toBe(2)
-    expect(model.rows[1].label).toBe("1")
+    expect(must(model.rows[1]).label).toBe("1")
   })
 
   it("bins on a log scale when every value is positive", () => {
@@ -221,15 +226,15 @@ describe("calculated mode", () => {
       {},
       { calculate: true, yScale: "log" }
     )
-    expect(model.rows[4].from).toBeCloseTo(10)
-    expect(model.rows[8].from).toBeCloseTo(100)
+    expect(must(model.rows[4]).from).toBeCloseTo(10)
+    expect(must(model.rows[8]).from).toBeCloseTo(100)
     expect(model.cells[0]).toEqual([1])
     expect(model.cells[15]).toEqual([1])
   })
 
   it("falls back to a linear scale when a value is not positive", () => {
     const model = build(frames, {}, { calculate: true, yScale: "log" })
-    expect(model.rows[1].from).toBe(1)
+    expect(must(model.rows[1]).from).toBe(1)
   })
 
   it("keeps one value per row when every value is equal", () => {
@@ -329,7 +334,7 @@ describe("colour scale", () => {
   it("steps the legend from the lowest to the highest count", () => {
     const steps = legendScale(look({}, 1, 5))
     expect(steps.map((step) => step.value)).toEqual([1, 2, 3, 4, 5])
-    expect(steps[4].paint.alpha).toBeCloseTo(1)
+    expect(must(steps[4]).paint.alpha).toBeCloseTo(1)
   })
 
   it("draws no more legend swatches than the color steps", () => {
@@ -755,7 +760,7 @@ describe("calculated value buckets", () => {
       yBuckets: { mode: "count", value: 4 },
     })
     expect(model.rows.map((row) => row.from)).toEqual([0, 4, 8, 12])
-    expect(model.rows[3].to).toBe(16)
+    expect(must(model.rows[3]).to).toBe(16)
     expect(counts).toEqual([1, 1, 1, 2])
   })
 
@@ -764,7 +769,7 @@ describe("calculated value buckets", () => {
       yBuckets: { mode: "size", value: 5 },
     })
     expect(model.rows.map((row) => row.from)).toEqual([0, 5, 10, 15])
-    expect(model.rows[3].to).toBe(20)
+    expect(must(model.rows[3]).to).toBe(20)
     expect(counts).toEqual([2, 1, 1, 1])
   })
 
@@ -772,8 +777,8 @@ describe("calculated value buckets", () => {
     const wide = series([1, 2], [0, 100])
     const { model } = rowCounts({ yBuckets: { mode: "size" } }, wide)
     expect(model.rows).toHaveLength(10)
-    expect(model.rows[1].from).toBe(10)
-    expect(model.rows[9].to).toBe(100)
+    expect(must(model.rows[1]).from).toBe(10)
+    expect(must(model.rows[9]).to).toBe(100)
   })
 
   it("keeps 16 rows for a count without a value", () => {
@@ -803,15 +808,15 @@ describe("calculated value buckets", () => {
   it("puts zero in the middle row of a symmetric log scale", () => {
     const signed = series([1, 2, 3], [-10, 0, 10])
     const { model } = rowCounts({ yBucketScale: "symlog" }, signed)
-    expect(model.cells[8][1]).toBe(1)
-    expect(model.cells[0][0]).toBe(1)
-    expect(model.cells[15][2]).toBe(1)
+    expect(must(model.cells[8])[1]).toBe(1)
+    expect(must(model.cells[0])[0]).toBe(1)
+    expect(must(model.cells[15])[2]).toBe(1)
   })
 
   it("lets yBucketScale win over yScale", () => {
     const wide = series([1, 2], [1, 10000])
     const { model } = rowCounts({ yScale: "log", yBucketScale: "linear" }, wide)
-    expect(model.rows[1].from).toBeCloseTo(625.9375, 3)
+    expect(must(model.rows[1]).from).toBeCloseTo(625.9375, 3)
   })
 
   it("falls back to the base 2 when none is written", () => {
@@ -931,7 +936,7 @@ describe("y axis rows", () => {
       {},
       { yUnit: "percentunit", yDecimals: 1 }
     )
-    expect(model.rows[0].label).toBe("50.0%")
+    expect(must(model.rows[0]).label).toBe("50.0%")
   })
 
   it("formats calculated rows with yDecimals", () => {
@@ -981,7 +986,7 @@ describe("cell frame of the heatmap transformation", () => {
       [10, 15],
     ])
     expect(model.rows.map((row) => row.label)).toEqual(["0", "5", "10"])
-    expect(model.rows[1].range).toBe("5 - 10")
+    expect(must(model.rows[1]).range).toBe("5 - 10")
   })
 
   it("colors cells by count and leaves the cells it has no row for empty", () => {
@@ -1019,11 +1024,11 @@ describe("cell frame of the heatmap transformation", () => {
       [10, 0, 5, 1],
       [20, 0, 5, 1],
     ])
-    broken.fields[1].values[1] = null
-    broken.fields[3].values.push("x")
-    broken.fields[0].values.push(30)
-    broken.fields[1].values.push(0)
-    broken.fields[2].values.push(5)
+    must(broken.fields[1]).values[1] = null
+    must(broken.fields[3]).values.push("x")
+    must(broken.fields[0]).values.push(30)
+    must(broken.fields[1]).values.push(0)
+    must(broken.fields[2]).values.push(5)
     const model = build([broken])
     expect(model.xs).toEqual([10])
     expect(model.cells).toEqual([[1]])
@@ -1032,7 +1037,7 @@ describe("cell frame of the heatmap transformation", () => {
   it("follows the y axis options like every other mode", () => {
     const model = build([sparse], {}, { yReverse: true, yMin: 5, yUnit: "ms" })
     expect(model.rows.map((row) => row.from)).toEqual([10, 5])
-    expect(model.rows[0].label).toBe("10 ms")
+    expect(must(model.rows[0]).label).toBe("10 ms")
     expect(model.cells).toEqual([
       [0, 0, 4],
       [1, 3, 0],
