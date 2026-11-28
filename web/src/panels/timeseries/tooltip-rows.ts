@@ -35,7 +35,7 @@ export type TooltipRows = { rows: TooltipRow[]; total: number }
 function stackedTotals(stack: readonly StackEntry[]): number[] {
   const totals: number[] = []
   stack.forEach((entry, index) => {
-    const lower = entry.below === null ? 0 : totals[entry.below]
+    const lower = entry.below === null ? 0 : (totals[entry.below] ?? Number.NaN)
     totals[index] = entry.stacked ? entry.value + lower : entry.value
   })
   return totals
@@ -49,11 +49,12 @@ export function tooltipRows(
   const totals = cumulative ? stackedTotals(stack) : []
   const shown = rows
     .filter((row) => !hideZeros || row.value !== 0)
-    .map((row) =>
-      cumulative && stack[row.index]?.stacked
-        ? { index: row.index, value: totals[row.index] }
+    .map((row) => {
+      const total = totals[row.index]
+      return cumulative && stack[row.index]?.stacked && total !== undefined
+        ? { index: row.index, value: total }
         : row
-    )
+    })
   if (sort === "asc") shown.sort((a, b) => a.value - b.value)
   if (sort === "desc") shown.sort((a, b) => b.value - a.value)
   return { rows: shown.slice(0, limit), total: shown.length }

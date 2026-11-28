@@ -11,6 +11,7 @@ import {
 import { reduce } from "../reducers"
 import { thresholdColor } from "../thresholds"
 import type { AlignedSeries } from "./align"
+import { pairedAt } from "./paired"
 import {
   centeredRange,
   logRange,
@@ -110,7 +111,7 @@ function stackSafeInterpolation(
 
 type ColoredSeries = Pick<AlignedSeries, "key" | "label" | "values">
 
-type Range = { min?: number; max?: number }
+type Range = { min: number | undefined; max: number | undefined }
 
 const shadeFloorPercent = 45
 
@@ -148,14 +149,15 @@ function seriesColors(
   slotColors: readonly string[]
 ): string[] {
   const range = dataRange(aligned)
-  const shaded = aligned.flatMap((_, index) =>
-    effectiveColorMode(configs[index]) === "shades" && !configs[index].hidden
+  const shaded = aligned.flatMap((_, index) => {
+    const config = pairedAt(configs, index)
+    return effectiveColorMode(config) === "shades" && !config.hidden
       ? [index]
       : []
-  )
+  })
   return aligned.map((series, index) => {
-    const config = configs[index]
-    const slotColor = slotColors[index]
+    const config = pairedAt(configs, index)
+    const slotColor = pairedAt(slotColors, index)
     const fixed = config.color ? thresholdColor(config.color) : slotColor
     switch (effectiveColorMode(config)) {
       case "fixed":
@@ -168,8 +170,8 @@ function seriesColors(
         const value = colorValue(series, config)
         return (
           displayValue(value, config, {
-            fieldMin: range.min,
-            fieldMax: range.max,
+            ...(range.min === undefined ? {} : { fieldMin: range.min }),
+            ...(range.max === undefined ? {} : { fieldMax: range.max }),
           }).threshold.color ?? slotColor
         )
       }
@@ -205,16 +207,18 @@ export function seriesStyles(
     slotStyles.map(({ color }) => color)
   )
   return aligned.map(({ key, label }, index) => {
-    const config = configs[index]
-    const slot = slotStyles[index]
-    const dash = linePattern(config, seriesPatterns)
+    const config = pairedAt(configs, index)
+    const slot = pairedAt(slotStyles, index)
+    const color = pairedAt(colors, index)
+    const pattern = linePattern(config, seriesPatterns)
+    const dash = pattern ?? slot.dash
     return {
       key,
       label,
-      color: colors[index],
-      ...partColors(colors[index], config),
-      dash: dash ?? slot.dash,
-      line: dash ? swatchLine[config.lineStyle] : slot.line,
+      color,
+      ...partColors(color, config),
+      ...(dash === undefined ? {} : { dash }),
+      line: pattern ? swatchLine[config.lineStyle] : slot.line,
       style: config.style,
       fill: config.fill,
       interpolation: stackSafeInterpolation(
@@ -249,23 +253,23 @@ export const scaleOf: Record<AxisKey, string> = {
 }
 
 export type AxisSettings = {
-  unit?: string
-  decimals?: number
-  min?: number
-  max?: number
+  unit?: string | undefined
+  decimals?: number | undefined
+  min?: number | undefined
+  max?: number | undefined
   percent: boolean
-  tight?: boolean
-  label?: string
-  softMin?: number
-  softMax?: number
-  scale?: ScaleKind
-  logBase?: LogBase
-  linearThreshold?: number
-  centeredZero?: boolean
-  width?: number
-  grid?: boolean
-  border?: boolean
-  color?: FieldConfig["axisColor"]
+  tight?: boolean | undefined
+  label?: string | undefined
+  softMin?: number | undefined
+  softMax?: number | undefined
+  scale?: ScaleKind | undefined
+  logBase?: LogBase | undefined
+  linearThreshold?: number | undefined
+  centeredZero?: boolean | undefined
+  width?: number | undefined
+  grid?: boolean | undefined
+  border?: boolean | undefined
+  color?: FieldConfig["axisColor"] | undefined
 }
 
 export type PanelAxis = Pick<
@@ -321,7 +325,7 @@ export function axesInUse(
     const existing = axes[axis]
     if (!existing) {
       axes[axis] = {
-        ...settingsOf(configs[index]),
+        ...settingsOf(pairedAt(configs, index)),
         percent: stack === "percent",
       }
     } else if (stack === "percent") {
@@ -427,29 +431,31 @@ export function formatTogether(
       commonDecimals(values, config.unit, config.decimals),
     ])
   )
-  return items.map(
-    (item) =>
-      displayValue(item.value, item.config, {
-        decimals: decimals.get(groupOf(item)),
-      }).text
-  )
+  return items.map((item) => {
+    const places = decimals.get(groupOf(item))
+    return displayValue(
+      item.value,
+      item.config,
+      places === undefined ? {} : { decimals: places }
+    ).text
+  })
 }
 
 export type TimeseriesDisplay = {
   legend: "bottom" | "right" | "hidden"
   legendValues: Reducer[]
-  legendMode?: "list" | "table"
-  legendSortBy?: "name" | Reducer
+  legendMode?: "list" | "table" | undefined
+  legendSortBy?: "name" | Reducer | undefined
   legendSortDesc: boolean
-  legendWidth?: number
+  legendWidth?: number | undefined
   legendHideZero: boolean
   legendHideEmpty: boolean
   tooltip: "single" | "all" | "hidden"
   tooltipSort: TooltipSort
   tooltipHideZeros: boolean
   tooltipCumulative: boolean
-  tooltipMaxWidth?: number
-  tooltipMaxHeight?: number
+  tooltipMaxWidth?: number | undefined
+  tooltipMaxHeight?: number | undefined
   xAxis: "shown" | "hidden"
 }
 

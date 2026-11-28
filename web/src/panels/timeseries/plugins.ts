@@ -13,6 +13,7 @@ import {
   thresholdValueAt,
   tooltipAnchor,
 } from "./plot-model"
+import { pairedAt } from "./paired"
 import { formatTogether, type DrawStyle } from "./series-config"
 import type { Cell } from "./stack"
 import {
@@ -49,15 +50,15 @@ export type TooltipSeries = {
   stacked: boolean
   below: number | null
   hideInTooltip: boolean
-  rowColor?: (row: number) => string
+  rowColor?: ((row: number) => string) | undefined
 }
 
 export type TooltipView = {
   sort: TooltipSort
   hideZeros: boolean
   cumulative: boolean
-  maxWidth?: number
-  maxHeight?: number
+  maxWidth?: number | undefined
+  maxHeight?: number | undefined
 }
 
 type Row = TooltipRow
@@ -153,7 +154,7 @@ function exemplarSection(hit: ExemplarHit, config: FieldConfig): HTMLElement {
   title.textContent = "Exemplar"
   const value = document.createElement("div")
   value.className = "tabular-nums"
-  value.textContent = formatTogether([{ value: hit.point.y, config }])[0]
+  value.textContent = formatTogether([{ value: hit.point.y, config }])[0] ?? ""
   const list = document.createElement("dl")
   list.className = "mt-0.5 flex flex-col text-muted-foreground"
   for (const [key, text] of hit.point.labels) {
@@ -225,7 +226,7 @@ export function valueLabelsPlugin(
         const ratio = uPlot.pxRatio
         const { left, top, width, height } = u.bbox
         const xs = u.data[0]
-        const [from, to] = u.series[0].idxs ?? [0, xs.length - 1]
+        const [from, to] = u.series[0]?.idxs ?? [0, xs.length - 1]
         const { ctx } = u
         ctx.save()
         ctx.beginPath()
@@ -241,36 +242,40 @@ export function valueLabelsPlugin(
             return
           }
           const plotted = u.data[first + index]
-          const indices: number[] = []
+          if (plotted === undefined) return
+          const points: { x: number; y: number; value: number }[] = []
           for (let at = from ?? 0; at <= (to ?? xs.length - 1); at++) {
+            const x = xs[at]
+            const y = plotted[at]
+            const value = entry.values[at]
             if (
-              typeof plotted[at] === "number" &&
-              typeof entry.values[at] === "number"
+              x !== undefined &&
+              typeof y === "number" &&
+              typeof value === "number"
             ) {
-              indices.push(at)
+              points.push({ x, y, value })
             }
           }
           const texts = formatTogether(
-            indices.map((at) => ({
-              value: entry.values[at] as number,
-              config: entry.config,
-            }))
+            points.map(({ value }) => ({ value, config: entry.config }))
           )
-          const centers = indices.map(
-            (at) => left + u.valToPos(xs[at], "x", true)
-          )
+          const labels = points.map((point, at) => ({
+            text: pairedAt(texts, at),
+            center: left + u.valToPos(point.x, "x", true),
+            y: point.y,
+          }))
           const kept = labelsClearOfEachOther(
-            texts.map((text, at) => ({
-              x: centers[at],
+            labels.map(({ text, center }) => ({
+              x: center,
               width: ctx.measureText(text).width,
             })),
             valueLabelGap * ratio
           )
           for (const at of kept) {
-            const y =
-              top +
-              u.valToPos(plotted[indices[at]] as number, drawn.scale!, true)
-            ctx.fillText(texts[at], centers[at], y - valueLabelLift * ratio)
+            const label = labels[at]
+            if (label === undefined) continue
+            const y = top + u.valToPos(label.y, drawn.scale!, true)
+            ctx.fillText(label.text, label.center, y - valueLabelLift * ratio)
           }
         })
         ctx.restore()
@@ -295,14 +300,16 @@ function nearestRow(
   top: number
 ): Row {
   const spans = rows.map((row): [number, number] => {
-    const entry = entries[row.index]
-    const drawn = u.data[first + row.index][idx] as number
+    const entry = pairedAt(entries, row.index)
+    const drawn = u.data[first + row.index]?.[idx] as number
     const lower =
-      entry.below === null ? null : { drawn: u.data[first + entry.below][idx] }
+      entry.below === null
+        ? null
+        : { drawn: u.data[first + entry.below]?.[idx] }
     const base = bandBase(drawn, entry.stacked, lower)
     return [u.valToPos(drawn, entry.scale), u.valToPos(base, entry.scale)]
   })
-  return rows[nearestSpan(spans, top)]
+  return pairedAt(rows, nearestSpan(spans, top))
 }
 
 export function tooltipPlugin(
@@ -395,13 +402,15 @@ export function tooltipPlugin(
         const texts = formatTogether(
           candidates.map((row) => ({
             value: row.value,
-            config: meta[row.index].config,
+            config: pairedAt(meta, row.index).config,
           }))
         )
 
+        const time = u.data[0][idx]
+        if (time === undefined) return hide()
         const title = document.createElement("div")
         title.className = "ts-tooltip-time"
-        title.textContent = heading(u.data[0][idx])
+        title.textContent = heading(time)
 
         const hit = anchor.peer
           ? null
@@ -412,16 +421,20 @@ export function tooltipPlugin(
               (
                 hit.entry ??
                 meta.find((entry) => entry.scale === "y") ??
-                meta[0]
+                pairedAt(meta, 0)
               ).config
             )
           : null
 
         const render = (count: number, withMore = false) => {
           const children: HTMLElement[] = section ? [title, section] : [title]
-          for (let position = 0; position < count; position++) {
+          for (const [position, row] of candidates.slice(0, count).entries()) {
             children.push(
-              tooltipRow(meta[candidates[position].index], texts[position], idx)
+              tooltipRow(
+                pairedAt(meta, row.index),
+                pairedAt(texts, position),
+                idx
+              )
             )
           }
           if (withMore || shown > count) {
@@ -438,10 +451,10 @@ export function tooltipPlugin(
           render(candidates.length, true)
           const rowElements =
             tooltip.querySelectorAll<HTMLElement>(".ts-tooltip-row")
+          const firstRow = rowElements[0]
+          const secondRow = rowElements[1]
           const step =
-            rowElements.length > 1
-              ? rowElements[1].offsetTop - rowElements[0].offsetTop
-              : 0
+            firstRow && secondRow ? secondRow.offsetTop - firstRow.offsetTop : 0
           const fit =
             step > 0
               ? candidates.length -
@@ -498,7 +511,8 @@ export function thresholdsPlugin(
   return {
     hooks: {
       drawClear: (u) => {
-        const { min, max } = u.scales.y
+        const min = u.scales.y?.min
+        const max = u.scales.y?.max
         if (!area || min == null || max == null) return
         const { ctx } = u
         const { left, top, width, height } = u.bbox
@@ -522,7 +536,8 @@ export function thresholdsPlugin(
         ctx.restore()
       },
       draw: (u) => {
-        const { min, max } = u.scales.y
+        const min = u.scales.y?.min
+        const max = u.scales.y?.max
         if (!lines || min == null || max == null) return
         const { ctx } = u
         const { left, top, width, height } = u.bbox
@@ -560,7 +575,9 @@ export function thresholdStroke(
     thresholds.map((threshold) => [threshold, resolveColor(threshold.color)])
   )
   return (u, seriesIdx) => {
-    const { min, max } = u.scales[u.series[seriesIdx].scale ?? "y"]
+    const scale = u.scales[u.series[seriesIdx]?.scale ?? "y"]
+    const min = scale?.min
+    const max = scale?.max
     if (min == null || max == null) return fallback
     const top = u.valToPos(max, "y", true)
     const bottom = u.valToPos(min, "y", true)

@@ -17,6 +17,11 @@ import {
   timeseriesDisplay,
 } from "./series-config"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 function config(props: Partial<FieldConfig> = {}): FieldConfig {
   return {
     thresholdMode: "absolute",
@@ -64,24 +69,26 @@ const aligned = [{ key: "a", label: "a", values: [1, 2] }]
 
 describe("seriesStyles", () => {
   it("uses the sticky palette slot when the config sets no color", () => {
-    const [style] = seriesStyles(aligned, [config()], new Map([["a", 2]]))
+    const style = must(
+      seriesStyles(aligned, [config()], new Map([["a", 2]]))[0]
+    )
     expect(style.color).toBe("var(--series-3)")
   })
 
   it("lets a semantic config color win over the slot", () => {
-    const [style] = seriesStyles(
-      aligned,
-      [config({ color: "critical" })],
-      new Map([["a", 2]])
+    const style = must(
+      seriesStyles(
+        aligned,
+        [config({ color: "critical" })],
+        new Map([["a", 2]])
+      )[0]
     )
     expect(style.color).toBe("var(--threshold-critical)")
   })
 
   it("keeps a hex config color as given", () => {
-    const [style] = seriesStyles(
-      aligned,
-      [config({ color: "#336699" })],
-      new Map()
+    const style = must(
+      seriesStyles(aligned, [config({ color: "#336699" })], new Map())[0]
     )
     expect(style.color).toBe("#336699")
   })
@@ -99,18 +106,20 @@ describe("seriesStyles", () => {
   })
 
   it("carries the line shape props of the config", () => {
-    const [style] = seriesStyles(
-      aligned,
-      [
-        config({
-          lineInterpolation: "smooth",
-          lineWidth: 5,
-          points: "always",
-          pointSize: 9,
-          spanNulls: 60000,
-        }),
-      ],
-      new Map()
+    const style = must(
+      seriesStyles(
+        aligned,
+        [
+          config({
+            lineInterpolation: "smooth",
+            lineWidth: 5,
+            points: "always",
+            pointSize: 9,
+            spanNulls: 60000,
+          }),
+        ],
+        new Map()
+      )[0]
     )
     expect(style).toMatchObject({
       interpolation: "smooth",
@@ -124,10 +133,12 @@ describe("seriesStyles", () => {
   it.each(["normal", "percent"] as const)(
     "draws a %s stacked series linear whatever its interpolation",
     (stack) => {
-      const [style] = seriesStyles(
-        aligned,
-        [config({ lineInterpolation: "stepAfter", stack })],
-        new Map()
+      const style = must(
+        seriesStyles(
+          aligned,
+          [config({ lineInterpolation: "stepAfter", stack })],
+          new Map()
+        )[0]
       )
       expect(style.interpolation).toBe("linear")
     }
@@ -136,29 +147,31 @@ describe("seriesStyles", () => {
   it.each(["smooth", "stepBefore", "stepAfter"] as const)(
     "keeps %s on an unstacked series",
     (lineInterpolation) => {
-      const [style] = seriesStyles(
-        aligned,
-        [config({ lineInterpolation })],
-        new Map()
+      const style = must(
+        seriesStyles(aligned, [config({ lineInterpolation })], new Map())[0]
       )
       expect(style.interpolation).toBe(lineInterpolation)
     }
   )
 
   it("draws a fixed mode color like a plain color", () => {
-    const [style] = seriesStyles(
-      aligned,
-      [config({ colorMode: "fixed", color: "#336699" })],
-      new Map()
+    const style = must(
+      seriesStyles(
+        aligned,
+        [config({ colorMode: "fixed", color: "#336699" })],
+        new Map()
+      )[0]
     )
     expect(style.color).toBe("#336699")
   })
 
   it("ignores a stored color when the mode is the classic palette", () => {
-    const [style] = seriesStyles(
-      aligned,
-      [config({ colorMode: "palette", color: "#336699" })],
-      new Map([["a", 1]])
+    const style = must(
+      seriesStyles(
+        aligned,
+        [config({ colorMode: "palette", color: "#336699" })],
+        new Map([["a", 1]])
+      )[0]
     )
     expect(style.color).toBe("var(--series-2)")
   })
@@ -173,10 +186,14 @@ describe("seriesStyles", () => {
       config({ colorMode: "paletteByName" }),
     ]
     const first = seriesStyles(named, byName, new Map())
-    const reversed = seriesStyles([named[1], named[0]], byName, new Map())
-    expect(first[0].color).toBe(reversed[1].color)
-    expect(first[1].color).toBe(reversed[0].color)
-    expect(first[0].color).toMatch(/^var\(--series-[1-8]\)$/)
+    const reversed = seriesStyles(
+      [must(named[1]), must(named[0])],
+      byName,
+      new Map()
+    )
+    expect(must(first[0]).color).toBe(must(reversed[1]).color)
+    expect(must(first[1]).color).toBe(must(reversed[0]).color)
+    expect(must(first[0]).color).toMatch(/^var\(--series-[1-8]\)$/)
   })
 
   it("steps each shaded series away from the fixed color", () => {
@@ -195,10 +212,12 @@ describe("seriesStyles", () => {
   })
 
   it("keeps a single shaded series at the fixed color", () => {
-    const [style] = seriesStyles(
-      aligned,
-      [config({ colorMode: "shades", color: "#336699" })],
-      new Map()
+    const style = must(
+      seriesStyles(
+        aligned,
+        [config({ colorMode: "shades", color: "#336699" })],
+        new Map()
+      )[0]
     )
     expect(style.color).toBe("#336699")
   })
@@ -209,25 +228,31 @@ describe("seriesStyles", () => {
       { color: "ok" as const },
       { value: 80, color: "critical" as const },
     ]
-    const [last] = seriesStyles(
-      series,
-      [config({ colorMode: "thresholds", thresholds })],
-      new Map()
+    const last = must(
+      seriesStyles(
+        series,
+        [config({ colorMode: "thresholds", thresholds })],
+        new Map()
+      )[0]
     )
     expect(last.color).toBe("var(--threshold-critical)")
-    const [lowest] = seriesStyles(
-      series,
-      [config({ colorMode: "thresholds", thresholds, colorBy: "min" })],
-      new Map()
+    const lowest = must(
+      seriesStyles(
+        series,
+        [config({ colorMode: "thresholds", thresholds, colorBy: "min" })],
+        new Map()
+      )[0]
     )
     expect(lowest.color).toBe("var(--threshold-ok)")
   })
 
   it("falls back to the slot color when a threshold-colored series has no value", () => {
-    const [style] = seriesStyles(
-      [{ key: "a", label: "a", values: [null] }],
-      [config({ colorMode: "thresholds", thresholds: [{ color: "ok" }] })],
-      new Map([["a", 3]])
+    const style = must(
+      seriesStyles(
+        [{ key: "a", label: "a", values: [null] }],
+        [config({ colorMode: "thresholds", thresholds: [{ color: "ok" }] })],
+        new Map([["a", 3]])
+      )[0]
     )
     expect(style.color).toBe("var(--series-4)")
   })
@@ -239,25 +264,27 @@ describe("seriesStyles", () => {
     ]
     const scheme = config({ colorMode: "scheme", colorScheme: "yellowRed" })
     const styles = seriesStyles(series, [scheme, scheme], new Map())
-    expect(styles[0].color).toBe(
+    expect(must(styles[0]).color).toBe(
       "color-mix(in oklab, var(--threshold-critical) 10%, var(--threshold-warning))"
     )
-    expect(styles[1].color).toBe("var(--threshold-critical)")
+    expect(must(styles[1]).color).toBe("var(--threshold-critical)")
   })
 
   it("uses the field's own minimum and maximum for the scheme when it has them", () => {
     const series = [{ key: "a", label: "a", values: [50] }]
-    const [style] = seriesStyles(
-      series,
-      [
-        config({
-          colorMode: "scheme",
-          colorScheme: "yellowRed",
-          min: 0,
-          max: 200,
-        }),
-      ],
-      new Map()
+    const style = must(
+      seriesStyles(
+        series,
+        [
+          config({
+            colorMode: "scheme",
+            colorScheme: "yellowRed",
+            min: 0,
+            max: 200,
+          }),
+        ],
+        new Map()
+      )[0]
     )
     expect(style.color).toBe(
       "color-mix(in oklab, var(--threshold-critical) 25%, var(--threshold-warning))"
@@ -265,16 +292,20 @@ describe("seriesStyles", () => {
   })
 
   it("keeps the slot color for a scheme mode without a scheme", () => {
-    const [style] = seriesStyles(
-      aligned,
-      [config({ colorMode: "scheme" })],
-      new Map([["a", 4]])
+    const style = must(
+      seriesStyles(
+        aligned,
+        [config({ colorMode: "scheme" })],
+        new Map([["a", 4]])
+      )[0]
     )
     expect(style.color).toBe("var(--series-5)")
   })
 
   it("marks configured hidden series", () => {
-    const [style] = seriesStyles(aligned, [config({ hidden: true })], new Map())
+    const style = must(
+      seriesStyles(aligned, [config({ hidden: true })], new Map())[0]
+    )
     expect(style.hidden).toBe(true)
   })
 })
@@ -649,16 +680,18 @@ describe("partColors", () => {
 
 describe("seriesStyles with fixed parts", () => {
   it("keeps the legend color while the parts take their fixed colors", () => {
-    const [style] = seriesStyles(
-      aligned,
-      [
-        config({
-          lineColor: "#ff0000",
-          fillColor: "#00ff00",
-          pointColor: "#0000ff",
-        }),
-      ],
-      new Map([["a", 1]])
+    const style = must(
+      seriesStyles(
+        aligned,
+        [
+          config({
+            lineColor: "#ff0000",
+            fillColor: "#00ff00",
+            pointColor: "#0000ff",
+          }),
+        ],
+        new Map([["a", 1]])
+      )[0]
     )
     expect(style).toMatchObject({
       color: "var(--series-2)",
@@ -669,21 +702,26 @@ describe("seriesStyles with fixed parts", () => {
   })
 
   it("carries the square dot pattern and a swatch that reads as dots", () => {
-    const [style] = seriesStyles(
-      aligned,
-      [config({ lineStyle: "square", lineWidth: 3 })],
-      new Map()
+    const style = must(
+      seriesStyles(
+        aligned,
+        [config({ lineStyle: "square", lineWidth: 3 })],
+        new Map()
+      )[0]
     )
     expect(style).toMatchObject({ dash: [3, 3], line: "dotted" })
   })
 
   it("draws square points when the config asks for them", () => {
-    const [circle, square] = seriesStyles(
-      [aligned[0], { key: "b", label: "b", values: [1, 2] }],
+    const styles = seriesStyles(
+      [must(aligned[0]), { key: "b", label: "b", values: [1, 2] }],
       [config(), config({ pointShape: "square" })],
       new Map()
     )
-    expect([circle.pointShape, square.pointShape]).toEqual(["circle", "square"])
+    expect(styles.map(({ pointShape }) => pointShape)).toEqual([
+      "circle",
+      "square",
+    ])
   })
 })
 

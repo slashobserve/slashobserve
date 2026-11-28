@@ -6,6 +6,11 @@ import type { DataPanel } from "@/spec"
 import { prepareFrames, seriesName } from "../transforms"
 import { alignFrames } from "./align"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 function frame(ref: string, labels: Record<string, string>, values: number[]) {
   return {
     ref,
@@ -43,7 +48,7 @@ describe("alignFrames", () => {
 
   it("names a series by its field and label value when a query has no legend", () => {
     const aligned = align([frame("A", { pod: "x" }, [1, 2])])
-    expect(aligned.series[0].label).toBe("value x")
+    expect(must(aligned.series[0]).label).toBe("value x")
   })
 
   it("names series of two queries by their ref", () => {

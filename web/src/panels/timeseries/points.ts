@@ -32,7 +32,8 @@ export function isolatedIndices(
 
 export const isolatedPoints: uPlot.Series.Points.Filter = (u, seriesIdx) => {
   const values = u.data[seriesIdx]
-  const [from, to] = u.series[0].idxs ?? [0, values.length - 1]
+  if (values === undefined) return null
+  const [from, to] = u.series[0]?.idxs ?? [0, values.length - 1]
   const indices = isolatedIndices(values, from ?? 0, to ?? values.length - 1)
   return indices.length > 0 ? indices : null
 }
@@ -55,6 +56,7 @@ export const squarePoints: uPlot.Series.Points.PathBuilder = (
   const series = u.series[seriesIdx]
   const xs = u.data[0]
   const ys = u.data[seriesIdx]
+  if (series === undefined || ys === undefined) return null
   const ratio = uPlot.pxRatio
   const outline = (series.points?.width ?? 0) * ratio
   const side = (series.points?.size ?? 0) * ratio - outline
@@ -64,8 +66,9 @@ export const squarePoints: uPlot.Series.Points.PathBuilder = (
   clip.rect(left - side, top - side, width + side * 2, height + side * 2)
   const add = (index: number) => {
     const y = ys[index]
-    if (y === null || y === undefined) return
-    const px = left + u.valToPos(xs[index], "x", true)
+    const x = xs[index]
+    if (y === null || y === undefined || x === undefined) return
+    const px = left + u.valToPos(x, "x", true)
     const py = top + u.valToPos(y, series.scale!, true)
     fill.rect(...squareCorners(px, py, side))
   }
