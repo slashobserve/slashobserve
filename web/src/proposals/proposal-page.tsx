@@ -117,7 +117,7 @@ export function ProposalPage({
   focusedThreadId,
 }: {
   proposalId: string
-  focusedThreadId?: string
+  focusedThreadId?: string | undefined
 }) {
   const query = useQuery(proposalQuery(proposalId))
   const [picks, setPicks] = useState<Picks>({})
