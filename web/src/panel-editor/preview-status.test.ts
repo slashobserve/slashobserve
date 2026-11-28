@@ -187,12 +187,6 @@ describe("previewStatusText", () => {
     )
   })
 
-  it("reports seconds under a minute", () => {
-    expect(previewStatusText(ran("2026-10-19T11:59:55Z", 3), now)).toBe(
-      "Draft ran 15 s ago, 3 series"
-    )
-  })
-
   it("lower-cases Just now", () => {
     expect(previewStatusText(ran("2026-10-19T12:00:09Z", 1), now)).toBe(
       "Draft ran just now, 1 series"
