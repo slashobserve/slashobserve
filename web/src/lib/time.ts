@@ -226,7 +226,10 @@ export function describeDuration(text: string): string | null {
   return durationText(count, match[2])
 }
 
-export function exploreRange(search: { from?: string; to?: string }): {
+export function exploreRange(search: {
+  from?: string | undefined
+  to?: string | undefined
+}): {
   from: string
   to: string
 } {
@@ -349,10 +352,10 @@ export type TimeOptions = {
   nowDelayMs?: number | undefined
 }
 
-type TimeSettings = Pick<
-  Dashboard,
-  "timezone" | "weekStart" | "fiscalYearStartMonth" | "nowDelay"
->
+type TimeSettings = {
+  [K in "timezone" | "weekStart" | "fiscalYearStartMonth" | "nowDelay"]?:
+    Dashboard[K] | undefined
+}
 
 function browserZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone
