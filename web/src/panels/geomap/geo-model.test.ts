@@ -27,6 +27,11 @@ import type { Feature } from "./layers/geojson"
 import { clampZoom, fitBounds, project, worldView } from "./projection"
 import { regionCorners } from "./regions"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
   return {
     id: "g1",
@@ -109,8 +114,8 @@ describe("location fields", () => {
       table({ name: "geohash", type: "string", values: ["u4pruydqqvj"] }),
     ])
     const point = project(10.40744, 57.64911)
-    expect(model.markers[0].x).toBeCloseTo(point.x, 4)
-    expect(model.markers[0].y).toBeCloseTo(point.y, 4)
+    expect(must(model.markers[0]).x).toBeCloseTo(point.x, 4)
+    expect(must(model.markers[0]).y).toBeCloseTo(point.y, 4)
   })
 
   it("prefers explicitly named fields over auto detection", () => {
@@ -121,7 +126,7 @@ describe("location fields", () => {
       { name: "x", values: [10] }
     )
     const model = build([frame], {}, { latField: "y", lonField: "x" })
-    expect(model.markers[0].label).toBe("50.000, 10.000")
+    expect(must(model.markers[0]).label).toBe("50.000, 10.000")
   })
 
   it("uses the geohash field when only that is named", () => {
@@ -131,7 +136,7 @@ describe("location fields", () => {
       { name: "cell", type: "string", values: ["ezs42"] }
     )
     const model = build([frame], {}, { geohashField: "cell" })
-    expect(model.markers[0].label).toBe("42.605, -5.603")
+    expect(must(model.markers[0]).label).toBe("42.605, -5.603")
   })
 
   it("follows the location option", () => {
@@ -140,12 +145,12 @@ describe("location fields", () => {
       { name: "lon", values: [2] },
       { name: "geohash", type: "string", values: ["ezs42"] }
     )
-    expect(build([frame], {}, { location: "geohash" }).markers[0].label).toBe(
-      "42.605, -5.603"
-    )
-    expect(build([frame], {}, { location: "coords" }).markers[0].label).toBe(
-      "1.000, 2.000"
-    )
+    expect(
+      must(build([frame], {}, { location: "geohash" }).markers[0]).label
+    ).toBe("42.605, -5.603")
+    expect(
+      must(build([frame], {}, { location: "coords" }).markers[0]).label
+    ).toBe("1.000, 2.000")
   })
 
   it("explains what is missing when no location fields exist", () => {
@@ -265,15 +270,18 @@ describe("marker color", () => {
       "var(--threshold-warning)",
       "var(--threshold-critical)",
     ])
-    expect(byRadius[2].state).toEqual({ level: "critical", word: "Critical" })
+    expect(must(byRadius[2]).state).toEqual({
+      level: "critical",
+      word: "Critical",
+    })
   })
 
   it("takes a value mapping color without a threshold state", () => {
     const model = build([cities([{ name: "value", values: [1, 1, 1] }])], {
       mappings: [{ value: "1", text: "Up", color: "ok" }],
     } as Partial<DataPanel>)
-    expect(model.markers[0].color).toBe("var(--threshold-ok)")
-    expect(model.markers[0].state).toBeNull()
+    expect(must(model.markers[0]).color).toBe("var(--threshold-ok)")
+    expect(must(model.markers[0]).state).toBeNull()
   })
 
   it("falls back to the first series color", () => {
@@ -281,7 +289,7 @@ describe("marker color", () => {
     expect(new Set(model.markers.map((m) => m.color))).toEqual(
       new Set(["var(--series-1)"])
     )
-    expect(model.markers[0].state).toBeNull()
+    expect(must(model.markers[0]).state).toBeNull()
   })
 })
 
@@ -302,8 +310,8 @@ describe("tooltip details", () => {
     )
     const paris = model.markers.find((m) => m.label === "48.850, 2.350")
     expect(paris?.details.map((d) => d.name)).toEqual(["city", "value"])
-    expect(paris?.details[0].text).toBe("Paris")
-    expect(paris?.details[1].text).toContain("1")
+    expect(must(paris?.details[0]).text).toBe("Paris")
+    expect(must(paris?.details[1]).text).toContain("1")
   })
 
   it("writes a time field in the zone of the panel", () => {
@@ -416,14 +424,15 @@ describe("layers", () => {
         ],
       }
     )
-    const [first, second] = model.layers
+    const first = must(model.layers[0])
+    const second = must(model.layers[1])
     expect(first).toMatchObject({ kind: "markers", name: "Cities" })
     expect(second).toMatchObject({ kind: "markers", name: "Sites" })
     if (first.kind !== "markers" || second.kind !== "markers") return
     expect(first.markers.map((m) => m.label)).toEqual(["48.850, 2.350"])
     expect(second.markers.map((m) => m.label)).toEqual(["35.680, 139.690"])
-    expect(first.markers[0].color).toBe("var(--threshold-critical)")
-    expect(second.markers[0].color).toBe("#112233")
+    expect(must(first.markers[0]).color).toBe("var(--threshold-critical)")
+    expect(must(second.markers[0]).color).toBe("#112233")
     expect(model.markers).toHaveLength(2)
   })
 
@@ -437,9 +446,9 @@ describe("layers", () => {
         ],
       }
     )
-    const [layer] = model.layers
+    const layer = must(model.layers[0])
     if (layer.kind !== "markers") throw new Error("expected markers")
-    expect(layer.markers[0].color).toBe("var(--foreground)")
+    expect(must(layer.markers[0]).color).toBe("var(--foreground)")
   })
 
   it("keeps a layer with no query on every frame", () => {
@@ -458,8 +467,8 @@ describe("layers", () => {
       { thresholds: [{ color: "ok" }, { value: 90, color: "critical" }] },
       { layers: [{ type: "markers", color: "#112233", colorField: "load" }] }
     )
-    expect(model.markers[0].color).toBe("var(--threshold-critical)")
-    expect(model.markers[0].state?.level).toBe("critical")
+    expect(must(model.markers[0]).color).toBe("var(--threshold-critical)")
+    expect(must(model.markers[0]).state?.level).toBe("critical")
   })
 
   it("reads the symbol, rotation and label text", () => {
@@ -512,7 +521,7 @@ describe("layers", () => {
       {},
       { layers: [{ type: "markers", symbol: "hexagon" }] }
     )
-    expect(model.markers[0].symbol).toBe("circle")
+    expect(must(model.markers[0]).symbol).toBe("circle")
   })
 
   it("draws a fixed label on every marker, and the label field wins when both are set", () => {
@@ -659,7 +668,7 @@ describe("layers", () => {
       {},
       { layers: [{ type: "markers", rotation: 45, rotationField: "heading" }] }
     )
-    expect(model.markers[0].rotation).toBe(10)
+    expect(must(model.markers[0]).rotation).toBe(10)
   })
 
   it("draws tile layers in order with the markers", () => {
@@ -679,11 +688,11 @@ describe("layers", () => {
       "tiles",
       "tiles",
     ])
-    const carto = model.layers[2]
+    const carto = must(model.layers[2])
     expect(carto.kind === "tiles" && carto.source.template).toContain(
       "dark_nolabels"
     )
-    expect(model.layers[1].opacity).toBe(0.4)
+    expect(must(model.layers[1]).opacity).toBe(0.4)
   })
 
   it("follows the app theme for an automatic CARTO layer", () => {
@@ -693,7 +702,7 @@ describe("layers", () => {
       displayWithDefaults("geomap", { layers: [{ type: "carto" }] }),
       "dark"
     )
-    const layer = model.layers[0]
+    const layer = must(model.layers[0])
     expect(layer.kind === "tiles" && layer.source.template).toContain(
       "dark_all"
     )
@@ -783,7 +792,7 @@ describe("layer types", () => {
       [cities([{ name: "load", values: [1, 2, 4] }])],
       [{ type: "heatmap", weightField: "load" }]
     )
-    const layer = model.layers[0]
+    const layer = must(model.layers[0])
     expect(layer.kind).toBe("heatmap")
     expect(
       layer.kind === "heatmap" && layer.points.map((p) => p.weight)
@@ -793,7 +802,7 @@ describe("layer types", () => {
   })
 
   it("weights every heatmap point equally without a weight field", () => {
-    const layer = withContext([cities()], [{ type: "heatmap" }]).layers[0]
+    const layer = must(withContext([cities()], [{ type: "heatmap" }]).layers[0])
     expect(
       layer.kind === "heatmap" && layer.points.map((p) => p.weight)
     ).toEqual([1, 1, 1])
@@ -805,10 +814,10 @@ describe("layer types", () => {
       { name: "lon", values: [10, 20, 30] },
       { name: "time", type: "time", values: [300, 100, 200] }
     )
-    const layer = withContext([track], [{ type: "route" }]).layers[0]
+    const layer = must(withContext([track], [{ type: "route" }]).layers[0])
     expect(layer.kind).toBe("route")
     expect(
-      layer.kind === "route" && layer.lines[0].points.map((p) => p.lat)
+      layer.kind === "route" && must(layer.lines[0]).points.map((p) => p.lat)
     ).toEqual([2, 3, 1])
   })
 
@@ -829,7 +838,7 @@ describe("layer types", () => {
       [shots],
       [{ type: "photos", imageField: "image" }]
     )
-    const layer = model.layers[0]
+    const layer = must(model.layers[0])
     expect(layer.kind).toBe("photos")
     expect(layer.kind === "photos" && layer.photos.map((p) => p.row)).toEqual([
       0, 2,
@@ -882,7 +891,7 @@ describe("layer types", () => {
     it("draws edges between located nodes and the nodes as markers", () => {
       const model = withContext([nodes, edges], [{ type: "network" }])
       expect(kinds(model)).toEqual(["network", "markers"])
-      const layer = model.layers[0]
+      const layer = must(model.layers[0])
       expect(layer.kind === "network" && layer.edges).toHaveLength(2)
       expect(model.markers).toHaveLength(3)
     })
@@ -909,7 +918,7 @@ describe("layer types", () => {
         [nodes, edges],
         [{ type: "network", query: "N" }]
       )
-      const layer = model.layers[0]
+      const layer = must(model.layers[0])
       expect(layer.kind === "network" && layer.edges).toHaveLength(0)
       expect(model.markers).toHaveLength(3)
     })
@@ -921,7 +930,7 @@ describe("layer types", () => {
         time: Date.parse("2024-03-20T12:00:00Z"),
       })
       expect(model.reason).toBeNull()
-      const layer = model.layers[0]
+      const layer = must(model.layers[0])
       expect(layer.kind).toBe("dayNight")
       expect(layer.kind === "dayNight" && layer.sun).not.toBeNull()
     })
@@ -930,7 +939,7 @@ describe("layer types", () => {
       const from = Date.parse("2024-03-20T00:00:00Z")
       const time = Date.parse("2024-09-22T12:00:00Z")
       const pathAt = (layers: Record<string, unknown>[]) => {
-        const layer = withContext([], layers, { from, time }).layers[0]
+        const layer = must(withContext([], layers, { from, time }).layers[0])
         return layer.kind === "dayNight" ? layer.path : null
       }
       expect(pathAt([{ type: "dayNight", nightAt: "from" }])).toBe(
@@ -945,11 +954,10 @@ describe("layer types", () => {
     })
 
     it("keeps a chosen night color", () => {
-      const layer = withContext(
-        [],
-        [{ type: "dayNight", nightColor: "info" }],
-        { time: 0 }
-      ).layers[0]
+      const layer = must(
+        withContext([], [{ type: "dayNight", nightColor: "info" }], { time: 0 })
+          .layers[0]
+      )
       expect(layer.kind === "dayNight" && layer.color).toBe(
         "var(--threshold-info)"
       )
@@ -980,14 +988,14 @@ describe("layer types", () => {
         [{ type: "geojson", source: "countries" }],
         { atlases: { countries: [outline] } }
       )
-      const layer = loaded.layers[0]
+      const layer = must(loaded.layers[0])
       expect(layer.kind === "geojson" && layer.features).toHaveLength(1)
       expect(loaded.reason).toBeNull()
       const loading = withContext(
         [],
         [{ type: "geojson", source: "countries" }]
       )
-      const pending = loading.layers[0]
+      const pending = must(loading.layers[0])
       expect(pending.kind === "geojson" && pending.features).toHaveLength(0)
       expect(loading.notes).toEqual([])
     })
@@ -996,7 +1004,7 @@ describe("layer types", () => {
       const model = withContext([], [{ type: "geojson", url }], {
         remote: { [url]: { state: "ready", features: [outline] } },
       })
-      const layer = model.layers[0]
+      const layer = must(model.layers[0])
       expect(layer.kind === "geojson" && layer.features).toHaveLength(1)
     })
 
@@ -1054,10 +1062,10 @@ describe("layer types", () => {
         ],
         { atlases: { countries: [outline] } }
       )
-      const layer = model.layers[0]
-      expect(layer.kind === "geojson" && layer.features[0].style.fill).toBe(
-        "var(--threshold-ok)"
-      )
+      const layer = must(model.layers[0])
+      expect(
+        layer.kind === "geojson" && must(layer.features[0]).style.fill
+      ).toBe("var(--threshold-ok)")
     })
   })
 
@@ -1079,7 +1087,7 @@ describe("layer types", () => {
         { gazetteers }
       )
       expect(model.markers).toHaveLength(1)
-      expect(model.markers[0].lon).toBeCloseTo(2, 10)
+      expect(must(model.markers[0]).lon).toBeCloseTo(2, 10)
       expect(model.skipped).toBe(1)
     })
 
@@ -1121,7 +1129,7 @@ describe("layer types", () => {
         [{ type: "heatmap", location: "lookup" }],
         { gazetteers }
       )
-      const layer = model.layers[0]
+      const layer = must(model.layers[0])
       expect(layer.kind === "heatmap" && layer.points).toHaveLength(1)
     })
   })
@@ -1151,7 +1159,7 @@ describe("layer types", () => {
       { name: "lon", values: Array.from({ length: rows }, () => 2) }
     )
     const model = withContext([big], [{ type: "heatmap" }, { type: "markers" }])
-    const heat = model.layers[0]
+    const heat = must(model.layers[0])
     expect(heat.kind === "heatmap" && heat.points).toHaveLength(rows)
     expect(model.markers).toHaveLength(maxMarkers - rows)
     expect(model.truncated).toBe(rows - (maxMarkers - rows))
@@ -1414,7 +1422,7 @@ describe("WKT locations", () => {
       {},
       { layers: [{ type: "markers", location: "wkt", wktField: "geometry" }] }
     )
-    expect(model.markers[0].details.map((d) => d.name)).not.toContain(
+    expect(must(model.markers[0]).details.map((d) => d.name)).not.toContain(
       "geometry"
     )
     const none = build(
@@ -1527,7 +1535,7 @@ describe("markers layer legend", () => {
     const model = build([frame], extra, {
       layers: [{ type: "markers", name: "Sites", showLegend: true, ...layer }],
     })
-    const [drawn] = model.layers
+    const drawn = must(model.layers[0])
     return drawn.kind === "markers" ? drawn.legend : undefined
   }
   const loads = table(
@@ -1607,7 +1615,9 @@ describe("markers layer legend", () => {
     )
     expect(legend?.entries).toHaveLength(2)
     expect(legend?.entries.map((entry) => entry.text)).toEqual(["10", "90"])
-    expect(legend?.entries[0].color).not.toBe(legend?.entries[1].color)
+    expect(must(legend?.entries[0]).color).not.toBe(
+      must(legend?.entries[1]).color
+    )
   })
 
   it("lists a single entry when every color value is the same", () => {

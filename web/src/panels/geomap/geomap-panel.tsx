@@ -334,7 +334,15 @@ function useRemoteGeojson(
       }[]
     ) =>
       Object.fromEntries(
-        urls.map((url, index) => [url, remoteGeojson(results[index], url)])
+        urls.flatMap((url, index) => {
+          const result = results[index]
+          if (result === undefined) return []
+          const entry: [string, RemoteGeojson] = [
+            url,
+            remoteGeojson(result, url),
+          ]
+          return [entry]
+        })
       ),
     [urls]
   )

@@ -2,7 +2,7 @@ import type { LonLat } from "./projection"
 
 type Bounds = { west: number; south: number; east: number; north: number }
 
-export const regionBounds: Record<string, Bounds> = {
+export const regionBounds = {
   "north-america": { west: -170, south: 7, east: -50, north: 72 },
   "south-america": { west: -82, south: -56, east: -34, north: 13 },
   europe: { west: -25, south: 34, east: 45, north: 72 },
@@ -13,13 +13,15 @@ export const regionBounds: Record<string, Bounds> = {
   "east-asia": { west: 73, south: 18, east: 146, north: 54 },
   australia: { west: 112, south: -44, east: 154, north: -10 },
   oceania: { west: 110, south: -48, east: 180, north: 20 },
-}
+} satisfies Record<string, Bounds>
 
-export function isRegion(value: unknown): value is string {
+type Region = keyof typeof regionBounds
+
+export function isRegion(value: unknown): value is Region {
   return typeof value === "string" && Object.hasOwn(regionBounds, value)
 }
 
-export function regionCorners(region: string): LonLat[] {
+export function regionCorners(region: Region): LonLat[] {
   const { west, south, east, north } = regionBounds[region]
   return [
     { lon: west, lat: south },

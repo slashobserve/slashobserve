@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest"
 
-import type { Feature } from "../layers/geojson"
+import type { Feature, Position } from "../layers/geojson"
 import { atlasFeatures } from "../world"
 import { isoCountries } from "./iso-countries"
 import {
@@ -114,7 +114,11 @@ describe("US state lookup", () => {
 
 describe("centroidOf", () => {
   it("uses the largest polygon of a multipolygon", () => {
-    const square = (west: number, south: number, size: number) => [
+    const square = (
+      west: number,
+      south: number,
+      size: number
+    ): Position[][] => [
       [
         [west, south],
         [west + size, south],

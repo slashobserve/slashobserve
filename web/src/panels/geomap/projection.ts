@@ -3,7 +3,10 @@ export type LonLat = { lon: number; lat: number }
 export type View = { center: Point; zoom: number }
 
 export type ZoomLimits = { min?: number; max?: number }
-export type FitOptions = { padding?: number; limits?: ZoomLimits }
+export type FitOptions = {
+  padding?: number | undefined
+  limits?: ZoomLimits | undefined
+}
 
 export const maxLatitude = 85.0511
 export const maxZoom = 18

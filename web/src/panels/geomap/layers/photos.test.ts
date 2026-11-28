@@ -8,6 +8,11 @@ import {
   type PhotoRow,
 } from "./photos"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 const tip: Tip = { label: "x", details: [], color: "c", state: null }
 const origin = "https://app.test"
 
@@ -23,7 +28,7 @@ describe("photosModel", () => {
       origin
     )
     expect(photos).toHaveLength(1)
-    expect(photos[0].href).toBe(
+    expect(must(photos[0]).href).toBe(
       `/api/v1/assets/image?url=${encodeURIComponent("https://img.example/a.png")}`
     )
   })

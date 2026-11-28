@@ -3,6 +3,11 @@ import { describe, expect, it } from "vitest"
 import { project } from "../projection"
 import { heatmapModel, type HeatRow } from "./heatmap"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 function rows(...weights: number[]): HeatRow[] {
   return weights.map((weight, index) => ({
     frameIndex: 0,
@@ -37,8 +42,8 @@ describe("heatmapModel", () => {
   it("places each point in the unit square", () => {
     const { points } = heatmapModel(rows(1, 1), {}, false)
     const expected = project(5, 10)
-    expect(points[1].x).toBeCloseTo(expected.x, 10)
-    expect(points[1].y).toBeCloseTo(expected.y, 10)
+    expect(must(points[1]).x).toBeCloseTo(expected.x, 10)
+    expect(must(points[1]).y).toBeCloseTo(expected.y, 10)
   })
 
   it("gives every unweighted point the layer's fixed weight, not normalised", () => {
@@ -52,7 +57,7 @@ describe("heatmapModel", () => {
       { weightMin: 0.2, weightMax: 5 },
       true
     )
-    expect(points[0].weight).toBeCloseTo(0.68, 10)
+    expect(must(points[0]).weight).toBeCloseTo(0.68, 10)
     expect(points.slice(1).map((point) => point.weight)).toEqual([1, 1])
   })
 

@@ -3,6 +3,11 @@ import { describe, expect, it } from "vitest"
 import type { Tip } from "../geo-model"
 import { arrowOf, routeModel, type RouteRow } from "./route"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 const tip: Tip = { label: "x", details: [], color: "c", state: null }
 
 function row(frameIndex: number, index: number, time: number | null): RouteRow {
@@ -17,7 +22,9 @@ describe("routeModel", () => {
       undefined
     )
     expect(model.lines).toHaveLength(1)
-    expect(model.lines[0].points.map((point) => point.row)).toEqual([1, 2, 0])
+    expect(must(model.lines[0]).points.map((point) => point.row)).toEqual([
+      1, 2, 0,
+    ])
   })
 
   it("keeps the row order when a frame has no time for some row", () => {
@@ -26,7 +33,9 @@ describe("routeModel", () => {
       {},
       undefined
     )
-    expect(model.lines[0].points.map((point) => point.row)).toEqual([0, 1, 2])
+    expect(must(model.lines[0]).points.map((point) => point.row)).toEqual([
+      0, 1, 2,
+    ])
   })
 
   it("keeps rows with equal times in their original order", () => {
@@ -35,18 +44,20 @@ describe("routeModel", () => {
       {},
       undefined
     )
-    expect(model.lines[0].points.map((point) => point.row)).toEqual([0, 1, 2])
+    expect(must(model.lines[0]).points.map((point) => point.row)).toEqual([
+      0, 1, 2,
+    ])
   })
 
   it("draws one line per frame in the series palette, or the chosen color", () => {
     const rows = [row(0, 0, 1), row(1, 0, 1), row(1, 1, 2)]
     const palette = routeModel(rows, {}, undefined)
     expect(palette.lines.map((line) => line.points.length)).toEqual([1, 2])
-    expect(palette.lines[0].color).toBe("var(--series-1)")
-    expect(palette.lines[1].color).toBe("var(--series-2)")
-    expect(routeModel(rows, {}, "var(--threshold-ok)").lines[1].color).toBe(
-      "var(--threshold-ok)"
-    )
+    expect(must(palette.lines[0]).color).toBe("var(--series-1)")
+    expect(must(palette.lines[1]).color).toBe("var(--series-2)")
+    expect(
+      must(routeModel(rows, {}, "var(--threshold-ok)").lines[1]).color
+    ).toBe("var(--threshold-ok)")
   })
 
   it("defaults the width to 2 and the arrow to none", () => {

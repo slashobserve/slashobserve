@@ -25,6 +25,7 @@ function linePath(line: readonly (readonly number[])[]): string {
   let path = ""
   let previous: number | null = null
   for (const [lon, lat] of line) {
+    if (lon === undefined || lat === undefined) continue
     const { x, y } = project(lon, lat)
     const breaks =
       previous === null || Math.abs(lon - previous) > antimeridianJump

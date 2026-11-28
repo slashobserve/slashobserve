@@ -14,7 +14,13 @@ import {
   ruleMatches,
   unwrapRing,
   type Feature,
+  type Position,
 } from "./geojson"
+
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
 
 const paint = (value: unknown) =>
   typeof value === "string" ? `var(--${value})` : undefined
@@ -60,7 +66,7 @@ describe("parseGeojson", () => {
   it("reads a single feature, keeping its id", () => {
     const features = parseGeojson({ ...point({}), id: 7 })
     expect(features).toHaveLength(1)
-    expect(features[0].id).toBe(7)
+    expect(must(features[0]).id).toBe(7)
   })
 
   it("reads a bare geometry", () => {
@@ -182,8 +188,8 @@ describe("geojsonModel rules", () => {
       },
       paint
     )
-    expect(model.features[0].style.stroke).toBe("var(--second)")
-    expect(model.features[1].style.stroke).toBe("var(--first)")
+    expect(must(model.features[0]).style.stroke).toBe("var(--second)")
+    expect(must(model.features[1]).style.stroke).toBe("var(--first)")
   })
 
   it("fills at half opacity unless the rule sets one", () => {
@@ -192,19 +198,22 @@ describe("geojsonModel rules", () => {
         { property: "n", operation: "gt", value: 0, color: "c", opacity },
       ],
     })
-    expect(geojsonModel(features, rules(), paint).features[0].style).toEqual({
+    expect(
+      must(geojsonModel(features, rules(), paint).features[0]).style
+    ).toEqual({
       fill: "var(--c)",
       fillOpacity: 0.5,
       stroke: "var(--c)",
       strokeOpacity: 1,
     })
     expect(
-      geojsonModel(features, rules(0.2), paint).features[0].style.fillOpacity
+      must(geojsonModel(features, rules(0.2), paint).features[0]).style
+        .fillOpacity
     ).toBe(0.2)
   })
 
   it("draws an outline in the foreground with no fill by default", () => {
-    expect(geojsonModel(features, {}, paint).features[0].style).toEqual({
+    expect(must(geojsonModel(features, {}, paint).features[0]).style).toEqual({
       fill: null,
       fillOpacity: 0,
       stroke: "var(--foreground)",
@@ -218,7 +227,7 @@ describe("geojsonModel rules", () => {
       { rules: [{ property: "n", operation: "gt", value: 0, color: 3 }] },
       paint
     )
-    expect(model.features[0].style.fill).toBeNull()
+    expect(must(model.features[0]).style.fill).toBeNull()
   })
 
   it("ignores rules that are not well formed", () => {
@@ -227,7 +236,7 @@ describe("geojsonModel rules", () => {
       { rules: [null, "x", { property: "n" }, { operation: "eq", value: 1 }] },
       paint
     )
-    expect(model.features[0].style.fill).toBeNull()
+    expect(must(model.features[0]).style.fill).toBeNull()
   })
 })
 
@@ -248,11 +257,11 @@ describe("geojsonModel drawing", () => {
       {},
       paint
     )
-    expect(model.features[0].dots).toEqual([project(10, 20)])
-    expect(model.features[0].path).toBe("")
-    expect(model.features[1].path).toMatch(/^M[-\d.e]+ [-\d.e]+L/)
-    expect(model.features[1].path).not.toContain("Z")
-    expect(model.features[2].path.endsWith("Z")).toBe(true)
+    expect(must(model.features[0]).dots).toEqual([project(10, 20)])
+    expect(must(model.features[0]).path).toBe("")
+    expect(must(model.features[1]).path).toMatch(/^M[-\d.e]+ [-\d.e]+L/)
+    expect(must(model.features[1]).path).not.toContain("Z")
+    expect(must(model.features[2]).path.endsWith("Z")).toBe(true)
   })
 
   it("reports the extent of what it drew as two corners", () => {
@@ -268,7 +277,7 @@ describe("geojsonModel drawing", () => {
   })
 
   it("gives each feature bounds in the unit square", () => {
-    const [drawn] = geojsonModel([square(0, 0, 10)], {}, paint).features
+    const drawn = must(geojsonModel([square(0, 0, 10)], {}, paint).features[0])
     const low = project(0, 10)
     const high = project(10, 0)
     expect(drawn.bounds).toEqual({
@@ -288,22 +297,21 @@ describe("geojsonModel drawing", () => {
       {},
       paint
     )
-    expect(model.features[0].tip.label).toBe("Paris")
-    expect(model.features[0].tip.details).toEqual([
+    expect(must(model.features[0]).tip.label).toBe("Paris")
+    expect(must(model.features[0]).tip.details).toEqual([
       { name: "Name", text: "Paris" },
       { name: "population", text: "2" },
     ])
-    expect(model.features[1].tip.label).toBe("Feature 2")
+    expect(must(model.features[1]).tip.label).toBe("Feature 2")
   })
 
   it("clips long property text", () => {
-    const [drawn] = geojsonModel(
-      parseGeojson(point({ note: "x".repeat(500) })),
-      {},
-      paint
-    ).features
-    expect(drawn.tip.details[0].text).toHaveLength(123)
-    expect(drawn.tip.details[0].text.endsWith("...")).toBe(true)
+    const drawn = must(
+      geojsonModel(parseGeojson(point({ note: "x".repeat(500) })), {}, paint)
+        .features[0]
+    )
+    expect(must(drawn.tip.details[0]).text).toHaveLength(123)
+    expect(must(drawn.tip.details[0]).text.endsWith("...")).toBe(true)
   })
 
   it("skips features with no usable coordinates", () => {
@@ -327,40 +335,49 @@ describe("geojsonModel drawing", () => {
   })
 
   it("draws a ring that crosses the antimeridian twice, once on each side", () => {
-    const ring = [
+    const ring: Position[] = [
       [170, 0],
       [-170, 0],
       [-170, 10],
       [170, 10],
       [170, 0],
     ]
-    const [drawn] = geojsonModel(
-      [{ properties: {}, geometry: { type: "Polygon", coordinates: [ring] } }],
-      {},
-      paint
-    ).features
+    const drawn = must(
+      geojsonModel(
+        [
+          {
+            properties: {},
+            geometry: { type: "Polygon", coordinates: [ring] },
+          },
+        ],
+        {},
+        paint
+      ).features[0]
+    )
     expect(drawn.path.match(/Z/g)).toHaveLength(2)
     expect(drawn.bounds.minX).toBeLessThan(0.01)
     expect(drawn.bounds.maxX).toBeGreaterThan(0.99)
   })
 
   it("draws a ring that stays on one side once", () => {
-    const [drawn] = geojsonModel([square(0, 0)], {}, paint).features
+    const drawn = must(geojsonModel([square(0, 0)], {}, paint).features[0])
     expect(drawn.path.match(/Z/g)).toHaveLength(1)
   })
 
   it("starts a new subpath when an open line jumps across the antimeridian", () => {
-    const [drawn] = geojsonModel(
-      parseGeojson({
-        type: "LineString",
-        coordinates: [
-          [170, 0],
-          [-170, 0],
-        ],
-      }),
-      {},
-      paint
-    ).features
+    const drawn = must(
+      geojsonModel(
+        parseGeojson({
+          type: "LineString",
+          coordinates: [
+            [170, 0],
+            [-170, 0],
+          ],
+        }),
+        {},
+        paint
+      ).features[0]
+    )
     expect(drawn.path.match(/M/g)).toHaveLength(2)
   })
 })
