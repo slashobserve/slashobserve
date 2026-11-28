@@ -333,7 +333,7 @@ A gate fails the run when any of these happens:
 | `build` | Non-prose files changed. | `make build`, then `make generate`, which must leave every file unchanged. |
 | `image` | `Dockerfile` or `.dockerignore` changed. | A build of the `Dockerfile` from its own stages. |
 | `e2e-api` | Non-test, non-prose files changed. | `make e2e`, with a 30 minute limit. |
-| `e2e-browser` | Non-test, non-prose files changed. | `make e2e-browser` in four shards, each on its own stack, with a 30 minute limit. |
+| `e2e-browser` | Non-test, non-prose files changed. | `make e2e-browser` in four shards, each on its own stack, with a 30 minute limit; a test that passes on its retry is reported as flaky and does not fail the shard. |
 | `audit` | A lockfile, `package.json`, `go.mod` or `tools/` changed, on `main` and daily. | `make audit`. |
 | `check` | Always. | Passes when every lint, test, build and image job that ran has passed; `audit` and the two end-to-end jobs are separate. |
 
