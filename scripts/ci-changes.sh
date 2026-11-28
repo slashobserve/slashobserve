@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GO_READS_FROM_WEB=('web/src/panels/*/manifest.ts' web/src/mcp-panel/fixtures/show-panel-result.json web/src/spec/defaults.gen.ts harness/src/protocol.ts)
+GO_READS_FROM_WEB=('web/src/panels/*/manifest.ts' web/src/mcp-panel/fixtures/show-panel-result.json web/src/spec/defaults.gen.ts harness/src/protocol.ts harness/test/fixtures/prompts/guide-prometheus.md)
 
 usage() {
   cat >&2 <<USAGE

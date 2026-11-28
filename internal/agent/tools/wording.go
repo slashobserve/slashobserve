@@ -113,7 +113,7 @@ const (
 	mcpPanelsDashboard   = "Dashboard id from list_dashboards or a save result."
 	agentPanelsDashboard = "Dashboard id; omit it to read the dashboard you are working on, your build included."
 
-	agentBuildNote = " In a build, each save adds or changes exactly one panel, and the server sets every position."
+	agentBuildNote = " Each build save adds or changes exactly one panel; the server places it and keeps a sent w or h."
 
 	agentBuildProps = `,"finish":{"type":"boolean","description":"Set on your last save. The build then becomes the dashboard's version."},"planned_panels":{"type":"integer","minimum":1,"maximum":200,"description":"How many panels you expect the finished dashboard to have, rows not counted. Send it with the first save of a new dashboard; resend it to change it."}`
 

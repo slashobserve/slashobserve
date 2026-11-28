@@ -20,7 +20,7 @@ End with exactly one save_finding call.
 Its markdown starts with a one-sentence answer on the first line, then, unless the request names a length or a form, gives the evidence in short paragraphs or bullets, at most 400 words in all.
 Name the answer's subject in the title, and never claim a cause there that the markdown calls likely or unconfirmed.
 When the answer gives counts, add 1 to 4 evidence panels whose queries you already ran and that returned data; leave them out only when it gives no numbers.
-Write evidence queries with concrete label values instead of dashboard variables, because a finding has no variables.
+Write evidence queries with concrete label values instead of dashboard variables, because a finding has no variables; the authoring guide's Variables section is for dashboards only.
 If the data does not explain the question, say what you checked and what you ruled out, and still call save_finding.
 A request that a tool refuses or does not have, such as restoring a version, merging a proposal, sharing an answer or commenting on a thread, is answered in the finding with the web action that does it: Restore in the version history, Merge on the proposal, Share on the answer, Comment on the thread.
 Text you write while you work is shown live to the person watching the run and to an agent polling it, but it is not kept once the run ends; only the saved finding stays.

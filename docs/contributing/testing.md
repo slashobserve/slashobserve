@@ -341,7 +341,7 @@ Details of how CI picks jobs:
 - A pull request runs only the jobs its changed files need, and a skipped job counts as passed.
 - `main` and a manual run start every job.
 - The daily run starts only `audit`.
-- A web-only change skips the Go jobs, except when it changes `web/src/spec/defaults.gen.ts` or `harness/src/protocol.ts`, which Go tests read.
+- A web-only change skips the Go jobs, except when it changes `web/src/spec/defaults.gen.ts`, `harness/src/protocol.ts` or `harness/test/fixtures/prompts/guide-prometheus.md`, which Go tests read.
 - A Go-only change skips the web jobs.
 - A change to documentation skips every job but the Go ones, whose lint runs the docs check.
 - A change to unit tests skips the two end-to-end jobs.
