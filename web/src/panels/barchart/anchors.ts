@@ -39,10 +39,14 @@ export function hitTest(
   }
   const { category, bar } = barAt(layout, model, x, y)
   const pos = positionOf(point, body)
-  const label = clip(model.categories[category].label)
+  const entry = model.categories[category]
+  if (entry === undefined) return null
+  const label = clip(entry.label)
   if (bar === null) return fit({ kind: "bar", pos, category: label })
   const series = model.series[bar]
-  const shown = clip(model.bars[category][bar].shown.text)
+  const cell = model.bars[category]?.[bar]
+  if (series === undefined || cell === undefined) return null
+  const shown = clip(cell.shown.text)
   return fit({
     kind: series.stack === "none" ? "bar" : "segment",
     pos,
@@ -69,9 +73,9 @@ export function locate(
   if (name === undefined) return shifted(categoryBand(layout, category), origin)
   const index = model.series.findIndex((series) => clip(series.name) === name)
   const bar = index < 0 ? undefined : model.bars[category]?.[index]
-  if (bar === undefined || bar.value === null) return null
-  return shifted(
-    barRect(layout, category, model.series[index].slot, bar),
-    origin
-  )
+  const series = model.series[index]
+  if (bar === undefined || bar.value === null || series === undefined) {
+    return null
+  }
+  return shifted(barRect(layout, category, series.slot, bar), origin)
 }

@@ -142,8 +142,8 @@ const Bars = memo(function Bars({
       ) : null}
       {model.bars.map((row, category) =>
         row.map((bar, index) => {
-          if (bar.value === null) return null
           const series = model.series[index]
+          if (bar.value === null || series === undefined) return null
           const rect = barRect(layout, category, series.slot, bar)
           const outlined =
             !options.fullHighlight &&
@@ -273,8 +273,8 @@ function ValueLabels({
     <>
       {model.bars.map((row, category) =>
         row.map((bar, index) => {
-          if (bar.value === null) return null
           const series = model.series[index]
+          if (bar.value === null || series === undefined) return null
           const rect = barRect(layout, category, series.slot, bar)
           const negative = bar.end < bar.start
           const spot = labelSpot(
@@ -501,7 +501,7 @@ function Tooltip({
   plot: Size
   options: Pick<BarOptions, "tooltipMaxWidth" | "tooltipMaxHeight">
 }) {
-  const row = model.bars[pointer.category]
+  const row = model.bars[pointer.category] ?? []
   const onRight = pointer.x > plot.width / 2
   return (
     <div
@@ -517,24 +517,24 @@ function Tooltip({
       }}
     >
       <div className="mb-1 text-muted-foreground">
-        {model.categories[pointer.category].title}
+        {model.categories[pointer.category]?.title}
       </div>
-      {indexes.map((index) => (
-        <div
-          key={model.series[index].key}
-          className="flex items-center gap-1.5"
-        >
-          <span
-            aria-hidden="true"
-            className="size-2 shrink-0"
-            style={{ backgroundColor: row[index].color }}
-          />
-          <span className="min-w-0 flex-1 truncate">
-            {model.series[index].name}
-          </span>
-          <span className="pl-3 tabular-nums">{row[index].shown.text}</span>
-        </div>
-      ))}
+      {indexes.map((index) => {
+        const series = model.series[index]
+        const bar = row[index]
+        if (series === undefined || bar === undefined) return null
+        return (
+          <div key={series.key} className="flex items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className="size-2 shrink-0"
+              style={{ backgroundColor: bar.color }}
+            />
+            <span className="min-w-0 flex-1 truncate">{series.name}</span>
+            <span className="pl-3 tabular-nums">{bar.shown.text}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }
