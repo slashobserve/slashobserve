@@ -50,7 +50,7 @@ export type TooltipSeries = {
   stacked: boolean
   below: number | null
   hideInTooltip: boolean
-  rowColor?: ((row: number) => string) | undefined
+  rowColor?: ((row: number) => string | undefined) | undefined
 }
 
 export type TooltipView = {

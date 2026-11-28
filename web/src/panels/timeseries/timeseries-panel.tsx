@@ -643,7 +643,7 @@ export type ChartProps = PanelRendererProps & {
   xAxis?: XAxis
   draw?: uPlot.Plugin
   painted?: number
-  rowColor?: (row: number) => string
+  rowColor?: ((row: number) => string | undefined) | undefined
 }
 
 export function TimeseriesChart({
