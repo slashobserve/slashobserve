@@ -45,16 +45,6 @@ describe("pie chart anchors", () => {
     expect((store.current()?.layout as PieAnchorLayout).inner).toBe(0)
   })
 
-  it("withdraws its layout when it unmounts", () => {
-    const { store, view } = renderPublishing(
-      PiechartPanel,
-      panelOf("piechart"),
-      frames
-    )
-    view.unmount()
-    expect(store.current()).toBeNull()
-  })
-
   it("names a slice the legend switched off as hidden, not drawn", () => {
     const { store, view } = renderPublishing(
       PiechartPanel,

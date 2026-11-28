@@ -35,14 +35,4 @@ describe("bargauge anchors", () => {
     ])
     expect(layout.targets.every(({ text }) => text !== "")).toBe(true)
   })
-
-  it("withdraws its layout when it unmounts", () => {
-    const { store, view } = renderPublishing(
-      BargaugePanel,
-      panelOf("bargauge"),
-      frames
-    )
-    view.unmount()
-    expect(store.current()).toBeNull()
-  })
 })

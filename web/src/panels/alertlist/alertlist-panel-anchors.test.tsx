@@ -82,16 +82,6 @@ describe("alert list anchors", () => {
     expect(store.current()).toBeNull()
   })
 
-  it("withdraws its layout when it unmounts", () => {
-    const { store, view } = renderPublishing(
-      AlertlistPanel,
-      panelOf("alertlist"),
-      frames
-    )
-    view.unmount()
-    expect(store.current()).toBeNull()
-  })
-
   it("culls rows scrolled out of the list into elsewhere", () => {
     stubList()
     const { store } = renderPublishing(

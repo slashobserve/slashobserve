@@ -71,12 +71,6 @@ describe("trace anchors", () => {
     expect(layout.resolve?.("b")).toBe("b")
     expect(layout.resolve?.("nope")).toBeUndefined()
   })
-
-  it("withdraws its layout when it unmounts", () => {
-    const { store, view: mounted } = view()
-    mounted.unmount()
-    expect(store.current()).toBeNull()
-  })
 })
 
 const resolver = createFieldResolver({

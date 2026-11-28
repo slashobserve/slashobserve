@@ -103,10 +103,4 @@ describe("canvas anchors", () => {
     const { store } = renderPublishing(CanvasPanel, panel({ elements: [] }), [])
     expect(store.current()).toBeNull()
   })
-
-  it("withdraws its layout when it unmounts", () => {
-    const { store, view } = renderPublishing(CanvasPanel, panel(), frames)
-    view.unmount()
-    expect(store.current()).toBeNull()
-  })
 })

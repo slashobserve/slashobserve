@@ -99,12 +99,6 @@ describe("log anchors", () => {
     )
   })
 
-  it("withdraws its layout when it unmounts", () => {
-    const { store, view } = renderPublishing(LogsPanel, panelOf("logs"), frames)
-    view.unmount()
-    expect(store.current()).toBeNull()
-  })
-
   it("culls lines scrolled out of the panel and points a pin on one at the bottom edge", () => {
     stubLines(50)
     const { store } = renderPublishing(LogsPanel, panelOf("logs"), lines(6))

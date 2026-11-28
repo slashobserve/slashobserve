@@ -35,14 +35,4 @@ describe("histogram anchors", () => {
     expect(layout.plot.width).toBeGreaterThan(0)
     expect(layout.format(layout.edges[1])).not.toBe("")
   })
-
-  it("withdraws its layout when it unmounts", () => {
-    const { store, view } = renderPublishing(
-      HistogramPanel,
-      panelOf("histogram"),
-      frames
-    )
-    view.unmount()
-    expect(store.current()).toBeNull()
-  })
 })

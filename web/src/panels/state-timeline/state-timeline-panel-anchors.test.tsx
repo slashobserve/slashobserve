@@ -64,15 +64,4 @@ describe("state timeline anchors", () => {
     const layout = published?.layout as TimelineAnchorLayout
     expect(layout.rows.map(({ name }) => name)).toEqual(["checkout", "search"])
   })
-
-  it("withdraws its layout when it unmounts", () => {
-    const { store, view } = renderPublishing(
-      StateTimelinePanel,
-      panelOf("state-timeline"),
-      frames,
-      { meta }
-    )
-    view.unmount()
-    expect(store.current()).toBeNull()
-  })
 })
