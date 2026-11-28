@@ -79,17 +79,22 @@ func TestTheMCPToolsAreReadsOfInvestigationsAndChatQuestionsForEveryRole(t *test
 }
 
 func TestABuildRunRefusesTheMCPToolsEvenIfAskedDirectly(t *testing.T) {
-	f := &fakeMCPSources{}
-	r := contextRegistry(t, f)
-	for _, mode := range []Mode{ModeCreate, ModeRevise, ModeSuggest} {
-		ctx := WithRun(contextViewer(), Run{Mode: mode, RequestID: dashA})
-		res, err := r.Call(ctx, nameCallMCPTool, []byte(`{"source":"code","tool":"search"}`))
-		if err != nil || !res.IsError || !strings.Contains(content(t, res), codeNotInThisRun) {
-			t.Fatalf("%s: res = %+v err = %v", mode, res, err)
+	for _, call := range []struct{ tool, input string }{
+		{nameCallMCPTool, `{"source":"code","tool":"search"}`},
+		{nameFindMCPTools, `{"query":"pods"}`},
+	} {
+		f := &fakeMCPSources{}
+		r := contextRegistry(t, f)
+		for _, mode := range []Mode{ModeCreate, ModeRevise, ModeSuggest} {
+			ctx := WithRun(contextViewer(), Run{Mode: mode, RequestID: dashA})
+			res, err := r.Call(ctx, call.tool, []byte(call.input))
+			if err != nil || !res.IsError || !strings.Contains(content(t, res), codeNotInThisRun) {
+				t.Fatalf("%s in %s: res = %+v err = %v", call.tool, mode, res, err)
+			}
 		}
-	}
-	if len(f.calls) != 0 {
-		t.Fatalf("the source desk was reached from a build run: %v", f.calls)
+		if len(f.calls) != 0 || len(f.finds) != 0 {
+			t.Fatalf("%s reached the source desk from a build run: %v %v", call.tool, f.calls, f.finds)
+		}
 	}
 }
 
@@ -540,19 +545,6 @@ func TestFindingMCPToolsAnswersRefusalsAsToolErrors(t *testing.T) {
 	_, err := contextRegistry(t, &fakeMCPSources{err: context.Canceled}).Call(contextViewer(), nameFindMCPTools, []byte(`{"query":"pods"}`))
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("err = %v", err)
-	}
-}
-
-func TestABuildRunRefusesFindingMCPToolsEvenIfAskedDirectly(t *testing.T) {
-	f := &fakeMCPSources{}
-	for _, mode := range []Mode{ModeCreate, ModeRevise, ModeSuggest} {
-		res, err := contextRegistry(t, f).Call(WithRun(contextViewer(), Run{Mode: mode, RequestID: dashA}), nameFindMCPTools, []byte(`{"query":"pods"}`))
-		if err != nil || !res.IsError || !strings.Contains(content(t, res), codeNotInThisRun) {
-			t.Fatalf("%s: res = %+v err = %v", mode, res, err)
-		}
-	}
-	if len(f.finds) != 0 {
-		t.Fatalf("the desk was reached from a build run: %v", f.finds)
 	}
 }
 
