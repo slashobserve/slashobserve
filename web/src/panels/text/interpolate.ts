@@ -22,7 +22,7 @@ const htmlEntities: Record<string, string> = {
 }
 
 function escapeHtml(value: string): string {
-  return value.replace(htmlSpecials, (char) => htmlEntities[char])
+  return value.replace(htmlSpecials, (char) => htmlEntities[char] ?? char)
 }
 
 function escapeMarkdown(value: string): string {
@@ -50,9 +50,10 @@ export function interpolateText(
     variableToken,
     (written, braced: string | undefined, bare: string | undefined) => {
       const name = braced ?? bare ?? ""
-      if (!Object.hasOwn(vars, name)) return written
-      if (vars[name].includes(ALL)) return allLabel
-      return vars[name].map(escape).join(", ")
+      const values = Object.hasOwn(vars, name) ? vars[name] : undefined
+      if (values === undefined) return written
+      if (values.includes(ALL)) return allLabel
+      return values.map(escape).join(", ")
     }
   )
 }
