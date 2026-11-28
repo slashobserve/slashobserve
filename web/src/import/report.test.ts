@@ -12,6 +12,7 @@ import {
   visibleDatasources,
   type ImportReport,
 } from "./report"
+import { must } from "@/test/must"
 
 function panel(
   id: string,
@@ -144,13 +145,13 @@ describe("filterLines", () => {
   })
 
   it("gives a plain panel no reason line", () => {
-    const line = filterLines(report, "all")[0]
+    const line = must(filterLines(report, "all")[0])
     expect(line.reasons).toEqual([])
     expect(line.paths).toBe("")
   })
 
   it("uses the source type for placeholders and drops a missing row", () => {
-    const [line] = filterLines(report, "placeholder")
+    const line = must(filterLines(report, "placeholder")[0])
     expect(line.subtitle).toBe("barchart")
   })
 

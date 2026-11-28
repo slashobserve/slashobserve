@@ -76,8 +76,8 @@ export function useImportDashboard() {
     }: {
       source: Source
       mapping: Mapping
-      folder?: string
-      update?: string
+      folder?: string | undefined
+      update?: string | undefined
     }): Promise<ImportedDashboard> => {
       const result = await api.POST("/imports", {
         body: requestBody(source, mapping, folder, update),
@@ -117,7 +117,7 @@ export function useCreateDashboardFromSpec() {
       folderId,
     }: {
       spec: Record<string, unknown>
-      folderId?: string
+      folderId?: string | undefined
     }): Promise<CreatedDashboard> =>
       unwrap(
         await api.POST("/dashboards", {

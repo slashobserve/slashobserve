@@ -27,7 +27,7 @@ export function repairsQuery(folderId: string | null) {
           params: {
             query: {
               limit: pageSize,
-              cursor: pageParam,
+              ...(pageParam === undefined ? {} : { cursor: pageParam }),
               ...(folderId === null ? {} : { folder_id: folderId }),
             },
           },

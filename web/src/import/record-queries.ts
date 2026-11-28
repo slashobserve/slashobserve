@@ -11,7 +11,11 @@ export function myImportsQuery() {
       api
         .GET("/imports", {
           params: {
-            query: { made_by: "me", limit: 20, cursor: pageParam },
+            query: {
+              made_by: "me",
+              limit: 20,
+              ...(pageParam === undefined ? {} : { cursor: pageParam }),
+            },
           },
           signal,
         })
