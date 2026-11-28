@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest"
 
 import { inlineAssets } from "../../scripts/build-panel-app.mjs"
+import { must } from "@/test/must"
 
 const files: Record<string, string> = {
   "/assets/a.css": "body{color:red}/* </style> */",
   "/assets/a.js": 'const x = "</script>"; export {}',
 }
-const read = (href: string) => files[href]
+const read = (href: string) => must(files[href])
 
 const page =
   '<!doctype html><html><head><link rel="stylesheet" crossorigin href="/assets/a.css"><script type="module" crossorigin src="/assets/a.js"></script></head><body><div id="root"></div></body></html>'
@@ -27,7 +28,7 @@ describe("inlineAssets", () => {
       "/assets/a.css": "a{}/* </STYLE> */",
       "/assets/a.js": 'const x = "</Script ><!--</SCRIPT>"; export {}',
     }
-    const html = inlineAssets(page, (href) => hostile[href])
+    const html = inlineAssets(page, (href) => must(hostile[href]))
     expect(html.match(/<\/script/gi)).toHaveLength(1)
     expect(html.match(/<\/style/gi)).toHaveLength(1)
     expect(html.match(/<!--/g)).toBeNull()
