@@ -40,7 +40,7 @@ function copyValue(value: unknown): unknown {
 }
 
 function displayDefaultsFor(type: string): Record<string, unknown> {
-  return Object.hasOwn(displayTable, type) ? displayTable[type] : {}
+  return (Object.hasOwn(displayTable, type) ? displayTable[type] : {}) ?? {}
 }
 
 export function displayWithDefaults(

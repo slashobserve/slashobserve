@@ -15,8 +15,9 @@ export function resolveDatasourceRef(
   const name = datasourceVariableName(ref)
   if (name === undefined) return ref
   const selected = Object.hasOwn(selections, name) ? selections[name] : []
-  return selected.length === 1 && selected[0] !== allSelection
-    ? selected[0]
+  const [only, ...rest] = selected ?? []
+  return only !== undefined && rest.length === 0 && only !== allSelection
+    ? only
     : undefined
 }
 

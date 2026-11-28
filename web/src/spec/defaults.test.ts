@@ -271,7 +271,7 @@ describe("spec defaults", () => {
       range: { min: number; tags: { id: number }[] }
     }
     first.range.min = 5
-    first.range.tags[0].id = 9
+    first.range.tags[0]!.id = 9
     expect(mod.displayWithDefaults("timeseries", {})).toEqual({
       range: { min: 0, tags: [{ id: 1 }] },
     })
