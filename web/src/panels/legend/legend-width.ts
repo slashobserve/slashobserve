@@ -57,7 +57,7 @@ export function legendValueWidths(
       Math.max(
         measure(header, 500),
         widest(
-          cells.map((row) => row[column]),
+          cells.map((row) => row[column] ?? ""),
           400,
           measure
         )

@@ -7,7 +7,7 @@ export type LegendMode = "list" | "table"
 export type LegendOptions = {
   mode: LegendMode
   values: AnyReducer[]
-  sortBy?: "name" | Reducer
+  sortBy?: "name" | Reducer | undefined
   sortDesc: boolean
   hideZero: boolean
   hideEmpty: boolean
@@ -28,7 +28,8 @@ const minPrefix = 4
 export type NameRoom = { px: number; measure: (text: string) => number }
 
 function sharedPrefixCut(labels: readonly string[]): number {
-  let common = labels[0]
+  let [common] = labels
+  if (common === undefined) return 0
   for (const label of labels) {
     let at = 0
     while (
@@ -41,7 +42,7 @@ function sharedPrefixCut(labels: readonly string[]): number {
     common = common.slice(0, at)
   }
   let cut = common.length
-  while (cut > 0 && !boundary.test(common[cut - 1])) cut--
+  while (cut > 0 && !boundary.test(common.charAt(cut - 1))) cut--
   if (cut < minPrefix || labels.some((label) => label.length <= cut)) return 0
   return cut
 }

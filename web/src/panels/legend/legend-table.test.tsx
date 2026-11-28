@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, within } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
+import { must } from "@/panels/must"
+
 import type { LegendItem } from "./legend"
 import { LegendTable } from "./legend-table"
 
@@ -106,7 +108,7 @@ describe("LegendTable", () => {
     expect(group.style.height).toBe(`${3 * 20 + 6}px`)
     expect(screen.queryByText(/series, scroll for all/)).toBeNull()
     const many = Array.from({ length: 12 }, (_, index) => ({
-      ...items[0],
+      ...must(items[0]),
       key: `pod-${index}`,
       label: `pod-${index}`,
     }))
