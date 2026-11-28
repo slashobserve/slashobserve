@@ -150,7 +150,7 @@ jobs:
           version: 0.11.19
 
       - name: Web and agent lint, script and benchmark adapter tests
-        run: make -j4 --output-sync=target lint-web lint-agent test-agent test-scripts test-benchmarks
+        run: make -j4 --output-sync=target lint-web lint-harness test-harness test-scripts test-benchmarks
 
   web-test:
     name: web-test (${{ matrix.shard }}/2)
