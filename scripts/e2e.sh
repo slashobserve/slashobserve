@@ -320,6 +320,12 @@ warm_pending() {
   [[ "$state" == pending && "$stamp" =~ ^[0-9]+$ ]] && kill -0 "$stamp" 2>/dev/null
 }
 
+warm_ready() {
+  local state stamp
+  read -r state stamp <<<"$(warm_state)"
+  [[ "$state" == ready ]]
+}
+
 take_warm() {
   local state stamp running="" server=""
   read -r state stamp <<<"$(warm_state)"
@@ -440,7 +446,7 @@ acquire_lock() {
     if warm_pending; then
       ((waited++ < WARM_WAIT)) || break
     else
-      lock_owner_exited && ((orphaned++ < ORPHANED_LOCK_WAIT)) || break
+      { lock_owner_exited || warm_ready; } && ((orphaned++ < ORPHANED_LOCK_WAIT)) || break
     fi
     sleep 1
   done
