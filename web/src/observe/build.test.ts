@@ -21,6 +21,7 @@ import {
 } from "./build"
 import type { ObserveRequest } from "./queries"
 import type { OriginFields } from "./request-origin"
+import { must } from "@/test/must"
 
 function progress(overrides: Partial<BuildProgress> = {}): BuildProgress {
   return {
@@ -378,7 +379,7 @@ async function clientWithRequest(answers: (() => Promise<RequestState>)[]) {
     defaultOptions: { queries: { retry: false } },
   })
   let calls = 0
-  const queryFn = () => answers[Math.min(calls++, answers.length - 1)]()
+  const queryFn = () => must(answers[Math.min(calls++, answers.length - 1)])()
   await client.fetchQuery({ queryKey: observeKeys.request("r1"), queryFn })
   return { client, requestCalls: () => calls }
 }

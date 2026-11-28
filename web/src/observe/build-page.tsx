@@ -68,7 +68,7 @@ function BuildGrid({
     variables,
     from: spec.time.from,
     to: spec.time.to,
-    timezone: spec.timezone,
+    ...(spec.timezone === undefined ? {} : { timezone: spec.timezone }),
     urlVars: noUrlVars,
   })
   const mixedDatasources = useMemo(

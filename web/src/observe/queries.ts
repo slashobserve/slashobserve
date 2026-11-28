@@ -155,16 +155,28 @@ function myRequestsQuery(filters: ChatListFilters, limit: number) {
         .GET("/observe", {
           params: {
             query: {
-              q: filters.q,
-              pinned: filters.pinned,
-              dashboard_id: filters.dashboardId,
-              observation_id: filters.observationId,
-              chat_id: filters.chatId,
-              scope: filters.scope,
-              state: filters.states,
-              anchored: filters.anchored,
+              ...(filters.q === undefined ? {} : { q: filters.q }),
+              ...(filters.pinned === undefined
+                ? {}
+                : { pinned: filters.pinned }),
+              ...(filters.dashboardId === undefined
+                ? {}
+                : { dashboard_id: filters.dashboardId }),
+              ...(filters.observationId === undefined
+                ? {}
+                : { observation_id: filters.observationId }),
+              ...(filters.chatId === undefined
+                ? {}
+                : { chat_id: filters.chatId }),
+              ...(filters.scope === undefined ? {} : { scope: filters.scope }),
+              ...(filters.states === undefined
+                ? {}
+                : { state: filters.states }),
+              ...(filters.anchored === undefined
+                ? {}
+                : { anchored: filters.anchored }),
               limit,
-              cursor: pageParam,
+              ...(pageParam === undefined ? {} : { cursor: pageParam }),
             },
           },
           signal,

@@ -6,6 +6,7 @@ import {
   timelinePhases,
   type Step,
 } from "./request-model"
+import { must } from "@/test/must"
 
 function step(overrides: Partial<Step>): Step {
   return {
@@ -54,11 +55,13 @@ describe("timelinePhases", () => {
   })
 
   it("counts tools in first-seen order", () => {
-    const [run] = timelinePhases([
-      step({ phase: "discover", tool: "list_metrics" }),
-      step({ phase: "discover", tool: "get_schema" }),
-      step({ phase: "discover", tool: "list_metrics" }),
-    ])
+    const run = must(
+      timelinePhases([
+        step({ phase: "discover", tool: "list_metrics" }),
+        step({ phase: "discover", tool: "get_schema" }),
+        step({ phase: "discover", tool: "list_metrics" }),
+      ])[0]
+    )
     expect(run.tools).toEqual([
       { tool: "list_metrics", count: 2 },
       { tool: "get_schema", count: 1 },
@@ -66,11 +69,13 @@ describe("timelinePhases", () => {
   })
 
   it("counts errors and sums durations", () => {
-    const [run] = timelinePhases([
-      step({ status: "error", duration_ms: 120 }),
-      step({ status: "ok", duration_ms: 30 }),
-      step({ status: "error", duration_ms: 50 }),
-    ])
+    const run = must(
+      timelinePhases([
+        step({ status: "error", duration_ms: 120 }),
+        step({ status: "ok", duration_ms: 30 }),
+        step({ status: "error", duration_ms: 50 }),
+      ])[0]
+    )
     expect(run.errors).toBe(2)
     expect(run.durationMs).toBe(200)
   })

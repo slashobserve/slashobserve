@@ -32,7 +32,7 @@ export type TimelinePhase = {
 
 function continuesRun(run: TimelinePhase | undefined, step: Step): boolean {
   if (run === undefined || step.phase === "repair") return false
-  return run.phase === step.phase && run.steps[0].attempt === step.attempt
+  return run.phase === step.phase && run.steps[0]?.attempt === step.attempt
 }
 
 export function timelinePhases(steps: readonly Step[]): TimelinePhase[] {
