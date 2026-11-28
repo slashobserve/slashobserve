@@ -155,8 +155,8 @@ export function errorAncestors(spans: readonly Span[]): Set<string> {
 
 function withChildrenMarked(spans: Span[]): Span[] {
   return spans.map((span, index) => {
-    const hasChildren =
-      index + 1 < spans.length && spans[index + 1].depth > span.depth
+    const next = spans[index + 1]
+    const hasChildren = next !== undefined && next.depth > span.depth
     return hasChildren === span.hasChildren ? span : { ...span, hasChildren }
   })
 }

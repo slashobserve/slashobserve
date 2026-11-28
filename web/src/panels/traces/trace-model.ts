@@ -73,18 +73,18 @@ export type RowWindow = {
 }
 
 type Columns = {
-  traceId?: PreparedField
+  traceId?: PreparedField | undefined
   spanId: PreparedField
-  parentId?: PreparedField
-  operation?: PreparedField
-  service?: PreparedField
+  parentId?: PreparedField | undefined
+  operation?: PreparedField | undefined
+  service?: PreparedField | undefined
   start: PreparedField
-  duration?: PreparedField
-  status?: PreparedField
-  statusMessage?: PreparedField
-  kind?: PreparedField
-  events?: PreparedField
-  links?: PreparedField
+  duration?: PreparedField | undefined
+  status?: PreparedField | undefined
+  statusMessage?: PreparedField | undefined
+  kind?: PreparedField | undefined
+  events?: PreparedField | undefined
+  links?: PreparedField | undefined
   attributes: { field: PreparedField; source: AttributeSource }[]
 }
 
@@ -321,7 +321,8 @@ function treeOrder(rows: SpanRow[]) {
       ordered.push({ ...item, parentId: parentOf(item.row) })
       const below = children.get(item.row.id) ?? []
       for (let index = below.length - 1; index >= 0; index--) {
-        stack.push({ row: below[index], depth: item.depth + 1 })
+        const row = below[index]
+        if (row !== undefined) stack.push({ row, depth: item.depth + 1 })
       }
     }
   }
@@ -353,8 +354,13 @@ export function traceModel(
     Math.max(options.traceIndex ?? 0, 0),
     traces.size - 1
   )
-  const [traceId, all] = [...traces.entries()][traceIndex]
-  const { frame, columns } = located[0]
+  const picked = [...traces.entries()][traceIndex]
+  const source = located[0]
+  if (picked === undefined || source === undefined) {
+    return { reason: missingColumnsReason }
+  }
+  const [traceId, all] = picked
+  const { frame, columns } = source
 
   const notes: string[] = []
   const byStart = [...all].sort((a, b) => a.start - b.start)
@@ -393,6 +399,9 @@ export function traceModel(
     links: row.links,
   }))
 
+  const root = spans[0]
+  if (root === undefined) return { reason: missingColumnsReason }
+
   const durationConfig = {
     ...fields.configFor(frame, columns.duration ?? columns.start),
     unit: "ms",
@@ -402,8 +411,8 @@ export function traceModel(
     traceId,
     traceCount: traces.size,
     traceIndex,
-    rootService: spans[0].service,
-    rootOperation: spans[0].operation,
+    rootService: root.service,
+    rootOperation: root.operation,
     start: traceStart,
     duration: total,
     spans,

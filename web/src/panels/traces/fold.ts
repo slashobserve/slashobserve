@@ -55,8 +55,8 @@ export function foldGroups(
   }
   const groups = new Map<string, FoldGroup>()
   for (const [id, list] of members) {
-    if (list.length <= threshold) continue
     const first = list[0]
+    if (list.length <= threshold || first === undefined) continue
     let totalMs = 0
     let slowestMs = 0
     let errors = 0
@@ -104,9 +104,9 @@ export function foldedRows(
   const indexOf = new Map<string, number>()
   spans.forEach((span, index) => indexOf.set(span.id, index))
   const subtreeEnd = (index: number) => {
-    const depth = spans[index].depth
+    const depth = spans[index]?.depth ?? Infinity
     let end = index + 1
-    while (end < spans.length && spans[end].depth > depth) end += 1
+    while ((spans[end]?.depth ?? -Infinity) > depth) end += 1
     return end
   }
   const rows: Row[] = []
@@ -116,6 +116,7 @@ export function foldedRows(
     let index = from
     while (index < to) {
       const span = spans[index]
+      if (span === undefined) break
       if (span.depth > hiddenBelow) {
         index += 1
         continue

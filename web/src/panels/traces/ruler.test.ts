@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest"
 
 import { niceTicks, tickAnchor, tickLimit } from "./ruler"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 describe("niceTicks", () => {
   it("steps a round duration in quarters", () => {
     expect(niceTicks(1000)).toEqual([0, 250, 500, 750, 1000])
@@ -25,7 +31,7 @@ describe("niceTicks", () => {
       expect(ticks.length).toBeGreaterThanOrEqual(4)
       expect(ticks.length).toBeLessThanOrEqual(6)
       expect(ticks.at(-1)!).toBeLessThanOrEqual(duration)
-      const step = ticks[1] / 10 ** Math.floor(Math.log10(ticks[1]))
+      const step = nth(ticks, 1) / 10 ** Math.floor(Math.log10(nth(ticks, 1)))
       expect([1, 2, 2.5, 5]).toContainEqual(Number(step.toFixed(6)))
     }
   })
