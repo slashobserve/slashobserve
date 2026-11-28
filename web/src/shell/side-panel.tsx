@@ -19,13 +19,13 @@ export const PanelHostContext = createContext<HTMLElement | null>(null)
 type Props = {
   title: string
   panelKey?: string
-  description?: string
+  description?: string | undefined
   onClose: () => void
   closeDisabled?: boolean
   hidden?: boolean
   footer?: ReactNode
   initialFocus?: RefObject<HTMLElement | null>
-  trigger?: RefObject<HTMLElement | null>
+  trigger?: RefObject<HTMLElement | null> | undefined
   titleRef?: RefObject<HTMLHeadingElement | null>
   children: ReactNode
 }

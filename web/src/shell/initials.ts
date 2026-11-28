@@ -6,9 +6,10 @@ function words(value: string): string[] {
 }
 
 function fromWords(parts: string[]): string {
-  if (parts.length >= 2) return parts[0][0] + parts[1][0]
-  if (parts.length === 1) return parts[0].slice(0, 2)
-  return ""
+  const [first, second] = parts
+  if (first === undefined) return ""
+  if (second !== undefined) return first.charAt(0) + second.charAt(0)
+  return first.slice(0, 2)
 }
 
 export function initials(name: string, email = ""): string {

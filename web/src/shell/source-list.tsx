@@ -26,7 +26,7 @@ export function SourceList({
   more: boolean
   pending?: boolean
   currentId: string | null
-  onNavigate?: () => void
+  onNavigate?: (() => void) | undefined
 }) {
   const { word, sources: label, path } = exploreText[kind]
   const reserved = useReservedRows(kind, pending, shown.length + (more ? 1 : 0))
