@@ -8,6 +8,7 @@ import { AuditLog } from "./audit-log"
 import type { AuditView } from "./search"
 import { type AuditEvent, liveRowLimit } from "./stream"
 import { FakeStream, refusedStream } from "./stream-fake"
+import { must } from "@/test/must"
 
 const fetchMock = vi.hoisted(() => vi.fn())
 const toastSuccess = vi.hoisted(() => vi.fn())
@@ -15,7 +16,7 @@ const toastSuccess = vi.hoisted(() => vi.fn())
 vi.mock("sonner", () => ({ toast: { success: toastSuccess } }))
 
 let liveStream: FakeStream | null = null
-let streamRequests: { url: string; init?: RequestInit }[] = []
+let streamRequests: { url: string; init?: RequestInit | undefined }[] = []
 
 function auditEvent(id: string, fields: Partial<AuditEvent> = {}): AuditEvent {
   return {
@@ -228,7 +229,7 @@ describe("AuditLog", () => {
       expect.stringContaining("dashboard.delete"),
       expect.stringContaining("Zoë"),
     ])
-    expect(within(rows[1]).getByText("Denied")).toBeInTheDocument()
+    expect(within(must(rows[1])).getByText("Denied")).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Load older events" }))
     expect(await within(table).findByText("auth.login")).toBeInTheDocument()
     const first = fetchMock.mock.calls
@@ -407,7 +408,9 @@ describe("AuditLog", () => {
     await user.click(screen.getByRole("switch"))
     await waitFor(() => expect(liveStream).not.toBe(null))
     const stream = liveStream as unknown as FakeStream
-    expect(streamRequests[0].url).toBe("/api/v1/audit/stream?q=origin%3Amcp")
+    expect(must(streamRequests[0]).url).toBe(
+      "/api/v1/audit/stream?q=origin%3Amcp"
+    )
     act(() => {
       stream.frame("ready", {})
       stream.frame("audit", auditEvent("e9", { action: "auth.login" }), "x-1")
@@ -437,7 +440,7 @@ describe("AuditLog", () => {
       )
     ).toBeInTheDocument()
     expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "false")
-    expect(streamRequests[0].init?.signal?.aborted).toBe(true)
+    expect(must(streamRequests[0]).init?.signal?.aborted).toBe(true)
   })
 
   it("reloads the list up to now when Live turns on", async () => {
@@ -445,11 +448,13 @@ describe("AuditLog", () => {
     const advance = shiftClock()
     const { user } = renderPage()
     await screen.findByText("No audit events in the last 24 hours.")
-    const opened = untilOf(listRequests()[0])
+    const opened = untilOf(must(listRequests()[0]))
     advance(hour)
     await user.click(screen.getByRole("switch"))
     await waitFor(() => expect(listRequests()).toHaveLength(2))
-    expect(untilOf(listRequests()[1]) - opened).toBeGreaterThanOrEqual(hour)
+    expect(untilOf(must(listRequests()[1])) - opened).toBeGreaterThanOrEqual(
+      hour
+    )
   })
 
   it("reloads the list up to now when the view changes from outside", async () => {
@@ -459,11 +464,11 @@ describe("AuditLog", () => {
       route: { path: "/", url: "/" },
     })
     await screen.findByText("No audit events in the last 24 hours.")
-    const opened = untilOf(listRequests()[0])
+    const opened = untilOf(must(listRequests()[0]))
     advance(hour)
     act(() => outside.setView({ ...defaults, q: "origin:mcp" }))
     await waitFor(() => expect(listRequests()).toHaveLength(2))
-    const [, back] = listRequests()
+    const back = must(listRequests()[1])
     expect(back.searchParams.get("q")).toBe("origin:mcp")
     expect(untilOf(back) - opened).toBeGreaterThanOrEqual(hour)
   })
@@ -522,7 +527,7 @@ describe("AuditLog", () => {
       expect(toastSuccess).toHaveBeenCalledWith(
         "Download started: the audit log as CSV."
       )
-      const url = new URL(clicked[0])
+      const url = new URL(must(clicked[0]))
       expect(url.pathname).toBe("/api/v1/audit/export")
       expect(url.searchParams.get("q")).toBe("origin:mcp")
       expect(url.searchParams.get("format")).toBe("csv")

@@ -5,8 +5,9 @@ import { auditDatasourceUid } from "./audit-source"
 import type { AuditView } from "./search"
 
 export function auditInLogsLink(view: Pick<AuditView, "q" | "from" | "to">) {
+  const q = validQuery(view.q)
   return logsLink(auditDatasourceUid, {
-    q: validQuery(view.q),
+    ...(q === undefined ? {} : { q }),
     from: view.from,
     to: view.to,
   })

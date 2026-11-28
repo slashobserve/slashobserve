@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { renderWithProviders } from "@/test/render"
 
 import { AuditHistogram } from "./audit-histogram"
+import { must } from "@/test/must"
 
 const fetchMock = vi.hoisted(() => vi.fn())
 
@@ -65,7 +66,7 @@ beforeEach(() => {
 describe("AuditHistogram", () => {
   it("shows the bucket start and count while a bar has focus", async () => {
     render()
-    const bar = (await screen.findAllByRole("button"))[1]
+    const bar = must((await screen.findAllByRole("button"))[1])
     bar.focus()
     const tip = await screen.findByRole("tooltip")
     expect(tip).toHaveTextContent("1 event")
@@ -74,7 +75,7 @@ describe("AuditHistogram", () => {
 
   it("sets the range to a bar with Enter", async () => {
     const { onRange } = render()
-    const bar = (await screen.findAllByRole("button"))[3]
+    const bar = must((await screen.findAllByRole("button"))[3])
     bar.focus()
     fireEvent.keyDown(bar, { key: "Enter" })
     expect(onRange).toHaveBeenCalledWith({
@@ -86,10 +87,10 @@ describe("AuditHistogram", () => {
   it("sets the range to a span with Shift and the arrow keys", async () => {
     const { onRange } = render()
     const bars = await screen.findAllByRole("button")
-    bars[0].focus()
-    fireEvent.keyDown(bars[0], { key: "ArrowRight", shiftKey: true })
-    fireEvent.keyDown(bars[1], { key: "ArrowRight", shiftKey: true })
-    fireEvent.keyDown(bars[2], { key: "Enter" })
+    must(bars[0]).focus()
+    fireEvent.keyDown(must(bars[0]), { key: "ArrowRight", shiftKey: true })
+    fireEvent.keyDown(must(bars[1]), { key: "ArrowRight", shiftKey: true })
+    fireEvent.keyDown(must(bars[2]), { key: "Enter" })
     expect(onRange).toHaveBeenCalledWith({
       from: "2026-11-21T05:00:00.000Z",
       to: "2026-11-21T06:30:00.000Z",
@@ -99,7 +100,7 @@ describe("AuditHistogram", () => {
   it("sets the range to the bar that was clicked", async () => {
     stubGeometry()
     const { onRange } = render()
-    const group = (await screen.findAllByRole("button"))[0].parentElement!
+    const group = must((await screen.findAllByRole("button"))[0]).parentElement!
     fireEvent.pointerDown(group, { clientX: 150, pointerId: 1, button: 0 })
     fireEvent.pointerUp(group, { clientX: 150, pointerId: 1, button: 0 })
     expect(onRange).toHaveBeenCalledWith({
@@ -111,7 +112,7 @@ describe("AuditHistogram", () => {
   it("sets the range to the bars that were dragged across", async () => {
     stubGeometry()
     const { onRange } = render()
-    const group = (await screen.findAllByRole("button"))[0].parentElement!
+    const group = must((await screen.findAllByRole("button"))[0]).parentElement!
     fireEvent.pointerDown(group, { clientX: 50, pointerId: 1, button: 0 })
     fireEvent.pointerMove(group, { clientX: 250, pointerId: 1 })
     fireEvent.pointerUp(group, { clientX: 250, pointerId: 1, button: 0 })

@@ -9,8 +9,8 @@ export function neighborsOf(
   const index = ids.indexOf(selected)
   if (index < 0) return { previous: null, next: null }
   return {
-    previous: index > 0 ? ids[index - 1] : null,
-    next: index < ids.length - 1 ? ids[index + 1] : null,
+    previous: ids[index - 1] ?? null,
+    next: ids[index + 1] ?? null,
   }
 }
 

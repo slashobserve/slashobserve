@@ -78,9 +78,8 @@ export function termState(
   const source = readKql(text)
   if (source === null) return null
   const [first] = foundAt(source.clauses, field, value)
-  return first === undefined
-    ? null
-    : stateAt(source.clauses[first], field, value)
+  const clause = first === undefined ? undefined : source.clauses[first]
+  return clause === undefined ? null : stateAt(clause, field, value)
 }
 
 function termText(field: string, value: string, exclude: boolean): string {
@@ -97,11 +96,15 @@ function appended(body: string, clause: string): string {
 
 function withoutClause(body: string, clauses: KqlClause[], index: number) {
   const clause = clauses[index]
-  if (clauses.length === 1) return body.slice(0, clause.start)
-  if (index === 0) {
-    return body.slice(0, clause.start) + body.slice(clauses[1].start)
+  if (clause === undefined) return body
+  const previous = clauses[index - 1]
+  if (previous !== undefined) {
+    return body.slice(0, previous.end) + body.slice(clause.end)
   }
-  return body.slice(0, clauses[index - 1].end) + body.slice(clause.end)
+  const next = clauses[index + 1]
+  return next === undefined
+    ? body.slice(0, clause.start)
+    : body.slice(0, clause.start) + body.slice(next.start)
 }
 
 function replacingClause(body: string, clause: KqlClause, text: string) {
@@ -122,8 +125,8 @@ function removeCopies(
     const found = foundAt(clauses, field, value).filter(
       (index) => index !== kept
     )
-    if (found.length === 0) return current
-    const last = found[found.length - 1]
+    const last = found.at(-1)
+    if (last === undefined) return current
     current = withoutClause(current, clauses, last)
     if (last < kept) kept -= 1
   }
@@ -138,18 +141,18 @@ export function toggleTerm(
   const source = readKql(text)
   if (source === null) return null
   const { prefix, body, clauses } = source
-  const found = foundAt(clauses, field, value)
-  if (found.length === 0) {
+  const [first] = foundAt(clauses, field, value)
+  const clause = first === undefined ? undefined : clauses[first]
+  if (first === undefined || clause === undefined) {
     return prefix + appended(body, termText(field.name, value, exclude))
   }
-  const [first] = found
   const wanted: TermState = exclude ? "exclude" : "include"
-  if (stateAt(clauses[first], field, value) === wanted) {
+  if (stateAt(clause, field, value) === wanted) {
     return prefix + removeCopies(body, field, value, -1).trimEnd()
   }
   const flipped = replacingClause(
     body,
-    clauses[first],
+    clause,
     termText(field.name, value, exclude)
   )
   return prefix + removeCopies(flipped, field, value, first)
