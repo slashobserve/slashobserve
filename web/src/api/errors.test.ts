@@ -15,7 +15,10 @@ import {
 } from "./errors"
 
 function response(status: number, headers?: Record<string, string>) {
-  return new Response(null, { status, headers })
+  return new Response(null, {
+    status,
+    ...(headers === undefined ? {} : { headers }),
+  })
 }
 
 describe("toApiError", () => {
