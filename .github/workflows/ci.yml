@@ -97,7 +97,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [grafana, db, datasource, agent, rest-1, rest-2]
+        shard: [grafana, db, datasource, agent, rest-1, rest-2, rest-3, rest-4]
     env:
       TESTCONTAINERS_RYUK_DISABLED: "true"
     steps:
