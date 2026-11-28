@@ -41,8 +41,9 @@ const iecBitRate = iecBits.map((step) => `${step}/s`)
 const siByteRate = siBytes.map((step) => `${step}/s`)
 const siBitRate = siBits.map((step) => `${step}/s`)
 
+const nanosecondStep = { ns: 1, label: "ns" }
 const durationSteps = [
-  { ns: 1, label: "ns" },
+  nanosecondStep,
   { ns: 1e3, label: "µs" },
   { ns: 1e6, label: "ms" },
   { ns: 1e9, label: "s" },
@@ -77,7 +78,11 @@ function formatNumber(value: number, decimals?: number): string {
   return format.format(value)
 }
 
-type Placed = { amount: number; prefix?: string; suffix?: string }
+type Placed = {
+  amount: number
+  prefix?: string | undefined
+  suffix?: string | undefined
+}
 
 function placeScaled(
   value: number,
@@ -131,7 +136,7 @@ function placeDuration(value: number, unitNs: number): Placed {
     return { amount: 0, suffix: ` ${native?.label ?? "ns"}` }
   }
   const abs = Math.abs(ns)
-  const step = durationSteps.findLast((s) => abs >= s.ns) ?? durationSteps[0]
+  const step = durationSteps.findLast((s) => abs >= s.ns) ?? nanosecondStep
   return { amount: ns / step.ns, suffix: ` ${step.label}` }
 }
 

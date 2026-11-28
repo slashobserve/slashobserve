@@ -21,7 +21,7 @@ describe("timeTicks", () => {
     expect(ticks.length).toBeGreaterThan(1)
     expect(ticks.length).toBeLessThanOrEqual(7)
     for (const tick of ticks) {
-      expect(new Date(xs[tick.index]).getMinutes() % 10).toBe(0)
+      expect(new Date(xs[tick.index] ?? Number.NaN).getMinutes() % 10).toBe(0)
     }
   })
 

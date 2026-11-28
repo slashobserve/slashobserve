@@ -171,7 +171,7 @@ export function parseDate(
         parts.millis = value
         break
       default:
-        pm = raw.toLowerCase() === "pm"
+        pm = raw?.toLowerCase() === "pm"
     }
   })
   if (pm !== null) parts.hours = (parts.hours % 12) + (pm ? 12 : 0)

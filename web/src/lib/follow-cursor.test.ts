@@ -12,7 +12,9 @@ describe("followCursor", () => {
     }
     const items = await followCursor(async (cursor) => {
       seen.push(cursor)
-      return pages[cursor ?? "first"]
+      const page = pages[cursor ?? "first"]
+      if (page === undefined) throw new Error(`no page ${cursor}`)
+      return page
     })
     expect(items).toEqual([1, 2, 3, 4])
     expect(seen).toEqual([undefined, "b", "c"])

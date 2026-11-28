@@ -3,9 +3,9 @@ export type AddressRules = {
   https?: boolean
   noun?: "URL" | "address"
   empty?: string
-  maxBytes?: number
+  maxBytes?: number | undefined
   publicHost?: string
-  check?: (parsed: URL) => string | undefined
+  check?: ((parsed: URL) => string | undefined) | undefined
 }
 
 export function addressProblem(

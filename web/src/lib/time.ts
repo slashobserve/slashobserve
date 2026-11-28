@@ -39,7 +39,7 @@ type UserTime = { value: string } | { problem: "invalid" | "early" }
 function localTimeMs(text: string, zone: string | undefined): number | null {
   const match = localDateTime.exec(text)
   if (!match) return null
-  const [year, month, day, hour, minute, second] = match
+  const [year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0] = match
     .slice(1)
     .map((part) => (part === undefined ? 0 : Number(part)))
   const ms =
@@ -184,8 +184,8 @@ const unitNames: Record<TimeUnit, string> = {
 
 const maxRelativeCount = 2147483647
 
-function isTimeUnit(value: string): value is TimeUnit {
-  return Object.hasOwn(unitNames, value)
+function isTimeUnit(value: string | undefined): value is TimeUnit {
+  return value !== undefined && Object.hasOwn(unitNames, value)
 }
 
 function describeRelativeRange(from: string, to: string): string | null {
@@ -343,10 +343,10 @@ const nowDelayPattern = /^([1-9][0-9]{0,4})([smh])$/
 const maxResolvedYear = 9999
 
 export type TimeOptions = {
-  zone?: string
-  weekStart?: Dashboard["weekStart"]
-  fiscalYearStartMonth?: number
-  nowDelayMs?: number
+  zone?: string | undefined
+  weekStart?: Dashboard["weekStart"] | undefined
+  fiscalYearStartMonth?: number | undefined
+  nowDelayMs?: number | undefined
 }
 
 type TimeSettings = Pick<
@@ -514,8 +514,11 @@ function addMonthsClamped(ms: number, months: number, zone: string): number {
 }
 
 function advance(ms: number, count: number, unit: string, zone: string) {
-  if (Object.hasOwn(monthsPerUnit, unit)) {
-    return addMonthsClamped(ms, monthsPerUnit[unit] * count, zone)
+  const months = Object.hasOwn(monthsPerUnit, unit)
+    ? monthsPerUnit[unit]
+    : undefined
+  if (months !== undefined) {
+    return addMonthsClamped(ms, months * count, zone)
   }
   if (unit === "d" || unit === "w") {
     const local = localTime(ms, zone)
@@ -592,7 +595,7 @@ export function resolveTime(
   }
   const zone = options.zone ?? "UTC"
   let time = now - (options.nowDelayMs ?? 0)
-  if (match[2]) {
+  if (match[2] && match[3]) {
     const count = Number(match[2]) * (match[1] === "-" ? -1 : 1)
     time = advance(time, count, match[3], zone)
   }

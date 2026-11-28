@@ -11,9 +11,11 @@ export function useElementSize<T extends HTMLElement>() {
       setSize({ width: Math.floor(width), height: Math.floor(height) })
     const box = node.getBoundingClientRect()
     measure(box.width, box.height)
-    const observer = new ResizeObserver(([entry]) =>
-      measure(entry.contentRect.width, entry.contentRect.height)
-    )
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry !== undefined) {
+        measure(entry.contentRect.width, entry.contentRect.height)
+      }
+    })
     observer.observe(node)
     return () => observer.disconnect()
   }, [node])

@@ -41,14 +41,14 @@ export type PageState = {
   page: number
   pageSize: PageSize
   rows: number
-  total?: number
+  total?: number | undefined
   totalRelation: "eq" | "gte" | "unknown"
   hasNext: boolean
   hasPrev: boolean
   byOffset: boolean
-  window?: number
-  next?: string
-  prev?: string
+  window?: number | undefined
+  next?: string | undefined
+  prev?: string | undefined
 }
 
 function integerOf(value: unknown): number | undefined {
