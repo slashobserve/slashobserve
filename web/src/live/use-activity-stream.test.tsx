@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 
 import { useActivityStream } from "./use-activity-stream"
+import { must } from "@/test/must"
 
 type Listener = (event: Event) => void
 
@@ -65,7 +66,7 @@ it("closes the stream while the page sits in the back/forward cache and catches 
 
   act(() => window.dispatchEvent(pageTransition("pageshow", true)))
   expect(openSources()).toHaveLength(1)
-  act(() => openSources()[0].send("ready"))
+  act(() => must(openSources()[0]).send("ready"))
   expect(onGap).toHaveBeenCalledTimes(1)
 })
 
@@ -89,7 +90,7 @@ it("stops reconnecting when the server says the caller lost access, and catches 
       ({ enabled }) => useActivityStream({ enabled, onEvent: vi.fn(), onGap }),
       { initialProps: { enabled: true } }
     )
-    const source = openSources()[0]
+    const source = must(openSources()[0])
     act(() => source.send("ready"))
 
     act(() => source.send("closed", '{"reason":"access_lost"}'))
@@ -101,7 +102,7 @@ it("stops reconnecting when the server says the caller lost access, and catches 
 
     rerender({ enabled: false })
     rerender({ enabled: true })
-    act(() => openSources()[0].send("ready"))
+    act(() => must(openSources()[0]).send("ready"))
     expect(onGap).toHaveBeenCalledTimes(1)
   } finally {
     vi.useRealTimers()
@@ -114,7 +115,7 @@ it.each(["lifetime", "stopping", "check_failed", "read_failed"])(
     renderHook(() =>
       useActivityStream({ enabled: true, onEvent: vi.fn(), onGap: vi.fn() })
     )
-    const source = openSources()[0]
+    const source = must(openSources()[0])
     act(() => source.send("ready"))
 
     act(() => source.send("closed", JSON.stringify({ reason })))
