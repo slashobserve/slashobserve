@@ -36,7 +36,7 @@ export function draftQueryRequest(
     .POST("/datasources/{uid}/draft-query", {
       params: { path: { uid } },
       body: { question, from, to, signal },
-      signal: abortSignal,
+      ...(abortSignal === undefined ? {} : { signal: abortSignal }),
     })
     .then(unwrap)
     .then((draft) => ({
