@@ -15,6 +15,7 @@ import {
   starterCardNote,
   threadLabel,
 } from "./answer-card"
+import { must } from "@/test/must"
 
 vi.mock("@/findings/evidence-panel", () => ({
   EvidencePanel: ({ panel }: { panel: { title: string } }) => (
@@ -129,7 +130,7 @@ function stubFetch(body: unknown, status = 200) {
 }
 
 async function sent(fetch: ReturnType<typeof stubFetch>, call = 0) {
-  const request = fetch.mock.calls[call][0]
+  const request = must(fetch.mock.calls[call])[0]
   const raw = await request.clone().text()
   return {
     line: `${request.method} ${new URL(request.url).pathname}`,

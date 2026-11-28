@@ -71,8 +71,9 @@ const windowUnits: Record<string, string> = {
 function describeWindow(window: AnchorWindow): string {
   const match = /^now-([1-9][0-9]*)([smhdw])$/.exec(window.from)
   if (match && window.to === "now") {
-    const unit = windowUnits[match[2]]
-    return match[1] === "1" ? `last ${unit}` : `last ${match[1]} ${unit}s`
+    const [, count, letter = ""] = match
+    const unit = windowUnits[letter]
+    return count === "1" ? `last ${unit}` : `last ${count} ${unit}s`
   }
   return `${window.from} to ${window.to}`
 }
@@ -139,7 +140,10 @@ const idPrefix = 8
 
 function readableCells(labels: Record<string, string>): string {
   return sortedKeys(labels)
-    .map((key) => labels[key])
+    .flatMap((key) => {
+      const value = labels[key]
+      return value === undefined ? [] : [value]
+    })
     .filter((value) => value !== "" && value !== "Unset")
     .map((value) =>
       longId.test(value) ? `${value.slice(0, idPrefix)}\u2026` : value
@@ -170,11 +174,15 @@ function looksLikeQuery(name: string): boolean {
 function valueSeries(anchor: Anchor): Anchor {
   const names = anchor.series ? Object.keys(anchor.series) : []
   const [only] = names
-  return names.length === 1 &&
-    only === "name" &&
-    looksLikeQuery(anchor.series?.name ?? "")
-    ? { ...anchor, series: undefined }
-    : anchor
+  if (
+    names.length !== 1 ||
+    only !== "name" ||
+    !looksLikeQuery(anchor.series?.name ?? "")
+  )
+    return anchor
+  const withoutSeries = { ...anchor }
+  delete withoutSeries.series
+  return withoutSeries
 }
 
 function percent(value: number): string {

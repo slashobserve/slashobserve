@@ -21,9 +21,9 @@ export type Draft = {
   body: string
   clientId: string
   command?: PageCommand | null
-  target?: SpotTarget
-  replyToId?: string
-  range?: { from: string; to: string }
+  target?: SpotTarget | undefined
+  replyToId?: string | undefined
+  range?: { from: string; to: string } | undefined
   toChosen?: boolean
 }
 

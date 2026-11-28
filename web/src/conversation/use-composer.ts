@@ -96,16 +96,16 @@ export type SentResult =
 export type ComposerInput = {
   subject: Subject | null
   place: Place
-  target?: SpotTarget
+  target?: SpotTarget | undefined
   gate: GateInput
   onSent: (sent: SentResult) => void | Promise<void>
   draft?: { value: string; onChange: (text: string) => void }
-  initialText?: string
-  people?: readonly MentionPerson[]
-  replyToId?: string
+  initialText?: string | undefined
+  people?: readonly MentionPerson[] | undefined
+  replyToId?: string | undefined
   range?: { from: string; to: string }
   timeZone?: string
-  runningRequestId?: string
+  runningRequestId?: string | undefined
 }
 
 export type Failure = { text: string; invalid: boolean }

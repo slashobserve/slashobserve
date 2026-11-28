@@ -18,6 +18,7 @@ import {
   useComposer,
   type SentResult,
 } from "./use-composer"
+import { must } from "@/test/must"
 
 const session = vi.hoisted(() => ({ role: "editor" }))
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
@@ -131,7 +132,7 @@ async function box() {
 }
 
 async function sentBody(fetch: ReturnType<typeof stubCreate>, call = 0) {
-  return (await fetch.mock.calls[call][0].clone().json()) as Record<
+  return (await must(fetch.mock.calls[call])[0].clone().json()) as Record<
     string,
     unknown
   >
@@ -176,7 +177,7 @@ describe("Composer in a chat", () => {
     const { user, onSent } = renderComposer()
     await user.type(await box(), "  checkout health  {Enter}")
     await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
-    expect(onSent.mock.calls[0][0]).toMatchObject({
+    expect(must(onSent.mock.calls[0])[0]).toMatchObject({
       via: "chat",
       opens: "chat",
     })
@@ -198,7 +199,7 @@ describe("Composer in a chat", () => {
     const first = await sentBody(fetch, 0)
     const second = await sentBody(fetch, 1)
     expect(first).toMatchObject({ chat_id: "c1", kind: "ask" })
-    expect(onSent.mock.calls[0][0]).toMatchObject({ opens: "same" })
+    expect(must(onSent.mock.calls[0])[0]).toMatchObject({ opens: "same" })
     expect(first.client_id).not.toBe(second.client_id)
   })
 
@@ -658,7 +659,7 @@ describe("client ids", () => {
     await user.type(field, "first, again{Enter}")
     await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
     expect(bodies).toHaveLength(2)
-    expect(bodies[1].client_id).toBe(bodies[0].client_id)
+    expect(must(bodies[1]).client_id).toBe(must(bodies[0]).client_id)
   })
 
   it("keeps the id across a lost answer and its one resend", async () => {
@@ -687,7 +688,7 @@ describe("client ids", () => {
     await user.type(field, "{Enter}")
     await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
     expect(bodies[2]).toMatchObject({ prompt: "edited" })
-    expect(bodies[2].client_id).not.toBe(bodies[0].client_id)
+    expect(must(bodies[2]).client_id).not.toBe(must(bodies[0]).client_id)
   })
 
   it("takes a fresh id in another chat", async () => {
@@ -699,7 +700,7 @@ describe("client ids", () => {
     await user.type(await box(), "{Enter}")
     await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
     expect(bodies[1]).toMatchObject({ chat_id: "another-chat" })
-    expect(bodies[1].client_id).not.toBe(bodies[0].client_id)
+    expect(must(bodies[1]).client_id).not.toBe(must(bodies[0]).client_id)
   })
 
   it("refetches the thread and keeps the edit when a reply replays the first body", async () => {
@@ -716,11 +717,11 @@ describe("client ids", () => {
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: ["threads", `dashboard:${dashboardId}`],
     })
-    expect(bodies[1].client_id).toBe(bodies[0].client_id)
+    expect(must(bodies[1]).client_id).toBe(must(bodies[0]).client_id)
     await user.type(field, "{Enter}")
     await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
     expect(bodies[2]).toMatchObject({ body: "edited" })
-    expect(bodies[2].client_id).not.toBe(bodies[0].client_id)
+    expect(must(bodies[2]).client_id).not.toBe(must(bodies[0]).client_id)
   })
 
   it("treats a replay of the same body as sent", async () => {

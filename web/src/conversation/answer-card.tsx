@@ -44,7 +44,7 @@ const threadLabelLength = 60
 type AnswerMenu = {
   shareTarget: string | null
   sharedThreadId: string | null
-  showToEveryone?: boolean
+  showToEveryone?: boolean | undefined
   subjectObservationId: string | null
 }
 
@@ -61,15 +61,17 @@ type Props = {
   finding: Finding
   requestId: string
   canSave: boolean
-  revise?: {
-    onRevise: () => Promise<RevisionAsked>
-    pending: boolean
-    blocked: string | null
-    note?: string
-    dashboardId: string
-  }
+  revise?:
+    | {
+        onRevise: () => Promise<RevisionAsked>
+        pending: boolean
+        blocked: string | null
+        note?: string | undefined
+        dashboardId: string
+      }
+    | undefined
   menu?: AnswerMenu
-  chatId?: string
+  chatId?: string | undefined
   actions?: ReactNode
 }
 

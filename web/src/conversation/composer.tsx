@@ -110,7 +110,7 @@ function DeliveryChips({
   showVisibility = true,
 }: {
   model: ComposerModel
-  showVisibility?: boolean
+  showVisibility?: boolean | undefined
 }) {
   const toAgent = model.delivery.to === "agent"
   const onlyMe = model.delivery.visibleTo === "me"
@@ -204,7 +204,7 @@ function Feedback({
 }: {
   model: ComposerModel
   errorId: string
-  runShown?: (runId: string) => boolean
+  runShown?: ((runId: string) => boolean) | undefined
 }) {
   const startedRun = model.started?.sent.run ?? null
   const startedShown = startedRun !== null && runShown?.(startedRun.id) === true
