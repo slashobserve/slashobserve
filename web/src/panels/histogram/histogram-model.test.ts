@@ -14,6 +14,12 @@ import {
   valueTicks,
 } from "./histogram-model"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
   return {
     id: "p1",
@@ -75,12 +81,12 @@ describe("histogramModel", () => {
     expect(model.edges[0]).toBe(0)
     expect(model.edges[1]).toBe(5)
     expect(model.edges[20]).toBe(100)
-    expect(model.series[0].counts).toHaveLength(20)
+    expect(nth(model.series, 0).counts).toHaveLength(20)
   })
 
   it("counts every value once, with the maximum in the last bucket", () => {
     const model = build([series("a", zeroToHundred)])
-    const { counts } = model.series[0]
+    const { counts } = nth(model.series, 0)
     expect(counts.reduce((sum, count) => sum + count, 0)).toBe(101)
     expect(model.total).toBe(101)
     expect(counts[0]).toBe(5)
@@ -90,20 +96,20 @@ describe("histogramModel", () => {
   it("aligns bucket edges to multiples of bucketSize", () => {
     const model = build([series("a", [7, 12, 18, 33])], { bucketSize: 10 })
     expect(model.edges).toEqual([0, 10, 20, 30, 40])
-    expect(model.series[0].counts).toEqual([1, 2, 0, 1])
+    expect(nth(model.series, 0).counts).toEqual([1, 2, 0, 1])
   })
 
   it("starts aligned buckets below a negative minimum", () => {
     const model = build([series("a", [-12, -3, 4])], { bucketSize: 5 })
     expect(model.edges[0]).toBe(-15)
     expect(model.edges.at(-1)).toBe(5)
-    expect(model.series[0].counts).toEqual([1, 0, 1, 1])
+    expect(nth(model.series, 0).counts).toEqual([1, 0, 1, 1])
   })
 
   it("keeps a value on the last aligned edge in the last bucket", () => {
     const model = build([series("a", [0, 5, 10])], { bucketSize: 5 })
     expect(model.edges).toEqual([0, 5, 10])
-    expect(model.series[0].counts).toEqual([1, 2])
+    expect(nth(model.series, 0).counts).toEqual([1, 2])
   })
 
   it.each([
@@ -128,14 +134,14 @@ describe("histogramModel", () => {
   it("uses bucketCount equal buckets", () => {
     const model = build([series("a", zeroToHundred)], { bucketCount: 10 })
     expect(model.edges).toHaveLength(11)
-    expect(model.series[0].counts).toHaveLength(10)
+    expect(nth(model.series, 0).counts).toHaveLength(10)
     expect(model.edges[1]).toBe(10)
   })
 
   it("makes one bucket when every value is equal", () => {
     const model = build([series("a", [4, 4, 4])])
     expect(model.edges).toEqual([4, 4])
-    expect(model.series[0].counts).toEqual([3])
+    expect(nth(model.series, 0).counts).toEqual([3])
     expect(build([series("a", [4, 4])], { bucketCount: 10 }).edges).toEqual([
       4, 4,
     ])
@@ -144,15 +150,15 @@ describe("histogramModel", () => {
   it("makes one aligned bucket when every value is equal", () => {
     const model = build([series("a", [4, 4])], { bucketSize: 5 })
     expect(model.edges).toEqual([0, 5])
-    expect(model.series[0].counts).toEqual([2])
+    expect(nth(model.series, 0).counts).toEqual([2])
   })
 
   it("never makes more than 1000 buckets", () => {
     const model = build([series("a", [0, 1_000_000])], { bucketSize: 1 })
-    expect(model.series[0].counts.length).toBeLessThanOrEqual(1000)
+    expect(nth(model.series, 0).counts.length).toBeLessThanOrEqual(1000)
     expect(model.edges[0]).toBe(0)
     expect(model.edges.at(-1)).toBeGreaterThanOrEqual(1_000_000)
-    expect(model.series[0].counts.reduce((sum, c) => sum + c, 0)).toBe(2)
+    expect(nth(model.series, 0).counts.reduce((sum, c) => sum + c, 0)).toBe(2)
   })
 
   it("skips hidden series", () => {
@@ -180,10 +186,10 @@ describe("histogramModel", () => {
       { bucketCount: 2 }
     )
     expect(model.series.map((s) => s.name)).toEqual(["a", "b"])
-    expect(model.series[0].counts).toEqual([1, 1])
-    expect(model.series[1].counts).toEqual([0, 2])
+    expect(nth(model.series, 0).counts).toEqual([1, 1])
+    expect(nth(model.series, 1).counts).toEqual([0, 2])
     expect(model.total).toBe(4)
-    expect(model.bars[1][1].end).toBe(3)
+    expect(nth(nth(model.bars, 1), 1).end).toBe(3)
   })
 
   it("colors by series slot unless the field sets a color", () => {
@@ -192,8 +198,8 @@ describe("histogramModel", () => {
       {},
       { overrides: [{ match: { series: "b" }, color: "critical" }] }
     )
-    expect(model.series[0].color).toBe("var(--series-1)")
-    expect(model.series[1].color).toBe("var(--threshold-critical)")
+    expect(nth(model.series, 0).color).toBe("var(--series-1)")
+    expect(nth(model.series, 1).color).toBe("var(--threshold-critical)")
   })
 
   it("takes the unit of the first series and shares decimals across edges", () => {
@@ -217,7 +223,7 @@ describe("histogramModel", () => {
   it("returns no buckets without values", () => {
     const model = build([series("a", [null, null])])
     expect(model.edges).toEqual([])
-    expect(model.series[0].counts).toEqual([])
+    expect(nth(model.series, 0).counts).toEqual([])
     expect(model.total).toBe(0)
     expect(model.bars).toEqual([])
   })
@@ -266,7 +272,7 @@ describe("bucketOffset", () => {
       bucketOffset: 5,
     })
     expect(model.edges).toEqual([5, 15, 25, 35])
-    expect(model.series[0].counts).toEqual([2, 1, 1])
+    expect(nth(model.series, 0).counts).toEqual([2, 1, 1])
   })
 
   it("aligns count based buckets to the offset too", () => {
@@ -286,7 +292,7 @@ describe("combine", () => {
     )
     expect(model.series.map((s) => s.name)).toEqual(["All series"])
     expect(model.total).toBe(4)
-    expect(model.series[0].counts.reduce((sum, c) => sum + c, 0)).toBe(4)
+    expect(nth(model.series, 0).counts.reduce((sum, c) => sum + c, 0)).toBe(4)
   })
 })
 
@@ -297,19 +303,19 @@ describe("stacking", () => {
   it("stacks series on top of each other by default", () => {
     const model = build(frames, display)
     expect(model.stack).toBe("normal")
-    expect(model.bars[1][1]).toEqual({ start: 1, end: 3 })
+    expect(nth(model.bars, 1)[1]).toEqual({ start: 1, end: 3 })
     expect(model.max).toBeGreaterThanOrEqual(3)
   })
 
   it("overlays series from zero when not stacked", () => {
     const model = build(frames, { ...display, stack: "none" })
-    expect(model.bars[1][1]).toEqual({ start: 0, end: 2 })
+    expect(nth(model.bars, 1)[1]).toEqual({ start: 0, end: 2 })
   })
 
   it("scales each bucket to 100 percent", () => {
     const model = build(frames, { ...display, stack: "percent" })
-    expect(model.bars[0][1].end).toBeCloseTo(100 / 3)
-    expect(model.bars[1][1].end).toBeCloseTo(100)
+    expect(nth(nth(model.bars, 0), 1).end).toBeCloseTo(100 / 3)
+    expect(nth(nth(model.bars, 1), 1).end).toBeCloseTo(100)
     expect([model.min, model.max]).toEqual([0, 100])
   })
 })
@@ -327,25 +333,25 @@ describe("stack groups", () => {
 
   it("stacks series of different groups separately", () => {
     const model = build(frames, display, grouped)
-    expect(model.bars[0][1]).toEqual({ start: 0, end: 1 })
-    expect(model.bars[1][1]).toEqual({ start: 1, end: 3 })
-    expect(model.bars[2][1]).toEqual({ start: 0, end: 3 })
+    expect(nth(model.bars, 0)[1]).toEqual({ start: 0, end: 1 })
+    expect(nth(model.bars, 1)[1]).toEqual({ start: 1, end: 3 })
+    expect(nth(model.bars, 2)[1]).toEqual({ start: 0, end: 3 })
   })
 
   it("stacks every series together while they share the default group", () => {
     const model = build(frames, display)
-    expect(model.bars[2][1]).toEqual({ start: 3, end: 6 })
+    expect(nth(model.bars, 2)[1]).toEqual({ start: 3, end: 6 })
   })
 
   it("scales each group to 100 percent on its own", () => {
     const model = build(frames, { ...display, stack: "percent" }, grouped)
-    expect(model.bars[1][1].end).toBeCloseTo(100)
-    expect(model.bars[2][1]).toEqual({ start: 0, end: 100 })
+    expect(nth(nth(model.bars, 1), 1).end).toBeCloseTo(100)
+    expect(nth(model.bars, 2)[1]).toEqual({ start: 0, end: 100 })
   })
 
   it("overlays every series from zero when not stacked", () => {
     const model = build(frames, { ...display, stack: "none" }, grouped)
-    expect(model.bars.map((row) => row[1].start)).toEqual([0, 0, 0])
+    expect(model.bars.map((row) => nth(row, 1).start)).toEqual([0, 0, 0])
   })
 
   it("restacks the rest of a group when a series is hidden", () => {
@@ -354,9 +360,9 @@ describe("stack groups", () => {
       frames,
       display,
       grouped,
-      new Set([all.series[0].key])
+      new Set([nth(all.series, 0).key])
     )
-    expect(model.bars[0][1]).toEqual({ start: 0, end: 2 })
+    expect(nth(model.bars, 0)[1]).toEqual({ start: 0, end: 2 })
   })
 })
 
@@ -368,11 +374,11 @@ describe("hidden series", () => {
       frames,
       { bucketCount: 2 },
       {},
-      new Set([all.series[0].key])
+      new Set([nth(all.series, 0).key])
     )
     expect(model.edges).toEqual(all.edges)
     expect(model.series.map((s) => s.name)).toEqual(["b"])
-    expect(model.bars[0][1]).toEqual({ start: 0, end: 2 })
+    expect(nth(model.bars, 0)[1]).toEqual({ start: 0, end: 2 })
   })
 })
 
@@ -419,14 +425,20 @@ describe("value axis", () => {
 
 describe("fill and border", () => {
   it("is opaque with no border unless written, and see-through when overlaid", () => {
-    const plain = build([series("a", [1, 2])]).series[0]
+    const plain = nth(build([series("a", [1, 2])]).series, 0)
     expect([plain.fillOpacity, plain.borderWidth]).toEqual([1, 0])
-    const overlaid = build([series("a", [1, 2])], { stack: "none" }).series[0]
+    const overlaid = nth(
+      build([series("a", [1, 2])], { stack: "none" }).series,
+      0
+    )
     expect(overlaid.fillOpacity).toBe(0.7)
-    const written = build([series("a", [1, 2])], {}, {
-      fill: 50,
-      lineWidth: 2,
-    } as Partial<DataPanel>).series[0]
+    const written = nth(
+      build([series("a", [1, 2])], {}, {
+        fill: 50,
+        lineWidth: 2,
+      } as Partial<DataPanel>).series,
+      0
+    )
     expect([written.fillOpacity, written.borderWidth]).toEqual([0.5, 2])
   })
 })
@@ -441,7 +453,7 @@ describe("tooltipSeries", () => {
     { bucketCount: 2 }
   )
   const names = (rows: { index: number }[]) =>
-    rows.map(({ index }) => model.series[index].name)
+    rows.map(({ index }) => nth(model.series, index).name)
   const all = {
     tooltip: "all",
     tooltipSort: "none",
@@ -461,7 +473,7 @@ describe("tooltipSeries", () => {
   it("lists only the hovered series in single mode", () => {
     const { rows } = tooltipSeries(
       model,
-      { index: 0, series: model.series[1].key },
+      { index: 0, series: nth(model.series, 1).key },
       { ...all, tooltip: "single" }
     )
     expect(names(rows)).toEqual(["b"])
