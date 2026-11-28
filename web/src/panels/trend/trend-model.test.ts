@@ -83,7 +83,7 @@ describe("aligning on the x field", () => {
     const aligned = alignFrames([speed], seriesName, [], trendSource(undefined))
     expect(aligned.xs).toEqual([10, 20, 30])
     expect(aligned.series.map((s) => s.field.name)).toEqual(["power"])
-    expect(aligned.series[0].values).toEqual([100, 200, 300])
+    expect(aligned.series[0]?.values).toEqual([100, 200, 300])
   })
 
   it("joins frames on shared x values", () => {
