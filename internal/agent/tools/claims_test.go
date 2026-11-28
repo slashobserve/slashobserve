@@ -712,6 +712,18 @@ func TestGetRunBriefAnswersABriefBeyondTheDefaultResultCapAndRefusesOneBeyondIts
 	if res := call(40<<10, 50<<10); res.IsError {
 		t.Fatalf("a 90 KiB brief refused: %#v", res.Content)
 	}
+	full := &fakeRunSessions{brief: BriefAnswer{
+		Brief: &RunBrief{
+			Current: &BriefRevision{Spec: &spec.Dashboard{Title: strings.Repeat("c", MaxModelSpecBytes-200)}},
+			Build:   &BriefBuild{Spec: &spec.Dashboard{Title: strings.Repeat("b", MaxModelSpecBytes-200)}},
+			Guide:   BriefGuide{Text: strings.Repeat("s", maxSpecGuideBytes)},
+		},
+		AgentState: &AgentState{Session: json.RawMessage(`"` + strings.Repeat("a", MaxAgentStateBytes-2) + `"`)},
+	}}
+	res, err := callClaimToolWith(t, Deps{Claims: &fakeClaims{req: claimedRequest()}, RunSessions: full}, outsideClaimer, nameGetRunBrief, `{"run_id":"`+runID+`","attempt":2}`)
+	if err != nil || res.IsError {
+		t.Fatalf("a brief with two full Specs, the guide and a full agent_state refused: %v, %#v", err, res.Content)
+	}
 	if code := errorCode(t, call(maxBriefBytes, 1)); code != FailureResultTooLarge {
 		t.Fatalf("code = %q, want %q", code, FailureResultTooLarge)
 	}
