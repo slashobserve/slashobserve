@@ -136,22 +136,25 @@ function max(numbers: number[]): number {
   return numbers.reduce((highest, value) => Math.max(highest, value))
 }
 
-function median(numbers: number[]): number {
+function median(numbers: number[]): number | null {
   const sorted = [...numbers].sort((a, b) => a - b)
   const middle = Math.floor(sorted.length / 2)
-  return sorted.length % 2 === 1
-    ? sorted[middle]
-    : (sorted[middle - 1] + sorted[middle]) / 2
+  const upper = sorted[middle]
+  if (upper === undefined) return null
+  if (sorted.length % 2 === 1) return upper
+  const lower = sorted[middle - 1]
+  return lower === undefined ? null : (lower + upper) / 2
 }
 
-function percentile(numbers: number[], rank: number): number {
+function percentile(numbers: number[], rank: number): number | null {
   const sorted = [...numbers].sort((a, b) => a - b)
   const position = ((sorted.length - 1) * rank) / 100
   const below = Math.floor(position)
-  if (below + 1 >= sorted.length) return sorted[below]
-  return (
-    sorted[below] + (position - below) * (sorted[below + 1] - sorted[below])
-  )
+  const low = sorted[below]
+  if (low === undefined) return null
+  const high = sorted[below + 1]
+  if (high === undefined) return low
+  return low + (position - below) * (high - low)
 }
 
 function variance(numbers: number[]): number {
@@ -162,9 +165,11 @@ function variance(numbers: number[]): number {
 function delta(numbers: number[]): number {
   let total = 0
   let previousUp = true
-  for (let i = 1; i < numbers.length; i++) {
-    const previous = numbers[i - 1]
-    const value = numbers[i]
+  let last: number | undefined
+  for (const value of numbers) {
+    const previous = last
+    last = value
+    if (previous === undefined) continue
     if (previous > value) {
       previousUp = false
       continue
@@ -178,15 +183,16 @@ function delta(numbers: number[]): number {
 function smallestStep(numbers: number[]): number | null {
   if (numbers.length < 2) return null
   let smallest = Infinity
-  for (let i = 1; i < numbers.length; i++) {
-    smallest = Math.min(smallest, numbers[i] - numbers[i - 1])
+  let previous: number | undefined
+  for (const value of numbers) {
+    if (previous !== undefined) smallest = Math.min(smallest, value - previous)
+    previous = value
   }
   return smallest
 }
 
-function differencePercent(numbers: number[]): number | null {
-  const first = numbers[0]
-  return first === 0 ? null : (numbers[numbers.length - 1] - first) / first
+function differencePercent(first: number, last: number): number | null {
+  return first === 0 ? null : (last - first) / first
 }
 
 function smallestAboveZero(numbers: number[]): number | null {
@@ -220,9 +226,9 @@ export function reduce(
     case "first":
       return asNumber(values[0])
     case "lastNotNull":
-      return numbers.length > 0 ? numbers[numbers.length - 1] : null
+      return numbers.at(-1) ?? null
     case "firstNotNull":
-      return numbers.length > 0 ? numbers[0] : null
+      return numbers[0] ?? null
     case "count":
       return present.length
     case "countAll":
@@ -232,7 +238,9 @@ export function reduce(
     case "changeCount":
       return changeCount(present)
   }
-  if (numbers.length === 0) return null
+  const firstNumber = numbers[0]
+  const lastNumber = numbers.at(-1)
+  if (firstNumber === undefined || lastNumber === undefined) return null
   switch (reducer) {
     case "min":
       return min(numbers)
@@ -249,7 +257,7 @@ export function reduce(
     case "delta":
       return delta(numbers)
     case "diff":
-      return numbers[numbers.length - 1] - numbers[0]
+      return lastNumber - firstNumber
     case "stdDev":
       return Math.sqrt(variance(numbers))
     case "variance":
@@ -257,7 +265,7 @@ export function reduce(
     case "step":
       return smallestStep(numbers)
     case "diffperc":
-      return differencePercent(numbers)
+      return differencePercent(firstNumber, lastNumber)
     case "logmin":
       return smallestAboveZero(numbers)
     default: {

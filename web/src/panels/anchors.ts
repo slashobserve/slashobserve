@@ -74,9 +74,10 @@ function withoutLastLabel(anchor: Anchor): Anchor | null {
   for (const field of ["series", "row"] as const) {
     const labels = anchor[field]
     const keys = Object.keys(labels ?? {})
-    if (labels === undefined || keys.length < 2) continue
+    const last = keys.at(-1)
+    if (labels === undefined || keys.length < 2 || last === undefined) continue
     const kept = { ...labels }
-    delete kept[keys[keys.length - 1]]
+    delete kept[last]
     return { ...anchor, [field]: kept }
   }
   return null

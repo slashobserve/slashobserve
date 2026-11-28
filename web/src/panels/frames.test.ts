@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { WireFrame } from "@/dashboards/queries"
+import { must } from "@/panels/must"
 
 import {
   hasData,
@@ -28,25 +29,25 @@ describe("seriesLabel", () => {
   })
 
   it("expands legend templates", () => {
-    expect(seriesLabel(f, f.fields[1], "{{pod}} ({{ status }})", 1)).toBe(
+    expect(seriesLabel(f, must(f.fields[1]), "{{pod}} ({{ status }})", 1)).toBe(
       "checkout-0 (200)"
     )
-    expect(seriesLabel(f, f.fields[1], "{{__name__}}-{{missing}}", 1)).toBe(
-      "http_requests_total-"
-    )
+    expect(
+      seriesLabel(f, must(f.fields[1]), "{{__name__}}-{{missing}}", 1)
+    ).toBe("http_requests_total-")
   })
 
   it("builds a Prometheus style label without a legend", () => {
-    expect(seriesLabel(f, f.fields[1], undefined, 1)).toBe(
+    expect(seriesLabel(f, must(f.fields[1]), undefined, 1)).toBe(
       'http_requests_total{pod="checkout-0", status="200"}'
     )
   })
 
   it("falls back to the frame name, then the field name", () => {
     const named = frame({ name: "up", fields: [time] })
-    expect(seriesLabel(named, named.fields[0], undefined, 1)).toBe("up")
+    expect(seriesLabel(named, must(named.fields[0]), undefined, 1)).toBe("up")
     const bare = frame({ fields: [time] })
-    expect(seriesLabel(bare, bare.fields[0], undefined, 1)).toBe("time")
+    expect(seriesLabel(bare, must(bare.fields[0]), undefined, 1)).toBe("time")
   })
 
   it("names an unlabelled, unnamed frame's number fields by their own name", () => {
@@ -56,12 +57,14 @@ describe("seriesLabel", () => {
         { name: "b", type: "number", values: [2] },
       ],
     })
-    expect(seriesLabel(wide, wide.fields[0], undefined, 2)).toBe("a")
-    expect(seriesLabel(wide, wide.fields[1], undefined, 2)).toBe("b")
+    expect(seriesLabel(wide, must(wide.fields[0]), undefined, 2)).toBe("a")
+    expect(seriesLabel(wide, must(wide.fields[1]), undefined, 2)).toBe("b")
   })
 
   it("appends the field name when a frame has several number fields", () => {
-    expect(seriesLabel(f, f.fields[1], "{{pod}}", 2)).toBe("checkout-0 value")
+    expect(seriesLabel(f, must(f.fields[1]), "{{pod}}", 2)).toBe(
+      "checkout-0 value"
+    )
   })
 })
 

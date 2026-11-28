@@ -53,11 +53,10 @@ export function schemeColor(scheme: ColorScheme, t: number): string {
   const segments = ramp.stops.length - 1
   const scaled = position * segments
   const index = Math.min(Math.floor(scaled), segments - 1)
-  return mix(
-    ramp.stops[index],
-    ramp.stops[index + 1],
-    Math.round((scaled - index) * 100)
-  )
+  const from = ramp.stops[index]
+  const to = ramp.stops[index + 1]
+  if (from === undefined || to === undefined) return background
+  return mix(from, to, Math.round((scaled - index) * 100))
 }
 
 export function rangePosition(value: number, min: number, max: number): number {

@@ -33,9 +33,9 @@ export type PanelRendererProps = {
     LinkScope,
     "row" | "seriesName" | "fieldName" | "value" | "valueText"
   >
-  ghostFrames?: PreparedFrame[]
-  exemplars?: WireFrame[]
-  annotations?: readonly Annotation[]
+  ghostFrames?: PreparedFrame[] | undefined
+  exemplars?: WireFrame[] | undefined
+  annotations?: readonly Annotation[] | undefined
 }
 
 export type PanelRenderer = ComponentType<PanelRendererProps>

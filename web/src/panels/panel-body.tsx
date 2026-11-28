@@ -42,11 +42,12 @@ export function linkScopeFor({
 }): PanelRendererProps["links"] {
   return {
     vars,
-    from,
-    to,
+    ...(from === undefined ? {} : { from }),
+    ...(to === undefined ? {} : { to }),
     fields,
-    fromMs: meta ? Date.parse(meta.from) : undefined,
-    toMs: meta ? Date.parse(meta.to) : undefined,
+    ...(meta
+      ? { fromMs: Date.parse(meta.from), toMs: Date.parse(meta.to) }
+      : {}),
   }
 }
 

@@ -59,18 +59,19 @@ export function valueAxisSettings(
     | "axisCenteredZero"
   >
 ): ValueAxisSettings {
+  const { axisLabel, axisWidth, axisSoftMin, axisSoftMax } = config
   return {
     side: sideOf[config.axis],
-    label: config.axisLabel,
-    width: config.axisWidth,
+    ...(axisLabel === undefined ? {} : { label: axisLabel }),
+    ...(axisWidth === undefined ? {} : { width: axisWidth }),
     grid: config.axisGrid ?? true,
     border: config.axisBorder,
     seriesColored: config.axisColor === "series",
     scale: config.scale,
     logBase: config.logBase,
     linearThreshold: config.linearThreshold ?? 1,
-    softMin: config.axisSoftMin,
-    softMax: config.axisSoftMax,
+    ...(axisSoftMin === undefined ? {} : { softMin: axisSoftMin }),
+    ...(axisSoftMax === undefined ? {} : { softMax: axisSoftMax }),
     centeredZero: config.axisCenteredZero,
   }
 }

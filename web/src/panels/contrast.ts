@@ -16,7 +16,8 @@ function luminance([red, green, blue]: Rgb): number {
 }
 
 export function contrastRatio(a: Rgb, b: Rgb): number {
-  const [lighter, darker] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+  const lighter = Math.max(luminance(a), luminance(b))
+  const darker = Math.min(luminance(a), luminance(b))
   return (lighter + 0.05) / (darker + 0.05)
 }
 
@@ -32,17 +33,21 @@ export function readableText(
 const hex = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})(?:[0-9a-f]{2})?$/i
 const functional = /^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/i
 
+function channels(
+  [, red, green, blue]: RegExpExecArray,
+  read: (part: string) => number
+): Rgb | null {
+  if (red === undefined || green === undefined || blue === undefined) {
+    return null
+  }
+  return [read(red), read(green), read(blue)]
+}
+
 export function parseRgb(normalized: string): Rgb | null {
   const hexMatch = hex.exec(normalized.trim())
-  if (hexMatch) {
-    return [
-      parseInt(hexMatch[1], 16),
-      parseInt(hexMatch[2], 16),
-      parseInt(hexMatch[3], 16),
-    ]
-  }
+  if (hexMatch) return channels(hexMatch, (part) => parseInt(part, 16))
   const match = functional.exec(normalized.trim())
-  return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : null
+  return match ? channels(match, Number) : null
 }
 
 let swatch: CanvasRenderingContext2D | null | undefined
@@ -51,6 +56,9 @@ function pixelRgb(context: CanvasRenderingContext2D): Rgb | null {
   context.clearRect(0, 0, 1, 1)
   context.fillRect(0, 0, 1, 1)
   const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data
+  if (red === undefined || green === undefined || blue === undefined) {
+    return null
+  }
   return alpha === 0 ? null : [red, green, blue]
 }
 

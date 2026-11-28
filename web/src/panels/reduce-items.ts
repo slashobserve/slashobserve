@@ -53,10 +53,9 @@ export function reduceOptionsOf(
     reduce: merged.reduce as Reducer,
     allValues: merged.allValues === true,
     limit: merged.limit as number,
-    fields:
-      typeof merged.fields === "string" && merged.fields !== ""
-        ? merged.fields
-        : undefined,
+    ...(typeof merged.fields === "string" && merged.fields !== ""
+      ? { fields: merged.fields }
+      : {}),
   }
 }
 
