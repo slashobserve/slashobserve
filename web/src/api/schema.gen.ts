@@ -2668,7 +2668,7 @@ export interface paths {
         /**
          * List the findings the caller can read, newest first.
          * @deprecated
-         * @description Without a filter the caller's own findings are listed whose observation sits in a folder the caller can view. With `dashboard_id` only that dashboard's findings are listed, and a dashboard the caller cannot view gives 404. With `folder_id` only the findings without a dashboard whose observation sits in that folder are listed, and a folder the caller cannot view gives 404; findings on the folder's dashboards are not included, so list them with `dashboard_id`. `dashboard_id` and `folder_id` do not go together. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
+         * @description Without a filter the caller's own findings are listed whose observation sits in a folder the caller can view. With `dashboard_id` only that dashboard's findings are listed, and a dashboard the caller cannot view gives 404. With `folder_id` only the findings without a dashboard whose observation sits in that folder are listed, and a folder the caller cannot view gives 404; findings on the folder's dashboards are not included, so list them with `dashboard_id`. `dashboard_id` and `folder_id` do not go together. Deprecated for saved findings, which are read through their observation (`/observations`); the route stays for chat-only answers, which have no observation, and for the web app.
          */
         get: operations["listFindings"];
         put?: never;
@@ -2691,7 +2691,7 @@ export interface paths {
         /**
          * Read one finding.
          * @deprecated
-         * @description A finding follows the folder of its observation: anyone who can view that folder may read it, on a dashboard or not. `folder` is that folder and `permissions` what the caller may do with the finding. A finding the caller cannot read gives 404, never 403. The answer to a plain question has no observation until its requester saves it: only the requester and an Admin read it, on a dashboard only while they can view that dashboard, `folder` is null and `permissions` allow viewing only. A read of such an answer is recorded in the audit trail as `run.view` of its request, once per reader and request in 10 minutes. A refused read is recorded every time, as a denied `run.view` with the finding as its target. The `Link` header names the observation as the `successor-version`, and is absent while there is none. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
+         * @description A finding follows the folder of its observation: anyone who can view that folder may read it, on a dashboard or not. `folder` is that folder and `permissions` what the caller may do with the finding. A finding the caller cannot read gives 404, never 403. The answer to a plain question has no observation until its requester saves it: only the requester and an Admin read it, on a dashboard only while they can view that dashboard, `folder` is null and `permissions` allow viewing only. A read of such an answer is recorded in the audit trail as `run.view` of its request, once per reader and request in 10 minutes. A refused read is recorded every time, as a denied `run.view` with the finding as its target. The `Link` header names the observation as the `successor-version`, and is absent while there is none. Deprecated for saved findings, which are read through their observation (`/observations`); the route stays for chat-only answers, which have no observation, and for the web app.
          */
         get: operations["getFinding"];
         put?: never;
@@ -2716,7 +2716,7 @@ export interface paths {
         /**
          * Save a finding's evidence panels as a new dashboard.
          * @deprecated
-         * @description Anyone who can read the finding may call it; the dashboard lands in the caller's My Dashboards and every evidence query is run again before it is saved. The caller's own chat that the answer came from becomes a chat about the new dashboard, when it is about no dashboard or observation yet; it stays private to the caller, and a failure to attach it does not fail the call. A finding without evidence gives 409 `finding_has_no_evidence`. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
+         * @description Anyone who can read the finding may call it; the dashboard lands in the caller's My Dashboards and every evidence query is run again before it is saved. The caller's own chat that the answer came from becomes a chat about the new dashboard, when it is about no dashboard or observation yet; it stays private to the caller, and a failure to attach it does not fail the call. A finding without evidence gives 409 `finding_has_no_evidence`. Deprecated for saved findings, which are read through their observation (`/observations`); the route stays for chat-only answers, which have no observation, and for the web app.
          */
         post: operations["saveFindingAsDashboard"];
         delete?: never;
@@ -2738,7 +2738,7 @@ export interface paths {
         /**
          * Run the queries of one evidence panel of a finding and return their frames.
          * @deprecated
-         * @description Runs one evidence panel of a finding. Only browser sessions may call it; a key gets 403 `user_session_required`. Evidence queries are stored with the finding and were checked when it was saved. Anyone who can read the finding may call it, `from` and `to` default to the finding's window, nothing is cached, and the response has the shape of panel data. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
+         * @description Runs one evidence panel of a finding. Only browser sessions may call it; a key gets 403 `user_session_required`. Evidence queries are stored with the finding and were checked when it was saved. Anyone who can read the finding may call it, `from` and `to` default to the finding's window, nothing is cached, and the response has the shape of panel data. Deprecated for saved findings, which are read through their observation (`/observations`); the route stays for chat-only answers, which have no observation, and for the web app.
          */
         get: operations["getFindingPanelData"];
         put?: never;

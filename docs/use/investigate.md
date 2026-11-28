@@ -319,6 +319,6 @@ Details of the flags:
 
 ### Deprecated finding routes
 
-The `/api/v1/findings` routes that remain are deprecated adapters over observations: list, read, pin, make a dashboard and panel data.
-Use the observation's own routes.
+The `/api/v1/findings` routes that remain are deprecated adapters over observations: list, read, make a dashboard and panel data.
+For a saved finding, use the observation's own routes; a chat-only answer has no observation, so these routes stay for it.
 The finding tools and commands are gone.

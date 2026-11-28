@@ -442,9 +442,9 @@ Its `observation_id` names the observation either way.
 ### The finding API is deprecated
 
 The finding tools `create_finding`, `list_findings` and `move_finding`, the command `observe findings`, the route `POST /api/v1/findings/{id}/move`, the comment target `finding:<id>` and the search kind `finding` are removed.
-The routes that read a finding, pin it and make a dashboard from it remain under `/api/v1/findings` as adapters over observations that the web app still reads.
+The routes that list and read findings, make a dashboard from one and read its evidence data remain under `/api/v1/findings` as adapters over observations that the web app still reads.
 Every finding route answers with a `Deprecation` header, and a finding carries its `observation_id`.
-Use `/api/v1/observations`, `create_observation` with `add_block`, `list_observations` and `observe o` instead.
+For a saved finding, use `/api/v1/observations`, `create_observation` with `add_block`, `list_observations` and `observe o` instead; a chat-only answer has no observation, so these routes stay for it.
 
 ### `observe investigate` flags
 
