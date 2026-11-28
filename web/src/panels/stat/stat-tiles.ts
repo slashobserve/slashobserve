@@ -68,9 +68,11 @@ export type StatTile = {
 export function percentChange(
   points: readonly [number, number][]
 ): PercentChange | null {
-  if (points.length < 2) return null
-  const first = points[0][1]
-  const last = points[points.length - 1][1]
+  const head = points[0]
+  const tail = points.at(-1)
+  if (points.length < 2 || head === undefined || tail === undefined) return null
+  const first = head[1]
+  const last = tail[1]
   if (first === 0) return null
   const percent = ((last - first) / Math.abs(first)) * 100
   const magnitude = Math.abs(percent)
@@ -147,9 +149,9 @@ export function statTiles(
       const range = fieldRange(field)
       const points = row === undefined ? sparkline(frame, field) : []
       const shown = displayValue(raw, config, {
-        decimals,
-        fieldMin: range.min,
-        fieldMax: range.max,
+        ...(decimals === undefined ? {} : { decimals }),
+        ...(range.min === undefined ? {} : { fieldMin: range.min }),
+        ...(range.max === undefined ? {} : { fieldMax: range.max }),
       })
       return {
         key,
@@ -181,7 +183,7 @@ export function statScope(tile: StatTile, scope: BaseScope): LinkScope {
   return {
     ...scope,
     row: { frame: tile.frame, index: tile.row },
-    labels: tile.labels,
+    ...(tile.labels === undefined ? {} : { labels: tile.labels }),
     seriesName: tile.seriesName,
     fieldName: tile.fieldName,
     value: tile.value,

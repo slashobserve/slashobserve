@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Link, useRouteContext } from "@tanstack/react-router"
 import { MessageSquareIcon, PinIcon, SearchIcon } from "lucide-react"
 
+import { loadProblemText } from "@/api/errors"
 import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { EmptyState } from "@/components/empty-state"
 import { FilterToolbar } from "@/components/filter-toolbar"
@@ -21,7 +22,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useInView } from "@/dashboards/use-in-view"
 import { roleAtLeast } from "@/lib/roles"
 import { cn } from "@/lib/utils"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { chatFooterText } from "./chat-footer"
 import { ChatRenameForm, ChatRowMenu, chatRowId } from "./chat-row-menu"
@@ -52,9 +52,11 @@ export function ChatsPage({ search, onSearch }: Props) {
   const filtered = search.q !== undefined || search.dashboard !== undefined
   const { chats, query } = useChats(
     {
-      q: search.q,
-      dashboardId: search.dashboard,
-      scope: everyone ? "all" : undefined,
+      ...(search.q === undefined ? {} : { q: search.q }),
+      ...(search.dashboard === undefined
+        ? {}
+        : { dashboardId: search.dashboard }),
+      ...(everyone ? { scope: "all" } : {}),
     },
     pageSize
   )

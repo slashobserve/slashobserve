@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 
-import { loadProblemText } from "@/service-accounts/queries"
+import { loadProblemText } from "@/api/errors"
 import { RelativeTime, useNow } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"

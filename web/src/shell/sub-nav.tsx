@@ -17,7 +17,7 @@ function readRows(): Record<string, number> {
 
 export function storedRows(list: string): number {
   const count = readRows()[list]
-  return Number.isInteger(count) && count > 0 ? count : 0
+  return count !== undefined && Number.isInteger(count) && count > 0 ? count : 0
 }
 
 export function storeRows(list: string, count: number) {

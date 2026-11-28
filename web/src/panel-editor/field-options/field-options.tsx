@@ -188,7 +188,7 @@ export function FieldOptions({
   panel: DataPanel
   dispatch: Dispatch<DraftAction>
   readOnly: boolean
-  onOpenJson?: () => void
+  onOpenJson?: (() => void) | undefined
 }) {
   const fields: Record<string, unknown> = { ...panel }
   return (

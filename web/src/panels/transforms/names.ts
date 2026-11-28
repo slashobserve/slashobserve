@@ -6,16 +6,28 @@ import { seriesLabel, type WireField } from "../frames"
 import { isNumber } from "../reducers"
 
 export type PreparedField = WireField & {
-  seriesName?: string
-  headedBySeriesName?: true
-  config?: FieldProps
-  nested?: { headers: boolean }
+  seriesName?: string | undefined
+  headedBySeriesName?: true | undefined
+  config?: FieldProps | undefined
+  nested?: { headers: boolean } | undefined
 }
 export type PreparedFrame = Omit<WireFrame, "fields"> & {
   fields: PreparedField[]
 }
 
 const collator = new Intl.Collator()
+
+export function frameName(
+  frame: Pick<PreparedFrame, "name">
+): Pick<PreparedFrame, "name"> {
+  return frame.name === undefined ? {} : { name: frame.name }
+}
+
+export function frameLabels(
+  frame: Pick<PreparedFrame, "labels">
+): Pick<PreparedFrame, "labels"> {
+  return frame.labels === undefined ? {} : { labels: frame.labels }
+}
 
 export function numberFieldCount(frame: PreparedFrame): number {
   return frame.fields.filter((field) => field.type === "number").length

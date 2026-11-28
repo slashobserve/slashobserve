@@ -60,7 +60,7 @@ A second server is for availability first.
 Capacity per server depends on your hardware, so [measure it](#measure-your-own-hardware) before you size a fleet by it.
 The ceiling of the agent is usually the rate limit of your model provider, not the number of servers.
 
-Each server with a model provider runs one `observe-agent` child process that works that server's runs, so the fleet runs one per server.
+Each server with a model provider runs one `slashobserve-harness` child process that works that server's runs, so the fleet runs one per server.
 Measured on a compose stack with the replay model, an idle child holds about 50 MiB resident (`docker top`).
 The whole server container, child included, shows about 48 MiB in `docker stats`, and the compose server limit is 512M.
 
@@ -166,6 +166,7 @@ Details of why a limit has its scope:
 - Datasource queries are fleet-wide because the datasource is shared, so each server gets its share, rounded up.
 - OAuth limits that count every client are fleet-wide because they cap a total over every client.
 - Query drafts started are fleet-wide because Postgres counts them, so the model spend stays capped however many servers there are.
+- Query drafts in flight are per server because a draft waits in the memory of the server that received it, and that server's agent process makes its model calls.
 - New dashboard requests and investigations are fleet-wide because Postgres counts them.
 - The agent request limit is per server because the fleet runs the replica count times `SLASHOBSERVE_AGENT_WORKERS`.
 - The other per-server limits protect the server or cap one caller.
@@ -177,6 +178,7 @@ Details of why a limit has its scope:
 - After a crash, the other servers count the dead one for up to 30 seconds, so their shares are briefly smaller.
   A new server is counted within 10 seconds.
 - Another server retries a killed server's running agent requests once their 60 second lease expires, up to 2 attempts in all.
+  A request that had already saved its result ends succeeded with it instead.
 - Streams on a stopped server end, and the client reconnects.
   An activity stream resumes from `Last-Event-ID`.
 - A rolling upgrade migrates on the first new pod while the others wait on the lock; see [Upgrades and backups](upgrades-and-backups.md).

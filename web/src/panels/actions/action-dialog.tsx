@@ -42,7 +42,6 @@ export type PendingAction = {
 function useRunAction(dashboardId: string) {
   return useMutation({
     mutationKey: actionKeys.run(dashboardId),
-    networkMode: "always",
     mutationFn: (body: ActionRequestBody) =>
       api
         .POST("/dashboards/{id}/actions", {

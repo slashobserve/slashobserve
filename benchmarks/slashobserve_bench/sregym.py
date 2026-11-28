@@ -17,17 +17,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from pydantic import ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field
 
-from slashobserve_bench import atif
-from slashobserve_bench.api import ApiError, Client, RunTimeout, wait_for_terminal
-from slashobserve_bench.ledger import SpendLedger
-from slashobserve_bench.loop_options import LoopOptions
+from slashobserve_bench import adapter, atif
+from slashobserve_bench.adapter import AGENT_NAME, AGENT_VERSION, LLM_KEY_FILE_ENV, MCP_SOURCES_FILE, RunOptions, llm_key, read_causes, record_spend, run_to_end, split_model
+from slashobserve_bench.api import ApiError, Client
 from slashobserve_bench.server import LABEL, POSTGRES_IMAGE, ServerConfig, Stack, ensure_image
 
-AGENT_NAME = "slashobserve"
-AGENT_VERSION = "0.1.0"
-LLM_KEY_FILE_ENV = "SLASHOBSERVE_BENCH_LLM_KEY_FILE"
 PROMPT_LIMIT = 4000
 DIAGNOSIS = "diagnosis"
 WAITING_STAGES = ("setup", "tearing_down", None)
@@ -40,11 +36,8 @@ DEFAULT_MCP_PORT = 9954
 KUBECTL_PATH = "/kubectl/sse"
 KUBECTL_SOURCE = "sregym-kubectl"
 KUBECTL_TOOL = "exec_kubectl_cmd_safely"
-CONFIG_DIR = "/etc/slashobserve"
-MCP_SOURCES_FILE = "mcp-sources.yaml"
 IMAGE_BRANCH = "agent-rca-accuracy"
 
-CANCEL_GRACE_SEC = 30
 SUBMIT_TIMEOUT_SEC = 330
 SUBMIT_MARGIN_SEC = 360
 STAGE_WAIT_SEC = 120
@@ -178,10 +171,6 @@ class Conductor:
         return self._call("POST", "/submit", submit_body(solution), timeout=SUBMIT_TIMEOUT_SEC)
 
 
-def _yaml_list(values: Iterable[str]) -> str:
-    return "[" + ", ".join(json.dumps(value) for value in values) + "]"
-
-
 def datasources_yaml(prometheus: str, loki: str) -> str:
     lines = ["datasources:"]
     for uid, name, url in (("prometheus", "Prometheus", prometheus), ("loki", "Loki", loki)):
@@ -190,26 +179,12 @@ def datasources_yaml(prometheus: str, loki: str) -> str:
 
 
 def mcp_sources_yaml(url: str) -> str:
-    return "\n".join(
-        [
-            "mcpSources:",
-            f"  - uid: {KUBECTL_SOURCE}",
-            "    name: SREGym kubectl",
-            "    description: Read the benchmark cluster's Kubernetes objects, events and pod logs with kubectl.",
-            f"    url: {json.dumps(url)}",
-            "    audience: everyone",
-            "    allowPrivate: true",
-            f"    approve: {_yaml_list([KUBECTL_TOOL])}",
-            "",
-        ]
-    )
+    description = "Read the benchmark cluster's Kubernetes objects, events and pod logs with kubectl."
+    return adapter.mcp_sources_yaml(KUBECTL_SOURCE, "SREGym kubectl", description, url, [KUBECTL_TOOL])
 
 
 def server_settings(source_url: str) -> tuple[tuple[str, str], ...]:
-    return (
-        ("SLASHOBSERVE_MCP_SOURCES_FILE", f"{CONFIG_DIR}/{MCP_SOURCES_FILE}"),
-        ("SLASHOBSERVE_OUTBOUND_DOMAINS", host_of(source_url)),
-    )
+    return adapter.mcp_source_settings(host_of(source_url))
 
 
 def _clip(text: str, room: int) -> str:
@@ -313,21 +288,12 @@ class Cause:
         return lines
 
 
-def _knock_on_of(entry: dict[str, Any]) -> int | None:
-    index = entry.get("knock_on_of")
-    if entry.get("relation") == "independent" or not isinstance(index, int) or isinstance(index, bool):
-        return None
-    return index
-
-
 def _from_causes(entries: list[Any]) -> list[Cause]:
-    stated = {index: entry for index, entry in enumerate(entries) if isinstance(entry, dict) and entry.get("stated", True) is not False}
-    origins = {index: entry for index, entry in stated.items() if _knock_on_of(entry) is None}
-    followers: dict[int, list[dict[str, Any]]] = {index: [] for index in origins}
-    for entry in stated.values():
-        if (parent := _knock_on_of(entry)) in followers:
-            followers[parent].append(entry)
-    return [Cause.from_entry(entry, followers[index]) for index, entry in origins.items()]
+    found = read_causes(entries)
+    followers: dict[int, list[dict[str, Any]]] = {index: [] for index, _ in found.roots}
+    for _, entry, parent in found.knock_ons:
+        followers[parent].append(entry)
+    return [Cause.from_entry(entry, followers[index]) for index, entry in found.roots]
 
 
 def stated_causes(finding: dict[str, Any]) -> list[Cause]:
@@ -397,23 +363,11 @@ def kubectl_tool_state(tools: Iterable[dict[str, Any]]) -> KubectlTool:
     return KubectlTool("missing")
 
 
-def split_model(model_name: str | None) -> tuple[str, str | None]:
-    if not model_name or "/" not in model_name:
-        raise ValueError("pass the model as <provider>/<model>, for example --model anthropic/claude-sonnet-5-5 or --model replay/replay")
-    provider, _, model = model_name.partition("/")
-    return provider, None if provider == "replay" else model
-
-
-class Options(LoopOptions):
+class Options(RunOptions):
     model_config = ConfigDict(extra="forbid")
 
     model: str
     server_image: str = "slashobserve-server:local"
-    replay_dir: str | None = None
-    llm_effort: str | None = None
-    run_max_cost_usd: float | None = Field(default=None, gt=0)
-    spend_cap_usd: float | None = Field(default=None, gt=0)
-    ledger_path: str | None = None
     wall_timeout_sec: int = Field(default=1500, ge=60)
     conductor_url: str
     mcp_url: str
@@ -422,12 +376,6 @@ class Options(LoopOptions):
     kubectl_wait_sec: int = Field(default=120, ge=10)
     without_kubectl: bool = False
     out: str
-
-    @model_validator(mode="after")
-    def _cap_needs_ledger(self) -> "Options":
-        if (self.spend_cap_usd is None) != (self.ledger_path is None):
-            raise ValueError("spend_cap_usd and ledger_path go together")
-        return self
 
 
 def registry_yaml(project: Path, run_args: list[str]) -> str:
@@ -550,15 +498,10 @@ class Runner:
         self.env = env
         self.out = Path(options.out)
         self.notes: list[str] = []
-        self.ledger = SpendLedger(Path(options.ledger_path), options.spend_cap_usd) if options.ledger_path and options.spend_cap_usd else None
+        self.ledger = options.spend_ledger()
 
     def _llm_key(self, provider: str) -> str | None:
-        if provider == "replay":
-            return None
-        path = self.env.get(LLM_KEY_FILE_ENV)
-        if not path:
-            raise ValueError(f"set {LLM_KEY_FILE_ENV} to the path of a file that holds the model API key")
-        return Path(path).read_text(encoding="utf-8").strip()
+        return llm_key(provider, self.env.get(LLM_KEY_FILE_ENV))
 
     def _note(self, line: str) -> None:
         self.notes.append(line)
@@ -577,7 +520,7 @@ class Runner:
 
     def run(self) -> int:
         started = time.monotonic()
-        provider, model = split_model(self.options.model)
+        provider, model = split_model(self.options.model, "--model")
         if self.ledger is not None:
             self.ledger.ensure_room()
         app = self.conductor.app()
@@ -669,31 +612,12 @@ class Runner:
         return False
 
     def _investigate(self, client: Client, text: str, budget_sec: float) -> dict:
-        run_id = client.start_run(start_body(text))
-        seen: dict[str, dict] = {}
-
-        def poll() -> dict:
-            seen["request"] = client.get_run(run_id)
-            return seen["request"]
-
-        try:
-            try:
-                request = wait_for_terminal(poll, budget_sec)
-            except RunTimeout:
-                try:
-                    client.cancel_run(run_id)
-                except ApiError:
-                    pass
-                try:
-                    request = wait_for_terminal(poll, CANCEL_GRACE_SEC)
-                except RunTimeout:
-                    request = seen["request"]
-                self._note(f"run: cancelled after {budget_sec:.0f} seconds")
-            self._save(request, text)
-            return request
-        finally:
-            if self.ledger is not None and "request" in seen:
-                self.ledger.record(self.env.get("SREGYM_ARTIFACT_ID") or self.out.name, atif.Usage.from_request(seen["request"]).cost_usd or 0.0)
+        trial = self.env.get("SREGYM_ARTIFACT_ID") or self.out.name
+        request, timeout = run_to_end(client, start_body(text), budget_sec, lambda seen: record_spend(self.ledger, trial, seen))
+        if timeout is not None:
+            self._note(f"run: cancelled after {budget_sec:.0f} seconds")
+        self._save(request, text)
+        return request
 
     def _save(self, request: dict, text: str) -> None:
         self.out.mkdir(parents=True, exist_ok=True)
@@ -728,7 +652,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--investigation-calls", type=int)
     run.add_argument("--investigation-loop", choices=("true", "false"))
     run.add_argument("--investigation-calls-max", type=int)
-    run.add_argument("--finding-grounding", choices=("off", "report", "enforce"))
+    run.add_argument("--finding-grounding", choices=("off", "enforce"))
     run.add_argument("--investigation-brief", choices=("on", "off"))
     run.add_argument("--run-max-cost-usd", type=float)
     run.add_argument("--spend-cap-usd", type=float)

@@ -18,16 +18,17 @@ const (
 const OpenFor = 30 * 24 * time.Hour
 
 var States = lifecycle.Derived{Name: "access request", States: []lifecycle.DerivedState{
-	{Name: string(StateOpen), When: "Asked in the last 30 days, not granted, and nobody who can grant it marked it done in their inbox."},
+	{Name: string(StateOpen), When: "Asked in the last 30 days, not granted, nobody who can grant it marked it done in their inbox, and the requester has not asked again for the same object since."},
 	{Name: string(StateGranted), When: "The requester got Comment access after asking."},
-	{Name: string(StateDismissed), When: "Someone who can grant it marked it done in their inbox without granting it; the requester may ask again."},
+	{Name: string(StateDismissed), When: "Someone who can grant it marked it done in their inbox without granting it, or it was marked done and the requester has asked again since; the requester may ask again."},
 	{Name: string(StateExpired), When: "Nobody granted or dismissed it within 30 days; the requester may ask again."},
 }}
 
 type standing struct {
-	granted   bool
-	dismissed bool
-	age       time.Duration
+	granted    bool
+	dismissed  bool
+	superseded bool
+	age        time.Duration
 }
 
 func stateOf(s standing) State {
@@ -38,6 +39,8 @@ func stateOf(s standing) State {
 		return StateDismissed
 	case s.age > OpenFor:
 		return StateExpired
+	case s.superseded:
+		return StateDismissed
 	}
 	return StateOpen
 }

@@ -58,7 +58,7 @@ func (q *Queries) DeleteMCPSourceTools(ctx context.Context, sourceID pgtype.UUID
 }
 
 const getMCPSource = `-- name: GetMCPSource :one
-SELECT id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at, allow_private FROM mcp_sources WHERE uid = $1
+SELECT id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at, allow_private, discoveries FROM mcp_sources WHERE uid = $1
 `
 
 func (q *Queries) GetMCPSource(ctx context.Context, uid string) (McpSource, error) {
@@ -80,6 +80,7 @@ func (q *Queries) GetMCPSource(ctx context.Context, uid string) (McpSource, erro
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.AllowPrivate,
+		&i.Discoveries,
 	)
 	return i, err
 }
@@ -119,7 +120,7 @@ func (q *Queries) GetMCPSourceTool(ctx context.Context, arg GetMCPSourceToolPara
 const insertMCPSource = `-- name: InsertMCPSource :one
 INSERT INTO mcp_sources (id, uid, name, description, url, audience, secret_header, secret, provisioned, allow_private, created_by)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-RETURNING id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at, allow_private
+RETURNING id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at, allow_private, discoveries
 `
 
 type InsertMCPSourceParams struct {
@@ -167,6 +168,7 @@ func (q *Queries) InsertMCPSource(ctx context.Context, arg InsertMCPSourceParams
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.AllowPrivate,
+		&i.Discoveries,
 	)
 	return i, err
 }
@@ -242,7 +244,7 @@ func (q *Queries) ListMCPSourceTools(ctx context.Context, sourceID pgtype.UUID) 
 }
 
 const listMCPSources = `-- name: ListMCPSources :many
-SELECT id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at, allow_private FROM mcp_sources ORDER BY uid
+SELECT id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at, allow_private, discoveries FROM mcp_sources ORDER BY uid
 `
 
 func (q *Queries) ListMCPSources(ctx context.Context) ([]McpSource, error) {
@@ -270,6 +272,7 @@ func (q *Queries) ListMCPSources(ctx context.Context) ([]McpSource, error) {
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.AllowPrivate,
+			&i.Discoveries,
 		); err != nil {
 			return nil, err
 		}
@@ -282,7 +285,7 @@ func (q *Queries) ListMCPSources(ctx context.Context) ([]McpSource, error) {
 }
 
 const lockMCPSource = `-- name: LockMCPSource :one
-SELECT id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at, allow_private FROM mcp_sources WHERE uid = $1 FOR UPDATE
+SELECT id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at, allow_private, discoveries FROM mcp_sources WHERE uid = $1 FOR UPDATE
 `
 
 func (q *Queries) LockMCPSource(ctx context.Context, uid string) (McpSource, error) {
@@ -304,6 +307,7 @@ func (q *Queries) LockMCPSource(ctx context.Context, uid string) (McpSource, err
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.AllowPrivate,
+		&i.Discoveries,
 	)
 	return i, err
 }
@@ -327,7 +331,7 @@ func (q *Queries) LockMCPSourceUID(ctx context.Context, uid string) error {
 }
 
 const markMCPSourceChecked = `-- name: MarkMCPSourceChecked :exec
-UPDATE mcp_sources SET checked_at = clock_timestamp(), failure = $1
+UPDATE mcp_sources SET checked_at = clock_timestamp(), failure = $1, discoveries = discoveries + 1
 WHERE id = $2
 `
 
@@ -411,7 +415,7 @@ SET name = $1, description = $2, url = $3, audience = $4, secret_header = $5, se
     failure = CASE WHEN $9::boolean THEN NULL ELSE failure END,
     updated_at = clock_timestamp()
 WHERE uid = $10
-RETURNING id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at, allow_private
+RETURNING id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at, allow_private, discoveries
 `
 
 type UpdateMCPSourceParams struct {
@@ -457,6 +461,7 @@ func (q *Queries) UpdateMCPSource(ctx context.Context, arg UpdateMCPSourceParams
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.AllowPrivate,
+		&i.Discoveries,
 	)
 	return i, err
 }

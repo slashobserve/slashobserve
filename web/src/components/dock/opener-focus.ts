@@ -4,7 +4,7 @@ const transientLayer = '[role="menu"], [role="dialog"]'
 
 export function useOpenerFocus(
   card: RefObject<HTMLElement | null>,
-  fallback?: () => HTMLElement | null
+  fallback?: (() => HTMLElement | null) | undefined
 ) {
   const opener = useRef<HTMLElement | null>(null)
 

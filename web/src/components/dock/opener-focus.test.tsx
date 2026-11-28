@@ -10,7 +10,7 @@ function Harness({
   fallback,
 }: {
   startOpen: boolean
-  fallback?: () => HTMLElement | null
+  fallback?: (() => HTMLElement | null) | undefined
 }) {
   const [open, setOpen] = useState(startOpen)
   const [sharing, setSharing] = useState(false)
@@ -41,7 +41,7 @@ function Pane({
   onClose,
 }: {
   sharing: boolean
-  fallback?: () => HTMLElement | null
+  fallback?: (() => HTMLElement | null) | undefined
   onClose: () => void
 }) {
   const card = useRef<HTMLElement>(null)

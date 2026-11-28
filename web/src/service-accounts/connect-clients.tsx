@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query"
 
+import { loadProblemText } from "@/api/errors"
 import { instanceQuery } from "@/api/instance"
 import { LoadProblem } from "@/components/load-problem"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 import { CodeSnippet } from "./code-snippet"
-import { loadProblemText } from "./queries"
 import { claudeSnippet, cliSnippet, openCodeSnippet } from "./snippets"
 
 const triggerClass =

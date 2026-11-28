@@ -10,7 +10,7 @@ export async function openDashboard(page: Page, id: string, search = "") {
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
 }
 
-export const saveToastTimeout = 15_000
+const saveToastTimeout = 15_000
 
 export async function expectSavedVersion(
   scope: Page | Locator,
@@ -38,7 +38,7 @@ export async function expectNoAnimations(locator: Locator) {
     .toBe(0)
 }
 
-export async function selectPanel(page: Page, title: string) {
+async function selectPanel(page: Page, title: string) {
   await panel(page, title)
     .getByRole("button", { name: `Select panel: ${title}`, exact: true })
     .click()

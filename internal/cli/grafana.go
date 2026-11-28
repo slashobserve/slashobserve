@@ -44,10 +44,15 @@ type grafanaImport struct {
 	Results []grafanaImportResult `json:"results"`
 }
 
-const importRunning = "running"
+const (
+	importRunning  = "running"
+	importFinished = "finished"
+)
+
+var importStates = map[string]bool{importRunning: true, importFinished: true, "failed": true, "canceled": true}
 
 func (i grafanaImport) state() string {
-	return stateOrLegacyStatus(i.State, i.Status)
+	return stateOrLegacyStatus(importStates, i.State, i.Status)
 }
 
 func (a *app) grafanaCommand() *cobra.Command {
@@ -224,6 +229,9 @@ func importOutcome(final grafanaImport) error {
 			reason += ": " + text(*final.Error)
 		}
 		return errors.New(reason)
+	case importFinished:
+	default:
+		return fmt.Errorf("the import stopped in a state this CLI does not know: %s", text(state))
 	}
 	if final.Failed > 0 {
 		return fmt.Errorf("%d %s failed to import", final.Failed, plural(final.Failed, "dashboard", "dashboards"))

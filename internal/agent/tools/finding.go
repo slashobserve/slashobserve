@@ -15,7 +15,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/findings"
@@ -59,18 +58,18 @@ const (
 	propFindingNoInc    = `"no_incident":{"type":"boolean"}`
 
 	propCauseComponent = `{"type":"object","properties":{"kind":{"type":"string","enum":["service","pod","deployment","config","flag","datastore","dependency","node","other"]},"name":{"type":"string","maxLength":120},"namespace":{"type":"string","maxLength":120}},"required":["kind","name"],"additionalProperties":false}`
-	propFindingCauses  = `"causes":{"type":"array","maxItems":6,"description":"Each cause the evidence supports, most confident first; none added to be safe. A service failing only on another listed cause's calls sets knock_on_of to that cause's index. The server scores confidence from evidence; estimate is yours.","items":{"type":"object","properties":{` +
+	propFindingCauses  = `"causes":{"type":"array","maxItems":6,"description":"Each cause the evidence supports, most confident first; none added to be safe. A service failing only on another listed cause's calls sets knock_on_of to that cause's index. estimate is your own confidence.","items":{"type":"object","properties":{` +
 		`"component":` + propCauseComponent + `,"kind":{"type":"string","enum":["deploy","config_or_flag","dependency","resource","data","traffic","infrastructure","unknown"]},` +
 		`"mechanism":{"type":"string","maxLength":300,"description":"One sentence: how it failed, with the changed value."},` +
 		`"trigger":{"type":"object","properties":{"kind":{"type":"string","enum":["feature_flag","config_value","deploy","traffic","dependency","unknown"]},"key":{"type":"string","maxLength":200,"description":"Flag key, setting, version or name exactly as the system spells it."},"value":{"type":"string","maxLength":200}},"required":["kind","key"],"additionalProperties":false},` +
 		`"onset":{"type":"string"},"affected":{"type":"array","maxItems":8,"items":` + propCauseComponent + `},"knock_on_of":{"type":"integer","minimum":0,"maximum":5},` +
 		`"evidence":{"type":"object","properties":{"facts":{"type":"array","maxItems":12,"items":{"type":"string"}},"trace_ids":{"type":"array","maxItems":4,"items":{"type":"string"}}},"additionalProperties":false},` +
-		`"estimate":{"type":"string","enum":["high","medium","low"]}},"required":["component","kind","mechanism"],"additionalProperties":false}}`
+		`"estimate":{"type":"string","enum":["high","medium","low"]}{cause_agent_props}},"required":["component","kind","mechanism"],"additionalProperties":false}}`
 
 	maxSuggestedChangeRunes = 500
 
 	schemaFindingHead       = `{"type":"object","properties":{` + propFindingTitle + `,` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,`
-	schemaFindingPlain      = propFindingSuggestedChange + `,` + propFindingObserveWorthy + `,` + propFindingAnswers
+	schemaFindingPlain      = propFindingSuggestedChange + `,` + propFindingObserveWorthy + `,` + propFindingAnswers + `{finding_agent_props}`
 	schemaFindingStructured = `,` + propFindingCauses + `,` + propFindingOnset + `,` + propFindingImpact + `,` + propFindingConf + `,` + propFindingRuledOut + `,` + propFindingNext + `,` + propFindingNoInc
 	schemaFindingEnd        = `},"required":["markdown"],"additionalProperties":false}`
 
@@ -97,7 +96,7 @@ func findingForRun(t Tool, mode Mode, investigation bool) Tool {
 	if askOn {
 		desc += descFindingAskOn
 	}
-	t.Description, t.InputSchema = desc, json.RawMessage(schema+schemaFindingEnd)
+	t.Description, t.InputSchema = desc, json.RawMessage(agentWording.replacer.Replace(schema+schemaFindingEnd))
 	return t
 }
 
@@ -115,11 +114,12 @@ type findingInput struct {
 	To       string            `json:"to"`
 	AskOn    string            `json:"ask_on_dashboard_id"`
 
-	SuggestedChange string             `json:"suggested_change"`
-	ObserveWorthy   bool               `json:"observe_worthy"`
-	Answers         []grounding.Answer `json:"answers"`
+	SuggestedChange string            `json:"suggested_change"`
+	ObserveWorthy   bool              `json:"observe_worthy"`
+	Answers         []json.RawMessage `json:"answers"`
 
 	findings.StructuredInput
+	agentFinding
 }
 
 type findingSavedOut struct {
@@ -150,23 +150,15 @@ func causesOut(causes []findings.Cause) []causeOut {
 	return out
 }
 
-func withLegacyFacts(ctx context.Context, in findingInput) findingInput {
-	if _, ok := factsOf(ctx); ok && len(in.Causes) == 0 && in.RootCause != nil {
-		in.LegacyFacts = grounding.CitedFacts(in.Markdown, in.Impact, in.RootCause.Summary)
-	}
-	return in
-}
-
-func scoredCauses(ctx context.Context, s *findings.Structured) string {
-	signals, ok := causeSignalsOf(ctx)
-	if !ok || len(s.Causes) == 0 {
+func scoredCauses(ctx context.Context, s *findings.Structured, agent agentFindingFields) string {
+	if len(s.Causes) == 0 {
 		return ""
 	}
-	notes := s.Score(signals)
-	if ledger, ok := factsOf(ctx); ok {
-		s.WithQueries(ledger.QueryOf)
+	signals, given, ok := agent.scoring(s)
+	if !ok {
+		return ""
 	}
-	return findings.ScoreNote(notes)
+	return findings.ScoreNote(s.ScoreGiven(signals, given))
 }
 
 func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -177,9 +169,9 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	in = withLegacyFacts(ctx, in)
-	in = renderedFinding(ctx, in)
 	run, _ := RunFrom(ctx)
+	agent := agentFindingOf(in.agentFinding, in.CauseInputs(), run)
+	ctx = agent.into(ctx)
 	principal, _ := auth.FromContext(ctx)
 	requestID, err := optionalUUID(run.RequestID)
 	if err != nil {
@@ -189,11 +181,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil {
 		return Result{}, fmt.Errorf("run dashboard id: %w", err)
 	}
-	from, to := run.From, run.To
-	if from.IsZero() || to.IsZero() {
-		to = Now(ctx)
-		from = to.Add(-defaultWindow)
-	}
+	from, to := runWindow(ctx, run)
 	extras, res, ok := checkedExtras(in, run)
 	if !ok {
 		return res, nil
@@ -209,10 +197,13 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	}
 	save.AgentRequestID, save.DashboardID, save.AskDashboardID = requestID, dashboardID, extras.askOn
 	save.SuggestedChange, save.ObserveWorthy = suggested, in.ObserveWorthy
-	scoreNote := scoredCauses(ctx, &extras.structured)
+	scoreNote := scoredCauses(ctx, &extras.structured, agent)
 	save.Structured = extras.structured
-	save.Unverified = unverifiedOf(ctx)
+	if agent.hasUnverify {
+		save.Unverified = agent.unverified
+	}
 	save.AsOf = run.asOf()
+	save.ClaimEpoch = run.ClaimEpoch
 	f, replayed, err := r.deps.Findings.Save(ctx, principal, save)
 	if errors.Is(err, findings.ErrNotFound) {
 		return toolError(codeNotFound, "dashboard not found"), nil
@@ -232,42 +223,12 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	return success(stepSavedAnswer, out), nil
 }
 
-func renderedFinding(ctx context.Context, in findingInput) findingInput {
-	ledger, ok := factsOf(ctx)
-	if !ok {
-		return in
+func runWindow(ctx context.Context, run Run) (time.Time, time.Time) {
+	if run.From.IsZero() || run.To.IsZero() {
+		to := Now(ctx)
+		return to.Add(-defaultWindow), to
 	}
-	render := func(text string) string {
-		out, _ := ledger.Render(text)
-		return out
-	}
-	in.Title, in.Markdown, in.Impact = render(in.Title), render(in.Markdown), render(in.Impact)
-	if in.RootCause != nil {
-		cause := *in.RootCause
-		cause.Summary = render(cause.Summary)
-		in.RootCause = &cause
-	}
-	if len(in.Causes) > 0 {
-		causes := slices.Clone(in.Causes)
-		for i := range causes {
-			causes[i].Mechanism = render(causes[i].Mechanism)
-		}
-		in.Causes = causes
-	}
-	in.RuledOut = renderedAll(in.RuledOut, render)
-	in.NextSteps = renderedAll(in.NextSteps, render)
-	return in
-}
-
-func renderedAll(texts []string, render func(string) string) []string {
-	if len(texts) == 0 {
-		return texts
-	}
-	out := make([]string, len(texts))
-	for i, text := range texts {
-		out[i] = render(text)
-	}
-	return out
+	return run.From, run.To
 }
 
 func (r *Registry) findingURL(f findings.Finding) string {

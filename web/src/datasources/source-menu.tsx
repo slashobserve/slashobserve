@@ -75,7 +75,7 @@ export function SourceLink({
   source: DatasourceStatus
   current: boolean
   className?: string
-  onNavigate?: () => void
+  onNavigate?: (() => void) | undefined
 }) {
   const target = useSourceTarget(kind, source)
   return (

@@ -47,7 +47,7 @@ describe("waitForPanels", () => {
   it("resolves true once the last panel has loaded", async () => {
     const root = sheet(["ready", "loading"])
     setTimeout(() => {
-      root.querySelectorAll("article")[1].dataset.state = "ready"
+      root.querySelectorAll("article")[1]!.dataset.state = "ready"
     }, 150)
     expect(await waitForPanels(root, { timeoutMs: 2000, settleMs: 0 })).toBe(
       true

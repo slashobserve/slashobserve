@@ -12,7 +12,6 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
-	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -41,7 +40,7 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 		return Finding{}, false, err
 	}
 	var row dbsqlc.Finding
-	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+	insert := func(q *dbsqlc.Queries) error {
 		observationID, created, err := conclude(q)
 		if err != nil {
 			return err
@@ -86,25 +85,13 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 		if err != nil {
 			return err
 		}
-		if !row.ObservationID.Valid {
-			return nil
-		}
-		data := map[string]string{"title": row.Title}
-		if row.AgentRequestID.Valid {
-			data["agent_request_id"] = row.AgentRequestID.String()
-		}
-		owner, err := createdOwner(ctx, q, row)
-		if err != nil {
+		return appendCreated(ctx, q, by, row)
+	}
+	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := insert(q); err != nil {
 			return err
 		}
-		_, err = activity.Append(ctx, q, activity.Entry{
-			Type:     activity.TypeFindingCreated,
-			TargetID: row.ID,
-			Owner:    owner,
-			Actor:    by,
-			Data:     data,
-		}, nil)
-		return err
+		return markRunCommitted(ctx, q, in)
 	})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
@@ -122,6 +109,42 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 	return f, false, err
 }
 
+func appendCreated(ctx context.Context, q *dbsqlc.Queries, by actor.Actor, row dbsqlc.Finding) error {
+	if !row.ObservationID.Valid {
+		return nil
+	}
+	data := map[string]string{"title": row.Title}
+	if row.AgentRequestID.Valid {
+		data["agent_request_id"] = row.AgentRequestID.String()
+	}
+	owner, err := createdOwner(ctx, q, row)
+	if err != nil {
+		return err
+	}
+	_, err = activity.Append(ctx, q, activity.Entry{
+		Type:     activity.TypeFindingCreated,
+		TargetID: row.ID,
+		Owner:    owner,
+		Actor:    by,
+		Data:     data,
+	}, nil)
+	return err
+}
+
+func markRunCommitted(ctx context.Context, q *dbsqlc.Queries, in SaveInput) error {
+	if !in.AgentRequestID.Valid || in.ClaimEpoch == 0 {
+		return nil
+	}
+	n, err := q.MarkAgentRequestFindingCommitted(ctx, dbsqlc.MarkAgentRequestFindingCommittedParams{ID: in.AgentRequestID, ClaimEpoch: httpapi.Int32(in.ClaimEpoch)})
+	if err != nil {
+		return fmt.Errorf("mark the run's answer committed: %w", err)
+	}
+	if n == 0 {
+		return ErrRunLost
+	}
+	return nil
+}
+
 func (s *store) runObservation(ctx context.Context, requestID pgtype.UUID) (pgtype.UUID, error) {
 	id, err := s.db.Queries().RunObservation(ctx, requestID)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -130,30 +153,35 @@ func (s *store) runObservation(ctx context.Context, requestID pgtype.UUID) (pgty
 	return id, nil
 }
 
-func (s *store) attachObservation(ctx context.Context, id pgtype.UUID, conclude conclude) (bool, error) {
-	attached := false
+func (s *store) keepInObservation(ctx context.Context, id pgtype.UUID, conclude conclude) (SaveOutcome, error) {
+	var outcome SaveOutcome
 	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		existing, err := q.LockFinding(ctx, id)
-		if err != nil || existing.Valid {
-			return err
-		}
-		observationID, _, err := conclude(q)
+		locked, err := q.LockFinding(ctx, id)
 		if err != nil {
 			return err
 		}
-		if _, err := q.SetFindingObservation(ctx, dbsqlc.SetFindingObservationParams{ID: id, ObservationID: observationID}); err != nil {
-			return err
+		observationID := locked.ObservationID
+		switch {
+		case locked.KeptAt.Valid:
+			outcome = SaveUnchanged
+			return nil
+		case observationID.Valid:
+			outcome = SaveKept
+		default:
+			if observationID, _, err = conclude(q); err != nil {
+				return err
+			}
+			outcome = SaveCreated
 		}
-		attached = true
-		return nil
+		return q.KeepFindingInObservation(ctx, dbsqlc.KeepFindingInObservationParams{ID: id, ObservationID: observationID})
 	})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
-		return false, ErrNotFound
+		return "", ErrNotFound
 	case err != nil:
-		return false, fmt.Errorf("save finding as observation: %w", err)
+		return "", fmt.Errorf("save finding as observation: %w", err)
 	}
-	return attached, nil
+	return outcome, nil
 }
 
 func (s *store) get(ctx context.Context, id pgtype.UUID) (Finding, error) {
@@ -255,61 +283,6 @@ func activityOwner(dashboardID, observationID pgtype.UUID) activity.Owner {
 		return activity.OnDashboard(dashboardID)
 	}
 	return activity.OnObservation(observationID)
-}
-
-func (s *store) setAnnotation(ctx context.Context, by actor.Actor, id, dashboardID, observationID, annotationID pgtype.UUID) (bool, error) {
-	won := false
-	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		n, err := q.SetFindingAnnotation(ctx, dbsqlc.SetFindingAnnotationParams{ID: id, AnnotationID: annotationID})
-		if err != nil || n == 0 {
-			return err
-		}
-		won = true
-		_, err = activity.Append(ctx, q, activity.Entry{
-			Type:     activity.TypeFindingPinned,
-			TargetID: id,
-			Owner:    activityOwner(dashboardID, observationID),
-			Actor:    by,
-			Data:     map[string]string{"annotation_id": annotationID.String()},
-		}, nil)
-		return err
-	})
-	if err != nil {
-		return false, fmt.Errorf("set finding annotation: %w", err)
-	}
-	return won, nil
-}
-
-func (s *store) annotation(ctx context.Context, id pgtype.UUID) (annotations.Annotation, error) {
-	r, err := s.db.Queries().GetAnnotation(ctx, id)
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		return annotations.Annotation{}, ErrNotFound
-	case err != nil:
-		return annotations.Annotation{}, fmt.Errorf("get annotation of finding: %w", err)
-	}
-	a := annotations.Annotation{
-		ID:        r.ID.String(),
-		PanelID:   r.PanelID,
-		From:      r.TimeFrom.Time.UTC(),
-		Text:      r.Text,
-		Tags:      r.Tags,
-		CreatedAt: r.CreatedAt.Time.UTC(),
-	}
-	if r.DashboardID.Valid {
-		a.DashboardID = r.DashboardID.String()
-	}
-	if r.TimeTo.Valid {
-		to := r.TimeTo.Time.UTC()
-		a.To = &to
-	}
-	if r.CreatedBy.Valid {
-		a.CreatedBy = r.CreatedBy.String()
-	}
-	if a.Tags == nil {
-		a.Tags = []string{}
-	}
-	return a, nil
 }
 
 func findingsOf[R any](rows []R, split func(R) (dbsqlc.Finding, pgtype.UUID, bool)) ([]Finding, error) {

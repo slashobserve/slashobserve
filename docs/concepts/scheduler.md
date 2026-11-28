@@ -126,7 +126,7 @@ Details of `oauth_prune`:
 Details of `run_tokens_prune`:
 
 - It deletes expired run tokens.
-- It deletes the records of agent workers whose grant or service account is gone.
+- It deletes the records of agent workers whose service account is gone or whose grant is gone, revoked or expired.
 
 Details of `agent_requests_sweep`:
 
@@ -140,7 +140,6 @@ Details of `audit_partitions`:
 
 - It keeps the audit table's daily partitions 14 days ahead and drops those older than `SLASHOBSERVE_AUDIT_RETENTION`; see [Configuration](../reference/configuration.md#audit).
 - Every server also runs it once at start.
-- For 7 days after the audit table's migration, it also records an audit event for each activity event an older server wrote without one; see [Upgrades and backups](../operate/upgrades-and-backups.md).
 
 Details of `audit_export`:
 

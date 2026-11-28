@@ -1,5 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import { buildGazetteer, type Gazetteers } from "../geomap/gazetteer/lookup"
 import { atlasFeatures } from "../geomap/world"
 import type { PreparedFrame } from "./names"
@@ -49,6 +51,7 @@ describe("spatial prepare", () => {
       ],
     }
     const [out] = run(frame, {})
+    defined(out)
     expect(out.fields.map((field) => field.name)).toEqual([
       "Latitude",
       "Lng",
@@ -70,6 +73,7 @@ describe("spatial prepare", () => {
     const [out] = run(frame, {
       source: { mode: "auto", latitude: "y", longitude: "x" },
     })
+    defined(out)
     expect(out.fields).toEqual(frame.fields)
   })
 
@@ -84,18 +88,21 @@ describe("spatial prepare", () => {
     const [out] = run(frame, {
       source: { mode: "coords", latitude: "y", longitude: "x" },
     })
+    defined(out)
     expect(values(out, "lat")).toEqual([51.5, 48.8, null])
     expect(values(out, "lon")).toEqual([-0.1, 2.3, null])
   })
 
   it("leaves a row without a valid place null in both fields", () => {
     const [out] = run(points([95, 10, null, 20], [10, 200, 30, 40]), {})
+    defined(out)
     expect(values(out, "lat")).toEqual([null, null, null, 20])
     expect(values(out, "lon")).toEqual([null, null, null, 40])
   })
 
   it("replaces the lat and lon fields it finds instead of repeating them", () => {
     const [out] = run(points([1, 2], [3, 4]), {})
+    defined(out)
     expect(out.fields.map((field) => field.name)).toEqual([
       "lat",
       "lon",
@@ -109,10 +116,12 @@ describe("spatial prepare", () => {
       fields: [{ name: "geohash", type: "string", values: ["ezs42", "!", 7] }],
     }
     const [out] = run(frame, { source: { mode: "geohash" } })
+    defined(out)
     expect(values(out, "lat")[0]).toBeCloseTo(42.6, 1)
     expect(values(out, "lon")[0]).toBeCloseTo(-5.6, 1)
     expect(values(out, "lat").slice(1)).toEqual([null, null])
     const [auto] = run(frame, {})
+    defined(auto)
     expect(values(auto, "lat")).toEqual(values(out, "lat"))
   })
 
@@ -131,6 +140,7 @@ describe("spatial prepare", () => {
     const [out] = run(frame, {
       source: { mode: "lookup", lookup: "country", gazetteer: "countries" },
     })
+    defined(out)
     const lat = values(out, "lat")
     expect(lat[0]).toBeGreaterThan(41.3)
     expect(lat[0]).toBeLessThan(51.1)
@@ -145,11 +155,11 @@ describe("spatial prepare", () => {
     }
     const lookup = { mode: "lookup" as const, lookup: "country" }
     const pending = run(frame, { source: lookup }, {})
-    expect(pending[0].fields).toEqual(frame.fields)
+    expect(must(pending[0]).fields).toEqual(frame.fields)
     const other = run(frame, { source: { ...lookup, lookup: "city" } })
-    expect(other[0].fields).toEqual(frame.fields)
+    expect(must(other[0]).fields).toEqual(frame.fields)
     const noPlaces = run(frame, {})
-    expect(noPlaces[0].fields).toEqual(frame.fields)
+    expect(must(noPlaces[0]).fields).toEqual(frame.fields)
     expect(noPlaces[0]).not.toBe(frame)
   })
 })
@@ -158,8 +168,10 @@ describe("spatial calculate", () => {
   it("measures heading and distance from the previous located row", () => {
     const frame = points([0, 0, 1, null, 0], [0, 1, 1, 5, 1])
     const [heading] = run(frame, { action: "calculate", calc: "heading" })
+    defined(heading)
     expect(values(heading, "Heading")).toEqual([null, 90, 0, null, 180])
     const [distance] = run(frame, { action: "calculate", calc: "distance" })
+    defined(distance)
     const meters = values(distance, "Distance") as (number | null)[]
     expect(meters[0]).toBeNull()
     expect(meters[1]).toBeCloseTo(111195, 0)
@@ -170,6 +182,7 @@ describe("spatial calculate", () => {
 
   it("is heading when no calculation is named, with units on the new field", () => {
     const [out] = run(points([0, 0], [0, 1]), { action: "calculate" })
+    defined(out)
     const added = out.fields.at(-1)
     expect(added?.name).toBe("Heading")
     expect(added?.config?.unit).toBe("degree")
@@ -178,6 +191,7 @@ describe("spatial calculate", () => {
       calc: "distance",
       field: "Leg",
     })
+    defined(metres)
     expect(metres.fields.at(-1)?.name).toBe("Leg")
     expect(metres.fields.at(-1)?.config?.unit).toBe("lengthm")
   })
@@ -185,16 +199,19 @@ describe("spatial calculate", () => {
   it("matches the known distance and bearing from London to Paris", () => {
     const frame = points([51.5074, 48.8566], [-0.1278, 2.3522])
     const [distance] = run(frame, { action: "calculate", calc: "distance" })
+    defined(distance)
     const meters = values(distance, "Distance")[1] as number
     expect(meters).toBeGreaterThan(343000)
     expect(meters).toBeLessThan(344500)
     const [heading] = run(frame, { action: "calculate", calc: "heading" })
+    defined(heading)
     expect(values(heading, "Heading")[1] as number).toBeCloseTo(148.1, 0)
   })
 
   it("gives the area of the polygon the rows outline on every row", () => {
     const square = points([0, 0, 1, 1], [0, 1, 1, 0])
     const [out] = run(square, { action: "calculate", calc: "area" })
+    defined(out)
     const areas = values(out, "Area") as number[]
     expect(new Set(areas).size).toBe(1)
     expect(areas[0]).toBeGreaterThan(1.23e10)
@@ -204,6 +221,7 @@ describe("spatial calculate", () => {
       action: "calculate",
       calc: "area",
     })
+    defined(line)
     expect(values(line, "Area")).toEqual([null, null])
   })
 })
@@ -213,9 +231,9 @@ describe("spatial modify", () => {
     const frame = points([1, null, 3], [4, 5, 6])
     const out = run(frame, { action: "modify", modify: "asLine" })
     expect(out).toHaveLength(1)
-    expect(values(out[0], "lat")).toEqual([1, 3])
-    expect(values(out[0], "lon")).toEqual([4, 6])
-    expect(values(out[0], "load")).toEqual([0, 20])
+    expect(values(must(out[0]), "lat")).toEqual([1, 3])
+    expect(values(must(out[0]), "lon")).toEqual([4, 6])
+    expect(values(must(out[0]), "load")).toEqual([0, 20])
   })
 
   it("builds one two-point line per row from the source to the target", () => {
@@ -237,11 +255,11 @@ describe("spatial modify", () => {
     })
     expect(out).toHaveLength(2)
     expect(out.map((line) => line.name)).toEqual(["flows", "flows"])
-    expect(values(out[0], "lat")).toEqual([1, 4])
-    expect(values(out[0], "lon")).toEqual([10, 40])
-    expect(values(out[0], "rate")).toEqual([7, 7])
-    expect(values(out[1], "lat")).toEqual([3, 6])
-    expect(values(out[1], "lon")).toEqual([30, 60])
+    expect(values(must(out[0]), "lat")).toEqual([1, 4])
+    expect(values(must(out[0]), "lon")).toEqual([10, 40])
+    expect(values(must(out[0]), "rate")).toEqual([7, 7])
+    expect(values(must(out[1]), "lat")).toEqual([3, 6])
+    expect(values(must(out[1]), "lon")).toEqual([30, 60])
   })
 
   it("builds lines when no modification is named, and keeps the frame whole when the target is missing", () => {
@@ -250,12 +268,13 @@ describe("spatial modify", () => {
       action: "modify",
       target: { mode: "coords", latitude: "nope", longitude: "lon" },
     })
+    defined(whole)
     expect(whole.fields).toEqual(frame.fields)
     const lines = run(frame, {
       action: "modify",
       target: { mode: "coords", latitude: "lat", longitude: "lon" },
     })
-    expect(values(lines[0], "lat")).toEqual([1, 1])
+    expect(values(must(lines[0]), "lat")).toEqual([1, 1])
   })
 })
 

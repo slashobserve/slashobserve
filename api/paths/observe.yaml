@@ -148,7 +148,7 @@ observe:
       An `ask` without `dashboard_id` and `observation_id` builds a new dashboard (`intent` is `ask` until it saves one, then `apply`); the finished request carries the new `dashboard_id` and `url`.
       When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` set and `dashboard_id`, `result_version` and `observation_id` null, and `kind` stays `build`.
       That answer makes no observation: it stays on the request, read by the requester and Admins, until the requester saves it with `POST /observe/{id}/observation`.
-      With `kind` `revise` and `dashboard_id` the agent revises that dashboard (`intent` is `apply`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version.
+      With `kind` `revise` and `dashboard_id` the agent revises that dashboard (`intent` is `apply`); `base_version` defaults to the dashboard's latest version.
       With `kind` `revise`, `applies_finding_id` in place of `prompt` applies an answer's suggested change: the finding must be the answer of a request you can read about `dashboard_id` (404 `not_found` otherwise, 400 `invalid_request` when it is about another dashboard, was answered in another chat than `chat_id` or suggests no change), and its `suggested_change` becomes the prompt, so sending both answers 400 `invalid_request`.
       While a request applying that finding is queued or running, or after it succeeded, another one answers 200 with `replayed` true and that request when it is yours, and 409 `already_applied` when it is someone else's.
       A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` set, keeps its `dashboard_id`, and `result_version` stays null; it too makes no observation until its requester saves it.
@@ -395,6 +395,7 @@ observe-id:
     description: >-
       Only the principal that made the request may archive it (403 `forbidden`); a request hidden from the caller answers 404.
       The request stays readable through `GET /observe/{id}`, and archiving it again changes nothing.
+      Archiving the last turn of a chat that is not archived yet archives the chat too; a chat with a turn left stays.
     responses:
       "204":
         description: The request is archived; nothing is returned.
@@ -497,7 +498,7 @@ observe-id-build-save:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/VersionConflict"
                 - $ref: "../openapi.yaml#/components/schemas/BuildRefusal"
@@ -525,11 +526,12 @@ observe-id-observation:
       An answer whose request read data only Admins can query, such as the audit trail, is filed in the folder of the dashboard or observation it was about when only Admins can read that folder, else in the built-in Audit folder instead.
       Only the principal that made the request may call it; anyone else, an Admin included, gets 404 or 403 and nothing changes.
       The request gains `observation_id` and `url`, and `finding.observation_id` is set.
-      A repeat call answers 200 with `replayed` true and the same observation.
+      An answer that a thread share only showed on an observation's page is saved in that observation: the call answers 200 with `outcome` `kept`, and a later withdraw of the share leaves it there.
+      A repeat call answers 200 with `replayed` true, `outcome` `unchanged` and the same observation.
       A request without an answer answers 409 `no_answer`.
     responses:
       "200":
-        description: The answer was already an observation; nothing changed.
+        description: The answer was shown on an observation's page and is now saved there (`kept`), or it was already saved and nothing changed (`unchanged`).
         content:
           application/json:
             schema:
@@ -556,7 +558,7 @@ observe-id-observation:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "500":
@@ -629,7 +631,7 @@ observe-id-share:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "500":
@@ -702,7 +704,7 @@ observe-id-continue:
       Continue and `POST /observe/{id}/build/save` on the same request are exclusive: Continue after a save answers 409 `not_continuable`, and a save after Continue answers 404 `not_found` because the build moved to the new request.
       Only the principal that made the request may call it, with the same access as starting a run; someone else gets 403 `forbidden` on a revision they can see and 404 on a new-dashboard request.
       The new request keeps the stopped request's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one.
-      A revision whose dashboard has a newer version than the build's base answers 409 `version_conflict` with `latest_version`.
+      A revision whose dashboard has a newer version than the build's base (`build_state` `stale`) is continued too: the new run moves the build onto the latest version when it starts, or starts again from that version when the changes collide.
       The new request counts against the same caps as `POST /observe`, and is assigned to the same agent as the stopped one.
       The optional `note` is stored on the new request as `continue_note` and given to the agent in every seed of that run, including its restarts.
       Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
@@ -738,14 +740,13 @@ observe-id-continue:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
         description: >-
-          The request cannot be continued: `not_continuable` with its `state`, the `allowed_actions` the caller has and a `reason`, `assignee_unavailable` when the agent it was assigned to is a revoked, expired or foreign grant or a service account that no longer takes runs, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base.
+          The request cannot be continued: `not_continuable` with its `state`, the `allowed_actions` the caller has and a `reason`, `assignee_unavailable` when the agent it was assigned to is a revoked, expired or foreign grant or a service account that no longer takes runs.
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/RunRefusal"
                 - $ref: "../openapi.yaml#/components/schemas/Error"
-                - $ref: "../openapi.yaml#/components/schemas/VersionConflict"
       "429":
         description: Too many agent requests are queued or running (`too_many_requests` for the caller, `agent_busy` for the instance, `too_many_revisions` for the dashboard).
         content:
@@ -813,7 +814,7 @@ observe-id-retry:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/RunRefusal"
                 - $ref: "../openapi.yaml#/components/schemas/Error"
       "422":

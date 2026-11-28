@@ -76,13 +76,15 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe("arranging blocks from the keyboard", () => {
   it("moves a block with the arrow keys and puts the whole order without versions", async () => {
-    const blocks = [block("a", 0), block("b", 1)]
-    const bodies = stubLayout([blocks[1], { ...blocks[0], position: 1 }])
+    const a = block("a", 0)
+    const b = block("b", 1)
+    const blocks = [a, b]
+    const bodies = stubLayout([b, { ...a, position: 1 }])
     const { user } = show(blocks, ["update"])
     const handles = await screen.findAllByRole("button", {
       name: /^Move or resize Text/,
     })
-    handles[0].focus()
+    handles[0]!.focus()
     await user.keyboard("{ArrowDown}")
     await waitFor(() => expect(bodies).toHaveLength(1))
     expect(bodies[0]).toEqual({ blocks: [{ id: "b" }, { id: "a" }] })
@@ -120,15 +122,15 @@ describe("arranging blocks from the keyboard", () => {
     const [handle] = await screen.findAllByRole("button", {
       name: /^Move or resize Text/,
     })
-    handle.focus()
+    handle!.focus()
     await user.keyboard("{ArrowDown}")
     await waitFor(() => expect(puts).toHaveLength(1))
     await user.keyboard("{ArrowUp}")
     expect(puts).toHaveLength(1)
-    puts[0].release()
+    puts[0]!.release()
     await waitFor(() => expect(puts).toHaveLength(2))
-    expect(puts[1].body).toEqual({ blocks: [{ id: "a" }, { id: "b" }] })
-    puts[1].release()
+    expect(puts[1]?.body).toEqual({ blocks: [{ id: "a" }, { id: "b" }] })
+    puts[1]!.release()
   })
 
   it("steps the width with shift and the side arrows", async () => {
@@ -138,7 +140,7 @@ describe("arranging blocks from the keyboard", () => {
     const [handle] = await screen.findAllByRole("button", {
       name: /^Move or resize Text/,
     })
-    handle.focus()
+    handle!.focus()
     await user.keyboard("{Shift>}{ArrowRight}{/Shift}")
     await waitFor(() => expect(bodies).toHaveLength(1))
     expect(bodies[0]).toEqual({
@@ -155,7 +157,7 @@ describe("arranging blocks from the keyboard", () => {
     const [handle] = await screen.findAllByRole("button", {
       name: /^Move or resize/,
     })
-    handle.focus()
+    handle!.focus()
     await user.keyboard("{Shift>}{ArrowDown}{/Shift}")
     await waitFor(() => expect(bodies).toHaveLength(1))
     expect(bodies[0]).toEqual({ blocks: [{ id: "a", height: 260 }] })

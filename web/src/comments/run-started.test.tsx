@@ -40,7 +40,7 @@ describe("RunStarted", () => {
       agentName: "Observe Agent",
     })
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "Observe Agent is working on it."
+      "Observe Agent is working on it"
     )
     expect(screen.getByRole("link", { name: "View the run" })).toHaveAttribute(
       "href",
@@ -49,8 +49,8 @@ describe("RunStarted", () => {
   })
 
   it.each([
-    ["succeeded", "Observe Agent finished."],
-    ["failed", "Observe Agent could not finish."],
+    ["succeeded", "Observe Agent finished"],
+    ["failed", "Observe Agent could not finish"],
   ] as const)(
     "follows the run to %s and keeps the link to it",
     async (status, text) => {
@@ -93,7 +93,7 @@ describe("RunStarted", () => {
     })
     fireEvent.click(await screen.findByRole("button", { name: "Stop" }))
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("Stopped.")
+      expect(screen.getByRole("status")).toHaveTextContent("Stopped")
     )
     expect(screen.queryByRole("button", { name: "Stop" })).toBeNull()
     expect(
@@ -106,7 +106,7 @@ describe("RunStarted", () => {
     ).toBe(true)
   })
 
-  it("shows Stopped. for a run that was canceled", async () => {
+  it("shows Stopped for a run that was canceled", async () => {
     stubRequest({
       id: runId,
       status: "failed",
@@ -119,7 +119,7 @@ describe("RunStarted", () => {
       agentName: "Observe Agent",
     })
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("Stopped.")
+      expect(screen.getByRole("status")).toHaveTextContent("Stopped")
     )
     expect(screen.queryByRole("button")).toBeNull()
     expect(screen.getByRole("link", { name: "View the run" })).toHaveAttribute(
@@ -150,7 +150,7 @@ describe("RunStarted", () => {
         agentName: "Claude Code",
       })
       expect(await screen.findByRole("status")).toHaveTextContent(
-        "Claude Code was asked."
+        "Claude Code was asked"
       )
       expect(screen.queryByRole("link")).toBeNull()
     }

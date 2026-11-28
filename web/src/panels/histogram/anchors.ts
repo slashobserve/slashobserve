@@ -18,7 +18,10 @@ export type HistogramAnchorLayout = {
 
 function bucketLabel(layout: HistogramAnchorLayout, bucket: number): string {
   const { edges, format } = layout
-  return clip(`${format(edges[bucket])} to ${format(edges[bucket + 1])}`)
+  const low = edges[bucket]
+  const high = edges[bucket + 1]
+  if (low === undefined || high === undefined) return ""
+  return clip(`${format(low)} to ${format(high)}`)
 }
 
 export function hitTest(

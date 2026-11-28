@@ -5,6 +5,7 @@ import { renderWithProviders } from "@/test/render"
 
 import { AgentsPage } from "./agents-page"
 import type { AgentsOverview } from "./queries"
+import { must } from "@/test/must"
 
 const session = vi.hoisted(() => ({ role: "admin" }))
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
@@ -167,7 +168,7 @@ describe("AgentsPage", () => {
 
     const buttons = screen.getAllByRole("button", { name: "Connect an agent" })
     expect(buttons).toHaveLength(2)
-    await user.click(buttons[1])
+    await user.click(must(buttons[1]))
     expect(onConnectingChange).toHaveBeenCalledWith(true)
   })
 

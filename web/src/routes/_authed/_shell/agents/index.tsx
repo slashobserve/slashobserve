@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { AgentsPage } from "@/agents/agents-page"
 import { useDocumentTitle } from "@/lib/document-title"
 
-type AgentsSearch = { connect?: "1" }
+type AgentsSearch = { connect?: "1" | undefined }
 
 export const Route = createFileRoute("/_authed/_shell/agents/")({
   staticData: { crumbs: [{ label: "Agents" }] },

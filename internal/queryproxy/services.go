@@ -101,7 +101,7 @@ func (r *Runner) Services(ctx context.Context, req ServicesRequest) (Services, e
 }
 
 func (r *Runner) readServices(ctx context.Context, uid string, source datasource.ServiceSource, signal string, window time.Duration, now time.Time) (Services, error) {
-	release, err := r.acquireUpstreamBounded(ctx, uid)
+	release, err := r.AcquireUpstreamBounded(ctx, uid)
 	if err != nil {
 		return Services{}, err
 	}

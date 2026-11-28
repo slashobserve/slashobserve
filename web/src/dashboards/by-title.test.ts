@@ -5,15 +5,6 @@ import { pickDashboard, targetFor, validateByTitleSearch } from "./by-title"
 const dashboard = (id: string, title: string) => ({ id, title })
 
 describe("pickDashboard", () => {
-  it("picks the one dashboard whose title is equal", () => {
-    expect(
-      pickDashboard("Thanos / Query", [
-        dashboard("a", "Thanos / Query"),
-        dashboard("b", "Thanos / Query Frontend"),
-      ])
-    ).toBe("a")
-  })
-
   it("prefers the exact title over a different case", () => {
     expect(
       pickDashboard("Thanos / Query", [

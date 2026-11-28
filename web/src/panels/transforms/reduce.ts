@@ -78,7 +78,8 @@ function reduceToRows(
   frames: PreparedFrame[],
   options: ReduceOptions
 ): PreparedFrame[] {
-  if (frames.length === 0) return []
+  const [first] = frames
+  if (first === undefined) return []
   const { reducers } = options
   const rows: { frame: PreparedFrame; field: PreparedField }[] = []
   for (const frame of frames) {
@@ -88,7 +89,7 @@ function reduceToRows(
   }
   return [
     {
-      ref: frames[0].ref,
+      ref: first.ref,
       fields: [
         {
           name: "Field",

@@ -7,7 +7,7 @@ export function ImageCell({
 }: {
   value: unknown
   alt: string
-  title?: string
+  title?: string | undefined
 }) {
   if (typeof value !== "string" || value.trim() === "") {
     return <span className="text-muted-foreground">-</span>

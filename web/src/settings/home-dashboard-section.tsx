@@ -1,10 +1,10 @@
 import { Link } from "@tanstack/react-router"
 
+import { loadProblemText } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useClearHomeDashboard, useHomeDashboard } from "@/home/home-dashboard"
 import { dashboardLink } from "@/lib/links"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { SettingsCard, SettingsProblem, SettingsRow } from "./settings-card"
 import { SettingsSection } from "./settings-section"

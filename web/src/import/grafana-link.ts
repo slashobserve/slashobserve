@@ -1,6 +1,5 @@
 import { api } from "@/api/client"
-import { ApiError, unwrap } from "@/api/errors"
-import { sentence } from "@/observe/queries"
+import { ApiError, unwrap, sentence } from "@/api/errors"
 
 export const adminOnlyLinkText =
   "Only Admins can import from a link, through a Grafana connection. Paste the dashboard's JSON instead."

@@ -67,6 +67,7 @@ function useContentWidth() {
     const element = ref.current
     if (!element) return
     const observer = new ResizeObserver(([entry]) => {
+      if (entry === undefined) return
       setWidth(Math.floor(entry.contentRect.width))
     })
     observer.observe(element)
@@ -280,7 +281,9 @@ function DataPreview({
       <PanelBody
         panel={debounced}
         data={data}
-        ghost={showGhost ? saved.data : undefined}
+        {...(showGhost && saved.data !== undefined
+          ? { ghost: saved.data }
+          : {})}
         width={width}
         height={chartHeight}
         stateScope={`preview:${previewScope(target)}`}

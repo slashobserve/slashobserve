@@ -2,13 +2,12 @@ import { useId, useState, type FormEvent } from "react"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { ApiError } from "@/api/errors"
+import { problemText } from "@/api/errors"
 import { RoleNote } from "@/components/role-note"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cleanText, lineRule, textError } from "@/lib/user-text"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { DeleteFolderCard } from "./delete-folder-card"
 import { FolderAccessCard } from "./folder-access-card"
@@ -16,13 +15,6 @@ import { levelLabels } from "./grants"
 import { useRenameFolder, type Folder } from "./queries"
 
 const maxTitleLength = 100
-
-function renameProblemText(error: unknown): string {
-  if (error instanceof ApiError && error.code === "folder_exists") {
-    return "A folder with this name already exists."
-  }
-  return loadProblemText(error)
-}
 
 export function FolderSettingsBody({ folder }: { folder: Folder }) {
   if (folder.kind === "general") {
@@ -83,7 +75,14 @@ function NameCard({ folder }: { folder: Folder }) {
         setDraft(renamed.title)
         toast.success("Folder renamed")
       },
-      onError: (error) => setProblem(renameProblemText(error)),
+      onError: (error) =>
+        setProblem(
+          problemText(error, {
+            codes: {
+              folder_exists: "A folder with this name already exists.",
+            },
+          })
+        ),
     })
   }
 

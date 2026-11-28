@@ -59,10 +59,12 @@ func (q *Queries) EmailHasSignedIn(ctx context.Context, email string) (bool, err
 }
 
 const listInvites = `-- name: ListInvites :many
-SELECT id, email, role, created_by_name, created_at, updated_at FROM user_invites
+SELECT i.id, i.email, i.role, i.created_by_name, i.created_at, i.updated_at,
+  EXISTS (SELECT 1 FROM users u WHERE lower(u.email) = lower(i.email))::boolean AS member
+FROM user_invites i
 WHERE $1::timestamptz IS NULL
-  OR (created_at, id) < ($1::timestamptz, $2::uuid)
-ORDER BY created_at DESC, id DESC
+  OR (i.created_at, i.id) < ($1::timestamptz, $2::uuid)
+ORDER BY i.created_at DESC, i.id DESC
 LIMIT $3
 `
 
@@ -79,6 +81,7 @@ type ListInvitesRow struct {
 	CreatedByName string
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
+	Member        bool
 }
 
 func (q *Queries) ListInvites(ctx context.Context, arg ListInvitesParams) ([]ListInvitesRow, error) {
@@ -97,6 +100,7 @@ func (q *Queries) ListInvites(ctx context.Context, arg ListInvitesParams) ([]Lis
 			&i.CreatedByName,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Member,
 		); err != nil {
 			return nil, err
 		}

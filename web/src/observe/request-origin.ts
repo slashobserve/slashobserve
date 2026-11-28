@@ -1,7 +1,7 @@
 export type RequestOrigin = "observe" | "prompt" | "comment" | "investigate"
 
 export type OriginFields = {
-  kind?: "build" | "investigate"
+  kind?: "build" | "investigate" | undefined
   intent: "apply" | "ask"
   base_version: number | null
   comment_id: string | null

@@ -2,6 +2,7 @@ import { useId, useRef, useState, type FormEvent, type ReactNode } from "react"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -23,7 +24,6 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { zonedDateTime } from "@/lib/time"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import {
   validateEdit,
@@ -37,7 +37,12 @@ import type { Annotation } from "./queries"
 import { zoneLabel } from "./time"
 
 export type Draft =
-  | { kind: "new"; fromMs: number; toMs: number | null; panelId?: string }
+  | {
+      kind: "new"
+      fromMs: number
+      toMs: number | null
+      panelId?: string | undefined
+    }
   | { kind: "edit"; annotation: Annotation }
 
 type DialogContext = {

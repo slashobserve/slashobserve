@@ -8,6 +8,7 @@ import { renderWithProviders } from "@/test/render"
 
 import type { MCPSource, MCPTool } from "./queries"
 import { McpSourcesSection } from "./sources-table"
+import { must } from "@/test/must"
 
 const calls = vi.hoisted(() => ({
   approve: vi.fn(),
@@ -219,12 +220,12 @@ describe("McpSourcesSection", () => {
     await user.click(
       await screen.findByRole("button", { name: "Approve search" })
     )
-    expect(calls.approve.mock.calls[0][0]).toMatchObject({
+    expect(must(calls.approve.mock.calls[0])[0]).toMatchObject({
       uid: "docs",
       tool: { name: "search" },
     })
     await user.click(screen.getByRole("button", { name: "Revoke fetch" }))
-    expect(calls.revoke.mock.calls[0][0]).toEqual({
+    expect(must(calls.revoke.mock.calls[0])[0]).toEqual({
       uid: "docs",
       name: "fetch",
     })

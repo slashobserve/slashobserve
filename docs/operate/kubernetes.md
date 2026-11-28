@@ -92,7 +92,7 @@ Set these values to enable the built-in agent:
 
 See [LLM providers](../connect/llm-providers.md).
 The chart mounts the key as a file for `SLASHOBSERVE_LLM_API_KEY_FILE`.
-The server starts `observe-agent` from the image whenever `llm.provider` is set.
+The server starts `slashobserve-harness` from the image whenever `llm.provider` is set.
 That process makes the model calls from the pod, so the pod needs a network path to the provider.
 
 ## Set any other server setting

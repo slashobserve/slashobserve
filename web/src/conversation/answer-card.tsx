@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { plainTitle } from "@/comments/plain-title"
-import { ApiError } from "@/api/errors"
+import { ApiError, problemText, type ProblemTexts } from "@/api/errors"
 import { useThreads } from "@/comments/thread-queries"
 import { DuplicateAction } from "@/dashboards/duplicate-action"
 import { starterNote, useLatestChange } from "@/dashboards/permissions"
@@ -24,7 +24,6 @@ import { evidencePanels, type Finding } from "@/findings/queries"
 import { dashboardLink, observationLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import {
-  sentence,
   useSaveAnswer,
   useShareAnswer,
   useWithdrawShare,
@@ -45,7 +44,7 @@ const threadLabelLength = 60
 type AnswerMenu = {
   shareTarget: string | null
   sharedThreadId: string | null
-  showToEveryone?: boolean
+  showToEveryone?: boolean | undefined
   subjectObservationId: string | null
 }
 
@@ -53,28 +52,26 @@ export type RevisionAsked = boolean | string
 
 export const starterCardNote = `${starterNote} Duplicate it to get a copy you can change.`
 
-export function reviseFailureText(error: unknown): string {
-  if (error instanceof ApiError && error.code === "provisioned") {
-    return starterNote
-  }
-  return error instanceof Error && error.message !== ""
-    ? sentence(error.message)
-    : "The change could not be asked for. Try again."
+export const reviseProblems: ProblemTexts = {
+  codes: { provisioned: starterNote },
+  fallback: "The change could not be asked for. Try again.",
 }
 
 type Props = {
   finding: Finding
   requestId: string
   canSave: boolean
-  revise?: {
-    onRevise: () => Promise<RevisionAsked>
-    pending: boolean
-    blocked: string | null
-    note?: string
-    dashboardId: string
-  }
+  revise?:
+    | {
+        onRevise: () => Promise<RevisionAsked>
+        pending: boolean
+        blocked: string | null
+        note?: string | undefined
+        dashboardId: string
+      }
+    | undefined
   menu?: AnswerMenu
-  chatId?: string
+  chatId?: string | undefined
   actions?: ReactNode
 }
 
@@ -91,7 +88,7 @@ export function threadLabel(body: string): string {
 }
 
 function toastError(error: Error) {
-  toast.error(sentence(error.message))
+  toast.error(problemText(error))
 }
 
 function CreateObservation({
@@ -223,16 +220,6 @@ function withdrawDetail(onPage: boolean): string {
   return onPage ? `${base} Blocks it already wrote on the page stay.` : base
 }
 
-function withdrawProblem(error: Error): string {
-  if (error instanceof ApiError && error.code === "others_wrote") {
-    return "Someone else wrote in the thread, so the answer stays shared."
-  }
-  if (error instanceof ApiError && error.status === 404) {
-    return "This answer is no longer shared in a thread."
-  }
-  return sentence(error.message)
-}
-
 function AnswerMenuButton({
   finding,
   requestId,
@@ -282,7 +269,15 @@ function AnswerMenuButton({
         if (error instanceof ApiError && error.status === 404) {
           setSharedHere(null)
         }
-        toast.error(withdrawProblem(error))
+        toast.error(
+          problemText(error, {
+            codes: {
+              others_wrote:
+                "Someone else wrote in the thread, so the answer stays shared.",
+            },
+            notFound: "This answer is no longer shared in a thread.",
+          })
+        )
       },
     })
   }

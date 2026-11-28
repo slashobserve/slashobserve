@@ -337,6 +337,47 @@ func TestAskingAgainWhileARequestIsOpenSaysSoUntilItCloses(t *testing.T) {
 	r.ask(t, ada, obj, "")
 }
 
+func TestUndoingADismissalAfterAskingAgainLeavesOnlyTheNewerRequestOpen(t *testing.T) {
+	r := newRig(t)
+	folder := r.folderBy(t, "Payments", ben)
+	obj := Object{Kind: KindDashboard, ID: r.dashboard(t, "Checkout", folder)}
+	first := r.ask(t, ada, obj, "")
+	items := accessItems(r.inbox(t, ben, activity.TriageOpen))
+	if len(items) != 1 {
+		t.Fatalf("Ben's items = %d, want 1", len(items))
+	}
+	if err := r.store.SetItemDone(t.Context(), ben, items[0].Seq, true); err != nil {
+		t.Fatal(err)
+	}
+	second := r.ask(t, ada, obj, "please")
+
+	if err := r.store.SetItemDone(t.Context(), ben, items[0].Seq, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.open(t, ben); len(got) != 1 || got[0] != second.ID {
+		t.Fatalf("open requests = %v, want only the newer %s, not %s", got, second.ID, first.ID)
+	}
+	if got := accessItems(r.inbox(t, ben, activity.TriageOpen)); len(got) != 1 || got[0].Seq == items[0].Seq {
+		t.Fatalf("open inbox items = %+v, want only the newer request's", got)
+	}
+	_, err := r.service.Request(t.Context(), ada, obj, "again")
+	var open *OpenError
+	if !errors.As(err, &open) || !open.RequestedAt.Equal(second.CreatedAt) {
+		t.Fatalf("third ask: err = %v, want OpenError at the newer request's %v", err, second.CreatedAt)
+	}
+	mine, err := r.service.Mine(t.Context(), ada)
+	if err != nil {
+		t.Fatal(err)
+	}
+	states := map[string]State{}
+	for _, m := range mine {
+		states[m.ID] = m.State
+	}
+	if states[first.ID] != StateDismissed || states[second.ID] != StateOpen {
+		t.Fatalf("Ada's own states = %v, want the earlier dismissed and the newer open", states)
+	}
+}
+
 func TestDismissingClosesTheRequestForEveryGranter(t *testing.T) {
 	r := newRig(t)
 	o := r.observation(t, "Checkout latency")

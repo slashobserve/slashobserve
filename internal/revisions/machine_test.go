@@ -106,6 +106,8 @@ func TestAllowedActions(t *testing.T) {
 			f.requester = false
 		}), []Action{}},
 		{"failed prompt with an unsaved build for a requester who cannot edit", base(func(f *runFacts) { f.mayEdit = false }), []Action{ActionContinue, ActionRetry, ActionPin, ActionArchive}},
+		{"failed prompt with a stale build continues and is not kept", base(func(f *runFacts) { f.stale = true }), []Action{ActionContinue, ActionRetry, ActionPin, ActionArchive}},
+		{"archived takes no pin", base(func(f *runFacts) { f.archived = true }), []Action{ActionKeepBuild, ActionContinue, ActionRetry, ActionArchive}},
 		{"failed with the build saved", base(func(f *runFacts) { f.buildSaved = true }), []Action{ActionRetry, ActionPin, ActionArchive}},
 		{"failed prompt with an unsaved build already retried", base(func(f *runFacts) { f.retried = true }), []Action{ActionKeepBuild, ActionPin, ActionArchive}},
 		{"failed prompt without a dashboard", base(func(f *runFacts) { f.onDashboard = false; f.buildPanels = 0 }), []Action{ActionPin, ActionArchive}},

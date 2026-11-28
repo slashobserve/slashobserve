@@ -89,6 +89,7 @@ func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bo
 		mayEdit:     mayEdit,
 		asOfBarred:  asOfBarred,
 		buildSaved:  buildSaved,
+		stale:       build.state == BuildStale,
 		continued:   build.continuedBy != nil,
 		retried:     build.retriedBy != nil,
 	}
@@ -99,7 +100,9 @@ func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bo
 }
 
 func factsOf(row dbsqlc.AgentRequest, build buildState, by auth.Principal, mayStart, mayEdit bool) runFacts {
-	return newFacts(State(row.State), SourceOf(row), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart, mayEdit, asOfBars(row.AsOf, by))
+	f := newFacts(State(row.State), SourceOf(row), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart, mayEdit, asOfBars(row.AsOf, by))
+	f.archived = row.ArchivedAt.Valid
+	return f
 }
 
 type startChecks struct {
@@ -490,7 +493,7 @@ func threadOf(row dbsqlc.AgentRequest) (message pgtype.UUID, transcript string) 
 }
 
 func checkContinuable(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) error {
-	build, err := q.GetAgentRequestBuild(ctx, row.ID)
+	_, err := q.GetAgentRequestBuild(ctx, row.ID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotContinuable
 	}
@@ -500,14 +503,12 @@ func checkContinuable(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRe
 	if !row.DashboardID.Valid {
 		return nil
 	}
-	latest, err := q.GetDashboardLatestVersion(ctx, row.DashboardID)
+	_, err = q.GetDashboardLatestVersion(ctx, row.DashboardID)
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 		return ErrDashboardNotFound
 	case err != nil:
 		return fmt.Errorf("read latest dashboard version: %w", err)
-	case latest > build.BaseVersion.Int32:
-		return &BuildConflictError{Latest: int(latest)}
 	}
 	return nil
 }

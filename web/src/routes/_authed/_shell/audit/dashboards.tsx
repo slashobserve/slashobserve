@@ -7,9 +7,9 @@ import { RoleGate } from "@/components/role-gate"
 import { validateListSearch, type ListSearch } from "@/dashboards/list-filters"
 import { useDocumentTitle } from "@/lib/document-title"
 
-type AuditDashboardsSearch = ListSearch & {
+type AuditDashboardsSearch = Omit<ListSearch, "folder"> & {
   folder?: undefined
-  settings?: "1"
+  settings?: "1" | undefined
 }
 
 function validateAuditDashboardsSearch(

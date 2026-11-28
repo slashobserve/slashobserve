@@ -126,6 +126,8 @@ type runFacts struct {
 	asOfBarred  bool
 	buildPanels int
 	buildSaved  bool
+	stale       bool
+	archived    bool
 	continued   bool
 	retried     bool
 }
@@ -139,8 +141,10 @@ func (f runFacts) refuses(a Action) bool {
 	switch a {
 	case ActionCancel:
 		return f.source == SourceSuggest
+	case ActionPin:
+		return f.archived
 	case ActionKeepBuild:
-		return !hasBuild || !f.mayEdit
+		return !hasBuild || !f.mayEdit || f.stale
 	case ActionContinue:
 		return f.asOfBarred || f.source == SourceInvestigate || !hasBuild || f.continued || f.retried
 	case ActionRetry:

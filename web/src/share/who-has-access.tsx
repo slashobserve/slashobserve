@@ -1,12 +1,12 @@
 import { Link, useRouteContext } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 
+import { loadProblemText } from "@/api/errors"
 import { instanceQuery } from "@/api/instance"
 import { LoadProblem } from "@/components/load-problem"
 import { buttonVariants } from "@/components/ui/button"
 import { folderPermissionsQuery, folderQuery } from "@/folders/queries"
 import { cn } from "@/lib/utils"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import {
   accessRows,

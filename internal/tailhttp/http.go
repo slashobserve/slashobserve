@@ -46,7 +46,6 @@ const (
 	notLineSource       = "tail reads Loki, ClickHouse, Elasticsearch and OpenSearch datasources"
 	maxSeenKeys         = 10000
 	maxPartialHolds     = 3
-	partialSeenWindow   = time.Minute
 	idFieldName         = "ID"
 	indexFieldName      = "Index"
 )
@@ -86,7 +85,6 @@ type tailRequest struct {
 	limit  int
 	user   datasource.QueryUser
 	source datasource.LineSource
-	lag    time.Duration
 }
 
 type readyData struct {
@@ -120,10 +118,7 @@ func (h *Handler) serve(c *gin.Context) {
 	}
 	defer h.release(key)
 
-	t := &tail{h: h, c: c, req: req, last: req.from}
-	if req.lag > 0 {
-		t.seen = newSeenRows(2*req.lag, maxSeenKeys)
-	}
+	t := &tail{h: h, c: c, req: req, last: req.from, seen: newSeenRows(2*datasource.DefaultTailLag, maxSeenKeys)}
 	first, err := t.poll()
 	datasource.NoteQuery(c.Request.Context(), req.uid, req.query, datasource.TimeRange{From: req.from}, datasource.FrameRows(first.frames))
 	if err != nil {
@@ -195,9 +190,6 @@ func (h *Handler) parse(c *gin.Context) (tailRequest, bool) {
 		return invalid(notLineSource)
 	}
 	req.source = source
-	if lagged, ok := inst.Datasource.(datasource.LagSource); ok {
-		req.lag = lagged.TailLag()
-	}
 	principal, _ := auth.FromContext(c.Request.Context())
 	req.user = queryproxy.UserFor(principal)
 	return req, true
@@ -277,10 +269,7 @@ func (t *tail) poll() (pollResult, error) {
 	if newest, ok := newestOf(frames); ok && !hold {
 		t.last = laterOf(t.last, earlierOf(newest.Add(time.Nanosecond), now))
 	}
-	if t.seen != nil {
-		frames = t.seen.fresh(frames)
-	}
-	res.frames = frames
+	res.frames = t.seen.fresh(frames)
 	res.newest, _ = newestOf(frames)
 	t.catchingUp = res.truncated
 	return res, nil
@@ -292,17 +281,14 @@ func (t *tail) holdCursor(partial bool) bool {
 		return false
 	}
 	t.holds++
-	if t.seen == nil {
-		t.seen = newSeenRows(partialSeenWindow, maxSeenKeys)
-	}
 	return true
 }
 
 func (t *tail) rangeStart() time.Time {
-	if t.req.lag == 0 || t.catchingUp {
+	if t.catchingUp {
 		return t.last
 	}
-	return laterOf(t.last.Add(-t.req.lag), t.req.from)
+	return laterOf(t.last.Add(-datasource.DefaultTailLag), t.req.from)
 }
 
 func earlierOf(a, b time.Time) time.Time {
@@ -352,7 +338,7 @@ func (t *tail) emit(res pollResult) bool {
 	if datasource.Points(res.frames) == 0 && !res.partial {
 		return true
 	}
-	frames, err := marshalFrames(frameRef, res.frames)
+	frames, err := queryproxy.MarshalFrames([]queryproxy.QueryResult{{Ref: frameRef, Frames: res.frames}})
 	if err != nil {
 		t.h.logger.ErrorContext(t.c.Request.Context(), "convert tail frames", logattrs.Failure(string(queryproxy.CodeInternal), err, slog.String("datasource_uid", t.req.uid))...)
 		writeEvent(t.c, "error", errorData{Code: string(queryproxy.CodeInternal), Error: "internal error"})

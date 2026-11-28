@@ -27,7 +27,7 @@ export type LogsDisplay = {
   fontSize: "default" | "small"
   highlight: boolean
   detailsMode?: "inline" | "sidebar"
-  lineFields?: string[]
+  lineFields?: string[] | undefined
   showAttributes?: boolean
   timePrecision?: TimePrecision
 }
@@ -229,7 +229,7 @@ function seriesDetails(frame: PreparedFrame): LogDetail[] {
   const labels = frame.labels ?? {}
   const details: LogDetail[] = Object.keys(labels)
     .sort()
-    .map((name) => ({ name, text: labels[name] }))
+    .map((name) => ({ name, text: labels[name] ?? "" }))
   return frame.name === undefined
     ? details
     : [{ name: "__name__", text: frame.name }, ...details]
@@ -331,8 +331,11 @@ export function messageTokens(message: string): MessageToken[] {
       tokens.push({ kind: "level", text: match[4] })
       continue
     }
-    const value = match[3]
-    tokens.push({ kind: "key", text: match[1] }, { kind: "text", text: "=" })
+    const value = match[3] ?? ""
+    tokens.push(
+      { kind: "key", text: match[1] ?? "" },
+      { kind: "text", text: "=" }
+    )
     if (value === "") continue
     tokens.push({
       kind: value.startsWith('"')

@@ -52,9 +52,10 @@ export function moveColumn(
 ): string[] {
   const from = names.indexOf(name)
   const to = from + step
-  if (from < 0 || to < 0 || to >= names.length) return [...names]
+  const other = names[to]
+  if (from < 0 || other === undefined) return [...names]
   const moved = [...names]
-  moved[from] = names[to]
+  moved[from] = other
   moved[to] = name
   return moved
 }

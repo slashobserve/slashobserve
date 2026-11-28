@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/otlphttp"
 )
 
 const (
@@ -25,10 +26,10 @@ type spanSetResponse struct {
 		TraceID  string `json:"traceID"`
 		SpanSets []struct {
 			Spans []struct {
-				Name       string     `json:"name"`
-				Start      unixNanos  `json:"startTimeUnixNano"`
-				Duration   unixNanos  `json:"durationNanos"`
-				Attributes []keyValue `json:"attributes"`
+				Name       string              `json:"name"`
+				Start      otlphttp.UnixNanos  `json:"startTimeUnixNano"`
+				Duration   otlphttp.UnixNanos  `json:"durationNanos"`
+				Attributes []otlphttp.KeyValue `json:"attributes"`
 			} `json:"spans"`
 			Matched int `json:"matched"`
 		} `json:"spanSets"`
@@ -56,7 +57,7 @@ func (d *Datasource) TraceDurations(ctx context.Context, req datasource.TraceDur
 		return datasource.TraceDurations{}, err
 	}
 	lim := d.opts.Limits.Tighten(req.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	read := &durationRead{seen: map[string]bool{}, maxSpans: cmpPositive(req.MaxSpans, datasource.TraceDurationSpanBudget)}
 	text := q + " | " + selectClause(groupBy)
@@ -140,7 +141,7 @@ func (r *durationRead) add(resp spanSetResponse, window datasource.TimeRange, gr
 					r.sampled = true
 					return
 				}
-				attrs := attributeMap(s.Attributes)
+				attrs := otlphttp.AttributeMap(s.Attributes)
 				sd := datasource.SpanDuration{Nanos: int64(s.Duration), Error: fmt.Sprint(attrs["status"]) == errorStatusSelected}
 				if groupBy == "name" {
 					sd.Group, sd.Grouped = s.Name, s.Name != ""

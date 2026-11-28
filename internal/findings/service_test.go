@@ -10,7 +10,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -69,7 +68,7 @@ func newRig(t *testing.T) rig {
 		t.Fatal(err)
 	}
 	dash := dashboards.New(d.DB, queryproxy.NewRunner(registry, logger), access, logger)
-	service, err := findings.New(d.DB, access, annotations.New(d.DB, access), dash, obs, logger)
+	service, err := findings.New(d.DB, access, dash, obs, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -288,84 +287,11 @@ func TestListingOwnFindingsPagesAndDropsHiddenDashboards(t *testing.T) {
 	}
 }
 
-func TestPinningCreatesOneAnnotationAtTheWindowEnd(t *testing.T) {
-	r := newRig(t)
-	f := r.save(t, editor, findings.SaveInput{AgentRequestID: r.investigation(t, editor, r.open), DashboardID: r.open})
-	id := mustUUID(t, f.ID)
-	a, created, err := r.service.Pin(reading(t.Context()), editor, id)
-	if err != nil || !created {
-		t.Fatalf("pin: created %v, %v", created, err)
-	}
-	if !slices.Equal(a.Tags, []string{findings.PinTag}) || !a.From.Equal(windowTo) || a.DashboardID != r.open.String() {
-		t.Errorf("annotation = %+v", a)
-	}
-	if want := "Checkout errors come from checkout-0 /findings/" + f.ID; a.Text != want {
-		t.Errorf("text = %q, want %q", a.Text, want)
-	}
-	again, created, err := r.service.Pin(reading(t.Context()), viewer, id)
-	if err != nil || created || again.ID != a.ID {
-		t.Fatalf("second pin: %+v created %v, %v", again, created, err)
-	}
-	var count int
-	if err := r.db.SQLDB(t).QueryRow(`SELECT count(*) FROM annotations`).Scan(&count); err != nil || count != 1 {
-		t.Errorf("annotations = %d, %v", count, err)
-	}
-}
-
-func TestPinningNeedsADashboardAndEdit(t *testing.T) {
-	r := newRig(t)
-	private := r.save(t, editor, findings.SaveInput{})
-	if _, _, err := r.service.Pin(reading(t.Context()), editor, mustUUID(t, private.ID)); !errors.Is(err, findings.ErrNoDashboard) {
-		t.Errorf("pin without a dashboard: %v", err)
-	}
-	shared := r.save(t, editor, findings.SaveInput{DashboardID: r.open})
-	if _, _, err := r.service.Pin(reading(t.Context()), viewer, mustUUID(t, shared.ID)); !errors.Is(err, annotations.ErrForbidden) {
-		t.Errorf("pin by a viewer: %v", err)
-	}
-}
-
 func TestSavingAFindingWithoutEvidenceAsADashboardIsRefused(t *testing.T) {
 	r := newRig(t)
 	f := r.save(t, editor, findings.SaveInput{Evidence: []spec.Panel{}})
 	_, _, err := r.service.SaveAsDashboard(reading(t.Context()), editor, mustUUID(t, f.ID))
 	if !errors.Is(err, findings.ErrNoEvidence) {
 		t.Fatalf("save without evidence: %v", err)
-	}
-}
-
-func TestAccessNamesTheDashboardAndWhatTheCallerMayDoWithIt(t *testing.T) {
-	r := newRig(t)
-	onDashboard := r.save(t, editor, findings.SaveInput{DashboardID: r.open})
-	hidden := r.dashboard(t, "Payroll")
-	foldertest.Move(t, r.db, hidden, foldertest.Restricted(t, r.db, "Payroll", payrollGroup))
-	onHidden := r.save(t, admin, findings.SaveInput{DashboardID: hidden})
-	private := r.save(t, editor, findings.SaveInput{})
-	inGeneral := r.save(t, ciKey, findings.SaveInput{})
-	cases := []struct {
-		name      string
-		by        auth.Principal
-		finding   findings.Finding
-		dashboard pgtype.UUID
-		want      folders.Abilities
-		err       error
-	}{
-		{"a viewer of the dashboard", viewer, onDashboard, r.open, folders.AbilitiesFor(folders.LevelView), nil},
-		{"an editor of the dashboard", otherEditor, onDashboard, r.open, folders.AbilitiesFor(folders.LevelEdit), nil},
-		{"a viewer without access to the dashboard", viewer, onHidden, pgtype.UUID{}, folders.Abilities{}, findings.ErrNotFound},
-		{"the creator of a finding in their My Dashboards", editor, private, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelEdit), nil},
-		{"an admin of a finding in someone's My Dashboards", admin, private, pgtype.UUID{}, folders.Abilities{}, findings.ErrNotFound},
-		{"another editor of a finding in someone's My Dashboards", otherEditor, private, pgtype.UUID{}, folders.Abilities{}, findings.ErrNotFound},
-		{"the key that filed a finding in General", ciKey, inGeneral, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelEdit), nil},
-		{"an admin of a finding in General", admin, inGeneral, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelAdmin), nil},
-		{"another editor of a finding in General", otherEditor, inGeneral, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelEdit), nil},
-	}
-	for _, c := range cases {
-		placement, err := r.service.Access(reading(t.Context()), c.by, mustUUID(t, c.finding.ID))
-		if !errors.Is(err, c.err) || placement.Dashboard != c.dashboard || placement.Abilities != c.want {
-			t.Errorf("%s: dashboard %v, abilities %+v, err %v; want %v, %+v, %v", c.name, placement.Dashboard, placement.Abilities, err, c.dashboard, c.want, c.err)
-		}
-	}
-	if _, err := r.service.Access(reading(t.Context()), editor, pgtype.UUID{Bytes: [16]byte{15: 9}, Valid: true}); !errors.Is(err, findings.ErrNotFound) {
-		t.Errorf("a missing finding: %v", err)
 	}
 }

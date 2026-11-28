@@ -67,6 +67,9 @@ export function interactionOf(
       ? undefined
       : targets.find((target) => target.kind === element.oneClick)
   if (preferred) return { mode: "direct", target: preferred }
-  if (targets.length === 1) return { mode: "direct", target: targets[0] }
+  const [only] = targets
+  if (targets.length === 1 && only !== undefined) {
+    return { mode: "direct", target: only }
+  }
   return { mode: "menu", targets }
 }

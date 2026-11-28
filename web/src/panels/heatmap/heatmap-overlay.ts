@@ -46,9 +46,10 @@ export function columnEntries(
   hoveredRow: number
 ): { entries: ColumnEntry[]; more: number } {
   const all = model.cells.flatMap((cells, row): ColumnEntry[] => {
-    const value = cells[col]
-    return visibleCell(look, value)
-      ? [{ row, range: model.rows[row].range, value }]
+    const value = cells[col] ?? null
+    const range = model.rows[row]?.range
+    return visibleCell(look, value) && range !== undefined
+      ? [{ row, range, value }]
       : []
   })
   all.sort((a, b) => b.row - a.row)
@@ -75,7 +76,7 @@ export function histogramBars(
   col: number
 ): HistogramBar[] {
   const values = model.cells.map((cells) => {
-    const value = cells[col]
+    const value = cells[col] ?? null
     return visibleCell(look, value) ? value : 0
   })
   const largest = Math.max(0, ...values)
@@ -88,8 +89,7 @@ export function scaleMarker(look: HeatmapLook, value: number): number {
 }
 
 export function rowPosition(model: HeatmapModel, value: number): number | null {
-  for (let i = 0; i < model.rows.length; i++) {
-    const { from, to } = model.rows[i]
+  for (const [i, { from, to }] of model.rows.entries()) {
     if (from !== undefined && value < from) continue
     if (to !== undefined && value > to) continue
     const bounded =
@@ -121,7 +121,9 @@ export function exemplarMarks(
   const rows = model.rows.length
   if (model.mode === "ordinal" || columns === 0 || rows === 0) return []
   const first = model.xs[0]
-  const step = columns > 1 ? (model.xs[columns - 1] - first) / (columns - 1) : 0
+  const last = model.xs.at(-1)
+  if (first === undefined || last === undefined) return []
+  const step = columns > 1 ? (last - first) / (columns - 1) : 0
   return points.flatMap((point): ExemplarMark[] => {
     const at = step > 0 ? (point.x * 1000 - first) / step : 0
     const position = rowPosition(model, point.y)

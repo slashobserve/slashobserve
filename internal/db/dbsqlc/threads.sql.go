@@ -12,7 +12,7 @@ import (
 )
 
 const agentGrantIsLive = `-- name: AgentGrantIsLive :one
-SELECT EXISTS (SELECT 1 FROM oauth_grants WHERE id = $1 AND revoked_at IS NULL AND expires_at > now())::boolean AS live
+SELECT EXISTS (SELECT 1 FROM oauth_grants WHERE id = $1 AND oauth_grant_live(oauth_grants))::boolean AS live
 `
 
 func (q *Queries) AgentGrantIsLive(ctx context.Context, id pgtype.UUID) (bool, error) {
@@ -1062,7 +1062,7 @@ const mentionableGrant = `-- name: MentionableGrant :one
 SELECT coalesce(c.name, '')::text AS name
 FROM oauth_grants g
 JOIN oauth_clients c ON c.id = g.client_id
-WHERE g.id = $1 AND g.user_id = $2 AND g.revoked_at IS NULL AND g.expires_at > now()
+WHERE g.id = $1 AND g.user_id = $2 AND oauth_grant_live(g)
 `
 
 type MentionableGrantParams struct {
@@ -1086,76 +1086,6 @@ func (q *Queries) MentionableServiceAccount(ctx context.Context, id pgtype.UUID)
 	var name string
 	err := row.Scan(&name)
 	return name, err
-}
-
-const resolveThreadForRun = `-- name: ResolveThreadForRun :one
-UPDATE threads
-SET status = 'resolved',
-  resolved_at = now(),
-  resolved_by_kind = $1::text,
-  resolved_by_id = $2::uuid,
-  resolved_by_name = $3::text,
-  resolved_origin = $4::text,
-  resolved_origin_client = $5::text,
-  resolved_run_id = $6::uuid,
-  resolved_by_version = $7::integer,
-  updated_at = clock_timestamp()
-WHERE id = $8 AND dashboard_id = $9 AND status = 'open'
-RETURNING id, dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, resolved_origin, resolved_origin_client, resolved_run_id, resolved_by_version, created_at, updated_at, observation_id, proposal_id, agent_kind, agent_id, agent_off, anchor, block_id
-`
-
-type ResolveThreadForRunParams struct {
-	ResolvedByKind       string
-	ResolvedByID         pgtype.UUID
-	ResolvedByName       string
-	ResolvedOrigin       pgtype.Text
-	ResolvedOriginClient pgtype.Text
-	ResolvedRunID        pgtype.UUID
-	ResolvedByVersion    int32
-	ID                   pgtype.UUID
-	DashboardID          pgtype.UUID
-}
-
-func (q *Queries) ResolveThreadForRun(ctx context.Context, arg ResolveThreadForRunParams) (Thread, error) {
-	row := q.db.QueryRow(ctx, resolveThreadForRun,
-		arg.ResolvedByKind,
-		arg.ResolvedByID,
-		arg.ResolvedByName,
-		arg.ResolvedOrigin,
-		arg.ResolvedOriginClient,
-		arg.ResolvedRunID,
-		arg.ResolvedByVersion,
-		arg.ID,
-		arg.DashboardID,
-	)
-	var i Thread
-	err := row.Scan(
-		&i.ID,
-		&i.DashboardID,
-		&i.DashboardVersion,
-		&i.PanelID,
-		&i.FindingID,
-		&i.AnnotationID,
-		&i.Status,
-		&i.ResolvedAt,
-		&i.ResolvedByKind,
-		&i.ResolvedByID,
-		&i.ResolvedByName,
-		&i.ResolvedOrigin,
-		&i.ResolvedOriginClient,
-		&i.ResolvedRunID,
-		&i.ResolvedByVersion,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.ObservationID,
-		&i.ProposalID,
-		&i.AgentKind,
-		&i.AgentID,
-		&i.AgentOff,
-		&i.Anchor,
-		&i.BlockID,
-	)
-	return i, err
 }
 
 const runsOfMessages = `-- name: RunsOfMessages :many

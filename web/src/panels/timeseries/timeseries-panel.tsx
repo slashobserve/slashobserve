@@ -69,6 +69,7 @@ import { seriesLabels } from "../anchors"
 import type { AnchorSeries, TimeseriesAnchorLayout } from "./anchors"
 import { scaleDistribution } from "./axis-scale"
 import { breakingGaps, shapeNulls } from "./gaps"
+import { pairedAt } from "./paired"
 import { zonedPlotDate } from "./plot-zone"
 import { isolatedPoints, squarePoints } from "./points"
 import { thresholdParts } from "./threshold-style"
@@ -144,9 +145,9 @@ type PlotConfig = {
   latest: { current: Latest }
   xAxis: XAxis
   zone: string | undefined
-  draw?: uPlot.Plugin
+  draw?: uPlot.Plugin | undefined
   onPlace: (place: PlotPlace | null) => void
-  onDrawn?: (u: uPlot) => void
+  onDrawn?: ((u: uPlot) => void) | undefined
 }
 
 const tickEdgeGap = 24
@@ -230,7 +231,7 @@ function seriesOptions(
     scale: scaleOf[entry.axis],
     show: !hidden.has(entry.key),
     stroke,
-    dash: entry.dash,
+    ...(entry.dash === undefined ? {} : { dash: entry.dash }),
     spanGaps: entry.spanNulls === true,
   }
   if (customPainted) {
@@ -490,7 +491,7 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
           xAxis.kind === "time"
             ? timeLabels(
                 splits,
-                (u.scales.x.max ?? 0) - (u.scales.x.min ?? 0),
+                (u.scales.x?.max ?? 0) - (u.scales.x?.min ?? 0),
                 zone
               )
             : splits.map((value) =>
@@ -642,7 +643,7 @@ export type ChartProps = PanelRendererProps & {
   xAxis?: XAxis
   draw?: uPlot.Plugin
   painted?: number
-  rowColor?: (row: number) => string
+  rowColor?: ((row: number) => string | undefined) | undefined
 }
 
 export function TimeseriesChart({
@@ -740,7 +741,9 @@ export function TimeseriesChart({
         {
           mode: legendMode,
           values: reducers,
-          sortBy: options.legendSortBy,
+          ...(options.legendSortBy === undefined
+            ? {}
+            : { sortBy: options.legendSortBy }),
           sortDesc: options.legendSortDesc,
           hideZero: options.legendHideZero,
           hideEmpty: options.legendHideEmpty,
@@ -749,7 +752,11 @@ export function TimeseriesChart({
     [series, shownLabel, legendMode, reducers, options]
   )
   const listed = useMemo(
-    () => order.map((index) => series[index]),
+    () =>
+      order.flatMap((index) => {
+        const entry = series[index]
+        return entry === undefined ? [] : [entry]
+      }),
     [order, series]
   )
   const legendShown =
@@ -816,8 +823,8 @@ export function TimeseriesChart({
         scale: scaleOf[entry.axis],
         config: entry.config,
         values: entry.values,
-        stacked: stacked[index],
-        below: below[index],
+        stacked: pairedAt(stacked, index),
+        below: pairedAt(below, index),
         hideInTooltip: entry.config.hideInTooltip,
         rowColor,
       })),
@@ -1088,7 +1095,9 @@ export function TimeseriesChart({
           {...legendProps}
           reducers={reducers}
           cells={cells}
-          sortBy={options.legendSortBy}
+          {...(options.legendSortBy === undefined
+            ? {}
+            : { sortBy: options.legendSortBy })}
           sortDesc={options.legendSortDesc}
         />
       ) : null}

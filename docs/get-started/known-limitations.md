@@ -120,5 +120,5 @@ See [Show it on a wall](../use/public-links.md#show-it-on-a-wall).
 
 The dashboard format is ObserveSpec version `0`.
 Before 1.0 it can change between releases.
-An earlier change already rewrote every stored dashboard when the server started, so back up Postgres before you upgrade.
+Back up Postgres before you upgrade.
 See [Upgrades and backups](../operate/upgrades-and-backups.md).

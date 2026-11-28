@@ -1,23 +1,11 @@
 import { screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
 
 import { MakeDashboardAction, PinAction } from "./finding-actions"
 import type { Finding } from "./queries"
-
-const permissions = vi.hoisted(() => ({ edit: false, provisioned: false }))
-
-vi.mock("@/dashboards/permissions", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/dashboards/permissions")>()),
-  useLatestProvisioned: () => permissions.provisioned,
-  useLatestPermissions: () => ({
-    comment: true,
-    edit: permissions.edit,
-    manage: false,
-    create: false,
-  }),
-}))
+import { must } from "@/test/must"
 
 function finding(patch: Partial<Finding> = {}): Finding {
   return {
@@ -116,45 +104,85 @@ describe("MakeDashboardAction", () => {
       await screen.findByRole("button", { name: "Make a dashboard" })
     )
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledOnce())
-    expect(navigate.mock.calls[0][0]).toMatchObject({ viewTransition })
+    expect(must(navigate.mock.calls[0])[0]).toMatchObject({ viewTransition })
     vi.unstubAllGlobals()
   })
 })
 
+type Pinning = {
+  dashboard_id: string | null
+  pinned: boolean
+  can_pin: boolean
+}
+
+function stubObservation(pinning: Pinning) {
+  const calls: { method: string; path: string; body: unknown }[] = []
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: Request) => {
+      const path = new URL(input.url).pathname
+      const body = input.method === "GET" ? undefined : await input.json()
+      calls.push({ method: input.method, path, body })
+      const json =
+        input.method === "GET"
+          ? { observation: { id: "o9", ...pinning }, folder: null }
+          : { dashboard_id: pinning.dashboard_id, annotation_id: "a1" }
+      return new Response(JSON.stringify(json), {
+        status: input.method === "GET" ? 200 : 201,
+        headers: { "Content-Type": "application/json" },
+      })
+    })
+  )
+  return calls
+}
+
 describe("PinAction", () => {
-  it("offers Pin to dashboard only with Edit on the dashboard", async () => {
-    const onDashboard = finding({ dashboard_id: "d1" })
-    permissions.edit = false
-    const view = renderWithProviders(<PinAction finding={onDashboard} />, route)
+  afterEach(() => vi.unstubAllGlobals())
+
+  it("pins the finding's observation to the dashboard its run was about", async () => {
+    const calls = stubObservation({
+      dashboard_id: "d1",
+      pinned: false,
+      can_pin: true,
+    })
+    const { user } = renderWithProviders(
+      <PinAction finding={finding({ dashboard_id: "d1" })} />,
+      route
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Pin to dashboard" })
+    )
+    expect(await screen.findByText("Pinned to the dashboard")).toBeVisible()
+    expect(calls).toContainEqual({
+      method: "POST",
+      path: "/api/v1/observations/o9/pin",
+      body: {},
+    })
+  })
+
+  it("offers Pin to dashboard only when the observation says the caller may pin", async () => {
+    stubObservation({ dashboard_id: "d1", pinned: false, can_pin: false })
+    renderWithProviders(
+      <PinAction finding={finding({ dashboard_id: "d1" })} />,
+      route
+    )
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled())
     expect(
       screen.queryByRole("button", { name: "Pin to dashboard" })
     ).not.toBeInTheDocument()
-    view.unmount()
-    permissions.edit = true
-    renderWithProviders(<PinAction finding={onDashboard} />, route)
-    expect(
-      await screen.findByRole("button", { name: "Pin to dashboard" })
-    ).toBeVisible()
   })
 
-  it("offers Pin to dashboard on a starter dashboard, where Edit is never shown", async () => {
-    permissions.edit = false
-    permissions.provisioned = true
-    try {
-      renderWithProviders(
-        <PinAction finding={finding({ dashboard_id: "d1" })} />,
-        route
-      )
-      expect(
-        await screen.findByRole("button", { name: "Pin to dashboard" })
-      ).toBeVisible()
-    } finally {
-      permissions.provisioned = false
-    }
+  it("still shows a pinned observation to someone who cannot pin", async () => {
+    stubObservation({ dashboard_id: "d1", pinned: true, can_pin: false })
+    renderWithProviders(
+      <PinAction finding={finding({ dashboard_id: "d1" })} />,
+      route
+    )
+    expect(await screen.findByText("Pinned to the dashboard")).toBeVisible()
   })
 
-  it("still shows a pinned finding to someone who cannot pin", async () => {
-    permissions.edit = false
+  it("shows a finding pinned before observation pins as pinned", async () => {
+    stubObservation({ dashboard_id: "d1", pinned: false, can_pin: true })
     renderWithProviders(
       <PinAction
         finding={finding({ dashboard_id: "d1", annotation_id: "a1" })}

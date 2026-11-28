@@ -30,7 +30,9 @@ export function savedCursorSync(
 
 export function nextCursorSync(mode: CursorSync): CursorSync {
   const index = cursorSyncOptions.findIndex((option) => option.value === mode)
-  return cursorSyncOptions[(index + 1) % cursorSyncOptions.length].value
+  const next = cursorSyncOptions[(index + 1) % cursorSyncOptions.length]
+  if (next === undefined) throw new Error(`no cursor sync after ${mode}`)
+  return next.value
 }
 
 export function cursorOverride(

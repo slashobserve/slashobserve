@@ -209,7 +209,9 @@ export function deleteTurnsText(
   turns: readonly RequestSummary[],
   removing: ReadonlySet<string> = new Set()
 ): string {
-  if (turns.length === 1) return deleteChatText(turns[0], removing)
+  const [only] = turns
+  if (turns.length === 1 && only !== undefined)
+    return deleteChatText(only, removing)
   const left = `All ${turns.length} messages in this chat leave your chat lists and cannot be added back.`
   const things = savedThings(turns, removing)
   const removed = savedObservations(turns).filter((observation) =>

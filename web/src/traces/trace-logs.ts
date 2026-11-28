@@ -83,7 +83,25 @@ function traceLogsRequest(
   )
 }
 
-export function traceLogsQuery(uid: string, params: TraceLogsParams) {
+export function traceLogsQuery(
+  uid: string,
+  {
+    spanId,
+    service,
+    limit,
+    ...range
+  }: Omit<TraceLogsParams, "spanId" | "service" | "limit"> & {
+    spanId?: string | undefined
+    service?: string | undefined
+    limit?: number | undefined
+  }
+) {
+  const params: TraceLogsParams = {
+    ...range,
+    ...(spanId === undefined ? {} : { spanId }),
+    ...(service === undefined ? {} : { service }),
+    ...(limit === undefined ? {} : { limit }),
+  }
   return queryOptions({
     queryKey: exploreKeys.traceLogs(uid, params),
     queryFn: ({ signal }) => traceLogsRequest(uid, params, signal),
@@ -127,16 +145,15 @@ export function logsDatasourceFor(
   all: readonly DatasourceStatus[]
 ): DatasourceStatus | null {
   const candidates = logsDatasourceCandidates(all)
-  if (candidates.length === 0) return null
-  if (candidates.length === 1) return candidates[0]
+  const [first] = candidates
+  if (first === undefined) return null
+  if (candidates.length === 1) return first
   const stored = storedLogsDatasource()
   const remembered = candidates.find((candidate) => candidate.uid === stored)
   if (remembered) return remembered
   const traceType = all.find((datasource) => datasource.uid === traceUid)?.type
   const wanted = sameFamilyType(traceType)
-  return (
-    candidates.find((candidate) => candidate.type === wanted) ?? candidates[0]
-  )
+  return candidates.find((candidate) => candidate.type === wanted) ?? first
 }
 
 export function traceLogsWindow(

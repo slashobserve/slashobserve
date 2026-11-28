@@ -15,9 +15,22 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
-var toolNamePattern = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`)
+var (
+	mcpToolNamePattern  = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`)
+	mcpSourceUIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$`)
+)
 
-var mcpSourceUIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$`)
+func ValidMCPToolName(name string) bool {
+	return mcpToolNamePattern.MatchString(name) && strings.ContainsFunc(name, isASCIILetterOrDigit)
+}
+
+func ValidMCPSourceUID(uid string) bool {
+	return mcpSourceUIDPattern.MatchString(uid)
+}
+
+func isASCIILetterOrDigit(r rune) bool {
+	return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9'
+}
 
 type MCPSource struct {
 	UID          string
@@ -121,7 +134,7 @@ func convertMCPSource(path string, raw fileMCPSource, lookup func(string) (strin
 		errs = append(errs, fmt.Errorf("%s.%s: %s", path, field, fmt.Sprintf(format, args...)))
 	}
 	source := MCPSource{UID: raw.UID, Name: strings.TrimSpace(raw.Name), URL: strings.TrimSpace(raw.URL), Description: strings.TrimSpace(raw.Description), SecretHeader: strings.TrimSpace(raw.SecretHeader), AllowPrivate: raw.AllowPrivate}
-	if !mcpSourceUIDPattern.MatchString(raw.UID) {
+	if !ValidMCPSourceUID(raw.UID) {
 		fail("uid", "must match %s", mcpSourceUIDPattern)
 	}
 	if source.Name == "" {
@@ -167,8 +180,8 @@ func approvedToolNames(raw []string) ([]string, error) {
 	for _, entry := range raw {
 		name := strings.TrimSpace(entry)
 		switch {
-		case !toolNamePattern.MatchString(name):
-			return nil, fmt.Errorf("%q is not a tool name: use 1 to 128 letters, digits, dots, dashes or underscores", name)
+		case !ValidMCPToolName(name):
+			return nil, fmt.Errorf("%q is not a tool name: use 1 to 128 letters, digits, dots, dashes or underscores, with at least one letter or digit", name)
 		case seen[name]:
 			return nil, fmt.Errorf("%q is listed twice", name)
 		}

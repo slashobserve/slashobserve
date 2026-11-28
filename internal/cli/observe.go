@@ -437,10 +437,6 @@ func dashboardAddress(c *client, req agentRequest) (string, error) {
 	return "", errors.New("the agent finished without a dashboard address")
 }
 
-func stillRunning(id string) error {
-	return fmt.Errorf("still running on the server: observe status %s", id)
-}
-
 func poll(ctx context.Context, c *client, progress *requestProgress, id string, timeout, interval time.Duration) ([]byte, agentRequest, error) {
 	pollCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -479,7 +475,7 @@ func poll(ctx context.Context, c *client, progress *requestProgress, id string, 
 
 func stopped(parent context.Context, id string, timeout time.Duration) error {
 	if parent.Err() != nil {
-		return stillRunning(id)
+		return interruptedWait{id: id}
 	}
 	return fmt.Errorf("gave up after %s; the request is still running on the server: observe status %s", timeout, id)
 }

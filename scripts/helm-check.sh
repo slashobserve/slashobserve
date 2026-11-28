@@ -5,7 +5,6 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 CHART="deploy/helm/slashobserve"
 KIND_VALUES="deploy/helm/kind/values.yaml"
-INTERNALS="dashboards/SlashObserve/internals.json"
 
 helm() {
   go tool -modfile=tools/helm/go.mod helm "$@"
@@ -168,6 +167,3 @@ grep -q 'only apply to browser sign-in' <<<"$out" || die "admin emails with sign
 if helm template t "$CHART" >/dev/null 2>&1; then
   die "the chart renders without its required values"
 fi
-
-cmp -s "deploy/compose/$INTERNALS" "$CHART/$INTERNALS" ||
-  die "$CHART/$INTERNALS differs from deploy/compose/$INTERNALS; copy the compose file over it"

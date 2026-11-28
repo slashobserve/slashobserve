@@ -1,0 +1,42 @@
+{
+  "prompt": "What is the p95 latency of checkout?",
+  "turns": [
+    {
+      "tool_calls": [
+        { "name": "list_metrics", "input": { "datasource": "prom" } }
+      ]
+    },
+    {
+      "tool_calls": [
+        { "name": "list_metrics", "input": { "datasource": "prom" } }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "query_range",
+          "input": { "datasource": "prom", "query": "checkout_p95" }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "save_finding",
+          "input": { "markdown": "Checkout p95 latency is 2.1 s." }
+        }
+      ]
+    },
+    {
+      "expect": [{ "is_error": true, "contains": "2.1 s" }],
+      "tool_calls": [
+        {
+          "name": "save_finding",
+          "input": {
+            "markdown": "Checkout p95 latency is 2.1 s over the hour."
+          }
+        }
+      ]
+    }
+  ]
+}

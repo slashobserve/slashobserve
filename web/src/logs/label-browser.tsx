@@ -1,12 +1,17 @@
 import { useQuery } from "@tanstack/react-query"
-import { SearchIcon } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
+import { useDebouncedValue } from "@/lib/use-debounced-value"
 import type { NameListParams } from "@/api/keys"
-import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
+import {
+  ListState,
+  listClass,
+  NameRow,
+  nameSearchDelayMs,
+  SearchBox,
+  TruncatedNote,
+} from "@/panel-editor/name-list"
 import { labelNamesQuery, labelValuesQuery } from "@/panel-editor/queries"
-import { cn } from "@/lib/utils"
 
 type Props = {
   datasourceUid: string
@@ -14,97 +19,12 @@ type Props = {
   onPick: (label: string, value: string) => void
 }
 
-const searchDelayMs = 250
-const skeletonRows = [0, 1, 2]
-const listClass = "m-0 max-h-64 list-none overflow-y-auto py-1"
-const rowClass =
-  "block w-full truncate px-2.5 py-[5px] text-left font-mono hover:bg-selection focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-const searchClass =
-  "min-w-0 flex-1 rounded-control border-0 bg-transparent font-mono text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
-
-function useDebounced<T>(value: T): T {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), searchDelayMs)
-    return () => clearTimeout(timer)
-  }, [value])
-  return debounced
-}
-
-function ListState({
-  items,
-  isError,
-  onRetry,
-  empty,
-}: {
-  items: unknown[] | undefined
-  isError: boolean
-  onRetry: () => void
-  empty: string
-}) {
-  if (isError) {
-    return (
-      <li className="flex flex-col items-start gap-1.5 px-2.5 py-1.5">
-        <span className="text-muted-foreground">Could not load names.</span>
-        <Button type="button" variant="outline" size="xs" onClick={onRetry}>
-          Retry
-        </Button>
-      </li>
-    )
-  }
-  if (items === undefined) {
-    return skeletonRows.map((row) => (
-      <li key={row} className="px-2.5 py-[5px]">
-        <Skeleton className="h-[18px]" />
-      </li>
-    ))
-  }
-  if (items.length === 0) {
-    return <li className="px-2.5 py-[5px] text-muted-foreground">{empty}</li>
-  }
-  return null
-}
-
-function TruncatedNote({ show }: { show: boolean }) {
-  if (!show) return null
-  return (
-    <p className="m-0 border-t border-border px-2.5 py-1.5 text-muted-foreground">
-      Showing the first 100. Type to narrow.
-    </p>
-  )
-}
-
-function SearchBox({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-}) {
-  return (
-    <div className="flex items-center gap-2 border-b border-border px-2.5 py-2">
-      <SearchIcon
-        aria-hidden="true"
-        className="size-[13px] shrink-0 text-muted-foreground"
-      />
-      <input
-        aria-label={label}
-        className={searchClass}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </div>
-  )
-}
-
 function BrowserBody({ datasourceUid, datasourceType, onPick }: Props) {
   const [labelText, setLabelText] = useState("")
   const [valueText, setValueText] = useState("")
   const [label, setLabel] = useState<string | null>(null)
-  const labelSearch = useDebounced(labelText)
-  const valueSearch = useDebounced(valueText)
+  const labelSearch = useDebouncedValue(labelText, labelText, nameSearchDelayMs)
+  const valueSearch = useDebouncedValue(valueText, valueText, nameSearchDelayMs)
   const scope: NameListParams =
     datasourceType === "clickhouse" ? { table: "otel_logs" } : {}
 
@@ -142,19 +62,15 @@ function BrowserBody({ datasourceUid, datasourceType, onPick }: Props) {
               empty="No labels found."
             />
             {labels.data?.labels.map((name) => (
-              <li key={name}>
-                <button
-                  type="button"
-                  className={cn(rowClass, name === label && "bg-selection")}
-                  aria-pressed={name === label}
-                  onClick={() => {
-                    setLabel(name)
-                    setValueText("")
-                  }}
-                >
-                  {name}
-                </button>
-              </li>
+              <NameRow
+                key={name}
+                text={name}
+                pressed={name === label}
+                onClick={() => {
+                  setLabel(name)
+                  setValueText("")
+                }}
+              />
             ))}
           </ul>
           <TruncatedNote show={labels.data?.truncated ?? false} />
@@ -179,15 +95,11 @@ function BrowserBody({ datasourceUid, datasourceType, onPick }: Props) {
                   empty="No values found."
                 />
                 {values.data?.values.map((value) => (
-                  <li key={value}>
-                    <button
-                      type="button"
-                      className={rowClass}
-                      onClick={() => onPick(label, value)}
-                    >
-                      {value}
-                    </button>
-                  </li>
+                  <NameRow
+                    key={value}
+                    text={value}
+                    onClick={() => onPick(label, value)}
+                  />
                 ))}
               </ul>
               <TruncatedNote show={values.data?.truncated ?? false} />

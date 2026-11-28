@@ -28,6 +28,7 @@ import {
   useOpenChat,
   type AskSpot,
 } from "./ask-popover"
+import { must } from "@/test/must"
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -639,7 +640,7 @@ describe("AskPopover", () => {
       anchor: onRow,
     })
     expect(posts[0]).not.toHaveProperty("panel_id")
-    expect(posts[0].chat_id).toBe(chatId)
+    expect(must(posts[0]).chat_id).toBe(chatId)
   })
 
   it("lists the turns asked at the same spot of the same observation block", async () => {

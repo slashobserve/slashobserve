@@ -86,6 +86,13 @@ type fakeRunSessions struct {
 	finished       []RunFinish
 	finishedAs     RunFinished
 	progress       *BuildProgress
+	agentReports   []AgentReport
+	agentErr       error
+}
+
+func (f *fakeRunSessions) NoteAgent(_ context.Context, _ revisions.Request, in AgentReport) error {
+	f.agentReports = append(f.agentReports, in)
+	return f.agentErr
 }
 
 func (f *fakeRunSessions) Brief(_ context.Context, _ revisions.Request, reason string) (BriefAnswer, error) {
@@ -282,14 +289,14 @@ func TestClaimToolsAreMCPOnlyAndNeverOfferedInARun(t *testing.T) {
 	}
 }
 
-func TestOnlyTheFiveClaimToolsAreClaimTools(t *testing.T) {
+func TestOnlyTheClaimAndDraftToolsAreClaimTools(t *testing.T) {
 	var got []string
 	for _, tool := range New(Deps{}).List() {
 		if tool.Claim {
 			got = append(got, tool.Name)
 		}
 	}
-	if strings.Join(got, ",") != "claim_run,finish_run,get_run_brief,release_run,report_run" {
+	if strings.Join(got, ",") != "claim_draft,claim_run,finish_draft,finish_run,get_run_brief,release_run,report_run" {
 		t.Fatalf("claim tools = %v", got)
 	}
 }
@@ -402,6 +409,76 @@ func TestReportRunFromAnOutsideAgentThatSendsNoneOfTheNewFieldsIsAsBefore(t *tes
 	}
 	if len(rs.noted) != 0 || len(live.texts) != 0 {
 		t.Fatalf("usage %v and text %v were sent without being asked", rs.noted, live.texts)
+	}
+}
+
+func TestReportRunPassesTheAgentStateAndStepsOn(t *testing.T) {
+	fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "running"}}}
+	rs := &fakeRunSessions{agentErr: ErrRunEnded}
+	input := `{"run_id":"` + runID + `","attempt":2,"agent_state":{"session":{"turn":3},"carry":[1]},` +
+		`"steps":[{"phase":"query","tool":"triage","status":"ok","message":"Swept 4 sources"}]}`
+
+	res, err := callClaimToolWith(t, Deps{Claims: fc, RunSessions: rs}, outsideClaimer, nameReportRun, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out := jsonOf(t, res); out["state"] != "running" {
+		t.Fatalf("answer = %v", out)
+	}
+	if len(rs.agentReports) != 1 {
+		t.Fatalf("agent reports = %+v", rs.agentReports)
+	}
+	got := rs.agentReports[0]
+	if string(got.State.Session) != `{"turn":3}` || string(got.State.Carry) != `[1]` || len(got.Steps) != 1 || got.Steps[0].Tool != "triage" {
+		t.Fatalf("agent report = %+v", got)
+	}
+}
+
+func TestReportRunRefusesAnAgentStateOverItsCapAndStepsItCannotRecord(t *testing.T) {
+	big := strings.Repeat("x", MaxAgentStateBytes)
+	tooMany := strings.TrimSuffix(strings.Repeat(`{"phase":"query","status":"ok","message":"m"},`, MaxReportedSteps+1), ",")
+	for name, extra := range map[string]string{
+		"state":    `"agent_state":{"session":"` + big + `"}`,
+		"count":    `"steps":[` + tooMany + `]`,
+		"phase":    `"steps":[{"phase":"think","status":"ok","message":"m"}]`,
+		"status":   `"steps":[{"phase":"query","status":"done","message":"m"}]`,
+		"too long": `"steps":[{"phase":"query","status":"ok","message":"` + strings.Repeat("m", 501) + `"}]`,
+	} {
+		rs := &fakeRunSessions{}
+		fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "running"}}}
+		res, err := callClaimToolWith(t, Deps{Claims: fc, RunSessions: rs}, outsideClaimer, nameReportRun, `{"run_id":"`+runID+`","attempt":2,`+extra+`}`)
+		if err != nil || !res.IsError || len(rs.agentReports) != 0 || len(fc.reports) != 0 {
+			t.Fatalf("%s: result %#v, err %v, reports %d", name, res.Content, err, len(rs.agentReports))
+		}
+	}
+}
+
+func TestReportRunPassesTheAgentsGuardCountsAndChecksItsLedger(t *testing.T) {
+	fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "running"}}}
+	rs := &fakeRunSessions{}
+	input := `{"run_id":"` + runID + `","attempt":2,"usage":{"provider":"p","model":"m","nudges":2,"save_now_refusals":1,"stalled_turns":1,` +
+		`"one_panel_refusals":3,"repair_rounds":1,"call_limit":34,"stage_at_save":"conclude",` +
+		`"hypotheses":[{"id":"c1","text":"The pool ran out.","status":"open"}]}}`
+	if _, err := callClaimToolWith(t, Deps{Claims: fc, RunSessions: rs}, outsideClaimer, nameReportRun, input); err != nil {
+		t.Fatal(err)
+	}
+	if len(rs.noted) != 1 {
+		t.Fatalf("noted = %+v", rs.noted)
+	}
+	got := rs.noted[0]
+	if got.Nudges != 2 || got.SaveNowRefusals != 1 || got.StalledTurns != 1 || got.OnePanelRefusals != 3 || got.RepairRounds != 1 ||
+		got.CallLimit != 34 || got.StageAtSave != "conclude" || len(got.Hypotheses) != 1 || got.Hypotheses[0].ID != "c1" {
+		t.Fatalf("noted usage = %+v", got)
+	}
+	for name, usage := range map[string]string{
+		"ledger": `{"hypotheses":[{"id":"c1","text":"x","status":"maybe"}]}`,
+		"stage":  `{"stage_at_save":"wander"}`,
+	} {
+		fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "running"}}}
+		res, err := callClaimToolWith(t, Deps{Claims: fc, RunSessions: &fakeRunSessions{}}, outsideClaimer, nameReportRun, `{"run_id":"`+runID+`","attempt":2,"usage":`+usage+`}`)
+		if err != nil || !res.IsError || len(fc.reports) != 0 {
+			t.Fatalf("%s: %#v, %v", name, res.Content, err)
+		}
 	}
 }
 
@@ -585,7 +662,7 @@ func TestClaimToolsWithoutAClaimEpochLookTheRunUpByItsAttemptAlone(t *testing.T)
 }
 
 func TestGetRunBriefAnswersTheBriefAndPassesTheReason(t *testing.T) {
-	rs := &fakeRunSessions{brief: BriefAnswer{System: "sys", Message: "msg", Reason: "renewed", Build: &BuildProgress{Saves: 2, Panels: 2, PlannedPanels: 3}}}
+	rs := &fakeRunSessions{brief: BriefAnswer{Reason: "renewed", Build: &BuildProgress{Saves: 2, Panels: 2, PlannedPanels: 3}}}
 	deps := Deps{Claims: &fakeClaims{req: claimedRequest()}, RunSessions: rs}
 
 	res, err := callClaimToolWith(t, deps, outsideClaimer, nameGetRunBrief, `{"run_id":"`+runID+`","attempt":2,"reason":"renewed"}`)
@@ -595,7 +672,8 @@ func TestGetRunBriefAnswersTheBriefAndPassesTheReason(t *testing.T) {
 
 	out := jsonOf(t, res)
 	build, _ := out["build"].(map[string]any)
-	if out["system"] != "sys" || out["message"] != "msg" || out["reason"] != "renewed" || build["planned_panels"] != float64(3) {
+	_, system := out["system"]
+	if system || out["reason"] != "renewed" || build["planned_panels"] != float64(3) {
 		t.Fatalf("answer = %v", out)
 	}
 	if rs.briefReasons[0] != "renewed" {
@@ -604,7 +682,7 @@ func TestGetRunBriefAnswersTheBriefAndPassesTheReason(t *testing.T) {
 }
 
 func TestGetRunBriefOfAFreshSessionLeavesTheReasonOutAndKeepsBuildNullWithoutOne(t *testing.T) {
-	rs := &fakeRunSessions{brief: BriefAnswer{System: "s", Message: "m"}}
+	rs := &fakeRunSessions{brief: BriefAnswer{}}
 	deps := Deps{Claims: &fakeClaims{req: claimedRequest()}, RunSessions: rs}
 
 	res, err := callClaimToolWith(t, deps, outsideClaimer, nameGetRunBrief, `{"run_id":"`+runID+`","attempt":2}`)
@@ -621,8 +699,8 @@ func TestGetRunBriefOfAFreshSessionLeavesTheReasonOutAndKeepsBuildNullWithoutOne
 }
 
 func TestGetRunBriefAnswersABriefBeyondTheDefaultResultCapAndRefusesOneBeyondItsOwn(t *testing.T) {
-	call := func(system, message int) Result {
-		rs := &fakeRunSessions{brief: BriefAnswer{System: strings.Repeat("s", system), Message: strings.Repeat("m", message)}}
+	call := func(guide, prompt int) Result {
+		rs := &fakeRunSessions{brief: BriefAnswer{Brief: &RunBrief{Request: BriefRequest{Prompt: strings.Repeat("m", prompt)}, Guide: BriefGuide{Text: strings.Repeat("s", guide)}}}}
 		deps := Deps{Claims: &fakeClaims{req: claimedRequest()}, RunSessions: rs}
 		res, err := callClaimToolWith(t, deps, outsideClaimer, nameGetRunBrief, `{"run_id":"`+runID+`","attempt":2}`)
 		if err != nil {
@@ -633,6 +711,18 @@ func TestGetRunBriefAnswersABriefBeyondTheDefaultResultCapAndRefusesOneBeyondIts
 
 	if res := call(40<<10, 50<<10); res.IsError {
 		t.Fatalf("a 90 KiB brief refused: %#v", res.Content)
+	}
+	full := &fakeRunSessions{brief: BriefAnswer{
+		Brief: &RunBrief{
+			Current: &BriefRevision{Spec: &spec.Dashboard{Title: strings.Repeat("c", MaxModelSpecBytes-200)}},
+			Build:   &BriefBuild{Spec: &spec.Dashboard{Title: strings.Repeat("b", MaxModelSpecBytes-200)}},
+			Guide:   BriefGuide{Text: strings.Repeat("s", maxSpecGuideBytes)},
+		},
+		AgentState: &AgentState{Session: json.RawMessage(`"` + strings.Repeat("a", MaxAgentStateBytes-2) + `"`)},
+	}}
+	res, err := callClaimToolWith(t, Deps{Claims: &fakeClaims{req: claimedRequest()}, RunSessions: full}, outsideClaimer, nameGetRunBrief, `{"run_id":"`+runID+`","attempt":2}`)
+	if err != nil || res.IsError {
+		t.Fatalf("a brief with two full Specs, the guide and a full agent_state refused: %v, %#v", err, res.Content)
 	}
 	if code := errorCode(t, call(maxBriefBytes, 1)); code != FailureResultTooLarge {
 		t.Fatalf("code = %q, want %q", code, FailureResultTooLarge)

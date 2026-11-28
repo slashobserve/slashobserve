@@ -65,9 +65,13 @@ type Applicable = { filter: AdhocFilter; field: PreparedField }
 
 function splitGroups(scope: AdhocScope): AdhocFilter[][] {
   const groups: AdhocFilter[][] = []
+  let group: AdhocFilter[] | undefined
   for (const filter of scope) {
-    if (filter.condition === "or" || groups.length === 0) groups.push([])
-    groups[groups.length - 1].push(filter)
+    if (filter.condition === "or" || group === undefined) {
+      group = []
+      groups.push(group)
+    }
+    group.push(filter)
   }
   return groups
 }

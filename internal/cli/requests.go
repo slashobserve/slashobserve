@@ -90,25 +90,19 @@ func (a *app) requestsListCommand() *cobra.Command {
 				return err
 			}
 			out := a.output()
-			if a.json {
-				out.body(data)
+			return render(out, data, func(list requestListBody) error {
+				rows := make([][]string, 0, len(list.Requests))
+				for _, r := range list.Requests {
+					rows = append(rows, []string{text(r.ID), requestStateWord(r.State), text(r.Intent), orDash(r.DashboardTitle), anchorText(r.Anchor), text(r.Title)})
+				}
+				out.table([]string{"ID", "STATE", "INTENT", "DASHBOARD", "AT", "TITLE"}, rows)
+				var total *int
+				if list.Summary != nil {
+					total = &list.Summary.Total
+				}
+				pageFooter(out, len(list.Requests), total, list.NextCursor)
 				return nil
-			}
-			list, err := decode[requestListBody](data)
-			if err != nil {
-				return err
-			}
-			rows := make([][]string, 0, len(list.Requests))
-			for _, r := range list.Requests {
-				rows = append(rows, []string{text(r.ID), requestStateWord(r.State), text(r.Intent), orDash(r.DashboardTitle), anchorText(r.Anchor), text(r.Title)})
-			}
-			out.table([]string{"ID", "STATE", "INTENT", "DASHBOARD", "AT", "TITLE"}, rows)
-			var total *int
-			if list.Summary != nil {
-				total = &list.Summary.Total
-			}
-			pageFooter(out, len(list.Requests), total, list.NextCursor)
-			return nil
+			})
 		},
 	}
 	addPageFlags(cmd, &page, maxRequestPage)

@@ -5,7 +5,7 @@ import { LoaderCircleIcon, PlusIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { instanceQuery } from "@/api/instance"
-import { ApiError } from "@/api/errors"
+import { ApiError, loadProblemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -30,7 +30,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { usersQuery } from "@/people/queries"
 import { roleAtLeast, roleLabels } from "@/lib/roles"
 import { cn } from "@/lib/utils"
-import { loadProblemText } from "@/service-accounts/queries"
 import {
   SettingsCard,
   SettingsProblem,

@@ -151,6 +151,7 @@ func TestACanceledQueuedRequestRecordsRunCanceled(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)
 	rev := submit(t, svc, dash, "go")
+	assignTo(t, d, rev.ID, "grant", grantA)
 
 	if _, err := svc.Cancel(reading(context.Background()), mustUUID(t, rev.ID), user); err != nil {
 		t.Fatal(err)
@@ -160,6 +161,9 @@ func TestACanceledQueuedRequestRecordsRunCanceled(t *testing.T) {
 	assertTypes(t, records, "run.queued", "run.canceled")
 	if got := records[1]; got.RunID != rev.ID || got.ActorID != userID || got.DashboardID != dash.String() {
 		t.Errorf("run.canceled = %+v, want the requester running as the request on its dashboard", got)
+	}
+	if got := auditedAgents(t, d, rev.ID); got["run.finish"] != "" || got["run.queue"] != "" {
+		t.Errorf("agents of the audit events = %v, want none, because no agent took the run", got)
 	}
 }
 
@@ -182,20 +186,6 @@ func auditedAgents(t *testing.T, d *dbtest.Database, runID string) map[string]st
 		t.Fatal(err)
 	}
 	return out
-}
-
-func TestAQueuedRunCanceledBeforeAnyAgentTookItNamesNoAgent(t *testing.T) {
-	svc, d := newService(t, succeedWith(2))
-	rev := submit(t, svc, seedDashboard(t, d, 1), "go")
-	assignTo(t, d, rev.ID, "grant", grantA)
-
-	if _, err := svc.Cancel(reading(context.Background()), mustUUID(t, rev.ID), user); err != nil {
-		t.Fatal(err)
-	}
-
-	if got := auditedAgents(t, d, rev.ID); got["run.finish"] != "" || got["run.queue"] != "" {
-		t.Fatalf("agents of the audit events = %v, want none", got)
-	}
 }
 
 func TestARunExpiredAsUnclaimedNamesNoAgent(t *testing.T) {

@@ -1,9 +1,9 @@
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query"
 
+import { loadProblemText } from "@/api/errors"
 import { Wordmark } from "@/components/brand/wordmark"
 import { LoadProblem } from "@/components/load-problem"
 import { useDocumentTitle } from "@/lib/document-title"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { RcaDocument, type UseSnapshot, type RcaView } from "./rca-document"
 import {

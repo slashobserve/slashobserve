@@ -133,6 +133,7 @@ export function QueryRow({
 }: Props) {
   const legendId = useId()
   const datasources = useDatasources()
+  const resolved = resolveDatasource(query.datasource ?? panelDatasource)
   const editor = useRef<CodeEditorHandle>(null)
   useImperativeHandle(
     editorRef,
@@ -196,7 +197,11 @@ export function QueryRow({
         <CodeEditor
           value={query.query}
           onChange={onChange}
-          datasource={resolveDatasource(query.datasource ?? panelDatasource)}
+          datasource={
+            resolved.type === undefined
+              ? { uid: resolved.uid }
+              : { uid: resolved.uid, type: resolved.type }
+          }
           readOnly={readOnly}
           ariaLabel={`Query ${refName}`}
           onLint={setLint}

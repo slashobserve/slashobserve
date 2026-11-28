@@ -71,14 +71,6 @@ func (s *Store) allowedBy(ctx context.Context, q *dbsqlc.Queries) (domains.List,
 }
 
 func (s *Store) Add(ctx context.Context, by auth.Principal, pattern domains.Pattern) (dbsqlc.InsertOutboundDomainRow, error) {
-	return s.insert(ctx, by, pattern, false)
-}
-
-func (s *Store) AddForConnection(ctx context.Context, by auth.Principal, pattern domains.Pattern) (dbsqlc.InsertOutboundDomainRow, error) {
-	return s.insert(ctx, by, pattern, true)
-}
-
-func (s *Store) insert(ctx context.Context, by auth.Principal, pattern domains.Pattern, forConnection bool) (dbsqlc.InsertOutboundDomainRow, error) {
 	if s.lock.Locked {
 		return dbsqlc.InsertOutboundDomainRow{}, ErrLocked
 	}
@@ -88,7 +80,7 @@ func (s *Store) insert(ctx context.Context, by auth.Principal, pattern domains.P
 			return err
 		}
 		var err error
-		row, err = insertLocked(ctx, q, by, pattern, forConnection)
+		row, err = insertLocked(ctx, q, by, pattern, false)
 		return err
 	})
 	return row, err

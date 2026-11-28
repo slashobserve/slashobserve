@@ -10,6 +10,7 @@ import {
   useActivitySubscription,
   useHasActivityStream,
 } from "./activity-stream"
+import { must } from "@/test/must"
 
 function event(type: string, folderId: string | null): ActivityEvent {
   return {
@@ -75,8 +76,8 @@ describe("ActivityStreamProvider", () => {
     const moved = event("dashboard.moved", "f2")
 
     act(() => {
-      FakeEventSource.instances[0].emit("activity", created)
-      FakeEventSource.instances[0].emit("activity", moved)
+      must(FakeEventSource.instances[0]).emit("activity", created)
+      must(FakeEventSource.instances[0]).emit("activity", moved)
     })
 
     expect(all.onEvent.mock.calls).toEqual([[created], [moved]])
@@ -87,7 +88,7 @@ describe("ActivityStreamProvider", () => {
   it("tells every subscriber when events may have been missed", () => {
     const { all, folder, types } = subscribers()
 
-    act(() => FakeEventSource.instances[0].emit("reset"))
+    act(() => must(FakeEventSource.instances[0]).emit("reset"))
 
     expect(all.onGap).toHaveBeenCalledTimes(1)
     expect(folder.onGap).toHaveBeenCalledTimes(1)
@@ -107,7 +108,9 @@ describe("ActivityStreamProvider", () => {
     )
     rerender(<ActivityStreamProvider>{null}</ActivityStreamProvider>)
 
-    act(() => FakeEventSource.instances[0].emit("activity", event("x.y", null)))
+    act(() =>
+      must(FakeEventSource.instances[0]).emit("activity", event("x.y", null))
+    )
 
     expect(onEvent).not.toHaveBeenCalled()
     expect(FakeEventSource.open()).toHaveLength(1)

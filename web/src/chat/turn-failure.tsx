@@ -2,13 +2,13 @@ import { Link, useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
 import { toast } from "sonner"
 
+import { sentence } from "@/api/errors"
 import { StatusIcon } from "@/components/status-label"
 import { useOnDashboard } from "@/dashboards/use-on-dashboard"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
   describeSubmitError,
-  sentence,
   useRetryRequest,
   type ObserveRequest,
 } from "@/observe/queries"
@@ -50,7 +50,7 @@ export function OpenDashboardLink({
   variant,
 }: {
   dashboardId: string
-  title?: string
+  title?: string | undefined
   variant: "primary" | "outline"
 }) {
   const onDashboard = useOnDashboard(dashboardId)

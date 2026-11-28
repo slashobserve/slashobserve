@@ -19,6 +19,12 @@ import {
   tooltipRows,
 } from "./pie-model"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
   return {
     id: "p1",
@@ -81,9 +87,9 @@ describe("pieModel", () => {
     expect(slices.reduce((sum, slice) => sum + slice.percent, 0)).toBeCloseTo(
       100
     )
-    expect(slices[0].startAngle).toBe(0)
-    expect(slices[2].endAngle).toBeCloseTo(Math.PI * 2)
-    expect(slices[1].startAngle).toBe(slices[0].endAngle)
+    expect(nth(slices, 0).startAngle).toBe(0)
+    expect(nth(slices, 2).endAngle).toBeCloseTo(Math.PI * 2)
+    expect(nth(slices, 1).startAngle).toBe(nth(slices, 0).endAngle)
   })
 
   it("reduces each field by display.reduce", () => {
@@ -130,19 +136,19 @@ describe("pieModel", () => {
       overrides: [{ match: { series: "b" }, hidden: true }],
     })
     expect(hidden.slices).toHaveLength(1)
-    expect(hidden.slices[0].value).toBe(1)
+    expect(nth(hidden.slices, 0).value).toBe(1)
   })
 
   it("keeps palette colors in field order and honors a field color", () => {
     const frames = [series("a", [1]), series("b", [null]), series("c", [2])]
-    const { slices } = build(frames, { color: undefined })
+    const { slices } = build(frames)
     expect(slices.map((slice) => slice.color)).toEqual([
       "var(--series-1)",
       "var(--series-3)",
     ])
-    expect(entriesOf(frames)[1].color).toBe("var(--series-2)")
+    expect(nth(entriesOf(frames), 1).color).toBe("var(--series-2)")
     const fixed = build([series("a", [1])], { color: "#ff0000" })
-    expect(fixed.slices[0].color).toBe("#ff0000")
+    expect(nth(fixed.slices, 0).color).toBe("#ff0000")
   })
 
   it("formats values with the unit and one shared decimal count", () => {
@@ -251,7 +257,7 @@ describe("legend toggling", () => {
       series("b", [3]),
       series("c", [6]),
     ])
-    const hiddenKey = entries[1].key
+    const hiddenKey = nth(entries, 1).key
     const { slices, total, percents } = pieModel(entries, new Set([hiddenKey]))
     expect(total).toBe(7)
     expect(slices.map((slice) => slice.percent)).toEqual([
@@ -306,7 +312,7 @@ describe("tooltipRows", () => {
 
   it("shows nothing when hidden or when nothing is hovered", () => {
     expect(
-      tooltipRows(entries, percents, entries[0].key, {
+      tooltipRows(entries, percents, nth(entries, 0).key, {
         ...base,
         tooltip: "hidden",
       })
@@ -315,7 +321,7 @@ describe("tooltipRows", () => {
   })
 
   it("lists only the hovered slice in single mode", () => {
-    const rows = tooltipRows(entries, percents, entries[2].key, {
+    const rows = tooltipRows(entries, percents, nth(entries, 2).key, {
       ...base,
       tooltip: "single",
     })
@@ -324,14 +330,14 @@ describe("tooltipRows", () => {
   })
 
   it("lists every series in all mode with the hovered one marked", () => {
-    const rows = tooltipRows(entries, percents, entries[0].key, base)
+    const rows = tooltipRows(entries, percents, nth(entries, 0).key, base)
     expect(rows.map((row) => row.name)).toEqual(["a", "b", "c", "d"])
     expect(rows.map((row) => row.active)).toEqual([true, false, false, false])
   })
 
   it("sorts by value with empty values last", () => {
     const names = (tooltipSort: "asc" | "desc") =>
-      tooltipRows(entries, percents, entries[0].key, {
+      tooltipRows(entries, percents, nth(entries, 0).key, {
         ...base,
         tooltipSort,
       }).map((row) => row.name)
@@ -340,7 +346,7 @@ describe("tooltipRows", () => {
   })
 
   it("drops zero rows with tooltipHideZeros but keeps empty ones", () => {
-    const rows = tooltipRows(entries, percents, entries[0].key, {
+    const rows = tooltipRows(entries, percents, nth(entries, 0).key, {
       ...base,
       tooltipHideZeros: true,
     })
@@ -354,9 +360,9 @@ describe("tooltipRows", () => {
     const rows = tooltipRows(
       flagged,
       percents,
-      entries[0].key,
+      nth(entries, 0).key,
       base,
-      new Set([entries[3].key])
+      new Set([nth(entries, 3).key])
     )
     expect(rows.map((row) => row.name)).toEqual(["a", "b"])
   })
@@ -365,7 +371,9 @@ describe("tooltipRows", () => {
     const flagged = entries.map((entry, index) =>
       index === 0 ? { ...entry, hideInTooltip: true } : entry
     )
-    expect(tooltipRows(flagged, percents, entries[0].key, base)).toEqual([])
+    expect(tooltipRows(flagged, percents, nth(entries, 0).key, base)).toEqual(
+      []
+    )
   })
 })
 
@@ -528,7 +536,7 @@ describe("orderSlices", () => {
   it("lays the angles out in the chosen order", () => {
     const { slices } = pieModel(orderSlices(entries, "asc"))
     expect(slices.map((slice) => slice.name)).toEqual(["a", "d", "b"])
-    expect(slices[0].startAngle).toBe(0)
+    expect(nth(slices, 0).startAngle).toBe(0)
   })
 
   it("reads the order from the display, descending when absent", () => {

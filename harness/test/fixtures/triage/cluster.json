@@ -1,0 +1,1559 @@
+[
+  {
+    "name": "nothing moved gives no candidate",
+    "findings": {
+      "rows": [
+        {
+          "service": "cart",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0,
+          "baseline": 0,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "cart",
+          "signal": "latency",
+          "rung": 3600,
+          "window": 20,
+          "baseline": 19,
+          "unit": "ms",
+          "source": "prom",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        }
+      ],
+      "origins": null,
+      "events": null,
+      "patterns": null
+    },
+    "want": {
+      "candidates": [],
+      "background": [],
+      "leads": []
+    }
+  },
+  {
+    "name": "two independent faults with different onsets give two candidates in onset order",
+    "findings": {
+      "rows": [
+        {
+          "service": "payment",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.2,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "span metrics",
+          "moved": true,
+          "onset": "2026-11-20T10:40:00Z"
+        },
+        {
+          "service": "ad",
+          "signal": "latency",
+          "rung": 3600,
+          "window": 2500,
+          "baseline": 90,
+          "unit": "ms",
+          "source": "prom",
+          "basis": "span metrics",
+          "moved": true,
+          "onset": "2026-11-20T10:10:00Z"
+        }
+      ],
+      "origins": null,
+      "events": null,
+      "patterns": null
+    },
+    "want": {
+      "candidates": [
+        {
+          "id": "c1",
+          "service": "ad",
+          "onset": "2026-11-20T10:10:00Z",
+          "rows": [
+            {
+              "service": "ad",
+              "signal": "latency",
+              "rung": 3600,
+              "window": 2500,
+              "baseline": 90,
+              "unit": "ms",
+              "source": "prom",
+              "basis": "span metrics",
+              "moved": true,
+              "onset": "2026-11-20T10:10:00Z"
+            }
+          ],
+          "knock_on": [],
+          "origins": [],
+          "events": [],
+          "patterns": []
+        },
+        {
+          "id": "c2",
+          "service": "payment",
+          "onset": "2026-11-20T10:40:00Z",
+          "rows": [
+            {
+              "service": "payment",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.2,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "span metrics",
+              "moved": true,
+              "onset": "2026-11-20T10:40:00Z"
+            }
+          ],
+          "knock_on": [],
+          "origins": [],
+          "events": [],
+          "patterns": []
+        }
+      ],
+      "background": [],
+      "leads": [
+        {
+          "id": "c1",
+          "service": "ad",
+          "text": "ad: latency 2.5e+03 ms from 90 ms (1h); onset 2026-11-20T10:10:00Z",
+          "next": "Read ad latency before and after the onset, then close it as cause, knock_on, background, transient or unrelated"
+        },
+        {
+          "id": "c2",
+          "service": "payment",
+          "text": "payment: errors 20% from 1% (1h); onset 2026-11-20T10:40:00Z",
+          "next": "Read payment errors before and after the onset, then close it as cause, knock_on, background, transient or unrelated"
+        }
+      ]
+    }
+  },
+  {
+    "name": "a downstream service that relays an upstream fault and starts later is its knock-on",
+    "findings": {
+      "rows": [
+        {
+          "service": "frontend",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.2,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:12:00Z"
+        },
+        {
+          "service": "payment",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.2,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:10:00Z"
+        }
+      ],
+      "origins": [
+        {
+          "source": "tempo",
+          "service": "payment",
+          "operation": "Charge",
+          "message": "",
+          "traces": 40,
+          "share": 0.9,
+          "example": "4bf92f3577b34da6a3ce929d0e0e4736",
+          "relayed_by": [
+            "checkout",
+            "frontend"
+          ]
+        }
+      ],
+      "events": null,
+      "patterns": null
+    },
+    "want": {
+      "candidates": [
+        {
+          "id": "c1",
+          "service": "payment",
+          "onset": "2026-11-20T10:10:00Z",
+          "rows": [
+            {
+              "service": "payment",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.2,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": "2026-11-20T10:10:00Z"
+            }
+          ],
+          "knock_on": [
+            "frontend"
+          ],
+          "origins": [
+            {
+              "source": "tempo",
+              "service": "payment",
+              "operation": "Charge",
+              "message": "",
+              "traces": 40,
+              "share": 0.9,
+              "example": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "relayed_by": [
+                "checkout",
+                "frontend"
+              ]
+            }
+          ],
+          "events": [],
+          "patterns": []
+        }
+      ],
+      "background": [],
+      "leads": [
+        {
+          "id": "c1",
+          "service": "payment",
+          "text": "payment: errors 20% from 1% (1h); onset 2026-11-20T10:10:00Z",
+          "next": "Read payment errors before and after the onset, then close it as cause, knock_on, background, transient or unrelated"
+        }
+      ]
+    }
+  },
+  {
+    "name": "a service whose errors start before the one it relays stays its own candidate",
+    "findings": {
+      "rows": [
+        {
+          "service": "frontend",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.2,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:05:00Z"
+        },
+        {
+          "service": "payment",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.2,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:10:00Z"
+        }
+      ],
+      "origins": [
+        {
+          "source": "",
+          "service": "payment",
+          "operation": "",
+          "message": "",
+          "traces": 0,
+          "share": 0,
+          "example": "",
+          "relayed_by": [
+            "frontend"
+          ]
+        }
+      ],
+      "events": null,
+      "patterns": null
+    },
+    "want": {
+      "candidates": [
+        {
+          "id": "c1",
+          "service": "frontend",
+          "onset": "2026-11-20T10:05:00Z",
+          "rows": [
+            {
+              "service": "frontend",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.2,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": "2026-11-20T10:05:00Z"
+            }
+          ],
+          "knock_on": [],
+          "origins": [],
+          "events": [],
+          "patterns": []
+        },
+        {
+          "id": "c2",
+          "service": "payment",
+          "onset": "2026-11-20T10:10:00Z",
+          "rows": [
+            {
+              "service": "payment",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.2,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": "2026-11-20T10:10:00Z"
+            }
+          ],
+          "knock_on": [],
+          "origins": [
+            {
+              "source": "",
+              "service": "payment",
+              "operation": "",
+              "message": "",
+              "traces": 0,
+              "share": 0,
+              "example": "",
+              "relayed_by": [
+                "frontend"
+              ]
+            }
+          ],
+          "events": [],
+          "patterns": []
+        }
+      ],
+      "background": [],
+      "leads": [
+        {
+          "id": "c1",
+          "service": "frontend",
+          "text": "frontend: errors 20% from 1% (1h); onset 2026-11-20T10:05:00Z",
+          "next": "Read frontend errors before and after the onset, then close it as cause, knock_on, background, transient or unrelated"
+        },
+        {
+          "id": "c2",
+          "service": "payment",
+          "text": "payment: errors 20% from 1% (1h); onset 2026-11-20T10:10:00Z",
+          "next": "Read payment errors before and after the onset, then close it as cause, knock_on, background, transient or unrelated"
+        }
+      ]
+    }
+  },
+  {
+    "name": "a knock-on of a knock-on joins the root candidate",
+    "findings": {
+      "rows": [
+        {
+          "service": "frontend",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.2,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:14:00Z"
+        },
+        {
+          "service": "checkout",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.2,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:12:00Z"
+        },
+        {
+          "service": "payment",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.2,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:10:00Z"
+        }
+      ],
+      "origins": [
+        {
+          "source": "tempo",
+          "service": "payment",
+          "operation": "Charge",
+          "message": "boom",
+          "traces": 10,
+          "share": 0.5,
+          "example": "a",
+          "relayed_by": [
+            "checkout"
+          ]
+        },
+        {
+          "source": "tempo",
+          "service": "checkout",
+          "operation": "Place",
+          "message": "",
+          "traces": 5,
+          "share": 0.2,
+          "example": "b",
+          "relayed_by": [
+            "frontend"
+          ]
+        },
+        {
+          "source": "tempo",
+          "service": "payment",
+          "operation": "Refund",
+          "message": "",
+          "traces": 30,
+          "share": 0.3,
+          "example": "c",
+          "relayed_by": []
+        },
+        {
+          "source": "tempo",
+          "service": "payment",
+          "operation": "Auth",
+          "message": "",
+          "traces": 20,
+          "share": 0.1,
+          "example": "d",
+          "relayed_by": []
+        },
+        {
+          "source": "tempo",
+          "service": "payment",
+          "operation": "Void",
+          "message": "",
+          "traces": 1,
+          "share": 0.1,
+          "example": "e",
+          "relayed_by": []
+        }
+      ],
+      "events": null,
+      "patterns": null
+    },
+    "want": {
+      "candidates": [
+        {
+          "id": "c1",
+          "service": "payment",
+          "onset": "2026-11-20T10:10:00Z",
+          "rows": [
+            {
+              "service": "payment",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.2,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": "2026-11-20T10:10:00Z"
+            }
+          ],
+          "knock_on": [
+            "checkout",
+            "frontend"
+          ],
+          "origins": [
+            {
+              "source": "tempo",
+              "service": "payment",
+              "operation": "Refund",
+              "message": "",
+              "traces": 30,
+              "share": 0.3,
+              "example": "c",
+              "relayed_by": []
+            },
+            {
+              "source": "tempo",
+              "service": "payment",
+              "operation": "Auth",
+              "message": "",
+              "traces": 20,
+              "share": 0.1,
+              "example": "d",
+              "relayed_by": []
+            },
+            {
+              "source": "tempo",
+              "service": "payment",
+              "operation": "Charge",
+              "message": "boom",
+              "traces": 10,
+              "share": 0.5,
+              "example": "a",
+              "relayed_by": [
+                "checkout"
+              ]
+            }
+          ],
+          "events": [],
+          "patterns": []
+        }
+      ],
+      "background": [],
+      "leads": [
+        {
+          "id": "c1",
+          "service": "payment",
+          "text": "payment: errors 20% from 1% (1h); onset 2026-11-20T10:10:00Z",
+          "next": "Read payment errors before and after the onset, then close it as cause, knock_on, background, transient or unrelated"
+        }
+      ]
+    }
+  },
+  {
+    "name": "errors at a similar level before the window are background, not a candidate",
+    "findings": {
+      "rows": [
+        {
+          "service": "cart",
+          "signal": "errors",
+          "rung": 21600,
+          "window": 0.02,
+          "baseline": 0.018,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "cart",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.021,
+          "baseline": 0.02,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "quote",
+          "signal": "errors",
+          "rung": 86400,
+          "window": 0.03,
+          "baseline": 0.02,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "ad",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0,
+          "baseline": 0.02,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "payment",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.2,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:10:00Z"
+        },
+        {
+          "service": "payment",
+          "signal": "errors",
+          "rung": 21600,
+          "window": 0.05,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        }
+      ],
+      "origins": null,
+      "events": null,
+      "patterns": null
+    },
+    "want": {
+      "candidates": [
+        {
+          "id": "c1",
+          "service": "payment",
+          "onset": "2026-11-20T10:10:00Z",
+          "rows": [
+            {
+              "service": "payment",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.2,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": "2026-11-20T10:10:00Z"
+            }
+          ],
+          "knock_on": [],
+          "origins": [],
+          "events": [],
+          "patterns": []
+        }
+      ],
+      "background": [
+        {
+          "service": "cart",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.021,
+          "baseline": 0.02,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "quote",
+          "signal": "errors",
+          "rung": 86400,
+          "window": 0.03,
+          "baseline": 0.02,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        }
+      ],
+      "leads": [
+        {
+          "id": "c1",
+          "service": "payment",
+          "text": "payment: errors 20% from 1% (1h); onset 2026-11-20T10:10:00Z",
+          "next": "Read payment errors before and after the onset, then close it as cause, knock_on, background, transient or unrelated"
+        }
+      ]
+    }
+  },
+  {
+    "name": "a moved request rate alone is not a candidate",
+    "findings": {
+      "rows": [
+        {
+          "service": "cart",
+          "signal": "requests",
+          "rung": 3600,
+          "window": 10,
+          "baseline": 2,
+          "unit": "/s",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:03:00Z"
+        }
+      ],
+      "origins": null,
+      "events": null,
+      "patterns": null
+    },
+    "want": {
+      "candidates": [],
+      "background": [],
+      "leads": []
+    }
+  },
+  {
+    "name": "a move without an onset comes after the timed ones",
+    "findings": {
+      "rows": [
+        {
+          "service": "ad",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.2,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": null
+        },
+        {
+          "service": "zeta",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.2,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": null
+        },
+        {
+          "service": "beta",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.2,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:50:00Z"
+        },
+        {
+          "service": "payment",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.2,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:50:00Z"
+        }
+      ],
+      "origins": null,
+      "events": null,
+      "patterns": null
+    },
+    "want": {
+      "candidates": [
+        {
+          "id": "c1",
+          "service": "beta",
+          "onset": "2026-11-20T10:50:00Z",
+          "rows": [
+            {
+              "service": "beta",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.2,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": "2026-11-20T10:50:00Z"
+            }
+          ],
+          "knock_on": [],
+          "origins": [],
+          "events": [],
+          "patterns": []
+        },
+        {
+          "id": "c2",
+          "service": "payment",
+          "onset": "2026-11-20T10:50:00Z",
+          "rows": [
+            {
+              "service": "payment",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.2,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": "2026-11-20T10:50:00Z"
+            }
+          ],
+          "knock_on": [],
+          "origins": [],
+          "events": [],
+          "patterns": []
+        },
+        {
+          "id": "c3",
+          "service": "ad",
+          "onset": null,
+          "rows": [
+            {
+              "service": "ad",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.2,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": null
+            }
+          ],
+          "knock_on": [],
+          "origins": [],
+          "events": [],
+          "patterns": []
+        },
+        {
+          "id": "c4",
+          "service": "zeta",
+          "onset": null,
+          "rows": [
+            {
+              "service": "zeta",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.2,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": null
+            }
+          ],
+          "knock_on": [],
+          "origins": [],
+          "events": [],
+          "patterns": []
+        }
+      ],
+      "background": [],
+      "leads": [
+        {
+          "id": "c1",
+          "service": "beta",
+          "text": "beta: errors 20% from 1% (1h); onset 2026-11-20T10:50:00Z",
+          "next": "Read beta errors before and after the onset, then close it as cause, knock_on, background, transient or unrelated"
+        },
+        {
+          "id": "c2",
+          "service": "payment",
+          "text": "payment: errors 20% from 1% (1h); onset 2026-11-20T10:50:00Z",
+          "next": "Read payment errors before and after the onset, then close it as cause, knock_on, background, transient or unrelated"
+        },
+        {
+          "id": "c3",
+          "service": "ad",
+          "text": "ad: errors 20% from 1% (1h); onset not found at the steps read",
+          "next": "Read ad errors before and after the onset, then close it as cause, knock_on, background, transient or unrelated"
+        },
+        {
+          "id": "c4",
+          "service": "zeta",
+          "text": "zeta: errors 20% from 1% (1h); onset not found at the steps read",
+          "next": "Read zeta errors before and after the onset, then close it as cause, knock_on, background, transient or unrelated"
+        }
+      ]
+    }
+  },
+  {
+    "name": "the finest rung and the earliest onset are kept",
+    "findings": {
+      "rows": [
+        {
+          "service": "payment",
+          "signal": "errors",
+          "rung": 21600,
+          "window": 0.2,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:05:00Z"
+        },
+        {
+          "service": "payment",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.2,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:20:00Z"
+        },
+        {
+          "service": "payment",
+          "signal": "latency",
+          "rung": 3600,
+          "window": 2500,
+          "baseline": 90,
+          "unit": "ms",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:15:00Z"
+        },
+        {
+          "service": "payment",
+          "signal": "errors",
+          "rung": 86400,
+          "window": 0.2,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T09:00:00Z"
+        }
+      ],
+      "origins": null,
+      "events": null,
+      "patterns": null
+    },
+    "want": {
+      "candidates": [
+        {
+          "id": "c1",
+          "service": "payment",
+          "onset": "2026-11-20T10:15:00Z",
+          "rows": [
+            {
+              "service": "payment",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.2,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": "2026-11-20T10:20:00Z"
+            },
+            {
+              "service": "payment",
+              "signal": "latency",
+              "rung": 3600,
+              "window": 2500,
+              "baseline": 90,
+              "unit": "ms",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": "2026-11-20T10:15:00Z"
+            }
+          ],
+          "knock_on": [],
+          "origins": [],
+          "events": [],
+          "patterns": []
+        }
+      ],
+      "background": [],
+      "leads": [
+        {
+          "id": "c1",
+          "service": "payment",
+          "text": "payment: errors 20% from 1% (1h); latency 2.5e+03 ms from 90 ms (1h); onset 2026-11-20T10:15:00Z",
+          "next": "Read payment errors and latency before and after the onset, then close it as cause, knock_on, background, transient or unrelated"
+        }
+      ]
+    }
+  },
+  {
+    "name": "change events before the onset are attached",
+    "findings": {
+      "rows": [
+        {
+          "service": "payment",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.2,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:00:00Z"
+        }
+      ],
+      "origins": null,
+      "events": [
+        {
+          "kind": "flag",
+          "source": "loki",
+          "service": "",
+          "at": "2026-11-20T09:55:00Z",
+          "text": "paymentFailure=50%"
+        },
+        {
+          "kind": "deploy lines",
+          "source": "loki",
+          "service": "payment",
+          "at": "2026-11-20T09:40:00Z",
+          "text": "3 lines in the first step"
+        },
+        {
+          "kind": "deploy lines",
+          "source": "loki",
+          "service": "cart",
+          "at": "2026-11-20T09:58:00Z",
+          "text": ""
+        },
+        {
+          "kind": "annotation",
+          "source": "",
+          "service": "",
+          "at": "2026-11-20T08:00:00Z",
+          "text": "too early"
+        },
+        {
+          "kind": "annotation",
+          "source": "",
+          "service": "",
+          "at": "2026-11-20T10:20:00Z",
+          "text": "after"
+        },
+        {
+          "kind": "annotation",
+          "source": "",
+          "service": "",
+          "at": "2026-11-20T10:05:00Z",
+          "text": "at the slack"
+        },
+        {
+          "kind": "annotation",
+          "source": "",
+          "service": "",
+          "at": "2026-11-20T09:30:00Z",
+          "text": "at the lookback"
+        },
+        {
+          "kind": "annotation",
+          "source": "",
+          "service": "",
+          "at": "2026-11-20T09:31:00Z",
+          "text": "one"
+        },
+        {
+          "kind": "annotation",
+          "source": "",
+          "service": "",
+          "at": "2026-11-20T09:32:00Z",
+          "text": "two"
+        }
+      ],
+      "patterns": [
+        {
+          "source": "loki",
+          "service": "payment",
+          "level": "error",
+          "text": "charge failed <_>",
+          "window": 120,
+          "baseline": 0
+        },
+        {
+          "source": "loki",
+          "service": "payment",
+          "level": "warn",
+          "text": "retry <_>",
+          "window": 400,
+          "baseline": 100
+        },
+        {
+          "source": "loki",
+          "service": "payment",
+          "level": "",
+          "text": "slow <_>",
+          "window": 30,
+          "baseline": 10
+        },
+        {
+          "source": "loki",
+          "service": "payment",
+          "level": "",
+          "text": "cold <_>",
+          "window": 3,
+          "baseline": 0
+        },
+        {
+          "source": "loki",
+          "service": "cart",
+          "level": "",
+          "text": "not ours",
+          "window": 900,
+          "baseline": 0
+        }
+      ]
+    },
+    "want": {
+      "candidates": [
+        {
+          "id": "c1",
+          "service": "payment",
+          "onset": "2026-11-20T10:00:00Z",
+          "rows": [
+            {
+              "service": "payment",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.2,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": "2026-11-20T10:00:00Z"
+            }
+          ],
+          "knock_on": [],
+          "origins": [],
+          "events": [
+            {
+              "kind": "annotation",
+              "source": "",
+              "service": "",
+              "at": "2026-11-20T10:05:00Z",
+              "text": "at the slack"
+            },
+            {
+              "kind": "flag",
+              "source": "loki",
+              "service": "",
+              "at": "2026-11-20T09:55:00Z",
+              "text": "paymentFailure=50%"
+            },
+            {
+              "kind": "deploy lines",
+              "source": "loki",
+              "service": "payment",
+              "at": "2026-11-20T09:40:00Z",
+              "text": "3 lines in the first step"
+            },
+            {
+              "kind": "annotation",
+              "source": "",
+              "service": "",
+              "at": "2026-11-20T09:32:00Z",
+              "text": "two"
+            },
+            {
+              "kind": "annotation",
+              "source": "",
+              "service": "",
+              "at": "2026-11-20T09:31:00Z",
+              "text": "one"
+            }
+          ],
+          "patterns": [
+            {
+              "source": "loki",
+              "service": "payment",
+              "level": "warn",
+              "text": "retry <_>",
+              "window": 400,
+              "baseline": 100
+            },
+            {
+              "source": "loki",
+              "service": "payment",
+              "level": "error",
+              "text": "charge failed <_>",
+              "window": 120,
+              "baseline": 0
+            },
+            {
+              "source": "loki",
+              "service": "payment",
+              "level": "",
+              "text": "slow <_>",
+              "window": 30,
+              "baseline": 10
+            }
+          ]
+        }
+      ],
+      "background": [],
+      "leads": [
+        {
+          "id": "c1",
+          "service": "payment",
+          "text": "payment: errors 20% from 1% (1h); onset 2026-11-20T10:00:00Z",
+          "next": "Read payment errors before and after the onset, then close it as cause, knock_on, background, transient or unrelated"
+        }
+      ]
+    }
+  },
+  {
+    "name": "many candidates give five leads",
+    "findings": {
+      "rows": [
+        {
+          "service": "s1",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.5,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:01:00Z"
+        },
+        {
+          "service": "s1",
+          "signal": "latency",
+          "rung": 21600,
+          "window": 2500,
+          "baseline": 90,
+          "unit": "ms",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:02:00Z"
+        },
+        {
+          "service": "s2ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.5,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:02:00Z"
+        },
+        {
+          "service": "s2ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+          "signal": "latency",
+          "rung": 3600,
+          "window": 2500,
+          "baseline": 90,
+          "unit": "ms",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:02:00Z"
+        },
+        {
+          "service": "s3",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.5,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:03:00Z"
+        },
+        {
+          "service": "s4",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.5,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:04:00Z"
+        },
+        {
+          "service": "s5",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.5,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:05:00Z"
+        },
+        {
+          "service": "s6",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.5,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": "2026-11-20T10:06:00Z"
+        },
+        {
+          "service": "s7",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.5,
+          "baseline": 0.01,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": true,
+          "onset": null
+        }
+      ],
+      "origins": null,
+      "events": null,
+      "patterns": null
+    },
+    "want": {
+      "candidates": [
+        {
+          "id": "c1",
+          "service": "s1",
+          "onset": "2026-11-20T10:01:00Z",
+          "rows": [
+            {
+              "service": "s1",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.5,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": "2026-11-20T10:01:00Z"
+            },
+            {
+              "service": "s1",
+              "signal": "latency",
+              "rung": 21600,
+              "window": 2500,
+              "baseline": 90,
+              "unit": "ms",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": "2026-11-20T10:02:00Z"
+            }
+          ],
+          "knock_on": [],
+          "origins": [],
+          "events": [],
+          "patterns": []
+        },
+        {
+          "id": "c2",
+          "service": "s2ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+          "onset": "2026-11-20T10:02:00Z",
+          "rows": [
+            {
+              "service": "s2ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.5,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": "2026-11-20T10:02:00Z"
+            },
+            {
+              "service": "s2ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+              "signal": "latency",
+              "rung": 3600,
+              "window": 2500,
+              "baseline": 90,
+              "unit": "ms",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": "2026-11-20T10:02:00Z"
+            }
+          ],
+          "knock_on": [],
+          "origins": [],
+          "events": [],
+          "patterns": []
+        },
+        {
+          "id": "c3",
+          "service": "s3",
+          "onset": "2026-11-20T10:03:00Z",
+          "rows": [
+            {
+              "service": "s3",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.5,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": "2026-11-20T10:03:00Z"
+            }
+          ],
+          "knock_on": [],
+          "origins": [],
+          "events": [],
+          "patterns": []
+        },
+        {
+          "id": "c4",
+          "service": "s4",
+          "onset": "2026-11-20T10:04:00Z",
+          "rows": [
+            {
+              "service": "s4",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.5,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": "2026-11-20T10:04:00Z"
+            }
+          ],
+          "knock_on": [],
+          "origins": [],
+          "events": [],
+          "patterns": []
+        },
+        {
+          "id": "c5",
+          "service": "s5",
+          "onset": "2026-11-20T10:05:00Z",
+          "rows": [
+            {
+              "service": "s5",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.5,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": "2026-11-20T10:05:00Z"
+            }
+          ],
+          "knock_on": [],
+          "origins": [],
+          "events": [],
+          "patterns": []
+        },
+        {
+          "id": "c6",
+          "service": "s6",
+          "onset": "2026-11-20T10:06:00Z",
+          "rows": [
+            {
+              "service": "s6",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.5,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": "2026-11-20T10:06:00Z"
+            }
+          ],
+          "knock_on": [],
+          "origins": [],
+          "events": [],
+          "patterns": []
+        },
+        {
+          "id": "c7",
+          "service": "s7",
+          "onset": null,
+          "rows": [
+            {
+              "service": "s7",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.5,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "",
+              "moved": true,
+              "onset": null
+            }
+          ],
+          "knock_on": [],
+          "origins": [],
+          "events": [],
+          "patterns": []
+        }
+      ],
+      "background": [],
+      "leads": [
+        {
+          "id": "c1",
+          "service": "s1",
+          "text": "s1: errors 50% from 1% (1h); latency 2.5e+03 ms from 90 ms (6h); onset 2026-11-20T10:01:00Z",
+          "next": "Read s1 errors and latency before and after the onset, then close it as cause, knock_on, background, transient or unrelated"
+        },
+        {
+          "id": "c2",
+          "service": "s2ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+          "text": "s2ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss: errors 50% from 1% (1h); latency 2.5e+03 ms from 90 ms (1h);…",
+          "next": "Read s2ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss errors and latency before and after the onset, then close…"
+        },
+        {
+          "id": "c3",
+          "service": "s3",
+          "text": "s3: errors 50% from 1% (1h); onset 2026-11-20T10:03:00Z",
+          "next": "Read s3 errors before and after the onset, then close it as cause, knock_on, background, transient or unrelated"
+        },
+        {
+          "id": "c4",
+          "service": "s4",
+          "text": "s4: errors 50% from 1% (1h); onset 2026-11-20T10:04:00Z",
+          "next": "Read s4 errors before and after the onset, then close it as cause, knock_on, background, transient or unrelated"
+        },
+        {
+          "id": "c5",
+          "service": "s5",
+          "text": "s5: errors 50% from 1% (1h); onset 2026-11-20T10:05:00Z",
+          "next": "Read s5 errors before and after the onset, then close it as cause, knock_on, background, transient or unrelated"
+        }
+      ]
+    }
+  }
+]

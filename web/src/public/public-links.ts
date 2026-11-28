@@ -45,7 +45,7 @@ export function expiryFor(
   }
   const match = datePattern.exec(date)
   if (match === null) return { ok: false, problem: "Choose a date." }
-  const [year, month, day] = match.slice(1).map(Number)
+  const [year = 0, month = 0, day = 0] = match.slice(1).map(Number)
   const chosen = new Date(year, month - 1, day)
   if (chosen.getMonth() !== month - 1 || chosen.getDate() !== day) {
     return { ok: false, problem: "Choose a date." }

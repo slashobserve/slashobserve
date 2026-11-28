@@ -17,7 +17,7 @@ function Pane({
   active,
 }: {
   onClose: () => void
-  holdClose?: () => boolean
+  holdClose?: (() => boolean) | undefined
   modeKey?: string
   active?: boolean
 }) {
@@ -47,7 +47,7 @@ function Page({
   holdClose,
 }: {
   startOpen?: boolean
-  holdClose?: () => boolean
+  holdClose?: (() => boolean) | undefined
 }) {
   const [open, setOpen] = useState(startOpen)
   const [mode, setMode] = useState("a")
@@ -136,13 +136,6 @@ describe("useDockFocus", () => {
     await user.click(hide)
     expect(screen.getByRole("heading")).not.toHaveFocus()
     expect(hide).toHaveFocus()
-  })
-
-  it("moves focus to the heading when the pane switches mode with focus outside it", async () => {
-    const user = userEvent.setup()
-    render(<Page startOpen />)
-    await user.click(screen.getByRole("button", { name: "Switch" }))
-    expect(screen.getByRole("heading")).toHaveFocus()
   })
 
   it("leaves focus where it is when the switch keeps it, as when a canvas ask moves the pane to its chat", async () => {

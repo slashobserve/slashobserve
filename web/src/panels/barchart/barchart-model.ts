@@ -71,8 +71,8 @@ export type Bar = {
 }
 
 type BarAxis = {
-  unit?: string
-  decimals?: number
+  unit?: string | undefined
+  decimals?: number | undefined
   settings: ValueAxisSettings
   color: string | null
 }
@@ -114,11 +114,11 @@ export type BarOptions = {
   tooltip: BarchartTooltip
   tooltipSort: TooltipSort
   tooltipHideZeros: boolean
-  tooltipMaxWidth?: number
-  tooltipMaxHeight?: number
+  tooltipMaxWidth?: number | undefined
+  tooltipMaxHeight?: number | undefined
   xTickRotation: number
   xTickSpacing: number
-  xTickMaxLength?: number
+  xTickMaxLength?: number | undefined
   barRadius: number
   fullHighlight: boolean
   valueSize: number
@@ -137,17 +137,18 @@ function numberOf(value: unknown): number | undefined {
 export function barOptions(display: Record<string, unknown>): BarOptions {
   const merged = displayWithDefaults("barchart", display)
   const sortBy = merged.legendSortBy
+  const legendWidth = numberOf(merged.legendWidth)
   return {
     legend: legendOf(merged),
-    legendMode:
-      merged.legendMode === "list" || merged.legendMode === "table"
-        ? merged.legendMode
-        : undefined,
+    ...(merged.legendMode === "list" || merged.legendMode === "table"
+      ? { legendMode: merged.legendMode }
+      : {}),
     legendValues: (merged.legendValues ?? []) as Reducer[],
-    legendSortBy:
-      typeof sortBy === "string" ? (sortBy as "name" | Reducer) : undefined,
+    ...(typeof sortBy === "string"
+      ? { legendSortBy: sortBy as "name" | Reducer }
+      : {}),
     legendSortDesc: merged.legendSortDesc === true,
-    legendWidth: numberOf(merged.legendWidth),
+    ...(legendWidth === undefined ? {} : { legendWidth }),
     tooltip: tooltipOf(merged),
     tooltipSort:
       merged.tooltipSort === "asc" || merged.tooltipSort === "desc"
@@ -293,8 +294,8 @@ function colorsFrom(
   const colors = new Map<number, string>()
   for (const [row, category] of rows) {
     const color = displayValue(finite(source.values[row]), config, {
-      fieldMin: range?.min,
-      fieldMax: range?.max,
+      ...(range?.min === undefined ? {} : { fieldMin: range.min }),
+      ...(range?.max === undefined ? {} : { fieldMax: range.max }),
     }).color
     if (color) colors.set(category, color)
   }
@@ -364,7 +365,12 @@ function seriesLabelsByFrame(
       : []
   })
   const labels = displayLabels(panel, named)
-  return new Map(named.map(({ frame }, index) => [frame, labels[index]]))
+  return new Map(
+    named.flatMap(({ frame }, index): [PreparedFrame, string][] => {
+      const label = labels[index]
+      return label === undefined ? [] : [[frame, label]]
+    })
+  )
 }
 
 function instantColumnName(
@@ -514,7 +520,8 @@ export function barSource(
     }
   }
   displayLabels(panel, named).forEach((label, index) => {
-    columns[index].series.name = label
+    const column = columns[index]
+    if (column) column.series.name = label
   })
 
   return {
@@ -626,6 +633,17 @@ const defaultAxisConfig = {
   axisCenteredZero: false,
 } as const
 
+function percentSettings(settings: ValueAxisSettings): ValueAxisSettings {
+  const out: ValueAxisSettings = {
+    ...settings,
+    scale: "linear",
+    centeredZero: false,
+  }
+  delete out.softMin
+  delete out.softMax
+  return out
+}
+
 function axisOf(columns: Column[]): BarAxis {
   const [first] = columns
   if (!first) {
@@ -636,15 +654,7 @@ function axisOf(columns: Column[]): BarAxis {
   return {
     unit: percent ? "percent" : first.config.unit,
     decimals: percent ? 0 : first.config.decimals,
-    settings: percent
-      ? {
-          ...settings,
-          scale: "linear",
-          softMin: undefined,
-          softMax: undefined,
-          centeredZero: false,
-        }
-      : settings,
+    settings: percent ? percentSettings(settings) : settings,
     color: settings.seriesColored ? first.series.color : null,
   }
 }
@@ -734,11 +744,7 @@ export function barchartModel(
     }))
   )
   const decimals = decimalsByUnit(
-    cells.flat().map(({ column, value }) => ({
-      unit: column.config.unit,
-      decimals: column.config.decimals,
-      value,
-    }))
+    cells.flat().map(({ column, value }) => ({ ...column.config, value }))
   )
   const ranges = new Map(
     columns.map((column) => [column, fieldRange(column.field)])
@@ -747,12 +753,13 @@ export function barchartModel(
   for (const cell of cells.flat()) {
     const { config } = cell.column
     const range = ranges.get(cell.column)
+    const shared = decimals.get(config.unit)
     shown.set(
       cell,
       displayValue(cell.value, config, {
-        decimals: decimals.get(config.unit),
-        fieldMin: range?.min,
-        fieldMax: range?.max,
+        ...(shared === undefined ? {} : { decimals: shared }),
+        ...(range?.min === undefined ? {} : { fieldMin: range.min }),
+        ...(range?.max === undefined ? {} : { fieldMax: range.max }),
       })
     )
   }
@@ -790,16 +797,21 @@ export function tooltipIndexes(
   hit: Hit,
   options: Pick<BarOptions, "tooltip" | "tooltipSort" | "tooltipHideZeros">
 ): number[] {
-  const row = model.bars[hit.category]
+  const row = model.bars[hit.category] ?? []
   const candidates =
     options.tooltip === "single"
       ? hit.bar === null
         ? []
         : [hit.bar]
       : row.flatMap((bar, index) => (bar.value === null ? [] : [index]))
-  const listed = candidates
-    .filter((index) => !model.series[index].hideInTooltip)
-    .map((index) => ({ index, value: row[index].value as number }))
+  const listed = candidates.flatMap((index) => {
+    const bar = row[index]
+    const series = model.series[index]
+    if (bar === undefined || series === undefined || series.hideInTooltip) {
+      return []
+    }
+    return [{ index, value: bar.value as number }]
+  })
   return tooltipRows(
     listed,
     {
@@ -829,7 +841,7 @@ export function axisTicks(
   const ticks = Array.from({ length: high - low + 1 }, (_, index) =>
     Number(((low + index) * step).toPrecision(12))
   )
-  return { min: ticks[0], max: ticks[ticks.length - 1], ticks }
+  return { min: ticks[0] ?? min, max: ticks.at(-1) ?? max, ticks }
 }
 
 export function labelStride(
@@ -1081,9 +1093,10 @@ export function hitTest(
     Math.max(0, Math.floor((vertical ? x : y) / slotLength))
   )
   let hit: number | null = null
-  for (const [index, bar] of model.bars[category].entries()) {
-    if (bar.value === null) continue
-    const rect = barRect(layout, category, model.series[index].slot, bar)
+  for (const [index, bar] of (model.bars[category] ?? []).entries()) {
+    const series = model.series[index]
+    if (bar.value === null || series === undefined) continue
+    const rect = barRect(layout, category, series.slot, bar)
     if (
       x >= rect.x &&
       x <= rect.x + rect.width &&

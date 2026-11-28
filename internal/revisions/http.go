@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"math"
 	"net/http"
 	"slices"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
-	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -28,13 +26,6 @@ const (
 	defaultLimit    = 50
 	maxLimit        = 200
 )
-
-type createRequest struct {
-	Prompt      *string `json:"prompt"`
-	BaseVersion *int    `json:"base_version"`
-	PanelID     *string `json:"panel_id"`
-	CommentID   *string `json:"comment_id"`
-}
 
 type authorJSON struct {
 	Kind  string `json:"kind"`
@@ -88,85 +79,10 @@ type listJSON struct {
 
 func (s *Service) Register(api auth.Routes) {
 	g := api.Group("/dashboards/:id/revisions")
-	g.POST("", auth.RoleViewer, s.access.RequireDashboard(folders.NeedComment), s.createRevision)
 	g.GET("", auth.RoleViewer, s.access.RequireDashboard(folders.NeedView), s.listRevisions)
 	g.GET("/:revision_id", auth.RoleViewer, s.access.RequireDashboard(folders.NeedView), s.getRevision)
 	api.POST("/dashboards/:id/suggestions", auth.RoleViewer, s.access.RequireDashboard(folders.NeedEdit), s.createSuggestion)
 	api.GET("/dashboards/:id/suggestions/:suggestion_id", auth.RoleViewer, s.access.RequireDashboard(folders.NeedView), s.getSuggestion)
-}
-
-func (s *Service) createRevision(c *gin.Context) {
-	dashboardID, ok := httpapi.UUIDParam(c, "id")
-	if !ok {
-		return
-	}
-	var req createRequest
-	if !httpapi.DecodeBody(c, &req, maxRequestBytes) {
-		return
-	}
-	if req.Prompt == nil || req.BaseVersion == nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "prompt and base_version are required")
-		return
-	}
-	prompt, err := CheckPrompt("prompt", *req.Prompt)
-	if err != nil {
-		httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", err)
-		return
-	}
-	if *req.BaseVersion < 1 || *req.BaseVersion > math.MaxInt32 {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "base_version must be a positive 32-bit integer")
-		return
-	}
-	panelID := ""
-	if req.PanelID != nil {
-		panelID = *req.PanelID
-		if err := ValidPanelID(panelID); err != nil {
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
-			return
-		}
-	}
-	commentID, ok := threadCommentID(c, req)
-	if !ok {
-		return
-	}
-	if !s.Available() {
-		httpapi.AbortError(c, http.StatusServiceUnavailable, "agent_unavailable", "no agent is configured")
-		return
-	}
-	var row dbsqlc.AgentRequest
-	if commentID.Valid {
-		row, err = s.SubmitForThread(c.Request.Context(), dashboardID, commentID, req.BaseVersion, prompt, httpapi.Caller(c))
-	} else {
-		row, err = s.SubmitFollowUp(c.Request.Context(), dashboardID, req.BaseVersion, panelID, prompt, httpapi.Caller(c))
-	}
-	if err != nil {
-		s.fail(c, "enqueue revision", err, dashboardAttr(dashboardID))
-		return
-	}
-	rev := revisionFromRow(row)
-	views, err := s.revisionViews(c.Request.Context(), dashboardID, []Revision{rev}, httpapi.Caller(c))
-	if err != nil {
-		s.fail(c, "render enqueued revision", err, dashboardAttr(dashboardID))
-		return
-	}
-	c.Header("Location", "/api/v1/dashboards/"+rev.DashboardID+"/revisions/"+rev.ID)
-	c.JSON(http.StatusAccepted, envelopeJSON{Revision: views[0]})
-}
-
-func threadCommentID(c *gin.Context, req createRequest) (pgtype.UUID, bool) {
-	if req.CommentID == nil {
-		return pgtype.UUID{}, true
-	}
-	id, err := db.ParseUUID(*req.CommentID)
-	if err != nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "comment_id must be a UUID")
-		return pgtype.UUID{}, false
-	}
-	if req.PanelID != nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "send comment_id or panel_id, not both; a thread request uses its thread's panel")
-		return pgtype.UUID{}, false
-	}
-	return id, true
 }
 
 func (s *Service) listRevisions(c *gin.Context) {
@@ -278,7 +194,7 @@ func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any)
 	}
 }
 
-var missingForFail = []error{ErrNotFound, ErrDashboardNotFound, ErrObservationNotFound, ErrDashboardVersionNotFound, ErrCommentNotFound, ErrChatNotFound, ErrRequestNotFound, ErrFindingNotFound}
+var missingForFail = []error{ErrNotFound, ErrDashboardNotFound, ErrObservationNotFound, ErrDashboardVersionNotFound, ErrChatNotFound, ErrRequestNotFound, ErrFindingNotFound}
 
 func failureReplyFor(err error) (Reply, bool) {
 	switch {

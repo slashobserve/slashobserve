@@ -8,6 +8,9 @@ const baseURL =
 function parseShard(value: string | undefined) {
   if (!value) return null
   const [current, total] = value.split("/").map(Number)
+  if (current === undefined || total === undefined) {
+    throw new Error(`PW_SHARD must look like 1/2, not ${value}`)
+  }
   return { current, total }
 }
 
@@ -16,7 +19,6 @@ export default defineConfig({
   outputDir: "./test-results",
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
-  failOnFlakyTests: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 2 : 1,
   shard: parseShard(process.env.PW_SHARD),

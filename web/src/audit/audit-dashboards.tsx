@@ -10,7 +10,7 @@ export function AuditDashboards({
   settingsOpen,
   onSettings,
 }: {
-  search: ListSearch
+  search: Omit<ListSearch, "folder">
   onSearchChange: (next: ListSearch) => void
   settingsOpen: boolean
   onSettings: (open: boolean) => void

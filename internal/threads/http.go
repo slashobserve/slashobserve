@@ -18,6 +18,12 @@ import (
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
+const (
+	maxCommentRequestBytes = 64 << 10
+	defaultCommentLimit    = 100
+	maxCommentLimit        = 500
+)
+
 type Threads struct {
 	service *Service
 	asks    *Asks
@@ -25,6 +31,11 @@ type Threads struct {
 
 func NewThreads(service *Service, asks *Asks) *Threads {
 	return &Threads{service: service, asks: asks}
+}
+
+type commentRevisionJSON struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
 }
 
 type targetJSON struct {
@@ -598,4 +609,12 @@ func withRun(message messageJSON, run *StartedRun, refusal *RunRefusal) messageJ
 		message.RunRefusal = &runRefusalJSON{Code: refusal.Code, Message: refusal.Message}
 	}
 	return message
+}
+
+func newMentionsJSON(mentions []Mention) []mentionJSON {
+	out := make([]mentionJSON, 0, len(mentions))
+	for _, m := range mentions {
+		out = append(out, mentionJSON{Kind: m.Kind(), ID: m.RefID(), Name: m.Name})
+	}
+	return out
 }

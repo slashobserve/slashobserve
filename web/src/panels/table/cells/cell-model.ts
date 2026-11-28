@@ -10,8 +10,8 @@ export type CellSpec = {
   wholeRow: boolean
   wrap: boolean
   dynamicHeight: boolean
-  imageAlt?: string
-  imageTitle?: string
+  imageAlt?: string | undefined
+  imageTitle?: string | undefined
 }
 
 const seriesHues = 8
@@ -101,27 +101,4 @@ export function numberSeries(value: unknown): (number | null)[] | null {
 
 export function lastNumber(series: readonly (number | null)[]): number | null {
   return series.findLast((item) => item !== null) ?? null
-}
-
-const unitRanges = new Map([
-  ["percent", { min: 0, max: 100 }],
-  ["percentunit", { min: 0, max: 1 }],
-])
-
-export function gaugeRange(
-  config: Pick<FieldConfig, "unit" | "min" | "max">,
-  data: { fieldMin?: number; fieldMax?: number }
-): { min: number; max: number } {
-  const implied = unitRanges.get(config.unit ?? "")
-  const min = config.min ?? implied?.min ?? Math.min(0, data.fieldMin ?? 0)
-  const configured = config.max ?? implied?.max ?? data.fieldMax ?? min
-  return { min, max: configured <= min ? min + 1 : configured }
-}
-
-export function gaugeFraction(
-  value: number | null,
-  range: { min: number; max: number }
-): number {
-  if (value === null) return 0
-  return Math.min(1, Math.max(0, (value - range.min) / (range.max - range.min)))
 }

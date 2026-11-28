@@ -1,7 +1,6 @@
 package loki
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,35 +8,13 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
-const maxUpstreamTextBytes = 512
-
-type timeoutKey struct{}
-
 type envelope struct {
 	Status string          `json:"status"`
 	Data   json.RawMessage `json:"data"`
-}
-
-func bound(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
-	reported := timeout
-	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) <= timeout {
-		reported = 0
-	}
-	ctx = context.WithValue(ctx, timeoutKey{}, reported)
-	return context.WithTimeout(ctx, timeout)
-}
-
-func transportError(ctx context.Context, err error) error {
-	reported, _ := ctx.Value(timeoutKey{}).(time.Duration)
-	if cerr := datasource.ContextError(ctx, err, reported); cerr != nil {
-		return cerr
-	}
-	return datasource.Errorf(datasource.ErrUnavailable, "connection failed")
 }
 
 func (d *Datasource) fetch(ctx context.Context, path string, params url.Values) (int, []byte, error) {
@@ -61,12 +38,12 @@ func (d *Datasource) fetch(ctx context.Context, path string, params url.Values) 
 	}
 	resp, err := d.client.Do(req)
 	if err != nil {
-		return 0, nil, transportError(ctx, err)
+		return 0, nil, datasource.TransportError(ctx, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, d.opts.MaxResponseBytes+1))
 	if err != nil {
-		return 0, nil, transportError(ctx, err)
+		return 0, nil, datasource.TransportError(ctx, err)
 	}
 	if int64(len(raw)) > d.opts.MaxResponseBytes {
 		return 0, nil, datasource.Errorf(datasource.ErrLimitExceeded, "response larger than %d bytes", d.opts.MaxResponseBytes)
@@ -84,7 +61,7 @@ func (d *Datasource) get(ctx context.Context, path string, params url.Values) (j
 	}
 	var env envelope
 	if json.Unmarshal(raw, &env) != nil || env.Status != "success" {
-		return nil, unreadable()
+		return nil, datasource.Unreadable()
 	}
 	return env.Data, nil
 }
@@ -103,7 +80,7 @@ func statusError(status int, raw []byte) error {
 	case status == http.StatusTooManyRequests:
 		return datasource.Errorf(datasource.ErrUnavailable, "rate limited by upstream")
 	}
-	text := upstreamText(raw)
+	text := datasource.UpstreamText(raw)
 	lower := strings.ToLower(text)
 	kind, fallback := datasource.ErrUnavailable, fmt.Sprintf("upstream returned HTTP %d", status)
 	switch {
@@ -118,30 +95,4 @@ func statusError(status int, raw []byte) error {
 		text = fallback
 	}
 	return datasource.ErrorfStatus(kind, status, "%s", text)
-}
-
-func upstreamText(raw []byte) string {
-	var body struct {
-		Message string `json:"message"`
-		Error   string `json:"error"`
-	}
-	text := string(bytes.TrimSpace(raw))
-	if json.Unmarshal(raw, &body) == nil {
-		text = body.Message
-		if text == "" {
-			text = body.Error
-		}
-	}
-	return truncateText(text)
-}
-
-func truncateText(s string) string {
-	if len(s) > maxUpstreamTextBytes {
-		s = s[:maxUpstreamTextBytes]
-	}
-	return strings.ToValidUTF8(s, "")
-}
-
-func unreadable() error {
-	return datasource.Errorf(datasource.ErrUnavailable, "upstream returned an unreadable result")
 }

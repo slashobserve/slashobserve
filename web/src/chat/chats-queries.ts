@@ -9,6 +9,7 @@ import {
   type QueryClient,
 } from "@tanstack/react-query"
 
+import { uniqueById } from "@/lib/unique-by-id"
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { chatKeys, observeKeys, type ChatsFilters } from "@/api/keys"
@@ -35,11 +36,13 @@ function chatsQuery(filters: ChatsFilters, limit: number) {
         .GET("/chats", {
           params: {
             query: {
-              q: filters.q,
-              dashboard_id: filters.dashboardId,
-              scope: filters.scope,
+              ...(filters.q === undefined ? {} : { q: filters.q }),
+              ...(filters.dashboardId === undefined
+                ? {}
+                : { dashboard_id: filters.dashboardId }),
+              ...(filters.scope === undefined ? {} : { scope: filters.scope }),
               limit,
-              cursor: pageParam,
+              ...(pageParam === undefined ? {} : { cursor: pageParam }),
             },
           },
           signal,
@@ -59,18 +62,10 @@ function chatsQuery(filters: ChatsFilters, limit: number) {
 
 export function useChats(filters: ChatsFilters, limit = 20, enabled = true) {
   const query = useInfiniteQuery({ ...chatsQuery(filters, limit), enabled })
-  const chats = useMemo(() => {
-    const seen = new Set<string>()
-    const unique: Chat[] = []
-    for (const page of query.data?.pages ?? []) {
-      for (const chat of page.chats) {
-        if (seen.has(chat.id)) continue
-        seen.add(chat.id)
-        unique.push(chat)
-      }
-    }
-    return unique
-  }, [query.data])
+  const chats = useMemo(
+    () => uniqueById(query.data?.pages, (page) => page.chats),
+    [query.data]
+  )
   return { chats, query }
 }
 

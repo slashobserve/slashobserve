@@ -5,7 +5,7 @@ import {
   type HistoryState,
 } from "@tanstack/react-router"
 
-import { parseSearch, stringifySearch } from "@/lib/search"
+import { firstText, parseSearch, stringifySearch } from "@/lib/search"
 import {
   isTimeValue,
   isZoneChoice,
@@ -28,25 +28,25 @@ type KioskCycle = "rows" | "folder"
 export type InspectTab = "data" | "query" | "stats"
 
 export type DashboardSearch = {
-  from?: string
-  to?: string
-  refresh?: string
-  tz?: string
-  cursor?: CursorSync
-  version?: number
-  panel?: string
-  edit?: EditView
-  share?: boolean
-  ann?: string[]
-  kiosk?: boolean
-  cycle?: KioskCycle
-  interval?: number
-  viewPanel?: string
-  inspect?: string
-  inspectTab?: InspectTab
-  tab?: SidePanelTab
-  chat?: string
-  thread?: string
+  from?: string | undefined
+  to?: string | undefined
+  refresh?: string | undefined
+  tz?: string | undefined
+  cursor?: CursorSync | undefined
+  version?: number | undefined
+  panel?: string | undefined
+  edit?: EditView | undefined
+  share?: boolean | undefined
+  ann?: string[] | undefined
+  kiosk?: boolean | undefined
+  cycle?: KioskCycle | undefined
+  interval?: number | undefined
+  viewPanel?: string | undefined
+  inspect?: string | undefined
+  inspectTab?: InspectTab | undefined
+  tab?: SidePanelTab | undefined
+  chat?: string | undefined
+  thread?: string | undefined
   vars: Record<string, string[]>
 }
 
@@ -76,19 +76,12 @@ function isInspectTab(value: string): value is InspectTab {
 
 export const variablePrefix = "var-"
 
-function firstString(value: unknown): string | undefined {
-  const item = Array.isArray(value) ? value[0] : value
-  if (typeof item === "string") return item
-  if (typeof item === "number") return String(item)
-  return undefined
-}
-
 function stringList(value: unknown): string[] {
   const items = Array.isArray(value) ? value : [value]
   const out: string[] = []
   let empty = false
   for (const item of items) {
-    const text = firstString(item)
+    const text = firstText(item)
     if (text === undefined) continue
     if (text === "") empty = true
     else out.push(text)
@@ -97,7 +90,7 @@ function stringList(value: unknown): string[] {
 }
 
 export function parseAnnotationTags(raw: unknown): string[] | undefined {
-  const text = firstString(raw)
+  const text = firstText(raw)
   if (text === undefined) return undefined
   const tags: string[] = []
   for (const part of text.split(",")) {
@@ -114,12 +107,12 @@ export function validateDashboardSearch(
 ): DashboardSearch {
   const state: DashboardSearch = { vars: {} }
 
-  const from = firstString(raw.from)
+  const from = firstText(raw.from)
   if (from !== undefined && isTimeValue(from)) state.from = from
-  const to = firstString(raw.to)
+  const to = firstText(raw.to)
   if (to !== undefined && isTimeValue(to)) state.to = to
 
-  const refresh = firstString(raw.refresh)
+  const refresh = firstText(raw.refresh)
   if (
     refresh !== undefined &&
     (refreshOptions.includes(refresh) || refreshPattern.test(refresh))
@@ -127,42 +120,42 @@ export function validateDashboardSearch(
     state.refresh = refresh
   }
 
-  const tz = firstString(raw.tz)
+  const tz = firstText(raw.tz)
   if (tz !== undefined && isZoneChoice(tz)) state.tz = tz
 
-  const cursor = firstString(raw.cursor)
+  const cursor = firstText(raw.cursor)
   if (cursor !== undefined && isCursorSync(cursor)) state.cursor = cursor
 
-  const version = firstString(raw.version)
+  const version = firstText(raw.version)
   if (version !== undefined && versionPattern.test(version)) {
     state.version = Number(version)
   }
 
-  const panel = firstString(raw.panel)
+  const panel = firstText(raw.panel)
   if (panel !== undefined && panelIdPattern.test(panel)) state.panel = panel
 
   if (state.panel !== undefined) {
-    const edit = firstString(raw.edit)
+    const edit = firstText(raw.edit)
     if (edit === "json") state.edit = "json"
-    else if (edit === "query" || firstString(raw.tab) === "query") {
+    else if (edit === "query" || firstText(raw.tab) === "query") {
       state.edit = "query"
     }
   }
 
-  if (state.edit === undefined && firstString(raw.share) === "1") {
+  if (state.edit === undefined && firstText(raw.share) === "1") {
     state.share = true
   }
 
   const ann = parseAnnotationTags(raw.ann)
   if (ann !== undefined) state.ann = ann
 
-  const kiosk = firstString(raw.kiosk)
+  const kiosk = firstText(raw.kiosk)
   if (kiosk === "" || kiosk === "1" || kiosk === "true") {
     state.kiosk = true
-    const cycle = firstString(raw.cycle)
+    const cycle = firstText(raw.cycle)
     if (cycle !== undefined && isKioskCycle(cycle)) {
       state.cycle = cycle
-      const interval = firstString(raw.interval)
+      const interval = firstText(raw.interval)
       if (interval !== undefined && intervalPattern.test(interval)) {
         state.interval = Math.min(
           Math.max(Number(interval), cycleInterval.min),
@@ -173,27 +166,27 @@ export function validateDashboardSearch(
   }
 
   if (state.edit === undefined) {
-    const viewPanel = firstString(raw.viewPanel)
+    const viewPanel = firstText(raw.viewPanel)
     if (viewPanel !== undefined && panelIdPattern.test(viewPanel)) {
       state.viewPanel = viewPanel
     }
-    const inspect = firstString(raw.inspect)
+    const inspect = firstText(raw.inspect)
     if (inspect !== undefined && panelIdPattern.test(inspect)) {
       state.inspect = inspect
-      const tab = firstString(raw.inspectTab)
+      const tab = firstText(raw.inspectTab)
       if (tab !== undefined && isInspectTab(tab) && tab !== "data") {
         state.inspectTab = tab
       }
     }
   }
 
-  const tab = firstString(raw.tab)
+  const tab = firstText(raw.tab)
   if (tab === "chat" || tab === "activity") state.tab = tab
 
-  const chat = firstString(raw.chat)
+  const chat = firstText(raw.chat)
   if (chat !== undefined && requestIdPattern.test(chat)) state.chat = chat
 
-  const thread = firstString(raw.thread)
+  const thread = firstText(raw.thread)
   if (thread !== undefined && requestIdPattern.test(thread)) {
     state.thread = thread
   }
@@ -268,7 +261,7 @@ export function backFromSearch(state: DashboardSearch): string | undefined {
 }
 
 export function validateBack(value: unknown): string | undefined {
-  const text = firstString(value)
+  const text = firstText(value)
   if (text === undefined) return undefined
   return backFromSearch(validateDashboardSearch(parseSearch(text)))
 }
@@ -326,7 +319,7 @@ export function useSetDashboardSearch() {
         search: (prev: DashboardSearchParams) =>
           searchFromState(update(validateDashboardSearch(prev))),
         replace: options?.replace ?? false,
-        state: options?.state,
+        ...(options?.state === undefined ? {} : { state: options.state }),
       })
     },
     [navigate]

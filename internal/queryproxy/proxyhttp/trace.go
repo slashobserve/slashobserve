@@ -84,14 +84,13 @@ func (h *Handler) trace(c *gin.Context) {
 		h.exploreFail(c, uid, err)
 		return
 	}
-	frames, err := marshalFrames([]queryproxy.QueryResult{{Ref: traceRef, Kind: queryproxy.KindInstant, Frames: []datasource.Frame{f}}})
+	frames, err := queryproxy.MarshalFrames([]queryproxy.QueryResult{{Ref: traceRef, Kind: queryproxy.KindInstant, Frames: []datasource.Frame{f}}})
 	if err != nil {
 		h.logger.ErrorContext(ctx, "convert trace frames", append([]any{slog.String("datasource_uid", uid)}, failureAttrs(err)...)...)
 		h.fail(c, errInternal)
 		return
 	}
-	if len(frames) > maxResponseBytes {
-		h.fail(c, errTooLarge)
+	if h.tooLarge(c, len(frames)) {
 		return
 	}
 	entry := dataEntry{

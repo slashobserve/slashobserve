@@ -11,7 +11,8 @@ import { useRouteContext } from "@tanstack/react-router"
 import { toast } from "sonner"
 import { createStore, useStore } from "zustand"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, sentence } from "@/api/errors"
+import { observeKeys, threadKeys } from "@/api/keys"
 import {
   freshCursor,
   stepHistory,
@@ -53,7 +54,6 @@ import { cleanText } from "@/lib/user-text"
 import {
   agentInfoQuery,
   describeSubmitError,
-  sentence,
   useCreateObserveRequest,
   type ObserveRequest,
 } from "@/observe/queries"
@@ -84,6 +84,7 @@ import {
   reduceSend,
   sendAt,
   sendIn,
+  sentOtherBody,
   type PlacedSend,
   type SendEvent,
 } from "./send-state"
@@ -95,16 +96,16 @@ export type SentResult =
 export type ComposerInput = {
   subject: Subject | null
   place: Place
-  target?: SpotTarget
+  target?: SpotTarget | undefined
   gate: GateInput
   onSent: (sent: SentResult) => void | Promise<void>
   draft?: { value: string; onChange: (text: string) => void }
-  initialText?: string
-  people?: readonly MentionPerson[]
-  replyToId?: string
+  initialText?: string | undefined
+  people?: readonly MentionPerson[] | undefined
+  replyToId?: string | undefined
   range?: { from: string; to: string }
   timeZone?: string
-  runningRequestId?: string
+  runningRequestId?: string | undefined
 }
 
 export type Failure = { text: string; invalid: boolean }
@@ -149,6 +150,8 @@ export const agentFailedText =
   "Could not reach the agent, so nothing was sent. Your text is still here. Send again to retry."
 export const nothingSentText = "Nothing was sent."
 const openFailedText = "Sent, but it could not be opened."
+export const supersededText =
+  "Your first message was sent. Send again to post this edit."
 
 function newClientId(): string {
   return crypto.randomUUID()
@@ -313,11 +316,12 @@ export function useComposer(input: ComposerInput): ComposerModel {
   const writeText = input.draft?.onChange ?? setLocalText
   const [command, setCommand] = useState<PageCommand | null>(null)
   const [chosen, setChosen] = useState<Partial<Delivery>>({})
-  const [clientId, setClientId] = useState(newClientId)
   const [cursor, setCursor] = useState<HistoryCursor>(freshCursor)
   const [announcement, setAnnouncement] = useState({ text: "", count: 0 })
   const key = placeKey(place)
-  const [store] = useState(() => createStore<PlacedSend>(() => sendAt(key)))
+  const [store] = useState(() =>
+    createStore<PlacedSend>(() => sendAt(key, newClientId()))
+  )
   const send = sendIn(useStore(store), key)
   const dispatch = useCallback(
     (event: SendEvent) =>
@@ -326,7 +330,7 @@ export function useComposer(input: ComposerInput): ComposerModel {
   )
   const sendNow = () => sendIn(store.getState(), key)
   useLayoutEffect(() => {
-    dispatch({ type: "placed", place: key })
+    dispatch({ type: "placed", place: key, clientId: newClientId() })
   }, [dispatch, key])
   useEffect(
     () => () =>
@@ -492,7 +496,22 @@ export function useComposer(input: ComposerInput): ComposerModel {
     setCommand(null)
     setChosen({})
     setCursor(freshCursor)
-    setClientId(newClientId())
+    returnFocus()
+  }
+
+  function supersede(via: Send["via"]) {
+    void queryClient.invalidateQueries({
+      queryKey:
+        via === "chat.turn"
+          ? observeKeys.mineAll()
+          : threadKeys.list(mentionTarget ?? ""),
+    })
+    dispatch({
+      type: "superseded",
+      place: key,
+      failure: { text: supersededText, invalid: false },
+      clientId: newClientId(),
+    })
     returnFocus()
   }
 
@@ -542,7 +561,7 @@ export function useComposer(input: ComposerInput): ComposerModel {
     }
     const plan = planSend(place, subject, delivery, {
       body: wire,
-      clientId,
+      clientId: store.getState().clientId,
       command,
       target: input.target,
       replyToId: input.replyToId,
@@ -553,12 +572,20 @@ export function useComposer(input: ComposerInput): ComposerModel {
       fail({ text: plan.error, invalid: true })
       return
     }
-    dispatch({ type: "send_started", place: key })
+    dispatch({ type: "send_started", place: key, body: wire })
     const agentName = recipientName(place, wire, agents)
     let result: SentResult
     try {
       result = await deliver(plan)
     } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.status === 422 &&
+        error.code === "client_id_reused"
+      ) {
+        supersede(plan.via)
+        return
+      }
       fail(
         plan.via === "chat.turn"
           ? chatFailureText(error)
@@ -566,10 +593,20 @@ export function useComposer(input: ComposerInput): ComposerModel {
       )
       return
     }
+    if (
+      result.via === "thread" &&
+      plan.via !== "thread.apply" &&
+      result.sent.replayed &&
+      sentOtherBody(store.getState(), wire)
+    ) {
+      supersede(plan.via)
+      return
+    }
     sent()
     dispatch({
       type: "delivered",
       place: key,
+      clientId: newClientId(),
       started:
         result.via === "thread" && askedAgent(result.sent)
           ? { sent: result.sent, agentName }

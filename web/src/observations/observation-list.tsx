@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router"
 import { EllipsisIcon, PlusIcon, SearchIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { AuthorMark } from "@/components/author-mark"
 import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { TruncatedText } from "@/components/data-grid/truncated-text"
@@ -38,7 +39,6 @@ import { clampQuery } from "@/dashboards/list-filters"
 import { foldersQuery, type Folder } from "@/folders/queries"
 import { markOf } from "@/lib/author"
 import { observationLink } from "@/lib/links"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { DeleteObservationsDialog } from "./delete-dialog"
 import { ObservationsPagination } from "./list-pagination"
@@ -140,7 +140,7 @@ export function ObservationList({ view, creating, onChange }: Props) {
   const newButton = useRef<HTMLButtonElement>(null)
   const list = useQuery(
     observationsPageQuery({
-      state: view.state === "all" ? undefined : view.state,
+      ...(view.state === "all" ? {} : { state: view.state }),
       q: view.q,
       mine: view.mine,
       sort: view.sort,
@@ -693,9 +693,12 @@ const skeletonColumns = observationColumns({
   onResolve: () => undefined,
   onReopen: () => undefined,
   onDelete: () => undefined,
-}).map((column) =>
-  column.id === "title" ? { ...column, headerCell: undefined } : column
-)
+}).map((column) => {
+  if (column.id !== "title") return column
+  const plain = { ...column }
+  delete plain.headerCell
+  return plain
+})
 
 function ObservationSkeleton() {
   return (

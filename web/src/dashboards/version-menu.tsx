@@ -46,8 +46,9 @@ function listedRows(
   version: number,
   current: VersionMeta
 ): VersionMeta[] | undefined {
-  if (history.data === undefined) return undefined
-  const newest = history.data.pages[0].versions.slice(0, listedVersions)
+  const firstPage = history.data?.pages[0]
+  if (history.data === undefined || firstPage === undefined) return undefined
+  const newest = firstPage.versions.slice(0, listedVersions)
   if (newest.some((item) => item.version === version)) return newest
   const shown =
     history.data.pages

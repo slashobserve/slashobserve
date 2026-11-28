@@ -40,8 +40,9 @@ An Editor can ask the agent to repair a dashboard whose last check found a `no_d
 1. Open the problem popover in the dashboards list, or open the dashboard.
 2. Choose **Repair** (**Repair all** when several panels or variables fail).
 3. Watch the repair state in the Health column.
-   It shows Repair queued, Repairing, Repaired or Repair failed.
-   When a repaired version still fails, **Repair** is offered again.
+   It shows Repair queued, Repairing, Repaired, Repair proposed or Repair failed.
+   When the check of the repaired version still finds no data, a failing query or a failing variable, **Repair** is offered again.
+   Repair proposed means the repair was saved as a proposal instead of a version, for example because you could no longer edit the dashboard when it finished; it waits for an Editor to merge it, and no **Repair** is offered.
 
 The repair is an ordinary revision with a prompt that names each failing panel and variable.
 It shows in the dashboard's history and can be reviewed and reverted like any other.
@@ -71,6 +72,7 @@ Its `REPAIR` column shows the outcome of the latest health repair:
 - `repair running`
 - `repaired in version N`
 - `repair saved version N, still failing`
+- `repair proposed, waiting for an editor to merge it`
 - `repair failed: <error>`
 - `repair failed`, when the failure has no sentence
 - `-`, when the dashboard never had a repair
@@ -218,13 +220,15 @@ It is null when the dashboard never had one, and always null for a starter dashb
 | Field | Holds |
 | --- | --- |
 | `state` | The status of the repair's run: `queued`, `running`, `succeeded` or `failed`. |
-| `outcome` | What the repair came to: `queued`, `running`, `repaired`, `still_failing` or `failed`. |
+| `outcome` | What the repair came to: `queued`, `running`, `repaired`, `still_failing`, `proposed` or `failed`. |
 | `version` | The version a succeeded repair saved; null otherwise. |
 | `error` | The sentence a failed repair ended with; null otherwise. |
 | `updated_at` | When the repair finished, else when it started, else when it was queued. |
 | `request_id` | The revision request, which `GET /api/v1/dashboards/{id}/revisions/{revision_id}` reads. |
 
-`still_failing` means the repaired version was checked and still fails.
+`repaired` means the repaired version was not checked yet, or the check on it, or on a later version, found no `no_data`, `query_failed` or `variable_failed` problem.
+`still_failing` means that check still found one of them.
+`proposed` means the repair became a proposal instead of a version, and `version` is null.
 
 #### Example answer
 
@@ -286,7 +290,8 @@ It is null when the dashboard never had one, and always null for a starter dashb
 `POST /api/v1/health/repairs` takes `{"dashboard_ids": [...]}` with up to 50 dashboards and needs the Editor role.
 It answers 202 with the repairs it queued and the dashboards it skipped.
 
-- The skip reasons are `active`, `nothing_to_repair`, `not_found`, `forbidden_role`, `provisioned` and `queue_full`.
+- The skip reasons are `active`, `nothing_to_repair`, `not_found`, `forbidden_role` and `provisioned`.
+- A dashboard has one repair at a time: whoever asks first holds it, and a later request skips it as `active` until that run ends.
 - A starter dashboard is skipped as `provisioned`, because the server keeps it current with each release.
   Duplicate it to repair a copy.
 - It answers 503 `agent_unavailable` when no LLM provider is configured.

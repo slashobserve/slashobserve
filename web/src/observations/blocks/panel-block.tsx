@@ -232,7 +232,7 @@ function ReadablePanelBlock({
       ]
     : []
   const blockMenu: BlockMenuHost = {
-    onInspect: inspect === null ? undefined : () => inspect.open(block.id),
+    ...(inspect === null ? {} : { onInspect: () => inspect.open(block.id) }),
     actions: [...editActions, ...pinActions],
   }
   const dataPanel = isDataPanel(panel) ? panel : undefined

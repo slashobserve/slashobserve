@@ -2,6 +2,8 @@ import type { Transform } from "@/spec"
 
 import { isNumber } from "../reducers"
 import {
+  frameLabels,
+  frameName,
   matchesName,
   seriesName,
   type PreparedField,
@@ -13,30 +15,49 @@ type RegressionOptions = Extract<Transform, { type: "regression" }>
 const defaultDegree = 2
 const pivotLimit = 1e-12
 
+function augmented(matrix: number[][], target: number[]): number[][] | null {
+  const rows: number[][] = []
+  for (const [index, row] of matrix.entries()) {
+    const value = target[index]
+    if (value === undefined || row.length !== target.length) return null
+    rows.push([...row, value])
+  }
+  return rows.length === target.length ? rows : null
+}
+
 function solve(matrix: number[][], target: number[]): number[] | null {
   const size = target.length
-  const rows = matrix.map((row, at) => [...row, target[at]])
+  const rows = augmented(matrix, target)
+  if (!rows) return null
+  const at = (row: number, column: number) => rows[row]?.[column] ?? Number.NaN
   for (let column = 0; column < size; column++) {
     let pivot = column
     for (let row = column + 1; row < size; row++) {
-      if (Math.abs(rows[row][column]) > Math.abs(rows[pivot][column])) {
+      if (Math.abs(at(row, column)) > Math.abs(at(pivot, column))) {
         pivot = row
       }
     }
-    if (Math.abs(rows[pivot][column]) < pivotLimit) return null
-    ;[rows[column], rows[pivot]] = [rows[pivot], rows[column]]
-    for (let row = column + 1; row < size; row++) {
-      const factor = rows[row][column] / rows[column][column]
-      for (let at = column; at <= size; at++) {
-        rows[row][at] -= factor * rows[column][at]
+    const pivotRow = rows[pivot]
+    const columnRow = rows[column]
+    if (!pivotRow || !columnRow) return null
+    if (Math.abs(at(pivot, column)) < pivotLimit) return null
+    rows[column] = pivotRow
+    rows[pivot] = columnRow
+    for (const current of rows.slice(column + 1)) {
+      const factor = (current[column] ?? Number.NaN) / at(column, column)
+      for (let index = column; index <= size; index++) {
+        current[index] =
+          (current[index] ?? Number.NaN) - factor * at(column, index)
       }
     }
   }
   const solution = new Array<number>(size).fill(0)
   for (let row = size - 1; row >= 0; row--) {
-    let rest = rows[row][size]
-    for (let at = row + 1; at < size; at++) rest -= rows[row][at] * solution[at]
-    solution[row] = rest / rows[row][row]
+    let rest = at(row, size)
+    for (let index = row + 1; index < size; index++) {
+      rest -= at(row, index) * (solution[index] ?? Number.NaN)
+    }
+    solution[row] = rest / at(row, row)
   }
   return solution
 }
@@ -61,7 +82,9 @@ function fitPolynomial(
         xs.reduce((sum, x) => sum + power(x, row + column), 0)
       )
     )
-    target.push(xs.reduce((sum, x, at) => sum + power(x, row) * ys[at], 0))
+    target.push(
+      xs.reduce((sum, x, at) => sum + power(x, row) * (ys[at] ?? Number.NaN), 0)
+    )
   }
   const coefficients = solve(matrix, target)
   if (!coefficients) return null
@@ -126,8 +149,8 @@ function regress(
   )
   return {
     ref: frame.ref,
-    name: frame.name,
-    labels: frame.labels,
+    ...frameName(frame),
+    ...frameLabels(frame),
     fields: [
       { name: xField.name, type: xField.type, values: predicted },
       {

@@ -18,12 +18,11 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { truncatingTriggerClass } from "@/activity/show-filter"
-import { ApiError } from "@/api/errors"
+import { ApiError, loadProblemText } from "@/api/errors"
 import { Composer } from "@/conversation/composer"
 import { ungated } from "@/conversation/delivery"
 import { useComposer } from "@/conversation/use-composer"
 import { observeRequestQuery, type ObserveRequest } from "@/observe/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { chatOptionMeta } from "./chat-rows"
 import { useChat, useChats, type Chat } from "./chats-queries"

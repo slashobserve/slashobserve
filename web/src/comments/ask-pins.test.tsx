@@ -13,6 +13,7 @@ import { AskPins } from "./ask-pins"
 import { useCanvasSurface } from "./canvas-composer"
 import type { CanvasSubject } from "./canvas-host"
 import type { PinView } from "./canvas-target"
+import { must } from "@/test/must"
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -142,12 +143,12 @@ describe("AskPins", () => {
       surface: "s1",
     })
     expect(pin).toHaveAttribute("aria-expanded", "true")
-    expect(listed[0].pathname).toBe("/api/v1/observe")
-    expect(Object.fromEntries(listed[0].searchParams)).toMatchObject({
+    expect(must(listed[0]).pathname).toBe("/api/v1/observe")
+    expect(Object.fromEntries(must(listed[0]).searchParams)).toMatchObject({
       dashboard_id: "d1",
       anchored: "true",
     })
-    expect(listed[0].searchParams.has("scope")).toBe(false)
+    expect(must(listed[0]).searchParams.has("scope")).toBe(false)
   })
 
   it("pins only private asks, not an investigation or a mention that answers on the observation", async () => {
@@ -176,7 +177,7 @@ describe("AskPins", () => {
       name: "Your question on Slow services, Row payments, 440",
     })
     expect(screen.getAllByRole("button")).toHaveLength(1)
-    expect(Object.fromEntries(listed[0].searchParams)).toMatchObject({
+    expect(Object.fromEntries(must(listed[0]).searchParams)).toMatchObject({
       observation_id: "o1",
       anchored: "true",
     })

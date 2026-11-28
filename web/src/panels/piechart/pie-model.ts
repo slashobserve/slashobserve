@@ -24,14 +24,14 @@ export type PieOptions = {
   valueSize: number
   legendColumns: LegendColumn[]
   legendMode: "list" | "table"
-  legendSortBy?: LegendSort
+  legendSortBy?: LegendSort | undefined
   legendSortDesc: boolean
-  legendWidth?: number
+  legendWidth?: number | undefined
   tooltip: TooltipMode
   tooltipSort: TooltipSort
   tooltipHideZeros: boolean
-  tooltipMaxWidth?: number
-  tooltipMaxHeight?: number
+  tooltipMaxWidth?: number | undefined
+  tooltipMaxHeight?: number | undefined
 }
 
 export type PieEntry = {
@@ -124,16 +124,15 @@ export function pieEntries(
     zone
   )
   const decimals = decimalsByUnit(
-    items.map(({ config, value }) => ({
-      unit: config.unit,
-      decimals: config.decimals,
-      value,
-    }))
+    items.map(({ config, value }) => ({ ...config, value }))
   )
   return items.map(({ key, label, config, value, raw }, index) => {
-    const shown = displayValue(raw, config, {
-      decimals: decimals.get(config.unit),
-    })
+    const shared = decimals.get(config.unit)
+    const shown = displayValue(
+      raw,
+      config,
+      shared === undefined ? {} : { decimals: shared }
+    )
     return {
       key,
       name: label,

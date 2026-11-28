@@ -6,6 +6,7 @@ import {
   useQueryClient,
   type InfiniteData,
   type QueryClient,
+  type QueryKey,
 } from "@tanstack/react-query"
 import { toast } from "sonner"
 
@@ -21,6 +22,23 @@ export type Anchor = components["schemas"]["Anchor"]
 export type ThreadWithMessages = { thread: Thread; messages: Message[] }
 
 const pageSize = 500
+
+export function openThreadCount(
+  threads: readonly ThreadWithMessages[]
+): number {
+  return threads.filter(({ thread }) => thread.status === "open").length
+}
+
+export function openThreadsByPanel(
+  threads: readonly ThreadWithMessages[]
+): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const { thread } of threads) {
+    if (thread.status !== "open" || thread.panel_id === null) continue
+    counts.set(thread.panel_id, (counts.get(thread.panel_id) ?? 0) + 1)
+  }
+  return counts
+}
 
 export function groupThreadPages(
   pages: readonly Pick<ThreadPage, "threads" | "messages">[]
@@ -61,7 +79,7 @@ function threadsQuery(target: string) {
               target,
               status: "all",
               limit: pageSize,
-              cursor: pageParam,
+              ...(pageParam === undefined ? {} : { cursor: pageParam }),
             },
           },
           signal,
@@ -107,6 +125,7 @@ export type SentMessage = {
   run: NonNullable<Message["run"]> | null
   runRefusal: NonNullable<Message["run_refusal"]> | null
   to: ThreadSent["to"]
+  replayed: boolean
 }
 
 type ThreadSent = components["schemas"]["ThreadSent"]
@@ -118,6 +137,7 @@ function sentMessage(body: ThreadSent): SentMessage {
     to: body.to,
     run: body.message.run ?? null,
     runRefusal: body.message.run_refusal ?? null,
+    replayed: body.replayed,
   }
 }
 
@@ -140,11 +160,6 @@ function refreshAfterSend(
 ) {
   void queryClient.invalidateQueries({ queryKey: threadKeys.list(target) })
   const dashboardId = dashboardIdOf(target)
-  if (dashboardId !== null) {
-    void queryClient.invalidateQueries({
-      queryKey: dashboardKeys.comments(dashboardId),
-    })
-  }
   if (sent.run === null) return
   if (dashboardId !== null) {
     void queryClient.invalidateQueries({
@@ -158,18 +173,18 @@ export function useOpenThread(target: string) {
   const queryClient = useQueryClient()
   const dashboardId = dashboardIdOf(target)
   return useMutation({
-    mutationKey:
-      dashboardId === null ? undefined : dashboardKeys.posts(dashboardId),
-    networkMode: "always",
+    ...(dashboardId === null
+      ? {}
+      : { mutationKey: dashboardKeys.posts(dashboardId) }),
     mutationFn: (input: {
       body: string
-      to?: "agent" | "everyone"
-      clientId?: string
-      version?: number
-      panelId?: string | null
-      blockId?: string | null
-      anchor?: Anchor
-      timeZone?: string
+      to?: "agent" | "everyone" | undefined
+      clientId?: string | undefined
+      version?: number | undefined
+      panelId?: string | null | undefined
+      blockId?: string | null | undefined
+      anchor?: Anchor | undefined
+      timeZone?: string | undefined
     }) =>
       resendOnceOffline(input.clientId, () =>
         api.POST("/threads", {
@@ -199,15 +214,14 @@ export function useOpenThread(target: string) {
 export function useReplyToThread(target: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (input: {
       threadId: string
       body: string
-      to?: "agent" | "everyone"
+      to?: "agent" | "everyone" | undefined
       clientId?: string
-      blockId?: string | null
-      replyToId?: string | null
-      timeZone?: string
+      blockId?: string | null | undefined
+      replyToId?: string | null | undefined
+      timeZone?: string | undefined
     }) =>
       resendOnceOffline(input.clientId, () =>
         api.POST("/threads/{thread_id}/messages", {
@@ -307,5 +321,32 @@ export function useMarkThreadRead(target: string) {
         (data) =>
           mapThread(data, threadId, (thread) => ({ ...thread, unread: false }))
       ),
+  })
+}
+
+export function useDeleteMessage(queryKey: QueryKey) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (messageId: string) =>
+      api
+        .DELETE("/messages/{message_id}", {
+          params: { path: { message_id: messageId } },
+        })
+        .then(unwrap),
+    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+  })
+}
+
+export function useEditMessage(queryKey: QueryKey) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { messageId: string; body: string }) =>
+      api
+        .PATCH("/messages/{message_id}", {
+          params: { path: { message_id: input.messageId } },
+          body: { body: input.body },
+        })
+        .then(unwrap),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   })
 }

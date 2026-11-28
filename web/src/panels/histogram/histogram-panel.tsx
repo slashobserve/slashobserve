@@ -1,6 +1,5 @@
 import {
   memo,
-  useCallback,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -9,6 +8,7 @@ import {
   type MouseEvent,
 } from "react"
 
+import { useElementSize } from "@/lib/use-element-size"
 import { formatValue } from "@/lib/units"
 import { cn } from "@/lib/utils"
 
@@ -48,7 +48,10 @@ function bucketText(
   index: number,
   format: (edge: number) => string
 ): string {
-  return `${format(model.edges[index])} - ${format(model.edges[index + 1])}`
+  const low = model.edges[index]
+  const high = model.edges[index + 1]
+  if (low === undefined || high === undefined) return ""
+  return `${format(low)} - ${format(high)}`
 }
 
 const Bars = memo(function Bars({
@@ -96,8 +99,9 @@ const Bars = memo(function Bars({
           }}
         >
           {model.series.map((series, seriesIndex) => {
-            if (series.counts[index] === 0) return null
-            const { start, end } = model.bars[seriesIndex][index]
+            const bar = model.bars[seriesIndex]?.[index]
+            if (series.counts[index] === 0 || bar === undefined) return null
+            const { start, end } = bar
             const low = position(start)
             const high = position(end)
             const style: CSSProperties = {
@@ -271,6 +275,7 @@ function Tooltip({
       </div>
       {listed.map(({ index }) => {
         const series = model.series[index]
+        if (series === undefined) return null
         return (
           <div key={series.key} className="flex items-center gap-1.5">
             <span
@@ -291,22 +296,6 @@ function Tooltip({
       ) : null}
     </div>
   )
-}
-
-function useMeasuredHeight(): [
-  number | null,
-  (node: HTMLDivElement | null) => void,
-] {
-  const [measured, setMeasured] = useState<number | null>(null)
-  const ref = useCallback((node: HTMLDivElement | null) => {
-    if (node === null) return
-    const observer = new ResizeObserver(([entry]) =>
-      setMeasured(entry.contentRect.height)
-    )
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [])
-  return [measured, ref]
 }
 
 const HistogramPanel: PanelRenderer = ({
@@ -336,13 +325,13 @@ const HistogramPanel: PanelRenderer = ({
     [entries, display, legend.hidden]
   )
   const buckets = Math.max(0, model.edges.length - 1)
-  const [measuredHeight, plotRef] = useMeasuredHeight()
+  const { ref: plotRef, size: measured } = useElementSize<HTMLDivElement>()
   const estimatedHeight =
     height -
     padTop -
     xAxisHeight -
     (legend.placement === "bottom" ? legendHeight : 0)
-  const plotHeight = measuredHeight ?? estimatedHeight
+  const plotHeight = measured?.height ?? estimatedHeight
   const axis = useMemo(
     () => valueTicks(model, plotHeight / tickSpacing),
     [model, plotHeight]

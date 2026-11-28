@@ -52,7 +52,7 @@ export function JsonEditor({ value, onChange, readOnly, ariaLabel }: Props) {
   useEffect(() => {
     const current = latest.current
     const view = new EditorView({
-      parent: host.current ?? undefined,
+      ...(host.current === null ? {} : { parent: host.current }),
       state: EditorState.create({
         doc: current.value,
         extensions: [

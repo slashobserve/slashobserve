@@ -9,7 +9,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/datasource"
-	"github.com/slashobserve/slashobserve/internal/observeagent"
+	"github.com/slashobserve/slashobserve/internal/harness"
 )
 
 func TestLoopbackURLPointsTheSidecarAtThisServer(t *testing.T) {
@@ -71,6 +71,22 @@ func TestModelSettingsCarryTheConfiguredModelAndAFreshCopyEachCall(t *testing.T)
 	}
 }
 
+func TestAgentSettingsCarryTheConfigAndTheGuardDefaults(t *testing.T) {
+	got := agentSettingsOf(config.Agent{
+		InvestigationCalls: 20, InvestigationCallsMax: 50, InvestigationLoop: true, FindingGrounding: "enforce",
+		InvestigationBrief: true, SessionRenewBytes: 65536,
+	})
+	if got.InvestigationCalls != 20 || got.InvestigationCallsMax != 50 || !got.Loop || got.Grounding != "enforce" || !got.BriefSweep || got.SessionRenewBytes != 65536 {
+		t.Fatalf("settings = %+v", got)
+	}
+	if got.DefaultCalls != 30 || got.ChatCalls != 12 || got.SaveCalls != 6 || got.SuggestCalls != 12 {
+		t.Fatalf("call limits = %+v", got)
+	}
+	if got.TaskCalls["measure"] != 16 || got.TaskCalls["incident"] != 30 || len(got.TaskCalls) != 6 {
+		t.Fatalf("task calls = %v", got.TaskCalls)
+	}
+}
+
 func TestModelSettingsWithoutABaseURLSendAnEmptyOne(t *testing.T) {
 	if got := modelSettingsOf(config.LLM{Provider: "replay"}, 0)(false); got.BaseURL != "" || got.Provider != "replay" {
 		t.Fatalf("settings = %+v", got)
@@ -88,19 +104,19 @@ func TestAQuestionRunsAtTheQuestionEffort(t *testing.T) {
 }
 
 func TestObserveAgentTokenIsNeverAcceptedWithoutARunningChild(t *testing.T) {
-	supervisor := observeagent.NewSupervisor(observeagent.SupervisorConfig{})
+	supervisor := harness.NewSupervisor(harness.SupervisorConfig{})
 	for name, m := range map[string]mcpCredentials{
 		"no supervisor":  {},
 		"no child yet":   {supervisor: supervisor},
 		"empty token":    {supervisor: supervisor},
 		"lowercase auth": {supervisor: supervisor},
 	} {
-		header := "Bearer " + observeagent.TokenPrefix + "guess"
+		header := "Bearer " + harness.TokenPrefix + "guess"
 		if name == "empty token" {
-			header = "Bearer " + observeagent.TokenPrefix
+			header = "Bearer " + harness.TokenPrefix
 		}
 		if name == "lowercase auth" {
-			header = "bearer " + observeagent.TokenPrefix + "guess"
+			header = "bearer " + harness.TokenPrefix + "guess"
 		}
 		cred, ok, owned := m.observeAgent(header)
 		if ok || !owned || cred.Claimer != nil {
@@ -110,7 +126,7 @@ func TestObserveAgentTokenIsNeverAcceptedWithoutARunningChild(t *testing.T) {
 }
 
 func TestOtherBearerTokensFallThroughToTheNormalCredentials(t *testing.T) {
-	m := mcpCredentials{supervisor: observeagent.NewSupervisor(observeagent.SupervisorConfig{})}
+	m := mcpCredentials{supervisor: harness.NewSupervisor(harness.SupervisorConfig{})}
 	for _, header := range []string{"", "Bearer sok_abc", "Bearer sot_abc", "Basic sob_abc", "sob_abc"} {
 		if _, ok, owned := m.observeAgent(header); ok || owned {
 			t.Errorf("%q: ok=%v owned=%v, want it left to the other credentials", header, ok, owned)
@@ -119,7 +135,7 @@ func TestOtherBearerTokensFallThroughToTheNormalCredentials(t *testing.T) {
 }
 
 func TestOAuthAccessTokensAreNotClaimedByTheBuiltInAgent(t *testing.T) {
-	m := mcpCredentials{supervisor: observeagent.NewSupervisor(observeagent.SupervisorConfig{})}
+	m := mcpCredentials{supervisor: harness.NewSupervisor(harness.SupervisorConfig{})}
 	header := "Bearer soa_" + strings.Repeat("a", 43)
 	if _, ok, owned := m.observeAgent(header); ok || owned {
 		t.Fatalf("ok=%v owned=%v, want an OAuth access token left to the OAuth check", ok, owned)

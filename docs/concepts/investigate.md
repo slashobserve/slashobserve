@@ -228,7 +228,7 @@ Details of the stages:
 
 ### The grounding check
 
-With `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, the default, the server checks each finding against what the run read before it is saved.
+With `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `enforce`, the default, the server checks each finding against what the run read before it is saved.
 It looks at the cited facts and `answers` (see [Facts](#facts)), the figures and trace ids in the Markdown and the impact, the root cause component and the onset.
 
 - A cited fact is a figure from a read by construction, so it always passes the figure rules.
@@ -260,7 +260,7 @@ The server takes a name from the result's text, read as plain text even when it 
 
 ### Facts
 
-With `report` or `enforce`, the values the measurement and trace reads return are numbered facts.
+With `enforce`, the values the measurement and trace reads return are numbered facts.
 Each object in such a result that holds one carries a `facts` map from the value's key to its id, such as `"facts":{"value":"f3"}`; an id is unique within the run, and the same value read again keeps its id.
 The reads that give facts are `measure_window` and `measure_aggregate` (each value, numerator and denominator), `trace_stats` (the counts and the whole-window and per-group quantiles), `trace_error_origins` (the counts, shares and example trace ids), `trace_slow_path` (each route's threshold, median, slow count and examined count, the self times, shares and counts, and the example trace id and duration), `get_trace` (the trace id, span count, duration and the slowest spans), `log_facets` (the count of each value, and the number of lines sampled), `log_patterns` (the count of each pattern, and the lines matched), and the `min`, `max` and `last` of each `query_range` and `query_instant` series.
 `log_context` and `logs_for_trace` return lines, and their only counts are how many lines they showed, so they give no facts.
@@ -303,11 +303,10 @@ These are problems with the finding, handled like any other item of the check:
 With `enforce`, a `measure`, `logs` or `traces` question (see [Task types](#task-types)) whose finding states a figure, cited or typed, but has no `answers` entry is also sent back once to list them; the item is only in the send-back, never stored, and the second save is accepted.
 The check runs on a finding saved in any run that can save one, so a question asked on Home or in a revision's chat is checked like an investigation, and a suggestion has none.
 
-With `report` or `enforce`, the investigate system text drops its two rules on giving one value per quantity at the precision the tool returned and on settling two different figures with one more read, because the server now enforces them, and ends instead with a short Facts section that says to cite facts, how the options work and to list `answers`.
+With `enforce`, the investigate system text drops its two rules on giving one value per quantity at the precision the tool returned and on settling two different figures with one more read, because the server now enforces them, and ends instead with a short Facts section that says to cite facts, how the options work and to list `answers`.
 A question asked on Home or in a revision gets the same instructions as one note in its context, and with `off` every prompt is the one it was.
 `get_run_brief` gives a connected agent the same text.
 
-With `report`, the items that did not pass are stored with the finding and nothing else changes.
 With `enforce`, the first save with such items is sent back once with a line per item that says how to fix it: "read it, correct it, or remove it" for a figure or name no read gave, the fact to cite for a rounded figure, the whole id for a cut one, and the settling read for two values of one quantity.
 The agent may read past its call limit to do that, and the send-back is not counted as a rejected save.
 The second save is accepted, and the items that still did not pass are stored with it.
@@ -321,8 +320,8 @@ The stored items are returned as `unverified` on the finding and on each entry o
 An investigation's finding lists every cause the evidence supports, up to 6, most confident first, in `causes`; see [Structured fields](../use/investigate.md#structured-fields) for each cause's fields.
 A cause that only follows another, such as a second service failing on its calls to the first, is listed as a knock-on of that cause, never as a root cause of its own.
 
-With `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, the server scores each cause from 0 to 1 when the finding is saved.
-The agent may give its own `estimate`, but the stored `confidence` is the server's, from what the run read:
+With `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `enforce`, the default, the built-in agent scores each cause from 0 to 1 before it saves the finding, from what the run read, and the server stores that score as `confidence`.
+The model may give its own `estimate`, but the stored `confidence` is the score:
 
 | Signal | Adds |
 | --- | --- |
@@ -342,6 +341,7 @@ The causes are kept in the agent's order within a band, and the bands are sorted
 `save_finding` answers with each cause's score and band, and says so when a cause is unconfirmed or when the agent's estimate is two bands away from the score.
 
 With `off`, causes are not scored: `confidence` and `band` are null and every cause is stated.
+A connected agent's causes are never scored, the same way.
 `root_cause` is the first stated cause that is not a knock-on, and null when there is none.
 
 ## Where the answer goes
@@ -362,16 +362,9 @@ These rules decide the folder:
 
 ## Pin a finding or turn it into a dashboard
 
-Two deprecated routes act on a finding.
-`POST /api/v1/findings/{id}/pin` pins the finding to its dashboard as an [annotation](../use/annotations.md).
-`POST /api/v1/findings/{id}/dashboard` saves the evidence panels as a new dashboard in the caller's My Dashboards, after running their queries again.
-
-Details of pinning:
-
-- The annotation sits at the end of the finding's window, tagged `finding`.
-- Its text is the finding's first line and its `/findings/<id>` path.
-- Pinning needs Edit on the dashboard.
-- Pinning a finding twice returns the same annotation, with `200` the second time and `201` the first.
+A saved finding is pinned through its observation: `POST /api/v1/observations/{id}/pin` pins it to the dashboard its run was about as an [annotation](../use/annotations.md), and [Observations](../use/observations.md#pin-it-to-a-dashboard-or-make-a-dashboard-from-it) describes the rules.
+A finding pinned before this release keeps its annotation, and its card still reads "Pinned to the dashboard".
+The deprecated route `POST /api/v1/findings/{id}/dashboard` saves the evidence panels as a new dashboard in the caller's My Dashboards, after running their queries again.
 
 ## When an investigation fails
 
@@ -449,9 +442,9 @@ Its `observation_id` names the observation either way.
 ### The finding API is deprecated
 
 The finding tools `create_finding`, `list_findings` and `move_finding`, the command `observe findings`, the route `POST /api/v1/findings/{id}/move`, the comment target `finding:<id>` and the search kind `finding` are removed.
-The routes that read a finding, pin it and make a dashboard from it remain under `/api/v1/findings` as adapters over observations that the web app still reads.
+The routes that list and read findings, make a dashboard from one and read its evidence data remain under `/api/v1/findings` as adapters over observations that the web app still reads.
 Every finding route answers with a `Deprecation` header, and a finding carries its `observation_id`.
-Use `/api/v1/observations`, `create_observation` with `add_block`, `list_observations` and `observe o` instead.
+For a saved finding, use `/api/v1/observations`, `create_observation` with `add_block`, `list_observations` and `observe o` instead; a chat-only answer has no observation, so these routes stay for it.
 
 ### `observe investigate` flags
 

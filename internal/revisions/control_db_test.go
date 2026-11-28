@@ -2,7 +2,6 @@ package revisions_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -52,7 +51,12 @@ func TestCancelFinishesARunningRequestWhoseLeaseExpired(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	claimOne(t, svc)
+	claimed, _ := claimOne(t, svc)
+	if _, err := d.Queries().UpsertAgentRequestBuild(reading(context.Background()), dbsqlc.UpsertAgentRequestBuildParams{
+		AgentRequestID: row.ID, Spec: []byte(`{}`), ClaimEpoch: claimed.ClaimEpoch,
+	}); err != nil {
+		t.Fatal(err)
+	}
 	expireLease(t, d, row.ID)
 
 	got, err := svc.Cancel(reading(context.Background()), row.ID, user)
@@ -66,30 +70,11 @@ func TestCancelFinishesARunningRequestWhoseLeaseExpired(t *testing.T) {
 	if err != nil || stored.Status != string(revisions.StatusFailed) {
 		t.Fatalf("stored = %+v, %v; want the failed row persisted", stored, err)
 	}
-	if _, found := claimOne(t, svc); found {
-		t.Fatal("a canceled request was claimed again")
-	}
-}
-
-func TestCancelKeepsTheBuildOfARunningRequestWhoseLeaseExpired(t *testing.T) {
-	svc, d := newService(t, succeedWith(2))
-	row, err := svc.SubmitObserve(reading(context.Background()), user, "crashed")
-	if err != nil {
-		t.Fatal(err)
-	}
-	claimed, _ := claimOne(t, svc)
-	if _, err := d.Queries().UpsertAgentRequestBuild(reading(context.Background()), dbsqlc.UpsertAgentRequestBuildParams{
-		AgentRequestID: row.ID, Spec: []byte(`{}`), ClaimEpoch: claimed.ClaimEpoch,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	expireLease(t, d, row.ID)
-
-	if _, err := svc.Cancel(reading(context.Background()), row.ID, user); err != nil {
-		t.Fatalf("cancel: %v", err)
-	}
 	if _, err := d.Queries().GetAgentRequestBuild(reading(context.Background()), row.ID); err != nil {
 		t.Fatalf("build after cancel: %v, want it kept", err)
+	}
+	if _, found := claimOne(t, svc); found {
+		t.Fatal("a canceled request was claimed again")
 	}
 }
 
@@ -152,7 +137,7 @@ func TestClaimStillWorksWhenBuildRetentionCleanupFails(t *testing.T) {
 	}
 }
 
-func TestContinueRefusesWithVersionConflictWhenTheDashboardMovedOnAndEnqueuesNothing(t *testing.T) {
+func TestContinueStartsWhenTheDashboardMovedOnAndTakesTheStaleBuild(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	ctx := reading(context.Background())
 	dash := seedDashboard(t, d, 1)
@@ -167,16 +152,14 @@ func TestContinueRefusesWithVersionConflictWhenTheDashboardMovedOnAndEnqueuesNot
 	d.Exec(t, "UPDATE agent_requests SET state = 'failed', status = 'failed', failure_code = 'no_progress', error = 'stopped', lease_until = NULL, finished_at = now() WHERE id = $1", id)
 	saveVersionUnder(t, d, dash, pgtype.UUID{}, 2)
 
-	_, err := svc.Continue(ctx, id, user, "")
-	var conflict *revisions.BuildConflictError
-	if !errors.As(err, &conflict) || conflict.Latest != 2 {
-		t.Fatalf("continue = %v, want BuildConflictError at version 2", err)
+	next, err := svc.Continue(ctx, id, user, "")
+	if err != nil {
+		t.Fatalf("continue of a stale build = %v, want a continuation that rebases at its start", err)
 	}
-	var requests int
-	if err := d.SQLDB(t).QueryRow("SELECT count(*) FROM agent_requests").Scan(&requests); err != nil || requests != 1 {
-		t.Fatalf("agent requests = %d, %v; want only the stopped one", requests, err)
+	if next.ContinuesID != id || next.State != string(revisions.StateQueued) {
+		t.Fatalf("continuation = continues %v state %s, want a queued continuation of %v", next.ContinuesID, next.State, id)
 	}
-	if _, err := d.Queries().GetAgentRequestBuild(ctx, id); err != nil {
-		t.Fatalf("build after refused continue: %v, want it kept on the stopped request", err)
+	if _, err := d.Queries().GetAgentRequestBuild(ctx, next.ID); err != nil {
+		t.Fatalf("build of the continuation: %v, want the stale build moved to it", err)
 	}
 }

@@ -31,8 +31,8 @@ SELECT r.id, r.title, r.created_at, r.folder_id, r.folder_title, r.folder_genera
   dd.latest_version AS latest_version,
   EXISTS (SELECT 1 FROM starter_content s WHERE s.ref = r.id)::boolean AS provisioned,
   rep.id AS repair_id, coalesce(rep.status, '')::text AS repair_status, coalesce(rep.state, '')::text AS repair_state,
-  rep.result_version AS repair_version, coalesce(rep.error, '')::text AS repair_error,
-  rep.updated_at AS repair_updated_at
+  rep.result_version AS repair_version, coalesce(rep.result_kind, '')::text AS repair_result_kind,
+  coalesce(rep.error, '')::text AS repair_error, rep.updated_at AS repair_updated_at
 FROM (
   SELECT s.*,
     CASE WHEN s.query_failed OR s.variable_failed THEN 0 WHEN s.no_data THEN 1
@@ -57,7 +57,7 @@ FROM (
 ) r
 JOIN dashboards dd ON dd.id = r.id
 LEFT JOIN LATERAL (
-  SELECT a.id, a.status, a.state, a.result_version, a.error,
+  SELECT a.id, a.status, a.state, a.result_version, a.result_kind, a.error,
     coalesce(a.finished_at, a.started_at, a.created_at) AS updated_at
   FROM agent_requests a
   WHERE a.dashboard_id = r.id AND a.intent = 'apply' AND a.base_version IS NOT NULL AND starts_with(a.prompt, @repair_prefix::text)
@@ -114,8 +114,3 @@ SELECT d.folder_id, d.latest_version, coalesce(h.version, 0)::integer AS checked
 FROM dashboards d
 LEFT JOIN dashboard_health h ON h.dashboard_id = d.id
 WHERE d.id = @dashboard_id;
-
--- name: CountActiveHealthRepairsBy :one
-SELECT count(*) FROM agent_requests
-WHERE requested_by_id = @requester_id AND intent = 'apply' AND base_version IS NOT NULL AND starts_with(prompt, @prompt_prefix::text)
-  AND status IN ('queued', 'running');

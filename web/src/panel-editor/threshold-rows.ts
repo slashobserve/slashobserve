@@ -88,7 +88,9 @@ export function thresholdsFromRows(rows: readonly ThresholdRow[]): RowsResult {
     thresholds: rows.map((row, index) => {
       const color = row.color === "custom" ? row.hex : row.color
       const value = values[index]
-      return value === null ? { color } : { value, color }
+      return value === null || value === undefined
+        ? { color }
+        : { value, color }
     }),
   }
 }

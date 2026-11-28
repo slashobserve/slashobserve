@@ -83,12 +83,12 @@ func (d *Datasource) QueryInstant(ctx context.Context, q datasource.Query, r dat
 	if err := r.Validate(); err != nil {
 		return nil, err
 	}
-	return d.query(ctx, q, r, instantInterval(r, q.MinInterval), true)
+	return d.query(ctx, q, r, datasource.InstantInterval(r, q.MinInterval), true)
 }
 
 func (d *Datasource) query(ctx context.Context, q datasource.Query, r datasource.TimeRange, step time.Duration, instant bool) ([]datasource.Frame, error) {
 	lim := d.opts.Limits.Tighten(q.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	prep, err := d.prepare(ctx, q, r, step, lim)
 	if err != nil {
@@ -185,7 +185,7 @@ func compileUser(form Form, body string, m *Mapping) (userQuery, error) {
 		if len(compiled.Diagnostics) > 0 {
 			offset = compiled.Diagnostics[0].Start
 		}
-		return userQuery{}, datasource.Errorf(datasource.ErrInvalidQuery, "%s at offset %d", truncateText(err.Error()), offset)
+		return userQuery{}, datasource.Errorf(datasource.ErrInvalidQuery, "%s at offset %d", datasource.TruncateText(err.Error()), offset)
 	}
 	if compiled.Query == nil {
 		return userQuery{clause: matchAll()}, nil
@@ -243,7 +243,7 @@ func parseDSL(body string) (map[string]any, []dslProblem) {
 	var problems []dslProblem
 	for _, key := range topLevelKeys(body) {
 		if !slices.Contains(dslKeys, key.name) {
-			problems = append(problems, dslProblem{message: fmt.Sprintf("unsupported key %q in the query body", truncateText(key.name)), start: key.start, end: key.end})
+			problems = append(problems, dslProblem{message: fmt.Sprintf("unsupported key %q in the query body", datasource.TruncateText(key.name)), start: key.start, end: key.end})
 		}
 	}
 	if name, found := findScriptKey(obj, clauseKeys); found {
@@ -341,7 +341,7 @@ func syntaxProblem(err error, body string) dslProblem {
 		at = len(body)
 	}
 	at = min(max(at, 0), len(body))
-	return dslProblem{message: fmt.Sprintf("query body is not valid JSON: %s", truncateText(err.Error())), start: max(at-1, 0), end: at}
+	return dslProblem{message: fmt.Sprintf("query body is not valid JSON: %s", datasource.TruncateText(err.Error())), start: max(at-1, 0), end: at}
 }
 
 type dslKey struct {
@@ -470,7 +470,7 @@ func (r searchResponse) partial() bool { return r.TimedOut || r.Shards.Failed > 
 func parseSearch(raw []byte) (searchResponse, error) {
 	var resp searchResponse
 	if err := json.Unmarshal(raw, &resp); err != nil {
-		return searchResponse{}, unreadable()
+		return searchResponse{}, datasource.Unreadable()
 	}
 	return resp, nil
 }

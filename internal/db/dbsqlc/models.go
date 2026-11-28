@@ -111,6 +111,9 @@ type AgentRequest struct {
 	AsOf                   pgtype.Timestamptz
 	ClaimEpoch             int32
 	ThreadReplyAbandonedAt pgtype.Timestamptz
+	CommittedKind          pgtype.Text
+	CommittedVersion       pgtype.Int4
+	CommittedDashboardID   pgtype.UUID
 }
 
 type AgentRequestBuild struct {
@@ -158,19 +161,6 @@ type AppliedDashboard struct {
 	ContentSha256 string
 	AppliedByID   pgtype.UUID
 	UpdatedAt     pgtype.Timestamptz
-}
-
-type AuditActivityAction struct {
-	Type     string
-	Action   string
-	Category string
-	Keys     []string
-	Extra    []byte
-}
-
-type AuditBackfill struct {
-	Singleton  bool
-	MigratedAt pgtype.Timestamptz
 }
 
 type AuditEvent struct {
@@ -257,27 +247,6 @@ type Dashboard struct {
 	FolderID               pgtype.UUID
 	CreatedRunID           pgtype.UUID
 	CopiedRestrictedAnswer bool
-}
-
-type DashboardComment struct {
-	ID                pgtype.UUID
-	DashboardID       pgtype.UUID
-	Version           int32
-	PanelID           pgtype.Text
-	Body              string
-	Status            string
-	AuthorKind        string
-	AuthorID          pgtype.UUID
-	AuthorName        string
-	AuthorEmail       pgtype.Text
-	ResolvedAt        pgtype.Timestamptz
-	ResolvedByKind    pgtype.Text
-	ResolvedByID      pgtype.UUID
-	ResolvedByName    pgtype.Text
-	CreatedAt         pgtype.Timestamptz
-	UpdatedAt         pgtype.Timestamptz
-	ParentID          pgtype.UUID
-	ResolvedByVersion pgtype.Int4
 }
 
 type DashboardHealth struct {
@@ -406,6 +375,7 @@ type Finding struct {
 	NoIncident         pgtype.Bool
 	Unverified         []byte
 	Causes             []byte
+	KeptAt             pgtype.Timestamptz
 }
 
 type Folder struct {
@@ -442,7 +412,6 @@ type GrafanaConnection struct {
 	LastTestAt          pgtype.Timestamptz
 	LastTestOk          bool
 	LastTestMessage     string
-	LastSync            []byte
 	LastTestFailureKind pgtype.Text
 }
 
@@ -553,6 +522,7 @@ type McpSource struct {
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
 	AllowPrivate bool
+	Discoveries  int64
 }
 
 type McpSourceTool struct {
@@ -790,7 +760,7 @@ type RunToken struct {
 	AgentRequestID pgtype.UUID
 	Attempt        int32
 	ExpiresAt      pgtype.Timestamptz
-	ClaimEpoch     pgtype.Int4
+	ClaimEpoch     int32
 }
 
 type SavedPrompt struct {

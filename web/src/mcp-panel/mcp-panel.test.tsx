@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import recorded from "./fixtures/show-panel-result.json"
 import { chartHeightFor, McpPanel, viewOf } from "./mcp-panel"
 import { payloadOf } from "./payload"
+import { must } from "@/test/must"
 
 const network = {
   fetch: vi.fn(),
@@ -55,7 +56,7 @@ function host() {
   const handshake = async (theme: "light" | "dark") => {
     await waitFor(() => expect(sent[0]).toBeDefined())
     deliver({
-      id: sent[0].id as number,
+      id: must(sent[0]).id as number,
       result: { hostContext: { theme, containerDimensions: { height: 320 } } },
     })
     await waitFor(() => expect(sent.length).toBeGreaterThan(1))
@@ -131,7 +132,7 @@ describe("McpPanel", () => {
     })
     act(() => button.click())
     fake.deliver({
-      id: fake.sent[fake.sent.length - 1].id as number,
+      id: must(fake.sent[fake.sent.length - 1]).id as number,
       ...answer,
     })
   }

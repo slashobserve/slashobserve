@@ -3,7 +3,6 @@ package runsession
 import (
 	"context"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -156,7 +155,7 @@ func TestTheBriefOfAnAdminsRunWritingForEveryoneSaysWhereAdminsOnlyDataCanBeRead
 		if err != nil {
 			t.Fatal(err)
 		}
-		if strings.Contains(brief.Message, datasource.WithheldNote) == adminsOnly {
+		if brief.Brief.Withheld == adminsOnly {
 			t.Fatalf("Admins only folder %v: brief carries the withheld note %v", adminsOnly, !adminsOnly)
 		}
 	}
@@ -166,7 +165,7 @@ func TestTheBriefOfAnAdminsRunWritingForEveryoneSaysWhereAdminsOnlyDataCanBeRead
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(brief.Message, datasource.WithheldNote) {
+	if brief.Brief.Withheld {
 		t.Fatal("an Editor's brief mentions Admin-only data")
 	}
 }

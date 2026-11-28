@@ -14,6 +14,11 @@ import {
   type Interactive,
 } from "./element-links"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 const link = (title: string, href = `https://docs.example.com/${title}`) =>
   ({ title, href, newTab: false }) satisfies ResolvedLink
 
@@ -248,28 +253,30 @@ describe("canvas model links and actions", () => {
   const base = { id: "e", kind: "text", left: 0, top: 0, width: 50, height: 50 }
 
   it("binds the element's value and the referenced field to its actions", () => {
-    const [shown] = build([
-      {
-        ...base,
-        kind: "metric",
-        oneClick: "action",
-        links: [{ title: "Docs", url: "https://docs.example.com" }],
-        actions: [
-          { title: "Bad", url: "http://insecure.example.com/x" },
-          {
-            title: "Page",
-            url: "https://ops.example.com/${__data.fields.pod}",
-          },
-        ],
-      },
-    ]).elements
+    const shown = must(
+      build([
+        {
+          ...base,
+          kind: "metric",
+          oneClick: "action",
+          links: [{ title: "Docs", url: "https://docs.example.com" }],
+          actions: [
+            { title: "Bad", url: "http://insecure.example.com/x" },
+            {
+              title: "Page",
+              url: "https://ops.example.com/${__data.fields.pod}",
+            },
+          ],
+        },
+      ]).elements[0]
+    )
     expect(shown.value).toEqual({ raw: "0.5", text: "0.5", numeric: 0.5 })
     expect(shown.oneClick).toBe("action")
     expect(shown.links).toEqual([
       { title: "Docs", url: "https://docs.example.com" },
     ])
     expect(shown.actions).toHaveLength(1)
-    expect(shown.actions[0]).toMatchObject({
+    expect(must(shown.actions[0])).toMatchObject({
       index: 1,
       host: "ops.example.com",
       fields: { pod: "checkout-1" },
@@ -277,7 +284,7 @@ describe("canvas model links and actions", () => {
   })
 
   it("has no value for an element bound to nothing", () => {
-    const [plain] = build([base]).elements
+    const plain = must(build([base]).elements[0])
     expect(plain.value).toBeNull()
     expect(plain.links).toEqual([])
     expect(plain.actions).toEqual([])
@@ -286,7 +293,7 @@ describe("canvas model links and actions", () => {
 
   it("ignores an unknown oneClick", () => {
     expect(
-      build([{ ...base, oneClick: "menu" }]).elements[0].oneClick
+      must(build([{ ...base, oneClick: "menu" }]).elements[0]).oneClick
     ).toBeNull()
   })
 })

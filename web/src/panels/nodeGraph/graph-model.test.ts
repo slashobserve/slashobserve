@@ -14,6 +14,11 @@ import {
   nodeRows,
 } from "./graph-model"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
   return {
     id: "p1",
@@ -72,8 +77,8 @@ describe("graphModel from edges only", () => {
       ["e1", "web", "api"],
       ["e2", "api", "db"],
     ])
-    expect(list[0].mainStat?.display.text).toBe("12 ms")
-    expect(list[0].thickness).toBe(1)
+    expect(must(list[0]).mainStat?.display.text).toBe("12 ms")
+    expect(must(list[0]).thickness).toBe(1)
   })
 
   it("matches field names without regard to case", () => {
@@ -146,7 +151,7 @@ describe("graphModel from nodes and edges", () => {
 
   it("reads node titles, stats, details and colors", () => {
     const { nodes } = build([nodeFrame, edgeFrame])
-    const web = nodes[0]
+    const web = must(nodes[0])
     expect(web.title).toBe("Web")
     expect(web.subtitle).toBe("frontend")
     expect(web.mainStat?.display.text).toBe("0.5")
@@ -154,8 +159,8 @@ describe("graphModel from nodes and edges", () => {
     expect(web.secondaryStat?.display.text).toBe("10")
     expect(web.details).toEqual([{ name: "Owner", text: "team-a" }])
     expect(web.color).toBe("#ff0000")
-    expect(nodes[1].details).toEqual([])
-    expect(nodes[1].color).toBeNull()
+    expect(must(nodes[1]).details).toEqual([])
+    expect(must(nodes[1]).color).toBeNull()
   })
 
   it("adds nodes that only appear as edge endpoints", () => {
@@ -188,13 +193,13 @@ describe("graphModel from nodes and edges", () => {
     const { nodes } = build([nodeFrame, edgeFrame], {
       overrides: [{ match: { field: "arc__err" }, color: "critical" }],
     })
-    expect(nodes[0].arcs.map((arc) => [arc.name, arc.fraction])).toEqual([
+    expect(must(nodes[0]).arcs.map((arc) => [arc.name, arc.fraction])).toEqual([
       ["ok", 0.75],
       ["err", 0.25],
     ])
-    expect(nodes[0].arcs[1].color).toBe("var(--threshold-critical)")
-    expect(nodes[0].arcs[0].color).toMatch(/^var\(--series-\d\)$/)
-    expect(nodes[1].arcs.map((arc) => arc.name)).toEqual(["ok"])
+    expect(must(must(nodes[0]).arcs[1]).color).toBe("var(--threshold-critical)")
+    expect(must(must(nodes[0]).arcs[0]).color).toMatch(/^var\(--series-\d\)$/)
+    expect(must(nodes[1]).arcs.map((arc) => arc.name)).toEqual(["ok"])
   })
 
   it("scales arcs that add up to more than one", () => {
@@ -205,12 +210,12 @@ describe("graphModel from nodes and edges", () => {
         field("arc__y", "number", [1]),
       ]),
     ])
-    expect(nodes[0].arcs.map((arc) => arc.fraction)).toEqual([0.75, 0.25])
+    expect(must(nodes[0]).arcs.map((arc) => arc.fraction)).toEqual([0.75, 0.25])
   })
 
   it("reads edge details", () => {
     const { edges } = build([nodeFrame, edgeFrame])
-    expect(edges[0].details).toEqual([{ name: "Calls", text: "7" }])
+    expect(must(edges[0]).details).toEqual([{ name: "Calls", text: "7" }])
   })
 
   it("colors a highlighted node critical unless it names a color", () => {
@@ -234,7 +239,7 @@ describe("graphModel from nodes and edges", () => {
         field("color", "string", ["red; background: url(x)"]),
       ]),
     ])
-    expect(nodes[0].color).toBeNull()
+    expect(must(nodes[0]).color).toBeNull()
   })
 })
 
@@ -316,7 +321,7 @@ describe("graphModel caps", () => {
       ]),
     ])
     expect(model.edges).toHaveLength(maxEdges)
-    expect(model.edges[0].id).toBe("e0")
+    expect(must(model.edges[0]).id).toBe("e0")
     expect(model.note).toBe(`Showing ${maxEdges} of ${count} connections.`)
   })
 
@@ -370,7 +375,7 @@ describe("detail rows", () => {
         { name: "nodes" }
       ),
     ])
-    expect(nodeRows(nodes[0])).toEqual([
+    expect(nodeRows(must(nodes[0]))).toEqual([
       { name: "Main stat", text: "5" },
       { name: "ok", text: "50.0%" },
       { name: "Owner", text: "team" },
@@ -388,7 +393,7 @@ describe("detail rows", () => {
         field("detail__Path", "string", ["/pay"]),
       ]),
     ])
-    expect(edgeRows(edges[0])).toEqual([
+    expect(edgeRows(must(edges[0]))).toEqual([
       { name: "Main stat", text: "2" },
       { name: "Secondary stat", text: "9" },
       { name: "Path", text: "/pay" },
@@ -406,6 +411,6 @@ describe("detail rows", () => {
       ],
       { overrides: [{ match: { field: "mainstat" }, displayName: "Latency" }] }
     )
-    expect(edgeRows(edges[0])[0].name).toBe("Latency")
+    expect(must(edgeRows(must(edges[0]))[0]).name).toBe("Latency")
   })
 })

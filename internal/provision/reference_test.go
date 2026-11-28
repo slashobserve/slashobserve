@@ -14,7 +14,36 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-var referenceDir = filepath.Join("..", "..", "deploy", "compose", "dashboards")
+var referenceDirs = []string{
+	filepath.Join("..", "..", "deploy", "compose", "dashboards"),
+	filepath.Join("..", "..", "deploy", "helm", "slashobserve", "dashboards"),
+}
+
+type referenceFile struct {
+	path   string
+	folder string
+	data   []byte
+}
+
+func referenceFiles(t *testing.T) []referenceFile {
+	t.Helper()
+	var out []referenceFile
+	for _, root := range referenceDirs {
+		files, err := specfiles.Scan(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		dir := os.DirFS(root)
+		for _, f := range files {
+			data, err := fs.ReadFile(dir, f.Path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			out = append(out, referenceFile{path: f.Path, folder: f.Folder, data: data})
+		}
+	}
+	return out
+}
 
 var referenceFolders = map[string]string{
 	"Demo/astronomy-overview.json": "Demo",
@@ -24,18 +53,14 @@ var referenceFolders = map[string]string{
 var referenceDatasources = []string{"prom", "ch"}
 
 func TestReferenceDashboardsLandInTheirFolders(t *testing.T) {
-	files, err := specfiles.Scan(referenceDir)
-	if err != nil {
-		t.Fatal(err)
-	}
 	found := map[string]string{}
-	for _, f := range files {
-		found[f.Path] = f.Folder
+	for _, f := range referenceFiles(t) {
+		found[f.path] = f.folder
 	}
 	for path, folder := range referenceFolders {
 		got, ok := found[path]
 		if !ok {
-			t.Errorf("%s is missing from %s", path, referenceDir)
+			t.Errorf("%s is missing from %s", path, strings.Join(referenceDirs, " and "))
 			continue
 		}
 		if got != folder {
@@ -45,21 +70,13 @@ func TestReferenceDashboardsLandInTheirFolders(t *testing.T) {
 }
 
 func TestReferenceDashboardsFollowTheLayoutRules(t *testing.T) {
-	files, err := specfiles.Scan(referenceDir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	files := referenceFiles(t)
 	if len(files) == 0 {
-		t.Fatalf("no dashboard file in %s", referenceDir)
+		t.Fatalf("no dashboard file in %s", strings.Join(referenceDirs, " and "))
 	}
-	dir := os.DirFS(referenceDir)
 	for _, f := range files {
-		t.Run(f.Path, func(t *testing.T) {
-			data, err := fs.ReadFile(dir, f.Path)
-			if err != nil {
-				t.Fatal(err)
-			}
-			d, err := spec.Parse(data)
+		t.Run(f.path, func(t *testing.T) {
+			d, err := spec.Parse(f.data)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -99,18 +116,9 @@ func candlestickProblems(d *spec.Dashboard) []string {
 }
 
 func TestReferenceCandlesticksReadOneFrameWithOpenHighLowAndClose(t *testing.T) {
-	files, err := specfiles.Scan(referenceDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir := os.DirFS(referenceDir)
 	candles := 0
-	for _, f := range files {
-		data, err := fs.ReadFile(dir, f.Path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		d, err := spec.Parse(data)
+	for _, f := range referenceFiles(t) {
+		d, err := spec.Parse(f.data)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -120,7 +128,7 @@ func TestReferenceCandlesticksReadOneFrameWithOpenHighLowAndClose(t *testing.T) 
 			}
 		}
 		for _, problem := range candlestickProblems(d) {
-			t.Errorf("%s: %s", f.Path, problem)
+			t.Errorf("%s: %s", f.path, problem)
 		}
 	}
 	if candles == 0 {

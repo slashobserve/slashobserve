@@ -90,13 +90,6 @@ func TestWordsIgnoresTableSyntax(t *testing.T) {
 	}
 }
 
-func TestPinTextEndsWithTheFindingPath(t *testing.T) {
-	f := findings.Finding{ID: "abc", Markdown: "# Checkout errors are up\ndetail"}
-	if got, want := findings.PinText(f), "Checkout errors are up /findings/abc"; got != want {
-		t.Fatalf("PinText = %q, want %q", got, want)
-	}
-}
-
 func evidencePanel(id string) json.RawMessage {
 	return json.RawMessage(`{"id":"` + id + `","type":"timeseries","title":"Errors","datasource":"prom","gridPos":{"x":3,"y":40,"w":5,"h":2},"queries":[{"query":"sum(rate(http_requests_total[5m]))"}]}`)
 }

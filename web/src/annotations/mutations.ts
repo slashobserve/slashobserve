@@ -14,7 +14,6 @@ function useRefreshAnnotations() {
 export function useCreateAnnotation() {
   const refresh = useRefreshAnnotations()
   return useMutation({
-    networkMode: "always",
     mutationFn: (body: CreateBody) =>
       api.POST("/annotations", { body }).then(unwrap),
     onSuccess: refresh,
@@ -24,7 +23,6 @@ export function useCreateAnnotation() {
 export function useUpdateAnnotation(id: string) {
   const refresh = useRefreshAnnotations()
   return useMutation({
-    networkMode: "always",
     mutationFn: (body: UpdateBody) =>
       api
         .PATCH("/annotations/{id}", { params: { path: { id } }, body })
@@ -36,7 +34,6 @@ export function useUpdateAnnotation(id: string) {
 export function useDeleteAnnotation(id: string) {
   const refresh = useRefreshAnnotations()
   return useMutation({
-    networkMode: "always",
     mutationFn: () =>
       api
         .DELETE("/annotations/{id}", { params: { path: { id } } })

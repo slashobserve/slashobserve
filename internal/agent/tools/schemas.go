@@ -93,7 +93,7 @@ const (
 	propOpenCommentBlockID   = `"block_id":{"type":"string","format":"uuid","description":"With anchor it sets the thread's block; without, it keeps its message meaning, the block this message is about."}`
 	propCommentAnchor        = `"anchor":{"type":"object","description":"The spot it points at: kind, pos {x, y} from 0 to 1, and the fields that kind needs, as list_comments shows."}`
 	propBody                 = `"body":{"type":"string","minLength":1,"maxLength":4000,"description":"The comment, plain text."}`
-	propTarget               = `"target":{"type":"string","description":"What the comment is on, written kind:uuid with kind dashboard, observation, annotation or proposal, for example observation:7f0c1d2e-5a4b-4c3d-8e9f-0a1b2c3d4e5f. A finding:uuid target is deprecated and means the discussion of that finding's observation, which the comment then names as observation:uuid."}`
+	propTarget               = `"target":{"type":"string","description":"What the comment is on, written kind:uuid with kind dashboard, observation, annotation or proposal, for example observation:7f0c1d2e-5a4b-4c3d-8e9f-0a1b2c3d4e5f."}`
 )
 
 const (

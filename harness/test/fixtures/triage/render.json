@@ -1,0 +1,1081 @@
+[
+  {
+    "name": "a sample report",
+    "report": {
+      "end": "2026-11-20T10:00:00Z",
+      "question": null,
+      "services": [
+        {
+          "source": "prom",
+          "type": "prometheus",
+          "signal": "metrics",
+          "field": "service_name",
+          "services": [
+            "cart",
+            "checkout",
+            "payment"
+          ]
+        }
+      ],
+      "signals": [
+        "requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total"
+      ],
+      "rates": [],
+      "candidates": [
+        {
+          "id": "c1",
+          "service": "payment",
+          "onset": "2026-11-20T09:40:00Z",
+          "rows": [
+            {
+              "service": "payment",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.25,
+              "baseline": 0.001,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "span metrics",
+              "moved": true,
+              "onset": "2026-11-20T09:40:00Z"
+            }
+          ],
+          "knock_on": [
+            "checkout"
+          ],
+          "origins": [
+            {
+              "source": "tempo",
+              "service": "payment",
+              "operation": "Charge",
+              "message": "invalid token",
+              "traces": 41,
+              "share": 0,
+              "example": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "relayed_by": [
+                "checkout"
+              ]
+            }
+          ],
+          "events": [
+            {
+              "kind": "flag",
+              "source": "loki",
+              "service": "",
+              "at": "2026-11-20T09:39:00Z",
+              "text": "paymentFailure variant 50% first seen"
+            }
+          ],
+          "patterns": [
+            {
+              "source": "loki",
+              "service": "payment",
+              "level": "error",
+              "text": "charge failed <_>",
+              "window": 120,
+              "baseline": 0
+            }
+          ]
+        }
+      ],
+      "background": [
+        {
+          "service": "cart",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.02,
+          "baseline": 0.019,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        }
+      ],
+      "skipped": [
+        {
+          "step": "trace rates",
+          "source": "jaeger",
+          "reason": "prom span metrics cover them",
+          "signals": []
+        }
+      ],
+      "calls": 17,
+      "duration_ms": 3200
+    },
+    "budget": 6144,
+    "want": "<triage>\nComputed by the server before your first call, with no model: a starting point, not evidence. Start from the candidates and test each with your own reads; every figure your answer states needs its own read, and a candidate is a lead, not a cause.\nWindows: 1h, 6h, 24h, each ending 2026-11-20T10:00:00Z and compared with the same length just before it.\nServices on prom (prometheus metrics, in service_name): cart, checkout, payment\nSignal: requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total\nCandidates, by onset (change events within 30m before an onset):\nc1 payment: errors 25% from 0.1% (1h, prom span metrics); onset 2026-11-20T09:40:00Z; knock-on, relaying its errors: checkout\n  origin (tempo): payment Charge \"invalid token\", 41 failing traces, example 4bf92f3577b34da6a3ce929d0e0e4736, relayed by checkout\n  change (loki): flag at 2026-11-20T09:39:00Z: paymentFailure variant 50% first seen\n  log pattern (loki, error) new, 120 lines: \"charge failed <_>\"\nBackground, not a candidate: cart errors 2%, 1.9% before it (1h, prom).\nSkipped: trace rates on jaeger: prom span metrics cover them.\nSweep: 17 reads in 3.2s.\n</triage>"
+  },
+  {
+    "name": "nothing moved",
+    "report": {
+      "end": "2026-11-20T10:00:00Z",
+      "question": null,
+      "services": [
+        {
+          "source": "prom",
+          "type": "prometheus",
+          "signal": "metrics",
+          "field": "service_name",
+          "services": [
+            "cart",
+            "checkout",
+            "payment"
+          ]
+        }
+      ],
+      "signals": [
+        "requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total"
+      ],
+      "rates": [],
+      "candidates": [],
+      "background": [],
+      "skipped": [
+        {
+          "step": "trace rates",
+          "source": "jaeger",
+          "reason": "prom span metrics cover them",
+          "signals": []
+        }
+      ],
+      "calls": 17,
+      "duration_ms": 3200
+    },
+    "budget": 6144,
+    "want": "<triage>\nComputed by the server before your first call, with no model: a starting point, not evidence. Start from the candidates and test each with your own reads; every figure your answer states needs its own read, and a candidate is a lead, not a cause.\nWindows: 1h, 6h, 24h, each ending 2026-11-20T10:00:00Z and compared with the same length just before it.\nServices on prom (prometheus metrics, in service_name): cart, checkout, payment\nSignal: requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total\nCandidates: none. No service's errors or latency moved against its baseline on any window the sweep read.\nSkipped: trace rates on jaeger: prom span metrics cover them.\nSweep: 17 reads in 3.2s.\n</triage>"
+  },
+  {
+    "name": "cut to 300 bytes",
+    "report": {
+      "end": "2026-11-20T10:00:00Z",
+      "question": null,
+      "services": [
+        {
+          "source": "prom",
+          "type": "prometheus",
+          "signal": "metrics",
+          "field": "service_name",
+          "services": [
+            "cart",
+            "checkout",
+            "payment"
+          ]
+        }
+      ],
+      "signals": [
+        "requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total"
+      ],
+      "rates": [],
+      "candidates": [
+        {
+          "id": "c1",
+          "service": "payment",
+          "onset": "2026-11-20T09:40:00Z",
+          "rows": [
+            {
+              "service": "payment",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.25,
+              "baseline": 0.001,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "span metrics",
+              "moved": true,
+              "onset": "2026-11-20T09:40:00Z"
+            }
+          ],
+          "knock_on": [
+            "checkout"
+          ],
+          "origins": [
+            {
+              "source": "tempo",
+              "service": "payment",
+              "operation": "Charge",
+              "message": "invalid token",
+              "traces": 41,
+              "share": 0,
+              "example": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "relayed_by": [
+                "checkout"
+              ]
+            }
+          ],
+          "events": [
+            {
+              "kind": "flag",
+              "source": "loki",
+              "service": "",
+              "at": "2026-11-20T09:39:00Z",
+              "text": "paymentFailure variant 50% first seen"
+            }
+          ],
+          "patterns": [
+            {
+              "source": "loki",
+              "service": "payment",
+              "level": "error",
+              "text": "charge failed <_>",
+              "window": 120,
+              "baseline": 0
+            }
+          ]
+        }
+      ],
+      "background": [
+        {
+          "service": "cart",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.02,
+          "baseline": 0.019,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "svc0",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.1,
+          "baseline": 0.1,
+          "unit": "ratio",
+          "source": "",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "svc1",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.1,
+          "baseline": 0.1,
+          "unit": "ratio",
+          "source": "",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "svc2",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.1,
+          "baseline": 0.1,
+          "unit": "ratio",
+          "source": "",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "svc3",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.1,
+          "baseline": 0.1,
+          "unit": "ratio",
+          "source": "",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "svc4",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.1,
+          "baseline": 0.1,
+          "unit": "ratio",
+          "source": "",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        }
+      ],
+      "skipped": [
+        {
+          "step": "trace rates",
+          "source": "jaeger",
+          "reason": "prom span metrics cover them",
+          "signals": []
+        },
+        {
+          "step": "step 0",
+          "source": "",
+          "reason": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "signals": []
+        },
+        {
+          "step": "step 1",
+          "source": "",
+          "reason": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "signals": []
+        },
+        {
+          "step": "step 2",
+          "source": "",
+          "reason": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "signals": []
+        },
+        {
+          "step": "step 3",
+          "source": "",
+          "reason": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "signals": []
+        },
+        {
+          "step": "step 4",
+          "source": "",
+          "reason": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "signals": []
+        },
+        {
+          "step": "step 5",
+          "source": "",
+          "reason": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "signals": []
+        },
+        {
+          "step": "step 6",
+          "source": "",
+          "reason": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "signals": []
+        }
+      ],
+      "calls": 17,
+      "duration_ms": 3200
+    },
+    "budget": 300,
+    "want": "<triage>\nComputed by the server before your first call, with no model: a starting point, not evidence. Start from the candidates and test each with your own reads; every figure your answer states needs its own read, and a candidate is a lead, not a cause.\nWindows: 1h, 6h, 24h, each ending 2026-11-20T10:00:00Z and compared with the same length just before it.\nCandidates, by onset (change events within 30m before an onset):\nSweep: 17 reads in 3.2s.\nCut for size: 20 lines, skipped steps first, then background, log patterns, per-service rates, service lists, evidence, signals, skipped rate reads and the last candidates.\n</triage>"
+  },
+  {
+    "name": "a skip with no signal",
+    "report": {
+      "end": "2026-11-20T10:00:00Z",
+      "question": null,
+      "services": [
+        {
+          "source": "prom",
+          "type": "prometheus",
+          "signal": "metrics",
+          "field": "service_name",
+          "services": [
+            "cart",
+            "checkout",
+            "payment"
+          ]
+        }
+      ],
+      "signals": [
+        "requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total"
+      ],
+      "rates": [],
+      "candidates": [],
+      "background": [],
+      "skipped": [
+        {
+          "step": "service map",
+          "source": "",
+          "reason": "the read failed",
+          "signals": []
+        }
+      ],
+      "calls": 17,
+      "duration_ms": 3200
+    },
+    "budget": 6144,
+    "want": "<triage>\nComputed by the server before your first call, with no model: a starting point, not evidence. Start from the candidates and test each with your own reads; every figure your answer states needs its own read, and a candidate is a lead, not a cause.\nWindows: 1h, 6h, 24h, each ending 2026-11-20T10:00:00Z and compared with the same length just before it.\nServices on prom (prometheus metrics, in service_name): cart, checkout, payment\nSignal: requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total\nCandidates: none. No service's errors or latency moved against its baseline on any window the sweep read.\nSkipped: service map: the read failed.\nSweep: 17 reads in 3.2s.\n</triage>"
+  },
+  {
+    "name": "errors skipped",
+    "report": {
+      "end": "2026-11-20T10:00:00Z",
+      "question": null,
+      "services": [
+        {
+          "source": "prom",
+          "type": "prometheus",
+          "signal": "metrics",
+          "field": "service_name",
+          "services": [
+            "cart",
+            "checkout",
+            "payment"
+          ]
+        }
+      ],
+      "signals": [
+        "requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total"
+      ],
+      "rates": [],
+      "candidates": [],
+      "background": [],
+      "skipped": [
+        {
+          "step": "metric rates over 1h",
+          "source": "",
+          "reason": "the read failed",
+          "signals": [
+            "errors"
+          ]
+        }
+      ],
+      "calls": 17,
+      "duration_ms": 3200
+    },
+    "budget": 6144,
+    "want": "<triage>\nComputed by the server before your first call, with no model: a starting point, not evidence. Start from the candidates and test each with your own reads; every figure your answer states needs its own read, and a candidate is a lead, not a cause.\nWindows: 1h, 6h, 24h, each ending 2026-11-20T10:00:00Z and compared with the same length just before it.\nServices on prom (prometheus metrics, in service_name): cart, checkout, payment\nSignal: requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total\nCandidates: none among the reads that completed, which is not an all-clear: the reads of errors were skipped or failed (see Skipped), so those signals were not fully compared on every window.\nSkipped: metric rates over 1h: the read failed.\nSweep: 17 reads in 3.2s.\n</triage>"
+  },
+  {
+    "name": "skipped signals deduplicated and sorted",
+    "report": {
+      "end": "2026-11-20T10:00:00Z",
+      "question": null,
+      "services": [
+        {
+          "source": "prom",
+          "type": "prometheus",
+          "signal": "metrics",
+          "field": "service_name",
+          "services": [
+            "cart",
+            "checkout",
+            "payment"
+          ]
+        }
+      ],
+      "signals": [
+        "requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total"
+      ],
+      "rates": [],
+      "candidates": [],
+      "background": [],
+      "skipped": [
+        {
+          "step": "metric rates over 1h",
+          "source": "",
+          "reason": "",
+          "signals": [
+            "latency"
+          ]
+        },
+        {
+          "step": "metric rates over 6h",
+          "source": "",
+          "reason": "",
+          "signals": [
+            "latency",
+            "errors"
+          ]
+        }
+      ],
+      "calls": 17,
+      "duration_ms": 3200
+    },
+    "budget": 6144,
+    "want": "<triage>\nComputed by the server before your first call, with no model: a starting point, not evidence. Start from the candidates and test each with your own reads; every figure your answer states needs its own read, and a candidate is a lead, not a cause.\nWindows: 1h, 6h, 24h, each ending 2026-11-20T10:00:00Z and compared with the same length just before it.\nServices on prom (prometheus metrics, in service_name): cart, checkout, payment\nSignal: requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total\nCandidates: none among the reads that completed, which is not an all-clear: the reads of errors, latency were skipped or failed (see Skipped), so those signals were not fully compared on every window.\nSkipped: metric rates over 1h: .\nSkipped: metric rates over 6h: .\nSweep: 17 reads in 3.2s.\n</triage>"
+  },
+  {
+    "name": "a skipped error read kept through a cut to 1500 bytes",
+    "report": {
+      "end": "2026-11-20T10:00:00Z",
+      "question": null,
+      "services": [
+        {
+          "source": "prom",
+          "type": "prometheus",
+          "signal": "metrics",
+          "field": "service_name",
+          "services": [
+            "cart",
+            "checkout",
+            "payment"
+          ]
+        }
+      ],
+      "signals": [
+        "requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total"
+      ],
+      "rates": [],
+      "candidates": [
+        {
+          "id": "c1",
+          "service": "payment",
+          "onset": "2026-11-20T09:40:00Z",
+          "rows": [
+            {
+              "service": "payment",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.25,
+              "baseline": 0.001,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "span metrics",
+              "moved": true,
+              "onset": "2026-11-20T09:40:00Z"
+            }
+          ],
+          "knock_on": [
+            "checkout"
+          ],
+          "origins": [
+            {
+              "source": "tempo",
+              "service": "payment",
+              "operation": "Charge",
+              "message": "invalid token",
+              "traces": 41,
+              "share": 0,
+              "example": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "relayed_by": [
+                "checkout"
+              ]
+            }
+          ],
+          "events": [
+            {
+              "kind": "flag",
+              "source": "loki",
+              "service": "",
+              "at": "2026-11-20T09:39:00Z",
+              "text": "paymentFailure variant 50% first seen"
+            }
+          ],
+          "patterns": [
+            {
+              "source": "loki",
+              "service": "payment",
+              "level": "error",
+              "text": "charge failed <_>",
+              "window": 120,
+              "baseline": 0
+            }
+          ]
+        }
+      ],
+      "background": [
+        {
+          "service": "cart",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.02,
+          "baseline": 0.019,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "svc0",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.1,
+          "baseline": 0.1,
+          "unit": "ratio",
+          "source": "",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "svc1",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.1,
+          "baseline": 0.1,
+          "unit": "ratio",
+          "source": "",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "svc2",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.1,
+          "baseline": 0.1,
+          "unit": "ratio",
+          "source": "",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "svc3",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.1,
+          "baseline": 0.1,
+          "unit": "ratio",
+          "source": "",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "svc4",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.1,
+          "baseline": 0.1,
+          "unit": "ratio",
+          "source": "",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        }
+      ],
+      "skipped": [
+        {
+          "step": "metric rates over 1h",
+          "source": "prom",
+          "reason": "the read failed",
+          "signals": [
+            "errors"
+          ]
+        },
+        {
+          "step": "step 0",
+          "source": "",
+          "reason": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "signals": []
+        },
+        {
+          "step": "step 1",
+          "source": "",
+          "reason": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "signals": []
+        },
+        {
+          "step": "step 2",
+          "source": "",
+          "reason": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "signals": []
+        },
+        {
+          "step": "step 3",
+          "source": "",
+          "reason": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "signals": []
+        },
+        {
+          "step": "step 4",
+          "source": "",
+          "reason": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "signals": []
+        },
+        {
+          "step": "step 5",
+          "source": "",
+          "reason": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "signals": []
+        },
+        {
+          "step": "step 6",
+          "source": "",
+          "reason": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "signals": []
+        },
+        {
+          "step": "step 7",
+          "source": "",
+          "reason": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "signals": []
+        }
+      ],
+      "calls": 17,
+      "duration_ms": 3200
+    },
+    "budget": 1500,
+    "want": "<triage>\nComputed by the server before your first call, with no model: a starting point, not evidence. Start from the candidates and test each with your own reads; every figure your answer states needs its own read, and a candidate is a lead, not a cause.\nWindows: 1h, 6h, 24h, each ending 2026-11-20T10:00:00Z and compared with the same length just before it.\nServices on prom (prometheus metrics, in service_name): cart, checkout, payment\nSignal: requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total\nCandidates, by onset (change events within 30m before an onset):\nc1 payment: errors 25% from 0.1% (1h, prom span metrics); onset 2026-11-20T09:40:00Z; knock-on, relaying its errors: checkout\n  origin (tempo): payment Charge \"invalid token\", 41 failing traces, example 4bf92f3577b34da6a3ce929d0e0e4736, relayed by checkout\n  change (loki): flag at 2026-11-20T09:39:00Z: paymentFailure variant 50% first seen\n  log pattern (loki, error) new, 120 lines: \"charge failed <_>\"\nBackground, not a candidate: cart errors 2%, 1.9% before it (1h, prom).\nBackground, not a candidate: svc0 errors 10%, 10% before it (1h, ).\nBackground, not a candidate: svc1 errors 10%, 10% before it (1h, ).\nSkipped: metric rates over 1h on prom: the read failed.\nSweep: 17 reads in 3.2s.\nCut for size: 11 lines, skipped steps first, then background, log patterns, per-service rates, service lists, evidence, signals, skipped rate reads and the last candidates.\n</triage>"
+  },
+  {
+    "name": "a question window, odd durations and long text",
+    "report": {
+      "end": "2026-11-20T10:00:00Z",
+      "question": {
+        "from": "2026-11-20T08:00:00Z",
+        "to": "2026-11-20T09:30:00Z"
+      },
+      "services": [
+        {
+          "source": "prom",
+          "type": "prometheus",
+          "signal": "metrics",
+          "field": "service_name",
+          "services": [
+            "cart",
+            "checkout",
+            "payment"
+          ]
+        },
+        {
+          "source": "tempo",
+          "type": "tempo",
+          "signal": "traces",
+          "field": "",
+          "services": []
+        },
+        {
+          "source": "loki",
+          "type": "loki",
+          "signal": "logs",
+          "field": "service_name",
+          "services": [
+            "a",
+            "b",
+            "c",
+            "d",
+            "e",
+            "f",
+            "g",
+            "h",
+            "i",
+            "j",
+            "k",
+            "l",
+            "m",
+            "n"
+          ]
+        }
+      ],
+      "signals": [
+        "requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total"
+      ],
+      "rates": [
+        {
+          "service": "cart",
+          "signal": "requests",
+          "rung": 3600,
+          "window": 1234.5,
+          "baseline": 0.000123,
+          "unit": "/s",
+          "source": "prom",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "cart",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.0001,
+          "baseline": 0,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "cart",
+          "signal": "latency",
+          "rung": 3600,
+          "window": 12.345,
+          "baseline": 10000000,
+          "unit": "ms",
+          "source": "prom",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "ad",
+          "signal": "requests",
+          "rung": 3600,
+          "window": 2,
+          "baseline": 2,
+          "unit": "spans/s",
+          "source": "tempo",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        }
+      ],
+      "candidates": [
+        {
+          "id": "c1",
+          "service": "payment",
+          "onset": "2026-11-20T09:40:00Z",
+          "rows": [
+            {
+              "service": "payment",
+              "signal": "errors",
+              "rung": 3600,
+              "window": 0.25,
+              "baseline": 0.001,
+              "unit": "ratio",
+              "source": "prom",
+              "basis": "span metrics",
+              "moved": true,
+              "onset": "2026-11-20T09:40:00Z"
+            },
+            {
+              "service": "payment",
+              "signal": "latency",
+              "rung": 21600,
+              "window": 2500,
+              "baseline": 90,
+              "unit": "ms",
+              "source": "prom",
+              "basis": "span metrics",
+              "moved": true,
+              "onset": null
+            }
+          ],
+          "knock_on": [
+            "checkout"
+          ],
+          "origins": [
+            {
+              "source": "tempo",
+              "service": "payment",
+              "operation": "Charge",
+              "message": "invalid token",
+              "traces": 41,
+              "share": 0,
+              "example": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "relayed_by": [
+                "checkout"
+              ]
+            },
+            {
+              "source": "tempo",
+              "service": "payment",
+              "operation": "  Charge\n card  éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+              "message": "",
+              "traces": 3,
+              "share": 0,
+              "example": "00f067aa0ba902b7",
+              "relayed_by": []
+            }
+          ],
+          "events": [
+            {
+              "kind": "flag",
+              "source": "loki",
+              "service": "",
+              "at": "2026-11-20T09:39:00Z",
+              "text": "paymentFailure variant 50% first seen"
+            },
+            {
+              "kind": "annotation",
+              "source": "",
+              "service": "",
+              "at": "2026-11-20T09:35:00Z",
+              "text": "[deploy] payment v2"
+            },
+            {
+              "kind": "deploy lines",
+              "source": "loki",
+              "service": "payment",
+              "at": "2026-11-20T09:39:00Z",
+              "text": ""
+            }
+          ],
+          "patterns": [
+            {
+              "source": "loki",
+              "service": "payment",
+              "level": "error",
+              "text": "charge failed <_>",
+              "window": 120,
+              "baseline": 0
+            },
+            {
+              "source": "loki",
+              "service": "payment",
+              "level": "",
+              "text": "retry \"<_>\" \t now",
+              "window": 40,
+              "baseline": 12
+            }
+          ]
+        },
+        {
+          "id": "c2",
+          "service": "ad",
+          "onset": null,
+          "rows": [
+            {
+              "service": "ad",
+              "signal": "errors",
+              "rung": 86400,
+              "window": 0.5,
+              "baseline": 0.01,
+              "unit": "ratio",
+              "source": "loki",
+              "basis": "log levels",
+              "moved": true,
+              "onset": null
+            }
+          ],
+          "knock_on": [],
+          "origins": [],
+          "events": [],
+          "patterns": []
+        }
+      ],
+      "background": [
+        {
+          "service": "cart",
+          "signal": "errors",
+          "rung": 3600,
+          "window": 0.02,
+          "baseline": 0.019,
+          "unit": "ratio",
+          "source": "prom",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        },
+        {
+          "service": "quote",
+          "signal": "errors",
+          "rung": 90,
+          "window": 3,
+          "baseline": 2.5,
+          "unit": "error lines/s",
+          "source": "loki",
+          "basis": "",
+          "moved": false,
+          "onset": null
+        }
+      ],
+      "skipped": [
+        {
+          "step": "trace rates",
+          "source": "jaeger",
+          "reason": "prom span metrics cover them",
+          "signals": []
+        }
+      ],
+      "calls": 17,
+      "duration_ms": 1250
+    },
+    "budget": 6144,
+    "want": "<triage>\nComputed by the server before your first call, with no model: a starting point, not evidence. Start from the candidates and test each with your own reads; every figure your answer states needs its own read, and a candidate is a lead, not a cause.\nWindows: 1h, 6h, 24h, each ending 2026-11-20T10:00:00Z and compared with the same length just before it. The question's window is 2026-11-20T08:00:00Z to 2026-11-20T09:30:00Z.\nServices on prom (prometheus metrics, in service_name): cart, checkout, payment\nServices on tempo (tempo traces): none seen\nServices on loki (loki logs, in service_name): a, b, c, d, e, f, g, h, i, j, k, l and 2 more\nSignal: requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total\nLast 1h on prom, cart: requests 1.23e+03 /s from 0.000123 /s, errors 0.01% from 0%, latency 12.3 ms from 1e+07 ms\nLast 1h on tempo, ad: requests 2 spans/s from 2 spans/s\nCandidates, by onset (change events within 30m before an onset):\nc1 payment: errors 25% from 0.1% (1h, prom span metrics); latency 2.5e+03 ms from 90 ms (6h, prom span metrics); onset 2026-11-20T09:40:00Z; knock-on, relaying its errors: checkout\n  origin (tempo): payment Charge \"invalid token\", 41 failing traces, example 4bf92f3577b34da6a3ce929d0e0e4736, relayed by checkout\n  origin (tempo): payment Charge card éééééééééééééééééééééééééééééééééééééééééééééééééééééé..., 3 failing traces, example 00f067aa0ba902b7\n  change (loki): flag at 2026-11-20T09:39:00Z: paymentFailure variant 50% first seen\n  change (SlashObserve): annotation at 2026-11-20T09:35:00Z: [deploy] payment v2\n  change (loki): deploy lines at 2026-11-20T09:39:00Z on payment\n  log pattern (loki, error) new, 120 lines: \"charge failed <_>\"\n  log pattern (loki, no level) grew to 40 from 12: \"retry \\\"<_>\\\" now\"\nc2 ad: errors 50% from 1% (24h, loki log levels); onset not found at the steps read\nBackground, not a candidate: cart errors 2%, 1.9% before it (1h, prom).\nBackground, not a candidate: quote errors 3 error lines/s, 2.5 error lines/s before it (1m30s, loki).\nSkipped: trace rates on jaeger: prom span metrics cover them.\nSweep: 17 reads in 1.3s.\n</triage>"
+  },
+  {
+    "name": "a sweep of 0 ms",
+    "report": {
+      "end": "2026-11-20T10:00:00Z",
+      "question": null,
+      "services": [
+        {
+          "source": "prom",
+          "type": "prometheus",
+          "signal": "metrics",
+          "field": "service_name",
+          "services": [
+            "cart",
+            "checkout",
+            "payment"
+          ]
+        }
+      ],
+      "signals": [
+        "requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total"
+      ],
+      "rates": [],
+      "candidates": [],
+      "background": [],
+      "skipped": [
+        {
+          "step": "trace rates",
+          "source": "jaeger",
+          "reason": "prom span metrics cover them",
+          "signals": []
+        }
+      ],
+      "calls": 17,
+      "duration_ms": 0
+    },
+    "budget": 6144,
+    "want": "<triage>\nComputed by the server before your first call, with no model: a starting point, not evidence. Start from the candidates and test each with your own reads; every figure your answer states needs its own read, and a candidate is a lead, not a cause.\nWindows: 1h, 6h, 24h, each ending 2026-11-20T10:00:00Z and compared with the same length just before it.\nServices on prom (prometheus metrics, in service_name): cart, checkout, payment\nSignal: requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total\nCandidates: none. No service's errors or latency moved against its baseline on any window the sweep read.\nSkipped: trace rates on jaeger: prom span metrics cover them.\nSweep: 17 reads in 0s.\n</triage>"
+  },
+  {
+    "name": "a sweep of 50 ms",
+    "report": {
+      "end": "2026-11-20T10:00:00Z",
+      "question": null,
+      "services": [
+        {
+          "source": "prom",
+          "type": "prometheus",
+          "signal": "metrics",
+          "field": "service_name",
+          "services": [
+            "cart",
+            "checkout",
+            "payment"
+          ]
+        }
+      ],
+      "signals": [
+        "requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total"
+      ],
+      "rates": [],
+      "candidates": [],
+      "background": [],
+      "skipped": [
+        {
+          "step": "trace rates",
+          "source": "jaeger",
+          "reason": "prom span metrics cover them",
+          "signals": []
+        }
+      ],
+      "calls": 17,
+      "duration_ms": 50
+    },
+    "budget": 6144,
+    "want": "<triage>\nComputed by the server before your first call, with no model: a starting point, not evidence. Start from the candidates and test each with your own reads; every figure your answer states needs its own read, and a candidate is a lead, not a cause.\nWindows: 1h, 6h, 24h, each ending 2026-11-20T10:00:00Z and compared with the same length just before it.\nServices on prom (prometheus metrics, in service_name): cart, checkout, payment\nSignal: requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total\nCandidates: none. No service's errors or latency moved against its baseline on any window the sweep read.\nSkipped: trace rates on jaeger: prom span metrics cover them.\nSweep: 17 reads in 100ms.\n</triage>"
+  },
+  {
+    "name": "a sweep of 3723400 ms",
+    "report": {
+      "end": "2026-11-20T10:00:00Z",
+      "question": null,
+      "services": [
+        {
+          "source": "prom",
+          "type": "prometheus",
+          "signal": "metrics",
+          "field": "service_name",
+          "services": [
+            "cart",
+            "checkout",
+            "payment"
+          ]
+        }
+      ],
+      "signals": [
+        "requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total"
+      ],
+      "rates": [],
+      "candidates": [],
+      "background": [],
+      "skipped": [
+        {
+          "step": "trace rates",
+          "source": "jaeger",
+          "reason": "prom span metrics cover them",
+          "signals": []
+        }
+      ],
+      "calls": 17,
+      "duration_ms": 3723400
+    },
+    "budget": 6144,
+    "want": "<triage>\nComputed by the server before your first call, with no model: a starting point, not evidence. Start from the candidates and test each with your own reads; every figure your answer states needs its own read, and a candidate is a lead, not a cause.\nWindows: 1h, 6h, 24h, each ending 2026-11-20T10:00:00Z and compared with the same length just before it.\nServices on prom (prometheus metrics, in service_name): cart, checkout, payment\nSignal: requests, errors and p95 latency on prom from span metrics traces_span_metrics_calls_total\nCandidates: none. No service's errors or latency moved against its baseline on any window the sweep read.\nSkipped: trace rates on jaeger: prom span metrics cover them.\nSweep: 17 reads in 1h2m3.4s.\n</triage>"
+  }
+]

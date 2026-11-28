@@ -23,7 +23,10 @@ export function useVersionHistory(id: string) {
         .GET("/dashboards/{id}/versions", {
           params: {
             path: { id },
-            query: { limit: pageSize, cursor: pageParam },
+            query: {
+              limit: pageSize,
+              ...(pageParam === undefined ? {} : { cursor: pageParam }),
+            },
           },
           signal,
         })

@@ -9,9 +9,9 @@ import { createRef, useState } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { DataGrid, type DataGridColumn } from "./data-grid"
-import { useNarrow } from "./use-narrow"
+import { useNarrow } from "@/lib/use-narrow"
 
-vi.mock("./use-narrow", () => ({ useNarrow: vi.fn(() => false) }))
+vi.mock("@/lib/use-narrow", () => ({ useNarrow: vi.fn(() => false) }))
 
 type Row = { id: string; name: string; owner: string; note: string }
 
@@ -201,7 +201,7 @@ describe("DataGrid", () => {
     rerender(
       <DataGrid
         {...props}
-        rows={[{ ...rows[0], name: "Basket" }]}
+        rows={[{ ...rows[0]!, name: "Basket" }]}
         columns={counted("b")}
       />
     )
@@ -552,7 +552,7 @@ describe("DataGrid", () => {
     const onChange = vi.fn()
     const withHeader = (label: string) => [
       {
-        ...columns[0],
+        ...columns[0]!,
         headerCell: () => (
           <label>
             <input type="checkbox" onChange={onChange} />
@@ -1311,9 +1311,9 @@ describe("DataGrid focus after removing a row", () => {
 
   it("focuses the first cell of the row that takes the removed row's place when that row has no such control", async () => {
     const onlySome: DataGridColumn<Row>[] = [
-      withRemove[0],
+      withRemove[0]!,
       {
-        ...withRemove[1],
+        ...withRemove[1]!,
         cell: (row) =>
           row.id === "d" ? null : (
             <button type="button" data-remove="">

@@ -28,17 +28,17 @@ function unit(value: number): number {
   return Math.max(0, Math.min(1, value))
 }
 
-function scaledWeights(
+function weightScale(
   rows: readonly HeatRow[],
   layer: Record<string, unknown>
-): number[] {
-  const weights = rows.map((row) => weightOf(row.weight))
-  const largest = Math.max(0, ...weights)
+): (row: HeatRow) => number {
+  const largest = Math.max(0, ...rows.map((row) => weightOf(row.weight)))
   const low = isNumber(layer.weightMin) ? layer.weightMin : 0
   const high = isNumber(layer.weightMax) ? layer.weightMax : 1
-  return weights.map((weight) =>
-    unit(low + (largest === 0 ? 0 : weight / largest) * (high - low))
-  )
+  return (row) =>
+    unit(
+      low + (largest === 0 ? 0 : weightOf(row.weight) / largest) * (high - low)
+    )
 }
 
 export function heatmapModel(
@@ -47,12 +47,12 @@ export function heatmapModel(
   weighted: boolean
 ): HeatmapModel {
   const fixed = unit(isNumber(layer.weight) ? layer.weight : 1)
-  const weights = weighted ? scaledWeights(rows, layer) : rows.map(() => fixed)
+  const weightOfRow = weighted ? weightScale(rows, layer) : () => fixed
   return {
-    points: rows.map((row, index) => ({
+    points: rows.map((row) => ({
       ...row,
       ...project(row.lon, row.lat),
-      weight: weights[index],
+      weight: weightOfRow(row),
     })),
     radius: isNumber(layer.radius) ? layer.radius : defaultRadius,
     blur: isNumber(layer.blur) ? layer.blur : defaultBlur,

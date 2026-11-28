@@ -1,9 +1,9 @@
 import { anchorProps, NewTabMark } from "@/dashboards/dashboard-links"
 
 import type { FieldAction } from "../../actions/field-actions"
+import { LinksMenu } from "../../actions/links-menu"
 import type { ResolvedLink } from "../../field-config"
 import type { Cell } from "../table-model"
-import { MoreLinks } from "./more-links"
 import { ValueContent } from "./value-content"
 
 export function TextCell({
@@ -26,7 +26,7 @@ export function TextCell({
   const content = <ValueContent cell={cell} />
   const menu =
     more.length > 0 || actions.length > 0 ? (
-      <MoreLinks
+      <LinksMenu
         links={more}
         actions={actions}
         onAction={onAction}

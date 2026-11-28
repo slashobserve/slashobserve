@@ -1,35 +1,15 @@
 import { useLayoutEffect, useMemo, useRef, type CSSProperties } from "react"
-import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  CircleIcon,
-  EllipsisIcon,
-  LinkIcon,
-  MinusIcon,
-} from "lucide-react"
+import { ArrowDownIcon, ArrowUpIcon, CircleIcon, MinusIcon } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  anchorProps,
-  NewTabMark,
-  oneClickProps,
-} from "@/dashboards/dashboard-links"
+import { anchorProps, NewTabMark } from "@/dashboards/dashboard-links"
 import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
-import { ActionMenuItems } from "../actions/action-menu-items"
 import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
-import { runFieldAction, useStableActionRunner } from "../actions/action-runner"
-import { fieldActions, oneClickTarget } from "../actions/field-actions"
+import { useStableActionRunner } from "../actions/action-runner"
+import { itemInteraction } from "../actions/item-interaction"
+import { LinksMenu } from "../actions/links-menu"
 import { resolveColor } from "../colors"
-import { isDataLink, resolveLink } from "../field-config"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
 import type { ValueAnchorLayout } from "../value-anchors"
@@ -190,32 +170,19 @@ const StatPanel: PanelRenderer = ({
         {tiles.map((tile, index) => {
           const filled = background && tile.color !== null
           const aria = tiles.length > 1 ? tile.name : panel.title
-          const line = lines[index]
+          const line = lines[index] ?? []
           const drawn = line.length > 0
           const primary = nameAsValue ? tile.name : tile.amount
           const unit = nameAsValue ? "" : tile.unit
           const valueStyle = valueStyleFor(primary, unit)
-          const scope = statScope(tile, links)
-          const dataLinks = tile.config.links
-            .filter(isDataLink)
-            .flatMap((link) => resolveLink(link, scope) ?? [])
-          const actions = fieldActions(tile.config, scope)
+          const {
+            links: dataLinks,
+            actions,
+            oneClick,
+            run,
+          } = itemInteraction(tile, statScope(tile, links), runner, showText)
           const linkedPrimary = showText ? dataLinks[0] : undefined
           const menuLinks = showText ? dataLinks.slice(1) : dataLinks
-          const target = oneClickTarget(
-            showText ? dataLinks : [],
-            showText ? actions : []
-          )
-          const oneClick =
-            target === null
-              ? {}
-              : target.kind === "link"
-                ? oneClickProps(dataLinks)
-                : runner.reason === null
-                  ? oneClickProps([], () =>
-                      runFieldAction(runner, target.action, scope)
-                    )
-                  : {}
           const thresholdColor =
             display.colorMode === "value" ? tile.color : null
           const Icon =
@@ -393,46 +360,15 @@ const StatPanel: PanelRenderer = ({
                 </div>
               ) : null}
               {menuLinks.length > 0 || actions.length > 0 ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        className="absolute top-1 right-1 text-current"
-                        aria-label={`${actions.length > 0 ? "More links and actions" : "More links"} for ${tile.name}`}
-                      />
-                    }
-                  >
-                    {actions.length > 0 ? (
-                      <EllipsisIcon aria-hidden="true" />
-                    ) : (
-                      <LinkIcon aria-hidden="true" />
-                    )}
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="min-w-max">
-                    {menuLinks.map((link, linkIndex) => (
-                      <DropdownMenuItem
-                        key={`${linkIndex}:${link.href}`}
-                        render={<a {...anchorProps(link)} />}
-                        className="justify-between gap-3"
-                      >
-                        {link.title}
-                        {link.newTab ? <NewTabMark /> : null}
-                      </DropdownMenuItem>
-                    ))}
-                    {menuLinks.length > 0 && actions.length > 0 ? (
-                      <DropdownMenuSeparator />
-                    ) : null}
-                    <ActionMenuItems
-                      actions={actions}
-                      reason={runner.reason}
-                      onAction={(action) =>
-                        runFieldAction(runner, action, scope)
-                      }
-                    />
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <LinksMenu
+                  links={menuLinks}
+                  actions={actions}
+                  reason={runner.reason}
+                  onAction={run}
+                  subject={tile.name}
+                  className="absolute top-1 right-1 text-current"
+                  linkIcon
+                />
               ) : null}
             </div>
           )

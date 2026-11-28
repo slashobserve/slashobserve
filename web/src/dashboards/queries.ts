@@ -91,7 +91,6 @@ function useStoreSavedVersion(id: string) {
 export function useMoveDashboard() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (input: { id: string; folderId: string }) =>
       api
         .PATCH("/dashboards/{id}", {
@@ -113,7 +112,6 @@ export function useMoveDashboard() {
 export function useCreateDashboard() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (input: { spec: Dashboard; folderId: string }) =>
       api
         .POST("/dashboards", {
@@ -138,7 +136,6 @@ export function useCreateDashboard() {
 export function useDuplicateDashboard(sourceId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (input: { title: string; folderId: string }) =>
       api
         .POST("/dashboards/{id}/duplicate", {
@@ -161,7 +158,6 @@ export function useDuplicateDashboard(sourceId: string) {
 export function useDeleteDashboard(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationKey: dashboardKeys.deletes(id),
     mutationFn: () =>
       api.DELETE("/dashboards/{id}", { params: { path: { id } } }).then(unwrap),
@@ -293,7 +289,7 @@ export function useRestoreVersion(id: string) {
           params: { path: { id, version: input.version } },
           body: {
             parent_version: input.parent_version,
-            summary: input.summary,
+            ...(input.summary === undefined ? {} : { summary: input.summary }),
           },
         })
         .then(unwrap),

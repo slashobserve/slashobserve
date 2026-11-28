@@ -11,6 +11,7 @@ import { renderWithProviders, testQueryClient } from "@/test/render"
 
 import { Conversation } from "./conversation"
 import type { ChatPanel } from "./panel-target"
+import { must } from "@/test/must"
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -681,7 +682,7 @@ describe("Conversation", () => {
       "Which services had the most errors in the last hour?",
       "Which routes are slowest right now?",
     ])
-    await user.click(chips[1])
+    await user.click(must(chips[1]))
     const posted = await vi.waitFor(() => {
       const found = fetch.mock.calls.find(
         ([request]) =>

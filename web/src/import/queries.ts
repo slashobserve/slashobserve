@@ -68,7 +68,6 @@ export function useImportDashboard() {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: async ({
       source,
       mapping,
@@ -77,8 +76,8 @@ export function useImportDashboard() {
     }: {
       source: Source
       mapping: Mapping
-      folder?: string
-      update?: string
+      folder?: string | undefined
+      update?: string | undefined
     }): Promise<ImportedDashboard> => {
       const result = await api.POST("/imports", {
         body: requestBody(source, mapping, folder, update),
@@ -113,13 +112,12 @@ export function useCreateDashboardFromSpec() {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: async ({
       spec,
       folderId,
     }: {
       spec: Record<string, unknown>
-      folderId?: string
+      folderId?: string | undefined
     }): Promise<CreatedDashboard> =>
       unwrap(
         await api.POST("/dashboards", {

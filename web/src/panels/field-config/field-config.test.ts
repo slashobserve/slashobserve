@@ -4,6 +4,7 @@ import type { WireFrame } from "@/dashboards/queries"
 import type { WireField } from "@/panels/frames"
 import { prepareFrames, type PreparedFrame } from "@/panels/transforms"
 import type { DataPanel } from "@/spec"
+import { defined, must } from "@/panels/must"
 
 import { createFieldResolver } from "."
 
@@ -36,7 +37,7 @@ function frame(
 describe("field config resolution", () => {
   it("falls back to the shared defaults when the panel sets nothing", () => {
     const f = frame([time, value()])
-    const config = createFieldResolver(panel()).configFor(f, f.fields[1])
+    const config = createFieldResolver(panel()).configFor(f, must(f.fields[1]))
     expect(config).toEqual({
       thresholdMode: "absolute",
       colorBy: "last",
@@ -85,7 +86,7 @@ describe("field config resolution", () => {
     const drain = { title: "Drain", url: "https://ops.example.com/d" }
     const resolveFirst = (extra: Partial<DataPanel>) => {
       const f = frame([time, value()])
-      return createFieldResolver(panel(extra)).configFor(f, f.fields[1])
+      return createFieldResolver(panel(extra)).configFor(f, must(f.fields[1]))
     }
 
     it("has no actions and no source for a panel that sets none", () => {
@@ -138,7 +139,7 @@ describe("field config resolution", () => {
     const f = frame([time, value()])
     const config = createFieldResolver(
       panel({ unit: "bytes", fill: 30, stack: "normal" })
-    ).configFor(f, f.fields[1])
+    ).configFor(f, must(f.fields[1]))
     expect(config).toMatchObject({ unit: "bytes", fill: 30, stack: "normal" })
     expect(config.style).toBe("line")
   })
@@ -152,10 +153,10 @@ describe("field config resolution", () => {
         overrides: [{ match: { query: "B" }, lineWidth: 2 }],
       })
     )
-    expect(resolver.isSet(a, a.fields[1], "fill")).toBe(true)
-    expect(resolver.isSet(a, a.fields[1], "lineWidth")).toBe(false)
-    expect(resolver.isSet(b, b.fields[1], "lineWidth")).toBe(true)
-    expect(resolver.isSet(b, b.fields[1], "spanNulls")).toBe(false)
+    expect(resolver.isSet(a, must(a.fields[1]), "fill")).toBe(true)
+    expect(resolver.isSet(a, must(a.fields[1]), "lineWidth")).toBe(false)
+    expect(resolver.isSet(b, must(b.fields[1]), "lineWidth")).toBe(true)
+    expect(resolver.isSet(b, must(b.fields[1]), "spanNulls")).toBe(false)
   })
 
   it("tells a written color mode and color-by from their defaults in the panel, the field and an override", () => {
@@ -188,9 +189,11 @@ describe("field config resolution", () => {
       { subject: c, key: "colorScheme", expected: false },
     ] as const
     for (const { subject, key, expected } of cases) {
-      expect(resolver.isSet(subject, subject.fields[1], key)).toBe(expected)
+      expect(resolver.isSet(subject, must(subject.fields[1]), key)).toBe(
+        expected
+      )
     }
-    expect(resolver.configFor(b, b.fields[1])).toMatchObject({
+    expect(resolver.configFor(b, must(b.fields[1]))).toMatchObject({
       colorMode: "scheme",
       colorScheme: "blues",
       colorBy: "last",
@@ -203,8 +206,8 @@ describe("field config resolution", () => {
     const resolver = createFieldResolver(
       panel({ overrides: [{ match: { query: "B" }, unit: "ms" }] })
     )
-    expect(resolver.configFor(a, a.fields[1]).unit).toBeUndefined()
-    expect(resolver.configFor(b, b.fields[1]).unit).toBe("ms")
+    expect(resolver.configFor(a, must(a.fields[1])).unit).toBeUndefined()
+    expect(resolver.configFor(b, must(b.fields[1])).unit).toBe("ms")
   })
 
   it("matches series by the series name", () => {
@@ -214,7 +217,7 @@ describe("field config resolution", () => {
         overrides: [{ match: { series: 'up{pod="a"}' }, color: "critical" }],
       })
     )
-    expect(resolver.configFor(f, f.fields[1]).color).toBe("critical")
+    expect(resolver.configFor(f, must(f.fields[1])).color).toBe("critical")
   })
 
   it("matches a series name stamped by the query legend", () => {
@@ -225,9 +228,12 @@ describe("field config resolution", () => {
     const [prepared] = prepareFrames(withLegend, [
       frame([time, value()], { name: "up", labels: { pod: "web-1" } }),
     ])
+    defined(prepared)
     const resolver = createFieldResolver(withLegend)
-    expect(resolver.seriesName(prepared, prepared.fields[1])).toBe("web-1")
-    expect(resolver.configFor(prepared, prepared.fields[1]).unit).toBe(
+    expect(resolver.seriesName(prepared, must(prepared.fields[1]))).toBe(
+      "web-1"
+    )
+    expect(resolver.configFor(prepared, must(prepared.fields[1])).unit).toBe(
       "percent"
     )
   })
@@ -240,8 +246,8 @@ describe("field config resolution", () => {
     const slashed = createFieldResolver(
       panel({ overrides: [{ match: { seriesRegex: "/cpu/" }, unit: "s" }] })
     )
-    expect(anchored.configFor(f, f.fields[1]).unit).toBeUndefined()
-    expect(slashed.configFor(f, f.fields[1]).unit).toBe("s")
+    expect(anchored.configFor(f, must(f.fields[1])).unit).toBeUndefined()
+    expect(slashed.configFor(f, must(f.fields[1])).unit).toBe("s")
   })
 
   it("matches seriesRegex written with the sticky flag on every field", () => {
@@ -249,8 +255,8 @@ describe("field config resolution", () => {
     const resolver = createFieldResolver(
       panel({ overrides: [{ match: { seriesRegex: "/cpu/y" }, unit: "s" }] })
     )
-    expect(resolver.configFor(f, f.fields[1]).unit).toBe("s")
-    expect(resolver.configFor(f, f.fields[2]).unit).toBe("s")
+    expect(resolver.configFor(f, must(f.fields[1])).unit).toBe("s")
+    expect(resolver.configFor(f, must(f.fields[2])).unit).toBe("s")
   })
 
   it("never matches an invalid seriesRegex", () => {
@@ -258,7 +264,7 @@ describe("field config resolution", () => {
     const resolver = createFieldResolver(
       panel({ overrides: [{ match: { seriesRegex: "(" }, unit: "s" }] })
     )
-    expect(resolver.configFor(f, f.fields[1]).unit).toBeUndefined()
+    expect(resolver.configFor(f, must(f.fields[1])).unit).toBeUndefined()
   })
 
   it("matches field by name or by series name", () => {
@@ -275,9 +281,9 @@ describe("field config resolution", () => {
     const miss = createFieldResolver(
       panel({ overrides: [{ match: { field: "Nope" }, unit: "ms" }] })
     )
-    expect(byName.configFor(f, f.fields[1]).unit).toBe("ms")
-    expect(bySeriesName.configFor(f, f.fields[1]).unit).toBe("ms")
-    expect(miss.configFor(f, f.fields[1]).unit).toBeUndefined()
+    expect(byName.configFor(f, must(f.fields[1])).unit).toBe("ms")
+    expect(bySeriesName.configFor(f, must(f.fields[1])).unit).toBe("ms")
+    expect(miss.configFor(f, must(f.fields[1])).unit).toBeUndefined()
   })
 
   it("matches field before the panel display name renames it", () => {
@@ -291,8 +297,8 @@ describe("field config resolution", () => {
         ],
       })
     )
-    expect(resolver.displayName(f, f.fields[1])).toBe("a")
-    expect(resolver.configFor(f, f.fields[1]).unit).toBe("ms")
+    expect(resolver.displayName(f, must(f.fields[1]))).toBe("a")
+    expect(resolver.configFor(f, must(f.fields[1])).unit).toBe("ms")
   })
 
   it("matches fieldType, mapping bool to boolean and never matching other", () => {
@@ -308,9 +314,9 @@ describe("field config resolution", () => {
       })
     )
     expect(resolver.configFor(f, flag).noValue).toBe("bool")
-    expect(resolver.configFor(f, f.fields[1]).noValue).toBe("num")
+    expect(resolver.configFor(f, must(f.fields[1])).noValue).toBe("num")
     expect(resolver.configFor(f, other).noValue).toBeUndefined()
-    expect(resolver.configFor(f, f.fields[0]).noValue).toBeUndefined()
+    expect(resolver.configFor(f, must(f.fields[0])).noValue).toBeUndefined()
   })
 
   it("matches a number field by its reduced value", () => {
@@ -399,7 +405,7 @@ describe("field config resolution", () => {
 
   it("resolves the series-drawing props with their defaults", () => {
     const f = frame([time, value()])
-    const plain = createFieldResolver(panel()).configFor(f, f.fields[1])
+    const plain = createFieldResolver(panel()).configFor(f, must(f.fields[1]))
     expect(plain).toMatchObject({
       hideInLegend: false,
       hideInTooltip: false,
@@ -428,7 +434,7 @@ describe("field config resolution", () => {
         ],
       })
     )
-    expect(resolver.configFor(f, f.fields[1])).toMatchObject({
+    expect(resolver.configFor(f, must(f.fields[1]))).toMatchObject({
       valueTransform: "negativeY",
       hideInLegend: true,
       hideInTooltip: true,
@@ -460,7 +466,7 @@ describe("field config resolution", () => {
         ],
       })
     )
-    expect(resolver.configFor(f, f.fields[1])).toMatchObject({
+    expect(resolver.configFor(f, must(f.fields[1]))).toMatchObject({
       colorMode: "scheme",
       colorScheme: "reds",
       colorBy: "max",
@@ -484,7 +490,7 @@ describe("field config resolution", () => {
         ],
       })
     )
-    expect(resolver.configFor(f, f.fields[1])).toMatchObject({
+    expect(resolver.configFor(f, must(f.fields[1]))).toMatchObject({
       unit: "s",
       decimals: 1,
     })
@@ -507,7 +513,7 @@ describe("field config resolution", () => {
         ],
       })
     )
-    expect(resolver.configFor(f, f.fields[1])).toMatchObject({
+    expect(resolver.configFor(f, must(f.fields[1]))).toMatchObject({
       thresholds: [{ color: "info" }],
       mappings: [{ value: "1", text: "Up" }],
       links: [{ title: "B", url: "/b" }],
@@ -516,13 +522,13 @@ describe("field config resolution", () => {
 
   it("resolves the display name from the series name or the template", () => {
     const f = frame([time, value()], { name: "up", labels: { pod: "a" } })
-    expect(createFieldResolver(panel()).displayName(f, f.fields[1])).toBe(
+    expect(createFieldResolver(panel()).displayName(f, must(f.fields[1]))).toBe(
       'up{pod="a"}'
     )
     const resolver = createFieldResolver(
       panel({ displayName: "Pod ${__field.labels.pod} (${__field.name})" })
     )
-    expect(resolver.displayName(f, f.fields[1])).toBe("Pod a (Value)")
+    expect(resolver.displayName(f, must(f.fields[1]))).toBe("Pod a (Value)")
   })
 
   it("interpolates all labels, the series name and keeps unknown tokens", () => {
@@ -536,7 +542,7 @@ describe("field config resolution", () => {
           "${__field.labels} | ${__series.name} | ${__field.labels.x}",
       })
     )
-    expect(resolver.displayName(f, f.fields[1])).toBe(
+    expect(resolver.displayName(f, must(f.fields[1]))).toBe(
       'pod="a", app="web" | up{app="web", pod="a"} | ${__field.labels.x}'
     )
   })
@@ -546,7 +552,7 @@ describe("field config resolution", () => {
     const resolver = createFieldResolver(
       panel({ displayName: "${__field.labels.constructor}" })
     )
-    expect(resolver.displayName(f, f.fields[1])).toBe(
+    expect(resolver.displayName(f, must(f.fields[1]))).toBe(
       "${__field.labels.constructor}"
     )
   })
@@ -556,7 +562,7 @@ describe("field config resolution", () => {
     const resolver = createFieldResolver(
       panel({ displayName: "${__field.labels}" })
     )
-    expect(resolver.displayName(f, f.fields[1])).toBe('b="x"y", a="1"')
+    expect(resolver.displayName(f, must(f.fields[1]))).toBe('b="x"y", a="1"')
   })
 
   it("lets an override set the display name", () => {
@@ -568,7 +574,7 @@ describe("field config resolution", () => {
         ],
       })
     )
-    expect(resolver.displayName(f, f.fields[1])).toBe("Value!")
+    expect(resolver.displayName(f, must(f.fields[1]))).toBe("Value!")
   })
 
   it("applies config carried by the field under the panel's overrides", () => {
@@ -585,16 +591,16 @@ describe("field config resolution", () => {
         overrides: [{ match: { fieldType: "number" }, min: 5 }],
       })
     )
-    const config = resolver.configFor(carrying, carrying.fields[1])
+    const config = resolver.configFor(carrying, must(carrying.fields[1]))
     expect(config).toMatchObject({ unit: "bytes", max: 80, min: 5 })
-    expect(resolver.configFor(carrying, carrying.fields[0]).max).toBe(10)
+    expect(resolver.configFor(carrying, must(carrying.fields[0])).max).toBe(10)
   })
 
   it("returns the same config object for the same field", () => {
     const f = frame([time, value()])
     const resolver = createFieldResolver(panel())
-    expect(resolver.configFor(f, f.fields[1])).toBe(
-      resolver.configFor(f, f.fields[1])
+    expect(resolver.configFor(f, must(f.fields[1]))).toBe(
+      resolver.configFor(f, must(f.fields[1]))
     )
   })
 })
@@ -608,7 +614,7 @@ describe("display name tokens", () => {
   const name = (template: string, vars: Record<string, string[]> = {}) =>
     createFieldResolver(panel({ displayName: template }), vars).displayName(
       f,
-      f.fields[1]
+      must(f.fields[1])
     )
 
   it.each([
@@ -668,6 +674,6 @@ describe("display name tokens", () => {
       }),
       { env: ["prod"] }
     )
-    expect(resolver.displayName(f, f.fields[1])).toBe("prod B")
+    expect(resolver.displayName(f, must(f.fields[1]))).toBe("prod B")
   })
 })

@@ -18,7 +18,6 @@ const (
 )
 
 var (
-	uidPattern    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$`)
 	headerPattern = regexp.MustCompile("^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,100}$")
 
 	reservedHeaders = map[string]bool{
@@ -45,7 +44,7 @@ func invalid(field, message string) error {
 }
 
 func checkUID(uid string) error {
-	if !uidPattern.MatchString(uid) {
+	if !config.ValidMCPSourceUID(uid) {
 		return invalid("uid", "must start with a letter or digit and have at most 40 letters, digits, hyphens or underscores")
 	}
 	return nil

@@ -67,13 +67,13 @@ describe("exclusive member issues", () => {
       overrides: [{ match: { query: "1x" }, color: "ok" }],
     })
     expect(issues).toHaveLength(1)
-    expect(issues[0].path).toBe("/panels/0/overrides/0/match/query")
+    expect(issues[0]?.path).toBe("/panels/0/overrides/0/match/query")
   })
 
   it("keeps only the real issue for a mapping with one key and a bad color", () => {
     const issues = issuesFor({ mappings: [{ value: "1", color: "red" }] })
     expect(issues).toHaveLength(1)
-    expect(issues[0].path).toBe("/panels/0/mappings/0/color")
+    expect(issues[0]?.path).toBe("/panels/0/mappings/0/color")
   })
 
   it("keeps an unknown member of the one key's branch", () => {

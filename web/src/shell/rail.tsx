@@ -93,21 +93,19 @@ function useRailBadges(): Partial<Record<NavPath, RailBadge>> {
   const openCount = countLabel(open.observations.length, open.more)
   const unreadOpen = useUnreadOpenCount(open.observations)
   const unreadNote = unreadOpen > 0 ? `, ${unreadOpen} unread` : ""
+  if (openCount === null) return {}
   return {
-    "/observations":
-      openCount === null
-        ? undefined
-        : {
-            hint: `${openCount} open${unreadNote}`,
-            ariaLabel: `Observations, ${openCount} open${unreadNote}`,
-            decoration:
-              unreadOpen > 0 ? (
-                <span
-                  aria-hidden="true"
-                  className="absolute top-1.5 right-1.5 size-2 rounded-full border-2 border-chrome bg-primary"
-                />
-              ) : null,
-          },
+    "/observations": {
+      hint: `${openCount} open${unreadNote}`,
+      ariaLabel: `Observations, ${openCount} open${unreadNote}`,
+      decoration:
+        unreadOpen > 0 ? (
+          <span
+            aria-hidden="true"
+            className="absolute top-1.5 right-1.5 size-2 rounded-full border-2 border-chrome bg-primary"
+          />
+        ) : null,
+    },
   }
 }
 

@@ -57,7 +57,8 @@ const traceIdName = traceIdToken.slice(2, -1)
 const unresolvedRange = /\$\{?__(?:from|to)\b/
 
 export function oneClickLink(links: ResolvedLink[]): ResolvedLink | undefined {
-  return links.length === 1 && links[0].oneClick ? links[0] : undefined
+  const [only] = links
+  return links.length === 1 && only?.oneClick ? only : undefined
 }
 
 export function isDataLink(link: Link): boolean {
@@ -86,13 +87,15 @@ export function rowValue(scope: LinkScope, name: string): string | null {
 }
 
 function selectionOf(scope: LinkScope, name: string): string[] | null {
-  return Object.hasOwn(scope.vars, name) ? scope.vars[name] : null
+  return Object.hasOwn(scope.vars, name) ? (scope.vars[name] ?? null) : null
 }
 
 function valuesOf(name: string, scope: LinkScope): string[] | null {
   const field = dataField.exec(name)
   if (field) {
-    const value = rowValue(scope, field[1] ?? field[2] ?? field[3])
+    const fieldName = field[1] ?? field[2] ?? field[3]
+    if (fieldName === undefined) return null
+    const value = rowValue(scope, fieldName)
     return value === null ? null : [value]
   }
   if (name === "__value.raw") {
@@ -115,7 +118,8 @@ function valuesOf(name: string, scope: LinkScope): string[] | null {
   if (name.startsWith(labelPrefix)) {
     const key = name.slice(labelPrefix.length)
     const { labels } = scope
-    return labels && Object.hasOwn(labels, key) ? [labels[key]] : null
+    const value = labels && Object.hasOwn(labels, key) ? labels[key] : undefined
+    return value === undefined ? null : [value]
   }
   if (name === "__from") {
     return scope.fromMs === undefined ? null : [String(scope.fromMs)]
@@ -149,7 +153,7 @@ function tokenValue(
       .join("&")
   }
   const suffix = formatSuffix.exec(written)
-  const name = suffix ? suffix[1] : written
+  const name = suffix?.[1] ?? written
   const format = suffix?.[2] as VariableFormat | undefined
   if (format === "queryparam") {
     const selected = plainVar.test(name) ? selectionOf(scope, name) : null
@@ -261,15 +265,19 @@ export function dashboardLinks(
       : resolveTime(scope.from, now, false, timeOptions)
   const toMs =
     scope.to === undefined ? NaN : resolveTime(scope.to, now, true, timeOptions)
-  const full = {
-    ...scope,
-    fromMs: Number.isNaN(fromMs) ? undefined : fromMs,
-    toMs: Number.isNaN(toMs) ? undefined : toMs,
-  }
+  const full: LinkScope = { ...scope }
+  delete full.fromMs
+  delete full.toMs
+  if (!Number.isNaN(fromMs)) full.fromMs = fromMs
+  if (!Number.isNaN(toMs)) full.toMs = toMs
   return (links ?? []).flatMap((link) => {
     if (link.url === undefined) return []
     const resolved = resolveLink(
-      { title: link.title, url: link.url, newTab: link.newTab },
+      {
+        title: link.title,
+        url: link.url,
+        ...(link.newTab === undefined ? {} : { newTab: link.newTab }),
+      },
       full
     )
     if (!resolved || unresolvedRange.test(resolved.href)) return []

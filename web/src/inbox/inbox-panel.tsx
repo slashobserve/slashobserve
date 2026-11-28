@@ -13,7 +13,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
 import { useActivityStore, usePanelLayout } from "@/activity/activity-store"
-import { ApiError } from "@/api/errors"
+import { ApiError, sentence, loadProblemText } from "@/api/errors"
 import type { InboxFilter, InboxView } from "@/api/keys"
 import { DockHeader } from "@/components/dock/dock-header"
 import { DockPanel } from "@/components/dock/dock-panel"
@@ -28,8 +28,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { sentence } from "@/observe/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 import { useDashboardShortcuts } from "@/shortcuts/use-dashboard-shortcuts"
 
 import { groupItems, itemLink, type InboxItem } from "./inbox-item"
@@ -277,8 +275,9 @@ function InboxCard() {
       rows.length - 1,
       Math.max(0, here + (event.key === "ArrowDown" ? 1 : -1))
     )
-    rows[next].focus()
-    setFocused(ordered[next].seq)
+    rows[next]?.focus()
+    const focusedItem = ordered[next]
+    if (focusedItem !== undefined) setFocused(focusedItem.seq)
   }
 
   function body() {
@@ -293,7 +292,7 @@ function InboxCard() {
       return (
         <LoadProblem
           title="Could not load the inbox"
-          detail={sentence(query.error.message)}
+          detail={loadProblemText(query.error)}
           retrying={query.isFetching}
           onRetry={() => void query.refetch()}
         />

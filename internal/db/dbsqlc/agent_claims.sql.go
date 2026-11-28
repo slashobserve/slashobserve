@@ -21,7 +21,7 @@ func (q *Queries) DeleteRunTokens(ctx context.Context, agentRequestID pgtype.UUI
 }
 
 const getClaimedAgentRequest = `-- name: GetClaimedAgentRequest :one
-SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation, read_restricted, as_of, claim_epoch, thread_reply_abandoned_at FROM agent_requests
+SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation, read_restricted, as_of, claim_epoch, thread_reply_abandoned_at, committed_kind, committed_version, committed_dashboard_id FROM agent_requests
 WHERE id = $1 AND attempts = $2 AND claimed_by = $3
   AND ($4::integer = 0 OR claim_epoch = $4::integer)
 `
@@ -105,13 +105,16 @@ func (q *Queries) GetClaimedAgentRequest(ctx context.Context, arg GetClaimedAgen
 		&i.AsOf,
 		&i.ClaimEpoch,
 		&i.ThreadReplyAbandonedAt,
+		&i.CommittedKind,
+		&i.CommittedVersion,
+		&i.CommittedDashboardID,
 	)
 	return i, err
 }
 
 const getRunTokenDeadline = `-- name: GetRunTokenDeadline :one
 SELECT max(expires_at)::timestamptz FROM run_tokens
-WHERE agent_request_id = $1 AND attempt = $2 AND (claim_epoch IS NULL OR claim_epoch = $3::integer)
+WHERE agent_request_id = $1 AND attempt = $2 AND claim_epoch = $3::integer
 `
 
 type GetRunTokenDeadlineParams struct {
@@ -128,7 +131,7 @@ func (q *Queries) GetRunTokenDeadline(ctx context.Context, arg GetRunTokenDeadli
 }
 
 const getRunTokenRun = `-- name: GetRunTokenRun :one
-SELECT r.id, r.dashboard_id, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note, r.context_from, r.context_to, r.title, r.pinned_at, r.archived_at, r.trigger, r.state, r.result_kind, r.assigned_kind, r.assigned_id, r.claimed_by, r.observation_id, r.thread_message_id, r.thread_context, r.chat_id, r.retries_id, r.time_zone, r.thread_replied_at, r.anchor, r.block_id, r.client_id, r.intent, r.kind, r.applies_finding_id, r.subject_observation_id, r.investigation, r.read_restricted, r.as_of, r.claim_epoch, r.thread_reply_abandoned_at, t.expires_at AS token_expires_at, coalesce(g.mode, 'direct')::text AS grant_mode,
+SELECT r.id, r.dashboard_id, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note, r.context_from, r.context_to, r.title, r.pinned_at, r.archived_at, r.trigger, r.state, r.result_kind, r.assigned_kind, r.assigned_id, r.claimed_by, r.observation_id, r.thread_message_id, r.thread_context, r.chat_id, r.retries_id, r.time_zone, r.thread_replied_at, r.anchor, r.block_id, r.client_id, r.intent, r.kind, r.applies_finding_id, r.subject_observation_id, r.investigation, r.read_restricted, r.as_of, r.claim_epoch, r.thread_reply_abandoned_at, r.committed_kind, r.committed_version, r.committed_dashboard_id, t.expires_at AS token_expires_at, coalesce(g.mode, 'direct')::text AS grant_mode,
   coalesce(c.name, s.name, '')::text AS assignee_name
 FROM run_tokens t
 JOIN agent_requests r ON r.id = t.agent_request_id
@@ -136,9 +139,9 @@ LEFT JOIN oauth_grants g ON r.assigned_kind = 'grant' AND g.id = r.assigned_id
 LEFT JOIN oauth_clients c ON c.id = g.client_id
 LEFT JOIN service_accounts s ON r.assigned_kind = 'service_account' AND s.id = r.assigned_id
 WHERE t.token_hash = $1
-  AND g.revoked_at IS NULL
+  AND (g.id IS NULL OR oauth_grant_live(g))
   AND t.attempt = r.attempts
-  AND (t.claim_epoch IS NULL OR t.claim_epoch = r.claim_epoch)
+  AND t.claim_epoch = r.claim_epoch
   AND r.state = 'running'
   AND r.lease_until > clock_timestamp()
   AND t.expires_at > clock_timestamp()
@@ -218,6 +221,9 @@ func (q *Queries) GetRunTokenRun(ctx context.Context, tokenHash []byte) (GetRunT
 		&i.AgentRequest.AsOf,
 		&i.AgentRequest.ClaimEpoch,
 		&i.AgentRequest.ThreadReplyAbandonedAt,
+		&i.AgentRequest.CommittedKind,
+		&i.AgentRequest.CommittedVersion,
+		&i.AgentRequest.CommittedDashboardID,
 		&i.TokenExpiresAt,
 		&i.GrantMode,
 		&i.AssigneeName,
@@ -250,7 +256,7 @@ func (q *Queries) InsertRunToken(ctx context.Context, arg InsertRunTokenParams) 
 }
 
 const listHeldAgentRequests = `-- name: ListHeldAgentRequests :many
-SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation, read_restricted, as_of, claim_epoch, thread_reply_abandoned_at FROM agent_requests WHERE claimed_by = $1 AND status = 'running'
+SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation, read_restricted, as_of, claim_epoch, thread_reply_abandoned_at, committed_kind, committed_version, committed_dashboard_id FROM agent_requests WHERE claimed_by = $1 AND status = 'running'
 `
 
 func (q *Queries) ListHeldAgentRequests(ctx context.Context, claimedBy pgtype.Text) ([]AgentRequest, error) {
@@ -326,6 +332,9 @@ func (q *Queries) ListHeldAgentRequests(ctx context.Context, claimedBy pgtype.Te
 			&i.AsOf,
 			&i.ClaimEpoch,
 			&i.ThreadReplyAbandonedAt,
+			&i.CommittedKind,
+			&i.CommittedVersion,
+			&i.CommittedDashboardID,
 		); err != nil {
 			return nil, err
 		}
@@ -339,7 +348,7 @@ func (q *Queries) ListHeldAgentRequests(ctx context.Context, claimedBy pgtype.Te
 
 const pruneAgentWorkers = `-- name: PruneAgentWorkers :execrows
 DELETE FROM agent_workers w
-WHERE (w.principal_kind = 'grant' AND NOT EXISTS (SELECT 1 FROM oauth_grants g WHERE g.id = w.principal_id AND g.revoked_at IS NULL))
+WHERE (w.principal_kind = 'grant' AND NOT EXISTS (SELECT 1 FROM oauth_grants g WHERE g.id = w.principal_id AND oauth_grant_live(g)))
    OR (w.principal_kind = 'service_account' AND NOT EXISTS (SELECT 1 FROM service_accounts s WHERE s.id = w.principal_id))
 `
 
@@ -365,7 +374,7 @@ func (q *Queries) PruneRunTokens(ctx context.Context) (int64, error) {
 
 const renewRunTokens = `-- name: RenewRunTokens :exec
 UPDATE run_tokens SET expires_at = $1
-WHERE agent_request_id = $2 AND attempt = $3 AND (claim_epoch IS NULL OR claim_epoch = $4::integer)
+WHERE agent_request_id = $2 AND attempt = $3 AND claim_epoch = $4::integer
 `
 
 type RenewRunTokensParams struct {

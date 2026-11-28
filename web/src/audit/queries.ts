@@ -13,12 +13,12 @@ export const facetValues = 8
 const retryOnce = (count: number, error: unknown) =>
   count < 1 && isRetryable(error)
 
+function textQuery(window: AuditWindowKey) {
+  return window.q === "" ? {} : { q: window.q }
+}
+
 function windowQuery(window: AuditWindowKey) {
-  return {
-    q: window.q === "" ? undefined : window.q,
-    since: window.since,
-    until: window.until,
-  }
+  return { ...textQuery(window), since: window.since, until: window.until }
 }
 
 export function auditEventsQuery(window: AuditWindowKey) {
@@ -32,7 +32,7 @@ export function auditEventsQuery(window: AuditWindowKey) {
               pageParam === undefined
                 ? { ...windowQuery(window), limit: pageSize }
                 : {
-                    q: windowQuery(window).q,
+                    ...textQuery(window),
                     cursor: pageParam,
                     limit: pageSize,
                   },

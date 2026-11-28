@@ -12,8 +12,9 @@ export function compileNamePattern(pattern: string): RegExp | null {
   if (!pattern.startsWith("/")) return compileAnchoredPattern(pattern)
   const match = slashed.exec(pattern)
   if (!match) return null
+  const [, source = "", flags = ""] = match
   try {
-    return new RegExp(match[1], match[2].replace(/[gy]/g, ""))
+    return new RegExp(source, flags.replace(/[gy]/g, ""))
   } catch {
     return null
   }

@@ -19,14 +19,19 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/slashobserve/slashobserve/internal/agent/grounding"
-	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/egress/domains"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 )
 
 type LogFormat string
+
+const (
+	groundingOff     = "off"
+	groundingEnforce = "enforce"
+
+	defaultInvestigationCallsMax = 40
+)
 
 const (
 	LogFormatJSON LogFormat = "json"
@@ -207,7 +212,7 @@ type Agent struct {
 	InvestigationLoop  bool
 
 	InvestigationCallsMax int
-	FindingGrounding      grounding.Mode
+	FindingGrounding      string
 	MaxRunCostUSD         float64
 	InvestigationBrief    bool
 }
@@ -732,7 +737,7 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 		}
 	}
 	errs = append(errs, loadInvestigationCalls(lookup, cfg)...)
-	mode, err := grounding.ParseMode(get(lookup, envAgentFindingGrounding))
+	mode, err := groundingMode(get(lookup, envAgentFindingGrounding))
 	if err != nil {
 		errs = append(errs, fmt.Errorf("%s: %w", envAgentFindingGrounding, err))
 	}
@@ -746,6 +751,18 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 	return errs
 }
 
+func groundingMode(raw string) (string, error) {
+	switch raw {
+	case "":
+		return groundingEnforce, nil
+	case groundingOff, groundingEnforce:
+		return raw, nil
+	case "report":
+		return groundingOff, errors.New("report is no longer a mode, because the agent sends an ungrounded finding back or stores it as it is; use enforce, the default, or off")
+	}
+	return groundingOff, fmt.Errorf("must be off or enforce, got %q", raw)
+}
+
 func loadInvestigationCalls(lookup func(string) (string, bool), cfg *Config) []error {
 	var errs []error
 	if v := get(lookup, envAgentInvestigationCalls); v != "" {
@@ -756,7 +773,7 @@ func loadInvestigationCalls(lookup func(string) (string, bool), cfg *Config) []e
 			cfg.Agent.InvestigationCalls = n
 		}
 	}
-	cfg.Agent.InvestigationCallsMax = max(guard.DefaultInvestigationCallsMax, cfg.Agent.InvestigationCalls)
+	cfg.Agent.InvestigationCallsMax = max(defaultInvestigationCallsMax, cfg.Agent.InvestigationCalls)
 	if v := get(lookup, envAgentInvestigationMax); v != "" {
 		floor := max(minAgentInvestigationCalls, cfg.Agent.InvestigationCalls)
 		n, err := strconv.Atoi(v)

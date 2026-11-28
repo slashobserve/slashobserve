@@ -1,3 +1,5 @@
+import { pairedAt } from "./paired"
+
 export type StackMode = "none" | "normal" | "percent"
 
 export type Cell = number | null | undefined
@@ -42,7 +44,7 @@ function groupMembers(
   const groups = new Map<string, Group>()
   modes.forEach((mode, index) => {
     if (mode === "none") return
-    const direction = stackDirection(values[index])
+    const direction = stackDirection(pairedAt(values, index))
     const key = `${direction}\u0000${mode}\u0000${axes[index]}\u0000${styles[index]}\u0000${stackGroups[index]}`
     const group = groups.get(key)
     if (group) group.members.push(index)
@@ -68,22 +70,24 @@ export function stackSeries(
     styles,
     stackGroups
   )) {
-    const length = values[members[0]].length
+    const length = pairedAt(values, pairedAt(members, 0)).length
     const sums = new Array<number>(length).fill(0)
     const totals = new Array<number>(length).fill(0)
     for (const index of members) {
-      values[index].forEach((value, at) => {
-        totals[at] += value ?? 0
+      pairedAt(values, index).forEach((value, at) => {
+        totals[at] = pairedAt(totals, at) + (value ?? 0)
       })
     }
     members.forEach((index, position) => {
-      below[index] = position === 0 ? null : members[position - 1]
+      below[index] = position === 0 ? null : (members[position - 1] ?? null)
       directions[index] = direction
-      drawn[index] = values[index].map((value, at) => {
-        sums[at] += value ?? 0
+      drawn[index] = pairedAt(values, index).map((value, at) => {
+        const sum = pairedAt(sums, at) + (value ?? 0)
+        sums[at] = sum
         if (value == null) return value
-        if (mode === "normal") return sums[at]
-        return totals[at] === 0 ? 0 : direction * (sums[at] / totals[at])
+        if (mode === "normal") return sum
+        const total = pairedAt(totals, at)
+        return total === 0 ? 0 : direction * (sum / total)
       })
     })
   }

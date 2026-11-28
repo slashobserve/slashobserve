@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import { must } from "@/panels/must"
+
 import { stubRects } from "./anchor-harness"
 import { valueAnchorLayout } from "./value-layout"
 
@@ -44,13 +46,13 @@ describe("valueAnchorLayout", () => {
       ["memory", "41%"],
       ["disk", "7%"],
     ])
-    expect(layout.targets[1].rect).toEqual({
+    expect(must(layout.targets[1]).rect).toEqual({
       x: 10,
       y: 40,
       width: 50,
       height: 20,
     })
-    expect(layout.targets[0].labels).toEqual({ instance: "a" })
+    expect(must(layout.targets[0]).labels).toEqual({ instance: "a" })
   })
 
   it("leaves out a value that was not drawn", () => {

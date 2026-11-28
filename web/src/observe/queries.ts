@@ -16,6 +16,8 @@ import {
   ApiError,
   maxRetryDelayMs,
   resendOnceOffline,
+  problemText,
+  sentence,
   unwrap,
 } from "@/api/errors"
 import {
@@ -27,6 +29,7 @@ import {
 } from "@/api/keys"
 import type { components, paths } from "@/api/schema.gen"
 import type { StatusTone } from "@/components/status-label"
+import { uniqueById } from "@/lib/unique-by-id"
 import { askZone } from "@/lib/time"
 
 export type ObserveRequest =
@@ -47,13 +50,6 @@ const pollIntervalMs = 1000
 const maxPollBackoffMs = 8000
 
 const stoppingStatuses = new Set([400, 401, 403, 404])
-
-export function sentence(text: string): string {
-  const trimmed = text.trimEnd()
-  if (trimmed === "") return ""
-  const capitalized = trimmed.charAt(0).toUpperCase() + trimmed.slice(1)
-  return /[.!?]$/.test(capitalized) ? capitalized : `${capitalized}.`
-}
 
 type FailureRun = { dataUpdates: number; errorsBefore: number }
 
@@ -159,16 +155,28 @@ function myRequestsQuery(filters: ChatListFilters, limit: number) {
         .GET("/observe", {
           params: {
             query: {
-              q: filters.q,
-              pinned: filters.pinned,
-              dashboard_id: filters.dashboardId,
-              observation_id: filters.observationId,
-              chat_id: filters.chatId,
-              scope: filters.scope,
-              state: filters.states,
-              anchored: filters.anchored,
+              ...(filters.q === undefined ? {} : { q: filters.q }),
+              ...(filters.pinned === undefined
+                ? {}
+                : { pinned: filters.pinned }),
+              ...(filters.dashboardId === undefined
+                ? {}
+                : { dashboard_id: filters.dashboardId }),
+              ...(filters.observationId === undefined
+                ? {}
+                : { observation_id: filters.observationId }),
+              ...(filters.chatId === undefined
+                ? {}
+                : { chat_id: filters.chatId }),
+              ...(filters.scope === undefined ? {} : { scope: filters.scope }),
+              ...(filters.states === undefined
+                ? {}
+                : { state: filters.states }),
+              ...(filters.anchored === undefined
+                ? {}
+                : { anchored: filters.anchored }),
               limit,
-              cursor: pageParam,
+              ...(pageParam === undefined ? {} : { cursor: pageParam }),
             },
           },
           signal,
@@ -200,18 +208,10 @@ export function useMyRequests(
     enabled,
     ...(pollsWhileWorking ? {} : { refetchInterval: false as const }),
   })
-  const requests = useMemo(() => {
-    const seen = new Set<string>()
-    const unique: RequestSummary[] = []
-    for (const page of query.data?.pages ?? []) {
-      for (const request of page.requests) {
-        if (seen.has(request.id)) continue
-        seen.add(request.id)
-        unique.push(request)
-      }
-    }
-    return unique
-  }, [query.data])
+  const requests = useMemo(
+    () => uniqueById(query.data?.pages, (page) => page.requests),
+    [query.data]
+  )
   return { requests, query }
 }
 
@@ -301,7 +301,6 @@ export function useCreateObserveRequest() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationKey: observeKeys.create(),
-    networkMode: "always",
     mutationFn: ({
       kind,
       chatId,
@@ -542,11 +541,10 @@ export function describeSubmitError(error: unknown): {
         invalid: false,
       }
     }
-    return { message: sentence(error.message), inline: false, invalid: false }
   }
-  const message =
-    error instanceof Error && error.message !== ""
-      ? sentence(error.message)
-      : "The request could not be sent."
-  return { message, inline: false, invalid: false }
+  return {
+    message: problemText(error, { fallback: "The request could not be sent." }),
+    inline: false,
+    invalid: false,
+  }
 }

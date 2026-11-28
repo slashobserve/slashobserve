@@ -254,36 +254,32 @@ func TestStartRunPassesThePromptAndTheCallerAndReturnsTheRun(t *testing.T) {
 	}
 }
 
-func TestStartRunPassesTheAnchorTheTurnIsAbout(t *testing.T) {
-	runs := &fakeRuns{raw: json.RawMessage(`{"id":"` + runID + `","state":"queued"}`)}
-	res := callRunTool(t, runs, nameStartRun, `{"prompt":"why this spike","dashboard_id":"`+runID+`","anchor":{"kind":"position","pos":{"x":0.4,"y":0.3}}}`)
-	if res.IsError {
-		t.Fatalf("error result %+v", res.Content)
+func TestStartRunPassesWhatTheTurnIsAbout(t *testing.T) {
+	tests := []struct {
+		name, input string
+		ok          func(revisions.StartRequest) bool
+	}{
+		{"an anchor", `{"prompt":"why this spike","dashboard_id":"` + runID + `","anchor":{"kind":"position","pos":{"x":0.4,"y":0.3}}}`, func(got revisions.StartRequest) bool {
+			return got.Anchor != nil && got.Anchor.Kind == "position" && got.Anchor.Pos.X == 0.4
+		}},
+		{"a whole block", `{"prompt":"why this block","observation_id":"` + runID + `","block_id":"` + runID + `"}`, func(got revisions.StartRequest) bool {
+			return got.BlockID != nil && *got.BlockID == runID && got.Anchor == nil
+		}},
+		{"a new chat", `{"prompt":"a latency panel","kind":"revise","dashboard_id":"` + runID + `","new_chat":true}`, func(got revisions.StartRequest) bool {
+			return got.NewChat != nil && *got.NewChat
+		}},
 	}
-	if got := runs.started; got == nil || got.Anchor == nil || got.Anchor.Kind != "position" || got.Anchor.Pos.X != 0.4 {
-		t.Fatalf("start request = %+v", got)
-	}
-}
-
-func TestStartRunPassesTheWholeBlockAnAskIsAbout(t *testing.T) {
-	runs := &fakeRuns{raw: json.RawMessage(`{"id":"` + runID + `","state":"queued"}`)}
-	res := callRunTool(t, runs, nameStartRun, `{"prompt":"why this block","observation_id":"`+runID+`","block_id":"`+runID+`"}`)
-	if res.IsError {
-		t.Fatalf("error result %+v", res.Content)
-	}
-	if got := runs.started; got == nil || got.BlockID == nil || *got.BlockID != runID || got.Anchor != nil {
-		t.Fatalf("start request = %+v", got)
-	}
-}
-
-func TestStartRunPassesNewChat(t *testing.T) {
-	runs := &fakeRuns{raw: json.RawMessage(`{"id":"` + runID + `","state":"queued"}`)}
-	res := callRunTool(t, runs, nameStartRun, `{"prompt":"a latency panel","kind":"revise","dashboard_id":"`+runID+`","new_chat":true}`)
-	if res.IsError {
-		t.Fatalf("error result %+v", res.Content)
-	}
-	if got := runs.started; got == nil || got.NewChat == nil || !*got.NewChat {
-		t.Fatalf("start request = %+v", got)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			runs := &fakeRuns{raw: json.RawMessage(`{"id":"` + runID + `","state":"queued"}`)}
+			res := callRunTool(t, runs, nameStartRun, tt.input)
+			if res.IsError {
+				t.Fatalf("error result %+v", res.Content)
+			}
+			if runs.started == nil || !tt.ok(*runs.started) {
+				t.Fatalf("start request = %+v", runs.started)
+			}
+		})
 	}
 }
 

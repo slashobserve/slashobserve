@@ -286,22 +286,22 @@ func TestRequestQueuesWithTheFixedPromptAndLatestVersion(t *testing.T) {
 	}
 }
 
-func TestRequestStopsAtTheRequesterCap(t *testing.T) {
+func TestRequestHasNoPerRequesterCapAndOnePersonHoldsADashboard(t *testing.T) {
 	r := newRig(t)
 	busy := r.dashboard(t, r.shared, "Busy")
 	r.db.Exec(t, `INSERT INTO agent_requests (dashboard_id, intent, prompt, base_version, requested_by_kind, requested_by_id, requested_by_name)
-		SELECT $1, 'apply', $2, 1, 'user', $3, 'eda' FROM generate_series(1, $4::integer)`, busy, repairs.Prompt, r.editor.ID, repairs.MaxActivePerRequester)
+		SELECT $1, 'apply', $2, 1, 'user', $3, 'eda' FROM generate_series(1, 25)`, busy, repairs.Prompt, r.editor.ID)
 	id := r.failing(t, r.shared, "Board")
 	out := r.request(t, repairs.Target{DashboardIDs: []pgtype.UUID{id}})
-	if len(out.Queued) != 0 || reasons(out)[id.String()] != repairs.ReasonQueueFull {
-		t.Fatalf("outcome %+v, want queue_full", out)
+	if len(out.Queued) != 1 {
+		t.Fatalf("outcome %+v with 25 repairs in flight, want the dashboard queued", out)
 	}
 	theirs, err := r.svc.Request(reading(t.Context()), r.other, repairs.Target{DashboardIDs: []pgtype.UUID{id}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(theirs.Queued) != 1 {
-		t.Errorf("another requester's outcome %+v, want queued", theirs)
+	if len(theirs.Queued) != 0 || reasons(theirs)[id.String()] != repairs.ReasonActive {
+		t.Errorf("another requester's outcome %+v, want the dashboard skipped as active", theirs)
 	}
 }
 

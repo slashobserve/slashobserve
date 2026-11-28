@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { WireFrame } from "@/dashboards/queries"
+import { defined } from "@/panels/must"
 import type { ResolvedLink } from "../field-config"
 
 import type { ActionContext } from "./actions"
@@ -70,6 +71,7 @@ describe("fieldActions", () => {
       { actions: [restart], actionsOverride: 2 },
       scope
     )
+    defined(parsed)
     expect(parsed.fields).toEqual({ pod: "checkout-1" })
     expect(parsed.override).toBe(2)
     expect(parsed.title).toBe("Restart")
@@ -80,6 +82,7 @@ describe("fieldActions", () => {
       { actions: [restart], actionsOverride: null },
       { vars: {} }
     )
+    defined(parsed)
     expect(parsed.fields).toEqual({})
     expect(parsed.override).toBeNull()
   })

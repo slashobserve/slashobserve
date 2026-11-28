@@ -3,12 +3,13 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"flag"
+	"os"
 	"regexp"
 	"slices"
 	"strings"
 	"testing"
 
-	"github.com/slashobserve/slashobserve/internal/agent/prompts"
 	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/auth"
 )
@@ -23,24 +24,87 @@ func offeredNames(r *Registry, run Run) []string {
 	return names
 }
 
-func TestEachTaskTypeOffersItsOwnTools(t *testing.T) {
-	want := map[route.Task]string{
-		route.Measure:   "call_mcp_tool,find_mcp_tools,list_label_values,list_labels,list_mcp_sources,list_metrics,list_more_tools,list_services,measure_aggregate,measure_window,note_hypotheses,query_instant,query_range,save_finding",
-		route.Logs:      "call_mcp_tool,find_mcp_tools,list_label_values,list_labels,list_mcp_sources,list_metrics,list_more_tools,list_services,log_context,log_facets,log_patterns,measure_aggregate,note_hypotheses,query_range,sample_rows,save_finding",
-		route.Traces:    "call_mcp_tool,compare_traces,find_mcp_tools,get_trace,list_label_values,list_labels,list_mcp_sources,list_metrics,list_more_tools,list_services,logs_for_trace,note_hypotheses,save_finding,trace_error_origins,trace_slow_path,trace_stats",
-		route.Incident:  "call_mcp_tool,find_mcp_tools,get_trace,list_annotations,list_label_values,list_labels,list_mcp_sources,list_metrics,list_more_tools,list_services,log_patterns,measure_window,note_hypotheses,query_range,save_finding,trace_error_origins,trace_slow_path,trace_stats",
-		route.Inventory: "call_mcp_tool,find_mcp_tools,list_dashboards,list_datasources,list_label_values,list_labels,list_mcp_sources,list_metrics,list_more_tools,list_observations,list_services,note_hypotheses,save_finding,search_workspace",
-		route.Explain:   "call_mcp_tool,find_mcp_tools,get_dashboard,get_observation,get_panels,get_spec_guide,list_dashboards,list_label_values,list_labels,list_mcp_sources,list_metrics,list_more_tools,list_services,note_hypotheses,query_range,save_finding,search_workspace",
+const taskToolsFixture = "../../../spec/examples/agent/route/task-tools.json"
+
+var updateTaskTools = flag.Bool("update", false, "rewrite spec/examples/agent/route/task-tools.json")
+
+type taskToolsCase struct {
+	Task    route.Task `json:"task"`
+	Subject struct {
+		Dashboard   bool `json:"dashboard"`
+		Observation bool `json:"observation"`
+	} `json:"subject"`
+	Want []string `json:"want"`
+}
+
+type taskToolsCases struct {
+	All   []string        `json:"all"`
+	Cases []taskToolsCase `json:"cases"`
+}
+
+func (c taskToolsCase) run() Run {
+	run := Run{Mode: ModeInvestigate, Investigation: true, Task: c.Task}
+	if c.Subject.Dashboard {
+		run.DashboardID = "d"
 	}
-	r := New(Deps{LedgerTool: true})
-	for _, task := range route.Tasks {
-		got := offeredNames(r, Run{Mode: ModeInvestigate, Investigation: true, Task: task})
-		slices.Sort(got)
-		if strings.Join(got, ",") != want[task] {
-			t.Errorf("%s offers %s", task, strings.Join(got, ","))
+	if c.Subject.Observation {
+		run.Observations = []string{"o"}
+	}
+	return run
+}
+
+func currentTaskTools(r *Registry) taskToolsCases {
+	var out taskToolsCases
+	for _, tool := range r.List() {
+		if tool.OfferedInMode(Run{Mode: ModeInvestigate, Investigation: true}) {
+			out.All = append(out.All, tool.Name)
 		}
-		if len(got) < 8 || len(got) > 18 {
-			t.Errorf("%s offers %d tools", task, len(got))
+	}
+	for _, task := range append([]route.Task{route.Full}, route.Tasks...) {
+		for _, subject := range []bool{false, true} {
+			c := taskToolsCase{Task: task}
+			c.Subject.Dashboard, c.Subject.Observation = subject, subject
+			c.Want = offeredNames(r, c.run())
+			out.Cases = append(out.Cases, c)
+		}
+	}
+	return out
+}
+
+func TestEachTaskTypeOffersItsOwnTools(t *testing.T) {
+	r := New(Deps{LedgerTool: true})
+	if *updateTaskTools {
+		body, err := json.MarshalIndent(currentTaskTools(r), "", "  ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(taskToolsFixture, append(body, '\n'), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	data, err := os.ReadFile(taskToolsFixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want taskToolsCases
+	if err := json.Unmarshal(data, &want); err != nil {
+		t.Fatal(err)
+	}
+	got := currentTaskTools(r)
+	if !slices.Equal(got.All, want.All) {
+		t.Errorf("an investigate run offers %s", strings.Join(got.All, ","))
+	}
+	if len(want.Cases) != len(got.Cases) {
+		t.Fatalf("the fixture has %d cases, want %d", len(want.Cases), len(got.Cases))
+	}
+	for _, c := range want.Cases {
+		names := offeredNames(r, c.run())
+		if !slices.Equal(names, c.Want) {
+			t.Errorf("%s (subject %v) offers %s", c.Task.Name(), c.Subject.Dashboard, strings.Join(names, ","))
+		}
+		if c.Task != route.Full && !c.Subject.Dashboard && (len(names) < 8 || len(names) > 18) {
+			t.Errorf("%s offers %d tools", c.Task.Name(), len(names))
 		}
 	}
 }
@@ -51,7 +115,8 @@ func TestEveryToolATaskPromptNamesIsInThatTasksSet(t *testing.T) {
 	for _, task := range route.Tasks {
 		run := Run{Mode: ModeInvestigate, Investigation: true, Task: task, DashboardID: "d", Observations: []string{"o"}}
 		offered := offeredNames(r, run)
-		for _, word := range words.FindAllString(prompts.InvestigateBody(prompts.Variant{Task: task, Ledger: true}), -1) {
+		text := runText(t, "investigate.md") + runText(t, "playbook/"+string(task)+".md") + runText(t, "ledger.md")
+		for _, word := range words.FindAllString(text, -1) {
 			if _, isTool := r.entries[word]; isTool && !slices.Contains(offered, word) {
 				t.Errorf("the %s prompt names %s, which the task does not offer", task, word)
 			}
@@ -147,4 +212,18 @@ func TestListMoreToolsWidensTheRun(t *testing.T) {
 			t.Fatalf("a widened run still refuses log_patterns: %+v", res)
 		}
 	}
+}
+
+func runText(t *testing.T, name string) string {
+	t.Helper()
+	root, err := os.OpenRoot("../prompts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = root.Close() }()
+	text, err := root.ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(text)
 }

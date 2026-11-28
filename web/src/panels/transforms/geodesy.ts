@@ -29,6 +29,7 @@ export function polygonAreaSquareMeters(corners: readonly GeoPoint[]): number {
   let sum = 0
   corners.forEach((a, index) => {
     const b = corners[(index + 1) % corners.length]
+    if (b === undefined) return
     sum +=
       (b.lon - a.lon) *
       radians *

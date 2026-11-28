@@ -9,6 +9,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query"
 import { RefreshCwIcon, TimerIcon } from "lucide-react"
 
+import { loadProblemText } from "@/api/errors"
 import { publicKeys } from "@/api/keys"
 import { Wordmark } from "@/components/brand/wordmark"
 import { LoadProblem } from "@/components/load-problem"
@@ -36,7 +37,6 @@ import { VariablesBar } from "@/dashboards/variables-bar"
 import { DatasourceListProvider } from "@/datasources/queries"
 import { displayZone, refreshToMs } from "@/lib/time"
 import { createSharedCursor } from "@/panels/shared-cursor"
-import { loadProblemText } from "@/service-accounts/queries"
 import { ThemeSwitch } from "@/shell/theme-switch"
 import { isDataPanel, sourcePanelOf } from "@/spec"
 
@@ -93,9 +93,9 @@ export function PublicPage({
   const { states, selections, values, ready, blocking, select } = useVariables({
     source,
     variables,
-    from: search.from,
-    to: search.to,
-    timezone: spec.timezone,
+    ...(search.from === undefined ? {} : { from: search.from }),
+    ...(search.to === undefined ? {} : { to: search.to }),
+    ...(spec.timezone === undefined ? {} : { timezone: spec.timezone }),
     urlVars,
     setUrlVars,
   })
@@ -157,7 +157,7 @@ export function PublicPage({
                   onSearchChange((state) => ({ ...state, ...next }))
                 }
                 quickRanges={pickerQuickRanges(spec)}
-                zone={displayZone(undefined, spec.timezone)}
+                {...zoneProp(displayZone(undefined, spec.timezone))}
               />
             )}
             <Button
@@ -322,4 +322,8 @@ export function PublicLoadError({
       />
     </main>
   )
+}
+
+function zoneProp(zone: string | undefined): { zone?: string } {
+  return zone === undefined ? {} : { zone }
 }

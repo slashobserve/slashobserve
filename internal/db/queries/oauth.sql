@@ -35,17 +35,17 @@ SELECT pg_advisory_xact_lock(hashtextextended('oauth_user:' || CAST(@user_id::uu
 
 -- name: CountOAuthSlots :one
 SELECT ((SELECT count(*) FROM oauth_grants g
-        WHERE g.user_id = @user_id AND g.revoked_at IS NULL AND g.expires_at > now())
+        WHERE g.user_id = @user_id AND oauth_grant_live(g))
      + (SELECT count(DISTINCT c.client_id) FROM oauth_codes c
         WHERE c.user_id = @user_id AND c.used_at IS NULL AND c.expires_at > now()
           AND NOT EXISTS (SELECT 1 FROM oauth_grants g
                           WHERE g.client_id = c.client_id AND g.user_id = c.user_id
-                            AND g.revoked_at IS NULL AND g.expires_at > now())))::bigint AS slots;
+                            AND oauth_grant_live(g))))::bigint AS slots;
 
 -- name: HoldsOAuthSlot :one
 SELECT (EXISTS (
   SELECT 1 FROM oauth_grants g
-  WHERE g.client_id = @client_id AND g.user_id = @user_id AND g.revoked_at IS NULL AND g.expires_at > now()
+  WHERE g.client_id = @client_id AND g.user_id = @user_id AND oauth_grant_live(g)
 ) OR EXISTS (
   SELECT 1 FROM oauth_codes c
   WHERE c.client_id = @client_id AND c.user_id = @user_id AND c.used_at IS NULL AND c.expires_at > now()
@@ -54,7 +54,7 @@ SELECT (EXISTS (
 -- name: HasLiveOAuthGrant :one
 SELECT EXISTS (
   SELECT 1 FROM oauth_grants
-  WHERE client_id = @client_id AND user_id = @user_id AND revoked_at IS NULL AND expires_at > now()
+  WHERE client_id = @client_id AND user_id = @user_id AND oauth_grant_live(oauth_grants)
 );
 
 -- name: CreateOAuthCode :exec
@@ -106,8 +106,7 @@ JOIN oauth_clients c ON c.id = g.client_id
 WHERE t.token_hash = @token_hash
   AND t.kind = 'access'
   AND t.expires_at > now()
-  AND g.revoked_at IS NULL
-  AND g.expires_at > now()
+  AND oauth_grant_live(g)
   AND g.resource = @resource;
 
 -- name: TouchOAuthGrant :exec
@@ -151,7 +150,7 @@ JOIN oauth_clients c ON c.id = g.client_id
 JOIN users u ON u.id = g.user_id
 LEFT JOIN agent_workers w ON w.id = 'grant:' || g.id::text
 WHERE g.user_id = @user_id
-  AND (@include_ended::boolean OR (g.revoked_at IS NULL AND g.expires_at > now()))
+  AND (@include_ended::boolean OR oauth_grant_live(g))
   AND (sqlc.narg('before_created')::timestamptz IS NULL
        OR (g.created_at, g.id) < (sqlc.narg('before_created')::timestamptz, sqlc.narg('before_id')::uuid))
 ORDER BY g.created_at DESC, g.id DESC
@@ -160,7 +159,7 @@ LIMIT @lim;
 -- name: SetMyOAuthGrantMode :one
 WITH g AS (
   UPDATE oauth_grants og SET mode = @mode
-  WHERE og.id = @id AND og.user_id = @user_id AND og.revoked_at IS NULL AND og.expires_at > now()
+  WHERE og.id = @id AND og.user_id = @user_id AND oauth_grant_live(og)
   RETURNING og.*
 )
 SELECT g.id, g.client_id, c.name AS client_name, c.redirect_uris AS client_redirect_uris,
@@ -193,7 +192,7 @@ FROM oauth_grants g
 JOIN oauth_clients c ON c.id = g.client_id
 JOIN users u ON u.id = g.user_id
 LEFT JOIN agent_workers w ON w.id = 'grant:' || g.id::text
-WHERE (@include_ended::boolean OR (g.revoked_at IS NULL AND g.expires_at > now()))
+WHERE (@include_ended::boolean OR oauth_grant_live(g))
   AND (sqlc.narg('before_created')::timestamptz IS NULL
        OR (g.created_at, g.id) < (sqlc.narg('before_created')::timestamptz, sqlc.narg('before_id')::uuid))
 ORDER BY g.created_at DESC, g.id DESC

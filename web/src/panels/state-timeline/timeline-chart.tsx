@@ -240,8 +240,8 @@ function Tooltip({
   y: number
   width: number
   height: number
-  maxWidth?: number
-  maxHeight?: number
+  maxWidth?: number | undefined
+  maxHeight?: number | undefined
 }) {
   const onRight = x > width / 2
   const estimate = entries
@@ -324,7 +324,7 @@ export function TimelineChart({
   cursor: SharedCursor
   stateKey: string
   zone: string | undefined
-  annotations?: readonly Annotation[]
+  annotations?: readonly Annotation[] | undefined
 }) {
   const { resolved: theme } = useTheme()
   const [hover, setHover] = useState<Hover | null>(null)
@@ -451,13 +451,14 @@ export function TimelineChart({
       setHover(null)
       return
     }
+    const target = shown.rows[row]
     const listed =
       options.tooltip === "all"
         ? tooltipEntries(shown.rows, at, {
             sort: options.tooltipSort,
             hideZeros: options.tooltipHideZeros,
           }).entries.length > 0
-        : singleTooltipSegment(shown.rows[row], at) !== null
+        : target !== undefined && singleTooltipSegment(target, at) !== null
     setHover(listed ? { row, at, x, y } : null)
   }
 

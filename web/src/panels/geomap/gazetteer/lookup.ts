@@ -50,6 +50,7 @@ function ringCentroid(ring: readonly Position[]): Ring | null {
   let sumY = 0
   points.forEach((a, index) => {
     const b = points[(index + 1) % points.length]
+    if (b === undefined) return
     const cross = a.x * b.y - b.x * a.y
     twiceArea += cross
     sumX += (a.x + b.x) * cross

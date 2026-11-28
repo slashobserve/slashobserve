@@ -45,7 +45,7 @@ export function nextMode(
       (candidate !== "builder" || builderCanShow)
   )
   const index = available.indexOf(mode)
-  return available[(index + 1) % available.length]
+  return available[(index + 1) % available.length] ?? mode
 }
 
 function readStoredMode(): InputMode | null {

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import { groupingToMatrix } from "./grouping-to-matrix"
 import type { PreparedFrame } from "./names"
 
@@ -19,6 +21,7 @@ function columns(frame: PreparedFrame): unknown[][] {
 describe("groupingToMatrix", () => {
   it("turns the first three fields into a matrix of column, row and value", () => {
     const [out] = groupingToMatrix([table], { type: "groupingToMatrix" })
+    defined(out)
     expect(out.fields.map((field) => field.name)).toEqual([
       "service\\host",
       "h1",
@@ -43,6 +46,7 @@ describe("groupingToMatrix", () => {
       row: "host",
       value: "count",
     })
+    defined(out)
     expect(out.fields.map((field) => field.name)).toEqual([
       "host\\service",
       "web",
@@ -62,8 +66,9 @@ describe("groupingToMatrix", () => {
     ["false", false, "other"],
   ] as const)("fills empty cells for %s", (empty, filled, type) => {
     const [out] = groupingToMatrix([table], { type: "groupingToMatrix", empty })
-    expect(out.fields[2].values).toEqual([3, filled])
-    expect(out.fields[2].type).toBe(type)
+    defined(out)
+    expect(must(out.fields[2]).values).toEqual([3, filled])
+    expect(must(out.fields[2]).type).toBe(type)
   })
 
   it("leaves a frame alone when a named field is missing or it has too few fields", () => {

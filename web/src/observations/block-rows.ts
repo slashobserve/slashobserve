@@ -69,7 +69,10 @@ export function packRows<T extends { width: BlockWidth }>(
 
 export function blockRows(blocks: readonly Block[]): BlockRow[] {
   const sorted = blocks.toSorted((a, b) => a.position - b.position)
-  return packRows(sorted).map((row) => ({ key: row[0].id, blocks: row }))
+  return packRows(sorted).flatMap((row) => {
+    const [first] = row
+    return first === undefined ? [] : [{ key: first.id, blocks: row }]
+  })
 }
 
 function defaultBlockHeight(width: BlockWidth): number {
@@ -109,7 +112,9 @@ export function snapWidth(pixels: number, rowPixels: number): BlockWidth {
 
 export function stepWidth(width: BlockWidth, direction: -1 | 1): BlockWidth {
   const index = widthSteps.indexOf(width) + direction
-  return widthSteps[Math.min(widthSteps.length - 1, Math.max(0, index))]
+  return (
+    widthSteps[Math.min(widthSteps.length - 1, Math.max(0, index))] ?? width
+  )
 }
 
 export function stepHeight(pixels: number, direction: -1 | 1): number {

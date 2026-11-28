@@ -282,11 +282,13 @@ describe("row children", () => {
       )
     )
     const row = moved.panels[1]
-    expect(row.type === "row" ? row.panels?.[0].gridPos : undefined).toEqual({
-      x: 6,
-      y: 5,
-      w: 6,
-      h: 4,
-    })
+    expect(row?.type === "row" ? row?.panels?.[0]?.gridPos : undefined).toEqual(
+      {
+        x: 6,
+        y: 5,
+        w: 6,
+        h: 4,
+      }
+    )
   })
 })

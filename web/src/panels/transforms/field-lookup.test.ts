@@ -1,5 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest"
 
+import { defined } from "@/panels/must"
+
 import { buildGazetteer, type Gazetteers } from "../geomap/gazetteer/lookup"
 import { atlasFeatures } from "../geomap/world"
 import { fieldLookup } from "./field-lookup"
@@ -39,6 +41,7 @@ describe("fieldLookup", () => {
       { type: "fieldLookup", lookupField: "place" },
       gazetteers
     )
+    defined(out)
     expect(out.fields.map((field) => field.name)).toEqual([
       "requests",
       "place",
@@ -61,6 +64,7 @@ describe("fieldLookup", () => {
       { type: "fieldLookup" },
       gazetteers
     )
+    defined(out)
     const lon = values(out, "lon")[0] as number
     expect(lon).toBeGreaterThan(122)
     expect(lon).toBeLessThan(146)
@@ -72,6 +76,7 @@ describe("fieldLookup", () => {
       { type: "fieldLookup", gazetteer: "usa-states" },
       gazetteers
     )
+    defined(out)
     const lat = values(out, "lat") as number[]
     expect(lat[0]).toBeGreaterThan(32.5)
     expect(lat[0]).toBeLessThan(42)
@@ -82,6 +87,7 @@ describe("fieldLookup", () => {
   it("changes nothing while the gazetteer loads or when the named field is absent", () => {
     const frame = table(["France"])
     const [pending] = fieldLookup([frame], { type: "fieldLookup" }, {})
+    defined(pending)
     expect(pending.fields).toEqual(frame.fields)
     expect(pending).not.toBe(frame)
     const [absent] = fieldLookup(
@@ -89,6 +95,7 @@ describe("fieldLookup", () => {
       { type: "fieldLookup", lookupField: "city" },
       gazetteers
     )
+    defined(absent)
     expect(absent.fields).toEqual(frame.fields)
   })
 

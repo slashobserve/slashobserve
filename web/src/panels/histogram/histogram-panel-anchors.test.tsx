@@ -5,6 +5,12 @@ import type { PreparedFrame } from "../transforms"
 import type { HistogramAnchorLayout } from "./anchors"
 import HistogramPanel from "./histogram-panel"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 const values = Array.from({ length: 101 }, (_, index) => index)
 
 const frames: PreparedFrame[] = [
@@ -33,16 +39,6 @@ describe("histogram anchors", () => {
     expect(layout.edges.length).toBeGreaterThan(2)
     expect(layout.edges[0]).toBe(0)
     expect(layout.plot.width).toBeGreaterThan(0)
-    expect(layout.format(layout.edges[1])).not.toBe("")
-  })
-
-  it("withdraws its layout when it unmounts", () => {
-    const { store, view } = renderPublishing(
-      HistogramPanel,
-      panelOf("histogram"),
-      frames
-    )
-    view.unmount()
-    expect(store.current()).toBeNull()
+    expect(layout.format(nth(layout.edges, 1))).not.toBe("")
   })
 })

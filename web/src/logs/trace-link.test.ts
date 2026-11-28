@@ -85,7 +85,12 @@ function datasource(uid: string, type: string): DatasourceStatus {
 }
 
 describe("traceDatasourceFor", () => {
-  const all = [
+  const all: [
+    DatasourceStatus,
+    DatasourceStatus,
+    DatasourceStatus,
+    DatasourceStatus,
+  ] = [
     datasource("loki", "loki"),
     datasource("tempo-a", "tempo"),
     datasource("tempo-b", "tempo"),

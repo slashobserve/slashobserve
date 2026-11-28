@@ -12,7 +12,7 @@ It is an ordinary provisioned dashboard titled SlashObserve internals, in the fo
 1. Make sure a datasource with uid `prom` is a Prometheus that scrapes the server's `/metrics`.
    [Scrape it](metrics.md#scrape-it) shows the scrape job.
 2. Put `internals.json` in a `SlashObserve` directory of the server's [provisioning directory](provisioning.md).
-   Copy it from `deploy/compose/dashboards/SlashObserve/internals.json`.
+   Copy it from `deploy/helm/slashobserve/dashboards/SlashObserve/internals.json`.
    On Kubernetes, the Helm chart does this for you; see [Add it with the Helm chart](#add-it-with-the-helm-chart).
 3. Wait for the first scrapes.
    The dashboard appears in the folder SlashObserve within a minute or two of the first scrape.
@@ -26,14 +26,13 @@ An edit made in the app is replaced the next time the file changes, and stays in
 
 ## Add it with the Helm chart
 
-The Helm chart carries its own copy of the file and mounts it as the folder `SlashObserve` while `provisioning.internals` is `true`, which is the default.
+The Helm chart holds the file, the one copy in the repository, and mounts it as the folder `SlashObserve` while `provisioning.internals` is `true`, which is the default.
 See [Run on Kubernetes](kubernetes.md).
 Add a datasource with uid `prom` under `datasources` that points at a Prometheus scraping the pod.
-`make lint` fails when the chart's copy differs from the compose copy.
 
 ## Look at the dashboard in the replicas stack
 
-The replicas stack of the repository's load test mounts `deploy/compose/dashboards/SlashObserve` as its provisioning directory.
+The replicas stack of the repository's load test mounts the chart's `deploy/helm/slashobserve/dashboards/SlashObserve` as its provisioning directory.
 Its Prometheus scrapes both servers as the `slashobserve` job behind the `prom` datasource.
 The [demo](demo.md) does not provision the dashboard, because its Prometheus does not scrape the server.
 

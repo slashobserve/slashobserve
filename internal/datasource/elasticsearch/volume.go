@@ -26,7 +26,7 @@ func (d *Datasource) LogVolume(ctx context.Context, req datasource.VolumeRequest
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "step must be a whole number of seconds")
 	}
 	lim := d.opts.Limits.Tighten(req.Query.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	counted := req.CountedRange()
 	prep, err := d.prepare(ctx, req.Query, counted, req.Step, lim)
@@ -113,7 +113,7 @@ func (d *Datasource) foldVolume(raw []byte, req datasource.VolumeRequest) (*logv
 	}
 	var volume volumeResponse
 	if err := json.Unmarshal(tree, &volume); err != nil {
-		return nil, unreadable()
+		return nil, datasource.Unreadable()
 	}
 	for _, bucket := range volume.Buckets {
 		start := time.UnixMilli(int64(bucket.Key)).UTC()

@@ -1,0 +1,163 @@
+{
+  "name": "investigate-triage-ledger-facts",
+  "brief": {
+    "request": {
+      "mode": "investigate",
+      "source": "investigate",
+      "prompt": "why did checkout fail at 10:05?",
+      "panel_id": null,
+      "from": "2026-11-25T08:00:00Z",
+      "to": "2026-11-25T10:30:00Z",
+      "time_zone": "Europe/Paris",
+      "zone": {
+        "label": "CET",
+        "offset_seconds": 3600
+      },
+      "as_of": null,
+      "continue_note": null,
+      "thread_context": null,
+      "continues": false,
+      "attempt": 1,
+      "investigation": true,
+      "pointer": {
+        "anchor": null,
+        "block_id": null,
+        "observation_id": null,
+        "thread_ask": false
+      }
+    },
+    "current": null,
+    "build": null,
+    "datasources": [
+      {
+        "uid": "tempo",
+        "type": "tempo",
+        "name": "",
+        "source": "",
+        "healthy": true,
+        "checked_at": "0001-01-01T00:00:00Z",
+        "health_state": "",
+        "everyone": true
+      },
+      {
+        "uid": "prom",
+        "type": "prometheus",
+        "name": "",
+        "source": "",
+        "healthy": true,
+        "checked_at": "0001-01-01T00:00:00Z",
+        "health_state": "",
+        "everyone": true
+      },
+      {
+        "uid": "ch",
+        "type": "clickhouse",
+        "name": "",
+        "source": "",
+        "spans": "otel",
+        "healthy": true,
+        "checked_at": "0001-01-01T00:00:00Z",
+        "health_state": "",
+        "everyone": false
+      },
+      {
+        "uid": "loki",
+        "type": "loki",
+        "name": "",
+        "source": "",
+        "healthy": false,
+        "message": "connection refused",
+        "checked_at": "0001-01-01T00:00:00Z",
+        "health_state": "",
+        "everyone": false
+      },
+      {
+        "uid": "jaeger",
+        "type": "jaeger",
+        "name": "",
+        "source": "",
+        "healthy": true,
+        "checked_at": "0001-01-01T00:00:00Z",
+        "health_state": "",
+        "everyone": false
+      },
+      {
+        "uid": "es",
+        "type": "elasticsearch",
+        "name": "",
+        "source": "",
+        "index": "logs-*",
+        "time_field": "@timestamp",
+        "healthy": true,
+        "checked_at": "0001-01-01T00:00:00Z",
+        "health_state": "",
+        "everyone": false
+      }
+    ],
+    "withheld": false,
+    "guide": {
+      "text": "",
+      "schema": null
+    },
+    "draft": null
+  },
+  "reason": "",
+  "now": "2026-11-25T05:29:00Z",
+  "state": {
+    "task": "incident",
+    "loop": true,
+    "facts": true,
+    "ledger": [
+      {
+        "id": "pool",
+        "text": "The checkout pool is exhausted",
+        "status": "supported",
+        "closing": "cause",
+        "evidence": [
+          "pool_in_use 50 of 50 at 10:05",
+          "waiters 120"
+        ]
+      },
+      {
+        "id": "errors",
+        "text": "Frontend errors rose",
+        "status": "supported",
+        "closing": "knock_on",
+        "knock_on_of": "pool",
+        "evidence": [
+          "only on checkout calls"
+        ]
+      },
+      {
+        "id": "db",
+        "text": "The database is slow",
+        "status": "open",
+        "next": "read db latency"
+      }
+    ],
+    "triage": "<triage>\nA sweep of the datasources everyone can read, before your first call:\n- checkout errors 12% (was 0.4%) from 10:04\n</triage>",
+    "digest": [
+      {
+        "datasource": "prom",
+        "of": "metrics",
+        "names": [
+          "http_requests_total",
+          "http_request_duration_seconds_bucket"
+        ]
+      },
+      {
+        "datasource": "prom",
+        "of": "labels",
+        "names": [
+          "service",
+          "route",
+          "code"
+        ]
+      }
+    ]
+  },
+  "want": {
+    "context": "Configured datasources:\n- ch (clickhouse, spans: otel): healthy\n- es (elasticsearch): healthy\n- jaeger (jaeger): healthy\n- loki (loki): unhealthy\n- prom (prometheus): healthy\n- tempo (tempo): healthy\n\nInvestigate the question and save one finding.\nWindow: 2026-11-25T08:00:00Z to 2026-11-25T10:30:00Z\n\n<triage>\nA sweep of the datasources everyone can read, before your first call:\n- checkout errors 12% (was 0.4%) from 10:04\n</triage>\n\nTime zone: the person reads times in Europe/Paris, labelled CET. Tool results give UTC; write every time in the answer in Europe/Paris with its label, such as 14:05 CET, not in UTC. It is now 06:29 CET on 2026-11-25, which is 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\n<discovered>\nNames this run already found; use them without listing them again.\n- prom labels: service, route, code\n- prom metrics: http_requests_total, http_request_duration_seconds_bucket\n</discovered>\n\n<hypotheses>\nYour ledger so far; send the whole ledger with note_hypotheses when it changes, and do not repeat a read that ruled one out.\n- pool [supported, cause] The checkout pool is exhausted\n  evidence: pool_in_use 50 of 50 at 10:05\n  evidence: waiters 120\n- errors [supported, knock_on of pool] Frontend errors rose\n  evidence: only on checkout calls\n- db [open] The database is slow\n  next: read db latency\n</hypotheses>",
+    "user": "Configured datasources:\n- ch (clickhouse, spans: otel): healthy\n- es (elasticsearch): healthy\n- jaeger (jaeger): healthy\n- loki (loki): unhealthy\n- prom (prometheus): healthy\n- tempo (tempo): healthy\n\nInvestigate the question and save one finding.\nWindow: 2026-11-25T08:00:00Z to 2026-11-25T10:30:00Z\n\n<triage>\nA sweep of the datasources everyone can read, before your first call:\n- checkout errors 12% (was 0.4%) from 10:04\n</triage>\n\nTime zone: the person reads times in Europe/Paris, labelled CET. Tool results give UTC; write every time in the answer in Europe/Paris with its label, such as 14:05 CET, not in UTC. It is now 06:29 CET on 2026-11-25, which is 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\n<discovered>\nNames this run already found; use them without listing them again.\n- prom labels: service, route, code\n- prom metrics: http_requests_total, http_request_duration_seconds_bucket\n</discovered>\n\n<hypotheses>\nYour ledger so far; send the whole ledger with note_hypotheses when it changes, and do not repeat a read that ruled one out.\n- pool [supported, cause] The checkout pool is exhausted\n  evidence: pool_in_use 50 of 50 at 10:05\n  evidence: waiters 120\n- errors [supported, knock_on of pool] Frontend errors rose\n  evidence: only on checkout calls\n- db [open] The database is slow\n  next: read db latency\n</hypotheses>\n\n<request>\nwhy did checkout fail at 10:05?\n</request>"
+  }
+}

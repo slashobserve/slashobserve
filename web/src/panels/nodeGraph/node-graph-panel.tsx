@@ -522,8 +522,9 @@ function Graph({ nodes, edges, note, display, width, height }: GraphProps) {
           {edges.map((edge, index) => {
             const from = points.get(edge.source)
             const to = points.get(edge.target)
-            if (!from || !to) return null
-            const lit = hovered === null || strokes[index] === strongStroke
+            const stroke = strokes[index]
+            if (!from || !to || stroke === undefined) return null
+            const lit = hovered === null || stroke === strongStroke
             return (
               <EdgeView
                 key={edge.id}
@@ -531,8 +532,8 @@ function Graph({ nodes, edges, note, display, width, height }: GraphProps) {
                 from={from}
                 to={to}
                 shifted={pairs.has(`${edge.target}\n${edge.source}`)}
-                stroke={strokes[index]}
-                markerId={`${markerPrefix}-${markerColors.indexOf(strokes[index])}`}
+                stroke={stroke}
+                markerId={`${markerPrefix}-${markerColors.indexOf(stroke)}`}
                 dimmed={!lit}
                 onSelect={setSelection}
                 suppressed={suppressed}

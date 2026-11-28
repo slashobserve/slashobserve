@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { useNarrow } from "@/components/data-grid/use-narrow"
+import { useNarrow } from "@/lib/use-narrow"
 import { renderWithProviders } from "@/test/render"
 
 import { textWidthCh } from "@/components/data-grid/bar"
@@ -9,7 +9,7 @@ import { textWidthCh } from "@/components/data-grid/bar"
 import { TraceTable, traceColumns, traceGridColumn } from "./trace-table"
 import type { TraceRow } from "./trace-rows"
 
-vi.mock("@/components/data-grid/use-narrow", () => ({
+vi.mock("@/lib/use-narrow", () => ({
   useNarrow: vi.fn(() => false),
 }))
 

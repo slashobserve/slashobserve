@@ -5,11 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
-	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
@@ -25,6 +23,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -434,7 +433,7 @@ func (h *Handler) renderRun(ctx context.Context, req queryproxy.Request) (entry 
 		if capsSeries {
 			q.Frames, shown, all = queryproxy.CapSeries(q.Frames, queryproxy.MaxPanelSeries)
 		}
-		part, err := marshalFrames([]queryproxy.QueryResult{q})
+		part, err := queryproxy.MarshalFrames([]queryproxy.QueryResult{q})
 		if err != nil {
 			h.logger.ErrorContext(ctx, "convert panel frames", append([]any{slog.String("panel_id", req.PanelID)}, failureAttrs(err)...)...)
 			return errInternal
@@ -481,8 +480,7 @@ func (h *Handler) renderRun(ctx context.Context, req queryproxy.Request) (entry 
 func (h *Handler) logPanic(ctx context.Context, panelID string, p any) {
 	h.logger.ErrorContext(ctx, "query proxy panicked",
 		slog.String("panel_id", panelID),
-		slog.String("panic_type", fmt.Sprintf("%T", p)),
-		slog.String("stack", string(debug.Stack())))
+		slog.String("panic_type", fmt.Sprintf("%T", p)))
 }
 
 func cacheScope(ctx context.Context, v loadedVersion) (user datasource.QueryUser, scope string) {
@@ -640,7 +638,10 @@ func (h *Handler) lint(c *gin.Context) {
 		return
 	}
 	var req lintRequest
-	if status, code, msg := decodeLint(c, &req); status != 0 {
+	if !httpapi.DecodeBody(c, &req, maxLintBodyBytes) {
+		return
+	}
+	if status, code, msg := req.validate(); status != 0 {
 		abortError(c, status, code, msg)
 		return
 	}
@@ -676,18 +677,12 @@ func (h *Handler) datasourceFor(c *gin.Context) (datasource.Instance, bool) {
 }
 
 func (h *Handler) acquireUpstream(c *gin.Context, datasourceUID string) (release func(), ok bool) {
-	ctx, cancel := context.WithTimeout(c.Request.Context(), h.lintTimeout)
-	defer cancel()
-	release, err := h.runner.AcquireUpstream(ctx, datasourceUID)
-	switch {
-	case err == nil:
-		return release, true
-	case c.Request.Context().Err() == nil:
-		tooManyRequests(c)
-	default:
-		h.fail(c, c.Request.Context().Err())
+	release, err := h.runner.AcquireUpstreamBounded(c.Request.Context(), datasourceUID)
+	if err != nil {
+		h.fail(c, err)
+		return nil, false
 	}
-	return nil, false
+	return release, true
 }
 
 func (h *Handler) safeLint(ctx context.Context, inst datasource.Instance, text string) (diagnostics []datasource.Diagnostic, err error) {
@@ -695,35 +690,19 @@ func (h *Handler) safeLint(ctx context.Context, inst datasource.Instance, text s
 		if p := recover(); p != nil {
 			h.logger.ErrorContext(ctx, "datasource lint panicked",
 				slog.String("datasource", inst.UID),
-				slog.String("panic_type", fmt.Sprintf("%T", p)),
-				slog.String("stack", string(debug.Stack())))
+				slog.String("panic_type", fmt.Sprintf("%T", p)))
 			diagnostics, err = nil, errInternal
 		}
 	}()
 	return inst.Datasource.Lint(ctx, text)
 }
 
-func decodeLint(c *gin.Context, req *lintRequest) (status int, code, message string) {
-	invalid := string(queryproxy.CodeInvalidRequest)
-	dec := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, maxLintBodyBytes))
-	dec.DisallowUnknownFields()
-	err := dec.Decode(req)
-	if err == nil {
-		if _, err = dec.Token(); !errors.Is(err, io.EOF) {
-			return http.StatusBadRequest, invalid, "request body must be a single JSON object"
-		}
-	} else {
-		var tooLarge *http.MaxBytesError
-		if errors.As(err, &tooLarge) {
-			return http.StatusRequestEntityTooLarge, "too_large", "request body is too large"
-		}
-		return http.StatusBadRequest, invalid, "request body must be valid JSON with known fields"
-	}
-	if req.Query != nil && len(*req.Query) > maxLintQueryBytes {
+func (r lintRequest) validate() (status int, code, message string) {
+	switch {
+	case r.Query != nil && len(*r.Query) > maxLintQueryBytes:
 		return http.StatusBadRequest, string(queryproxy.CodeQueryTooLong), "query must be at most 64 KiB"
-	}
-	if req.Query == nil || len(*req.Query) == 0 {
-		return http.StatusBadRequest, invalid, "query must be from 1 byte to 64 KiB"
+	case r.Query == nil || len(*r.Query) == 0:
+		return http.StatusBadRequest, string(queryproxy.CodeInvalidRequest), "query must be from 1 byte to 64 KiB"
 	}
 	return 0, "", ""
 }
@@ -779,10 +758,18 @@ func (h *Handler) fail(c *gin.Context, err error) {
 	}
 	var qe *queryproxy.QueryError
 	if errors.As(err, &qe) {
-		c.AbortWithStatusJSON(status, gin.H{"error": message, "code": code, "ref": qe.Ref})
+		abortJSON(c, status, gin.H{"error": message, "code": code, "ref": qe.Ref})
 		return
 	}
 	abortError(c, status, code, message)
+}
+
+func (h *Handler) tooLarge(c *gin.Context, size int) bool {
+	if size <= maxResponseBytes {
+		return false
+	}
+	h.fail(c, errTooLarge)
+	return true
 }
 
 func (h *Handler) readQuery(c *gin.Context) (url.Values, bool) {
@@ -812,7 +799,6 @@ func (h *Handler) acquireKey(c *gin.Context, key string) (release func(), ok boo
 }
 
 func tooManyRequests(c *gin.Context) {
-	c.Header("Retry-After", "1")
 	abortError(c, http.StatusTooManyRequests, "too_many_requests", "too many in-flight query requests")
 }
 
@@ -821,7 +807,14 @@ func forbidQuery(c *gin.Context) {
 }
 
 func abortError(c *gin.Context, status int, code, message string) {
-	c.AbortWithStatusJSON(status, gin.H{"error": message, "code": code})
+	abortJSON(c, status, gin.H{"error": message, "code": code})
+}
+
+func abortJSON(c *gin.Context, status int, body any) {
+	if status == http.StatusTooManyRequests {
+		c.Header("Retry-After", "1")
+	}
+	c.AbortWithStatusJSON(status, body)
 }
 
 func address(c *gin.Context) (id pgtype.UUID, version int, err error) {

@@ -9,10 +9,10 @@ export type AuditView = {
 }
 
 export type AuditSearch = {
-  q?: string
-  from?: string
-  to?: string
-  event?: string
+  q?: string | undefined
+  from?: string | undefined
+  to?: string | undefined
+  event?: string | undefined
 }
 
 export const defaultFrom = "now-24h"

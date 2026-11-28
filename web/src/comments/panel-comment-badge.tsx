@@ -1,5 +1,6 @@
 import { MessageSquareIcon } from "lucide-react"
 
+import { withoutKeys } from "@/lib/without-keys"
 import { useActivityStore } from "@/activity/activity-store"
 import { Button } from "@/components/ui/button"
 import { useSetDashboardSearch } from "@/dashboards/search"
@@ -22,7 +23,10 @@ export function PanelCommentBadge({ panelId, title, count, disabled }: Props) {
       aria-label={`${count} open ${count === 1 ? "comment" : "comments"} on ${title}`}
       onClick={() => {
         useActivityStore.getState().setOpen(true)
-        setSearch((state) => ({ ...state, panel: panelId, edit: undefined }))
+        setSearch((state) => ({
+          ...withoutKeys(state, ["edit"]),
+          panel: panelId,
+        }))
       }}
     >
       <MessageSquareIcon aria-hidden="true" className="size-3" />

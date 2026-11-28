@@ -19,6 +19,7 @@ import {
   toWire,
   typedMentionEnd,
 } from "./mentions"
+import { must } from "@/test/must"
 
 const adaId = "7f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f"
 const adaToken = `@[Ada](user:${adaId})`
@@ -144,7 +145,7 @@ describe("mentionName", () => {
 
   it("uses the name the server recorded, not the one typed in the token", () => {
     const [segment] = mentionSegments(`@[Admin](user:${adaId})`)
-    if (segment.kind !== "mention") throw new Error("expected a mention")
+    if (segment?.kind !== "mention") throw new Error("expected a mention")
     expect(mentionName(segment, recorded)).toBe("Ada Lovelace")
   })
 
@@ -152,7 +153,7 @@ describe("mentionName", () => {
     const [segment] = mentionSegments(
       "@[Ghost](user:00000000-0000-0000-0000-000000000000)"
     )
-    if (segment.kind !== "mention") throw new Error("expected a mention")
+    if (segment?.kind !== "mention") throw new Error("expected a mention")
     expect(mentionName(segment, recorded)).toBeNull()
   })
 })
@@ -286,7 +287,7 @@ describe("mentionOptions", () => {
       agent: true,
     })
     expect(options[3]).toMatchObject({ token: adaToken, hint: null })
-    expect(options[4].label).toBe("Unnamed")
+    expect(must(options[4]).label).toBe("Unnamed")
   })
 })
 
@@ -346,7 +347,7 @@ function typeThrough(text: string, matching: (query: string) => number) {
       value,
       trigger,
       caret: value.length,
-      matching: matching(query.split(/\s/)[0]),
+      matching: matching(must(query.split(/\s/)[0])),
       searching: false,
     })
     if (!step.open) return { value, step, closedAt: value.length }

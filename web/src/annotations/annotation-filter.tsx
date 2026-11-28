@@ -1,6 +1,7 @@
 import { useMatch } from "@tanstack/react-router"
 import { ChevronDownIcon } from "lucide-react"
 
+import { withoutKeys } from "@/lib/without-keys"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -32,7 +33,10 @@ function TagMenu({ dashboardId }: { dashboardId: string }) {
   const choices = [...known, ...selected.filter((tag) => !known.includes(tag))]
   const apply = (tags: string[]) =>
     setSearch(
-      (state) => ({ ...state, ann: tags.length === 0 ? undefined : tags }),
+      (state) =>
+        tags.length === 0
+          ? withoutKeys(state, ["ann"])
+          : { ...state, ann: tags },
       { replace: true }
     )
   const toggle = (tag: string, checked: boolean) =>

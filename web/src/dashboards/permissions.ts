@@ -7,7 +7,7 @@ import { latestDashboardQuery, type DashboardEnvelope } from "./queries"
 export type DashboardPermissions = components["schemas"]["Permissions"]
 export type DashboardAccess = Pick<
   components["schemas"]["DashboardSummary"],
-  "folder" | "permissions" | "provisioned"
+  "folder" | "permissions" | "can_delete" | "can_annotate" | "provisioned"
 >
 const noPermissions: DashboardPermissions = {
   comment: false,
@@ -25,13 +25,6 @@ export function contentChange(
   if (p.edit) return "edit"
   if (p.comment) return "propose"
   return "none"
-}
-
-export function mayEditBesidesContent(
-  p: Pick<DashboardPermissions, "edit">,
-  provisioned: boolean
-): boolean {
-  return p.edit || provisioned
 }
 
 export const starterNote =

@@ -184,6 +184,38 @@ func TestWithdrawingAnObservationAnswerMakesItPrivateAgainAndKeepsTheBlocksItWro
 	}
 }
 
+func TestAnAnswerSavedAfterItsShareStaysInTheObservationWhenTheShareIsWithdrawn(t *testing.T) {
+	r := newShareRig(t)
+	observation := r.filedObservationIn(t, testUser, pgtype.UUID{})
+	id := observation.String()
+	run := r.privateAnswer(t, revisions.StartRequest{ObservationID: &id}, "prom", "")
+	shared, err := r.service.ShareRun(reading(t.Context()), testUser, ShareInput{RunID: run})
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved, outcome, err := r.findings.SaveAsObservation(reading(t.Context()), testUser, run)
+	if err != nil || outcome != findings.SaveKept || saved.ObservationID != id {
+		t.Fatalf("save of the shown answer: observation %q, outcome %s, %v; want it kept in %s", saved.ObservationID, outcome, err, id)
+	}
+	if _, outcome, err := r.findings.SaveAsObservation(reading(t.Context()), testUser, run); err != nil || outcome != findings.SaveUnchanged {
+		t.Fatalf("second save: outcome %s, %v; want unchanged", outcome, err)
+	}
+
+	if err := r.service.Withdraw(reading(t.Context()), testUser, mustParse(t, shared.Thread.ID)); err != nil {
+		t.Fatal(err)
+	}
+	if n := r.messageCount(t); n != 0 {
+		t.Fatalf("messages after the withdraw = %d, want the share gone", n)
+	}
+	answer, err := r.findingOfRun(t, otherEditor, run)
+	if err != nil || answer.ObservationID != id {
+		t.Fatalf("an observation reader after the withdraw reads %+v, %v; want the saved answer in %s", answer, err, id)
+	}
+	if listed := r.listedFindingsWith(t, otherEditor, observation); !slices.Contains(listed, answer.ID) {
+		t.Fatalf("the saved answer left the observation's list: %v", listed)
+	}
+}
+
 func (r *rig) sharedThreadShown(t *testing.T, by auth.Principal, run pgtype.UUID) (onRun, onTurn *string) {
 	t.Helper()
 	desk := revisions.NewRunDesk(r.revisions, revisions.ObserveOptions{})

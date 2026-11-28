@@ -44,6 +44,31 @@ func TestInviteIsOnePendingRowPerEmailAndARetryChangesOnlyTheRole(t *testing.T) 
 	}
 }
 
+func TestAnInviteListsWhetherSomeoneWithItsEmailHasSignedInAlready(t *testing.T) {
+	r := newRig(t)
+	admin := r.addUser("ada", time.Now())
+	caller := adminCaller(admin, "Ada")
+	for _, email := range []string{"Bo@example.com", "cy@example.com"} {
+		if rec := r.doJSON(http.MethodPost, "/api/v1/invites", `{"email":"`+email+`","role":"editor"}`, caller); rec.Code != http.StatusCreated || strings.Contains(rec.Body.String(), `"member":true`) {
+			t.Fatalf("invite %s = %d %s, want 201 with member false", email, rec.Code, rec.Body)
+		}
+	}
+	r.addUser("bo", time.Now())
+
+	rec := r.do(http.MethodGet, "/api/v1/invites", caller)
+	var list inviteListJSON
+	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil || rec.Code != http.StatusOK {
+		t.Fatalf("list = %d %s", rec.Code, rec.Body)
+	}
+	member := map[string]bool{}
+	for _, i := range list.Invites {
+		member[i.Email] = i.Member
+	}
+	if len(member) != 2 || !member["Bo@example.com"] || member["cy@example.com"] {
+		t.Fatalf("members = %v, want Bo's invite marked and Cy's not", member)
+	}
+}
+
 func TestInviteRefusesMembersOtherDomainsAndBadInput(t *testing.T) {
 	r := newRig(t)
 	admin := r.addUser("ada", time.Now())

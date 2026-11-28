@@ -10,6 +10,7 @@ import { renderWithProviders, testQueryClient } from "@/test/render"
 import type { InboxItem } from "./inbox-item"
 import { InboxPanel } from "./inbox-panel"
 import { useInboxPanelStore } from "./inbox-panel-store"
+import { must } from "@/test/must"
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
 vi.mock("sonner", () => ({ toast: toasts }))
@@ -350,7 +351,9 @@ describe("InboxPanel", () => {
     openPanel()
     await screen.findByRole("heading", { name: "Needs you" })
 
-    await user.click(screen.getAllByRole("button", { name: "Mark done" })[0])
+    await user.click(
+      must(screen.getAllByRole("button", { name: "Mark done" })[0])
+    )
 
     await waitFor(() =>
       expect(server.states).toEqual([

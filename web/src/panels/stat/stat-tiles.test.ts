@@ -8,6 +8,12 @@ import type { DataPanel } from "@/spec"
 
 import { changeTone, percentChange, statScope, statTiles } from "./stat-tiles"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
   return {
     id: "p1",
@@ -50,9 +56,9 @@ function tiles(
 describe("statTiles", () => {
   it("reduces each field with the chosen reducer", () => {
     const frames = [frame([4, 9, 2])]
-    expect(tiles(frames, {}, { reduce: "max" })[0].value).toBe(9)
-    expect(tiles(frames, {}, { reduce: "mean" })[0].value).toBe(5)
-    expect(tiles(frames, {}, { reduce: "last" })[0].value).toBe(2)
+    expect(nth(tiles(frames, {}, { reduce: "max" }), 0).value).toBe(9)
+    expect(nth(tiles(frames, {}, { reduce: "mean" }), 0).value).toBe(5)
+    expect(nth(tiles(frames, {}, { reduce: "last" }), 0).value).toBe(2)
   })
 
   it("makes one tile per number field, skipping hidden ones", () => {
@@ -80,23 +86,29 @@ describe("statTiles", () => {
   })
 
   it("prints a mapped value as its text and color", () => {
-    const [tile] = tiles([frame([1])], {
-      mappings: [{ value: "1", text: "Up", color: "ok" }],
-    } as Partial<DataPanel>)
+    const tile = nth(
+      tiles([frame([1])], {
+        mappings: [{ value: "1", text: "Up", color: "ok" }],
+      } as Partial<DataPanel>),
+      0
+    )
     expect(tile.text).toBe("Up")
     expect(tile.color).toBe("var(--threshold-ok)")
   })
 
   it("colors by threshold", () => {
-    const [tile] = tiles([frame([7])], {
-      thresholds: [{ color: "ok" }, { value: 5, color: "critical" }],
-    })
+    const tile = nth(
+      tiles([frame([7])], {
+        thresholds: [{ color: "ok" }, { value: 5, color: "critical" }],
+      }),
+      0
+    )
     expect(tile.threshold.level).toBe("critical")
     expect(tile.color).toBe("var(--threshold-critical)")
   })
 
   it("shows noValue for a field with no numbers", () => {
-    const [tile] = tiles([frame([null, null, null])], { noValue: "n/a" })
+    const tile = nth(tiles([frame([null, null, null])], { noValue: "n/a" }), 0)
     expect(tile.value).toBeNull()
     expect(tile.text).toBe("n/a")
   })
@@ -108,19 +120,22 @@ describe("statTiles", () => {
     ["prefix:$", 3, "$3", ""],
     ["short", 7, "7", ""],
   ])("splits the %s unit from the amount", (unit, value, amount, suffix) => {
-    const [tile] = tiles([frame([value])], { unit })
+    const tile = nth(tiles([frame([value])], { unit }), 0)
     expect([tile.amount, tile.unit]).toEqual([amount, suffix])
   })
 
   it("keeps a mapped text whole", () => {
-    const [tile] = tiles([frame([1])], {
-      mappings: [{ value: "1", text: "3 pods", color: "ok" }],
-    } as Partial<DataPanel>)
+    const tile = nth(
+      tiles([frame([1])], {
+        mappings: [{ value: "1", text: "3 pods", color: "ok" }],
+      } as Partial<DataPanel>),
+      0
+    )
     expect([tile.amount, tile.unit]).toEqual(["3 pods", ""])
   })
 
   it("keeps the time and value pairs of a sparkline, dropping gaps", () => {
-    const [tile] = tiles([frame([1, null, 3])])
+    const tile = nth(tiles([frame([1, null, 3])]), 0)
     expect(tile.points).toEqual([
       [1000, 1],
       [3000, 3],
@@ -133,9 +148,12 @@ describe("statTiles", () => {
   })
 
   it("names a tile from the display name template", () => {
-    const [tile] = tiles([frame([1], { labels: { pod: "web-0" } })], {
-      displayName: "pod ${__field.labels.pod}",
-    })
+    const tile = nth(
+      tiles([frame([1], { labels: { pod: "web-0" } })], {
+        displayName: "pod ${__field.labels.pod}",
+      }),
+      0
+    )
     expect(tile.name).toBe("pod web-0")
   })
 })
@@ -169,10 +187,9 @@ describe("statTiles value options", () => {
         { name: "state", type: "string", values: ["up", "down", "up"] },
       ],
     }
-    const [tile] = tiles(
-      [labelled],
-      {},
-      { reduce: "lastNotNull", fields: "/.*/" }
+    const tile = nth(
+      tiles([labelled], {}, { reduce: "lastNotNull", fields: "/.*/" }),
+      0
     )
     expect(tile.text).toBe("up")
     expect(tile.value).toBeNull()
@@ -195,7 +212,7 @@ describe("stat tile scope and actions", () => {
   }
 
   it("scopes a tile to its last row, value and series", () => {
-    const [tile] = tiles([podFrame], {}, { reduce: "max" })
+    const tile = nth(tiles([podFrame], {}, { reduce: "max" }), 0)
     const scope = statScope(tile, { vars: { env: ["prod"] } })
     expect(scope).toMatchObject({
       vars: { env: ["prod"] },
@@ -208,7 +225,7 @@ describe("stat tile scope and actions", () => {
   })
 
   it("gives the actions of the field's config their data fields", () => {
-    const [tile] = tiles([podFrame], { actions: [restart] })
+    const tile = nth(tiles([podFrame], { actions: [restart] }), 0)
     expect(
       fieldActions(tile.config, statScope(tile, { vars: {} }))
     ).toMatchObject([
@@ -217,7 +234,7 @@ describe("stat tile scope and actions", () => {
   })
 
   it("gives a tile no actions when its config has none", () => {
-    const [tile] = tiles([podFrame])
+    const tile = nth(tiles([podFrame]), 0)
     expect(fieldActions(tile.config, statScope(tile, { vars: {} }))).toEqual([])
   })
 })
@@ -269,7 +286,7 @@ describe("percentChange", () => {
   })
 
   it("is on each tile from the reduced range", () => {
-    const [tile] = tiles([frame([4, 9, 5])])
+    const tile = nth(tiles([frame([4, 9, 5])]), 0)
     expect(tile.change).toEqual({ direction: "up", text: "25%", word: "up" })
   })
 

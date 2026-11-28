@@ -51,7 +51,7 @@ type Props = {
   range: string
   variables: string | null
   imageName: string
-  timeoutMs?: number
+  timeoutMs?: number | undefined
   children: ReactNode
 }
 

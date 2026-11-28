@@ -5,8 +5,6 @@ import { isActive } from "@/revisions/queries"
 export type RepairItem = components["schemas"]["RepairItem"]
 type RepairsQueued = components["schemas"]["RepairsQueued"]
 
-export const maxActiveRepairs = 20
-
 export type RepairState = {
   tone: StatusTone | null
   label: string | null
@@ -74,8 +72,7 @@ export function unverifiedText(item: RepairItem): string {
 }
 
 export function outcomeLines(outcome: RepairsQueued): string[] {
-  const full = outcome.skipped.filter((s) => s.reason === "queue_full").length
-  const other = outcome.skipped.length - full
+  const other = outcome.skipped.length
   const lines = [
     outcome.queued.length === 0
       ? "No repairs queued"
@@ -84,11 +81,6 @@ export function outcomeLines(outcome: RepairsQueued): string[] {
   if (other > 0) {
     lines.push(
       `Skipped ${other}: already queued or running, or nothing the agent can repair`
-    )
-  }
-  if (full > 0) {
-    lines.push(
-      `${full} not queued yet: you can have ${maxActiveRepairs} repairs queued or running. Run Repair all again when these finish.`
     )
   }
   return lines

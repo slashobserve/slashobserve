@@ -2,7 +2,7 @@ import { useState, type RefObject } from "react"
 import type { QueryKey } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 
-import { ApiError } from "@/api/errors"
+import { problemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -14,16 +14,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { sentence } from "@/observe/queries"
 
-import { useDeleteMessage } from "./queries"
-
-function describeDeleteError(error: unknown): string {
-  if (error instanceof ApiError && error.status < 500) {
-    return sentence(error.message)
-  }
-  return "The comment could not be deleted. Try again."
-}
+import { useDeleteMessage } from "./thread-queries"
 
 export function DeleteMessageDialog({
   open,
@@ -56,7 +48,12 @@ export function DeleteMessageDialog({
     setProblem(null)
     remove.mutate(messageId, {
       onSuccess: () => onOpenChange(false),
-      onError: (error) => setProblem(describeDeleteError(error)),
+      onError: (error) =>
+        setProblem(
+          problemText(error, {
+            fallback: "The comment could not be deleted. Try again.",
+          })
+        ),
     })
   }
 

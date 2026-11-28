@@ -11,16 +11,15 @@ import (
 	"github.com/slashobserve/slashobserve/internal/kql"
 )
 
-type Form string
+type Form = kql.Form
 
 const (
-	FormKQL    Form = "kql"
-	FormLucene Form = "lucene"
-	FormDSL    Form = "dsl"
+	FormKQL    = kql.FormKQL
+	FormLucene = kql.FormLucene
+	FormDSL    = kql.FormDSL
 )
 
 const (
-	whitespace    = " \t\r\n"
 	maxQueryBytes = 64 * 1024
 	maxSize       = 1000
 )
@@ -48,7 +47,7 @@ func Parse(text string) (Query, error) {
 	if len(text) > maxQueryBytes {
 		return Query{}, &Error{End: 0, Msg: fmt.Sprintf("query is longer than %d bytes", maxQueryBytes)}
 	}
-	form, body, offset := classify(text)
+	form, body, offset := kql.Classify(text, kql.FormKQL)
 	switch form {
 	case FormLucene:
 		return parseLucene(body, offset)
@@ -56,26 +55,6 @@ func Parse(text string) (Query, error) {
 		return parseDSL(body, offset)
 	}
 	return parseKQL(body, offset)
-}
-
-func classify(text string) (form Form, body string, offset int) {
-	offset = len(text) - len(strings.TrimLeft(text, whitespace))
-	rest := text[offset:]
-	form = FormKQL
-	switch {
-	case strings.HasPrefix(rest, "{"):
-		form = FormDSL
-	case hasPrefixFold(rest, "lucene:"):
-		form, offset, rest = FormLucene, offset+len("lucene:"), rest[len("lucene:"):]
-	case hasPrefixFold(rest, "kql:"):
-		offset, rest = offset+len("kql:"), rest[len("kql:"):]
-	}
-	skipped := len(rest) - len(strings.TrimLeft(rest, whitespace))
-	return form, strings.TrimSpace(rest), offset + skipped
-}
-
-func hasPrefixFold(s, prefix string) bool {
-	return len(s) >= len(prefix) && strings.EqualFold(s[:len(prefix)], prefix)
 }
 
 func parseKQL(body string, offset int) (Query, error) {

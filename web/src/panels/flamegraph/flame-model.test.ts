@@ -40,7 +40,7 @@ function panel(): DataPanel {
 
 function frame(
   rows: Row[],
-  names = ["level", "value", "self", "label"],
+  names: [string, string, string, string] = ["level", "value", "self", "label"],
   extra: PreparedFrame["fields"] = []
 ): PreparedFrame {
   return {
@@ -169,7 +169,9 @@ describe("flameModel", () => {
       }
     })
     const leaves = sizes.reduce((sum, size) => sum + size, 0)
-    rows[0][1] = leaves
+    const root = rows[0]
+    expect(root).toBeDefined()
+    root![1] = leaves
     expect(rows.length).toBe(50_000)
     const profile = profileOf(rows)
     expect(profile.nodes).toHaveLength(50_000)
@@ -180,7 +182,8 @@ describe("flameModel", () => {
       leaves,
     ])
     const last = profile.nodes[49_999]
-    expect(last.start + last.value).toBe(leaves)
+    expect(last).toBeDefined()
+    expect(last!.start + last!.value).toBe(leaves)
   })
 })
 

@@ -1,9 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { ApiError, unwrap } from "@/api/errors"
+import { type ProblemTexts, unwrap } from "@/api/errors"
 import { userKeys } from "@/api/keys"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import type { User } from "./queries"
 
@@ -20,14 +19,12 @@ export function actionsFor(user: User, signedInId: string): PersonAction[] {
   return user.id === signedInId ? [] : ["deactivate"]
 }
 
-export function lifecycleProblemText(error: unknown): string {
-  if (error instanceof ApiError && error.status === 404) {
-    return "This person no longer exists."
-  }
-  if (error instanceof ApiError && error.code === "not_deactivated") {
-    return "Someone reactivated this person. Deactivate them before removing them."
-  }
-  return loadProblemText(error)
+export const lifecycleProblems: ProblemTexts = {
+  codes: {
+    not_deactivated:
+      "Someone reactivated this person. Deactivate them before removing them.",
+  },
+  notFound: "This person no longer exists.",
 }
 
 function runAction(id: string, action: PersonAction): Promise<unknown> {

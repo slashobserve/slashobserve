@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { fitBounds, project, worldSize } from "./projection"
 import { isRegion, regionBounds, regionCorners } from "./regions"
 
-const regions = Object.keys(regionBounds)
+const regions = Object.keys(regionBounds).filter(isRegion)
 
 describe("regions", () => {
   it("knows the ten region ids the Spec allows", () => {

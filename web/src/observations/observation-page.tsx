@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
+import { loadProblemText } from "@/api/errors"
 import { opensByDefault } from "@/components/dock/card-width"
 import { LoadProblem } from "@/components/load-problem"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -11,7 +12,6 @@ import { messageCount } from "@/discussion/discussion-model"
 import { useDocumentTitle } from "@/lib/document-title"
 import { observationsLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
-import { sentence } from "@/observe/queries"
 import { RcaPanel } from "@/rca/rca-panel"
 import { rcasQuery } from "@/rca/queries"
 
@@ -82,7 +82,7 @@ function LoadedObservation({
 }: {
   envelope: ObservationEnvelope
   rca: RcaControl
-  focusedThreadId?: string
+  focusedThreadId?: string | undefined
   onClearThread: () => void
 }) {
   const { observation, permissions } = envelope
@@ -302,14 +302,15 @@ function LoadedObservation({
           blocks={blocks}
           onShowBlock={onShowBlock}
           onClose={() => rca.onOpenChange(false)}
-          privateFolder={
-            mustMoveToPublish
-              ? () => {
+          personal={isPrivate}
+          {...(mustMoveToPublish
+            ? {
+                privateFolder: () => {
                   rca.onOpenChange(false)
                   setMoving(true)
-                }
-              : undefined
-          }
+                },
+              }
+            : {})}
         />
       ) : null}
       {moving ? (
@@ -332,7 +333,7 @@ export function ObservationPage({
 }: {
   observationId: string
   rca: RcaControl
-  focusedThreadId?: string
+  focusedThreadId?: string | undefined
   onClearThread: () => void
 }) {
   const query = useObservation(observationId)
@@ -362,7 +363,7 @@ export function ObservationPage({
       <div className={columnClass}>
         <LoadProblem
           title="Could not load this observation"
-          detail={sentence(query.error.message)}
+          detail={loadProblemText(query.error)}
           retrying={query.isFetching}
           onRetry={() => void query.refetch()}
         />

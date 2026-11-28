@@ -102,8 +102,7 @@ func (h *Handler) logContext(c *gin.Context) {
 		h.exploreFail(c, uid, err)
 		return
 	}
-	if len(results[0].Frames)+len(results[1].Frames) > maxResponseBytes {
-		h.fail(c, errTooLarge)
+	if h.tooLarge(c, len(results[0].Frames)+len(results[1].Frames)) {
 		return
 	}
 	c.JSON(http.StatusOK, contextResponse{Anchor: *req.Anchor, Before: results[0], After: results[1]})
@@ -117,7 +116,7 @@ func (h *Handler) readSide(ctx context.Context, datasourceUID string, source dat
 	if err := req.Range.Validate(); err != nil {
 		return empty, err
 	}
-	release, err := h.acquireUpstreamBounded(ctx, datasourceUID)
+	release, err := h.runner.AcquireUpstreamBounded(ctx, datasourceUID)
 	if err != nil {
 		return empty, err
 	}
@@ -127,28 +126,11 @@ func (h *Handler) readSide(ctx context.Context, datasourceUID string, source dat
 	if err != nil {
 		return empty, err
 	}
-	wire, err := appendWireFrames([]wireFrame{}, contextFrameRef, frames)
-	if err != nil {
-		return empty, err
-	}
-	encoded, err := json.Marshal(wire)
+	encoded, err := queryproxy.MarshalFrames([]queryproxy.QueryResult{{Ref: contextFrameRef, Frames: frames}})
 	if err != nil {
 		return empty, err
 	}
 	return contextSide{Frames: encoded, Truncated: datasource.MergeMeta(frames).Truncated}, nil
-}
-
-func (h *Handler) acquireUpstreamBounded(ctx context.Context, datasourceUID string) (release func(), err error) {
-	waitCtx, cancel := context.WithTimeout(ctx, h.lintTimeout)
-	defer cancel()
-	release, err = h.runner.AcquireUpstream(waitCtx, datasourceUID)
-	switch {
-	case err == nil:
-		return release, nil
-	case ctx.Err() != nil:
-		return nil, ctx.Err()
-	}
-	return nil, queryproxy.ErrUpstreamBusy
 }
 
 func (r contextRequest) validate() (status int, code, message string) {

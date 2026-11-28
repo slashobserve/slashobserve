@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, problemText } from "@/api/errors"
 
 import type { User } from "./queries"
 import {
   candidatesFor,
   teamNameProblem,
-  teamProblemText,
+  teamProblems,
   type Team,
 } from "./teams"
 
@@ -34,11 +34,11 @@ describe("candidatesFor", () => {
 
 describe("teamProblemText", () => {
   it("says what to change", () => {
-    expect(teamProblemText(new ApiError(409, "team_exists", "x"))).toBe(
-      "A team with this name already exists."
-    )
-    expect(teamProblemText(new ApiError(422, "too_many_teams", "x"))).toMatch(
-      /Delete one first/
-    )
+    expect(
+      problemText(new ApiError(409, "team_exists", "x"), teamProblems)
+    ).toBe("A team with this name already exists.")
+    expect(
+      problemText(new ApiError(422, "too_many_teams", "x"), teamProblems)
+    ).toMatch(/Delete one first/)
   })
 })

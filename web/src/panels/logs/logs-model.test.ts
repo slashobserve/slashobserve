@@ -22,6 +22,12 @@ import {
   type LogLevelKind,
 } from "./logs-model"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
   return {
     id: "p1",
@@ -78,7 +84,7 @@ describe("logsModel columns", () => {
           field(name, "string", ["hello"]),
         ]),
       ])
-      expect(entries[0].message).toBe("hello")
+      expect(nth(entries, 0).message).toBe("hello")
     }
   )
 
@@ -91,8 +97,11 @@ describe("logsModel columns", () => {
           field(name, "string", ["warn"]),
         ]),
       ])
-      expect(entries[0].level).toEqual({ word: "Warning", kind: "warning" })
-      expect(entries[0].message).toBe("hello")
+      expect(nth(entries, 0).level).toEqual({
+        word: "Warning",
+        kind: "warning",
+      })
+      expect(nth(entries, 0).message).toBe("hello")
     }
   )
 
@@ -104,7 +113,7 @@ describe("logsModel columns", () => {
         field("second", "time", [9000]),
       ]),
     ])
-    expect(entries[0].time).toBe(1500)
+    expect(nth(entries, 0).time).toBe(1500)
   })
 
   it("falls back to the first string field that is not the level", () => {
@@ -116,8 +125,8 @@ describe("logsModel columns", () => {
         field("other", "string", ["x"]),
       ]),
     ])
-    expect(entries[0].message).toBe("checkout")
-    expect(entries[0].level?.kind).toBe("info")
+    expect(nth(entries, 0).message).toBe("checkout")
+    expect(nth(entries, 0).level?.kind).toBe("info")
   })
 
   it("prefers a named message over an earlier string field", () => {
@@ -127,7 +136,7 @@ describe("logsModel columns", () => {
         field("body", "string", ["hello"]),
       ]),
     ])
-    expect(entries[0].message).toBe("hello")
+    expect(nth(entries, 0).message).toBe("hello")
   })
 
   it("uses a value's display text when a frame has no string field", () => {
@@ -155,7 +164,7 @@ describe("logsModel columns", () => {
     const { entries } = model([
       frame([field("Time", "time", [1000]), field("Value", "number", [3])]),
     ])
-    expect(entries[0].message).toBe("3")
+    expect(nth(entries, 0).message).toBe("3")
   })
 
   it("tells the series of two Prometheus frames apart", () => {
@@ -196,7 +205,7 @@ describe("logsModel columns", () => {
       }),
     ])
     expect(
-      entries[0].details.map((detail) => [
+      nth(entries, 0).details.map((detail) => [
         detail.name,
         detailText(fields, detail, undefined),
       ])
@@ -227,13 +236,13 @@ describe("logsModel columns", () => {
       field("Body", "string", ["boom"]),
     ])
     const { entries } = model([f])
-    expect(entries[0].details.map((detail) => detail.name)).toEqual([
+    expect(nth(entries, 0).details.map((detail) => detail.name)).toEqual([
       "Timestamp",
       "SeverityText",
       "ServiceName",
       "Body",
     ])
-    expect(entries[0].details[2]).toMatchObject({
+    expect(nth(entries, 0).details[2]).toMatchObject({
       frame: f,
       field: f.fields[2],
       index: 0,
@@ -249,7 +258,7 @@ describe("logsModel columns", () => {
       ]),
     ])
     expect(
-      entries[0].details.map((detail) => [
+      nth(entries, 0).details.map((detail) => [
         detail.name,
         detailText(fields, detail, undefined),
       ])
@@ -268,7 +277,7 @@ describe("logsModel columns", () => {
   ])("keeps %s as one detail", (_, value) => {
     const f = frame([field("attrs", "string", [value])])
     const { entries } = model([f])
-    expect(entries[0].details).toEqual([
+    expect(nth(entries, 0).details).toEqual([
       { name: "attrs", field: f.fields[0], frame: f, index: 0 },
     ])
   })
@@ -279,7 +288,7 @@ describe("logsModel columns", () => {
         labels: { meta: '{"pod":"a"}' },
       }),
     ])
-    expect(entries[0].details.map((detail) => detail.name)).toEqual([
+    expect(nth(entries, 0).details.map((detail) => detail.name)).toEqual([
       "Body",
       "meta.pod",
     ])
@@ -386,7 +395,7 @@ describe("logsModel cap", () => {
     const { entries, truncated } = model([many(maxEntries + 5)])
     expect(truncated).toBe(true)
     expect(entries).toHaveLength(maxEntries)
-    expect(entries[0].message).toBe(`line ${maxEntries + 4}`)
+    expect(nth(entries, 0).message).toBe(`line ${maxEntries + 4}`)
     expect(entries.at(-1)?.message).toBe("line 5")
   })
 
@@ -395,7 +404,7 @@ describe("logsModel cap", () => {
       order: "oldest",
     })
     expect(truncated).toBe(true)
-    expect(entries[0].message).toBe("line 0")
+    expect(nth(entries, 0).message).toBe("line 0")
     expect(entries.at(-1)?.message).toBe(`line ${maxEntries - 1}`)
   })
 
@@ -424,19 +433,22 @@ describe("logsModel keys", () => {
   })
 
   it("keeps a line's key when newer lines arrive above it", () => {
-    const old = model([
-      frame([
-        field("Timestamp", "time", [1000]),
-        field("Body", "string", ["x"]),
-      ]),
-    ]).entries[0].key
+    const old = nth(
+      model([
+        frame([
+          field("Timestamp", "time", [1000]),
+          field("Body", "string", ["x"]),
+        ]),
+      ]).entries,
+      0
+    ).key
     const next = model([
       frame([
         field("Timestamp", "time", [2000, 1000]),
         field("Body", "string", ["y", "x"]),
       ]),
     ]).entries
-    expect(next[1].key).toBe(old)
+    expect(nth(next, 1).key).toBe(old)
   })
 })
 
@@ -620,7 +632,7 @@ describe("detailText", () => {
 
   it("returns markup in a message as plain text", () => {
     expect(detailOf(f, "Body")).toBe("<b>boom</b>")
-    expect(model([f]).entries[0].message).toBe("<b>boom</b>")
+    expect(nth(model([f]).entries, 0).message).toBe("<b>boom</b>")
   })
 })
 
@@ -680,7 +692,7 @@ describe("logsModel deduplication", () => {
     const many = Array.from({ length: maxEntries + 50 }, () => "same line")
     const { entries, truncated } = model([lines(many)], { dedup: "exact" })
     expect(entries).toHaveLength(1)
-    expect(entries[0].repeats).toBe(maxEntries + 50)
+    expect(nth(entries, 0).repeats).toBe(maxEntries + 50)
     expect(truncated).toBe(false)
   })
 
@@ -723,7 +735,7 @@ describe("logsModel labels", () => {
   it("treats every label of a single series as common", () => {
     const { entries, commonLabels } = model([series({ job: "api" })])
     expect(commonLabels).toEqual({ job: "api" })
-    expect(entries[0].labels).toEqual({})
+    expect(nth(entries, 0).labels).toEqual({})
   })
 
   it("does not treat a label with different values as common", () => {
@@ -756,8 +768,8 @@ describe("prettifyMessage", () => {
 
   it("prettifies the messages only when asked", () => {
     const f = lines(['{"a":1}'])
-    expect(model([f]).entries[0].message).toBe('{"a":1}')
-    expect(model([f], { prettify: true }).entries[0].message).toBe(
+    expect(nth(model([f]).entries, 0).message).toBe('{"a":1}')
+    expect(nth(model([f], { prettify: true }).entries, 0).message).toBe(
       '{\n  "a": 1\n}'
     )
   })
@@ -815,19 +827,19 @@ describe("logsModel line fields", () => {
 
   it("builds the line from the named fields joined by a space, in that order", () => {
     const { entries } = model([rows], { lineFields: ["status", "level"] })
-    expect(entries[0].message).toBe("503 warn")
+    expect(nth(entries, 0).message).toBe("503 warn")
   })
 
   it("skips a field the frame does not have and reads a label of that name", () => {
     const { entries } = model([rows], {
       lineFields: ["missing", "pod", "Body"],
     })
-    expect(entries[0].message).toBe("checkout-0 hello")
+    expect(nth(entries, 0).message).toBe("checkout-0 hello")
   })
 
   it("writes a time field of the line in the given zone", () => {
     const { entries } = model([rows], { lineFields: ["Timestamp"] }, {}, "UTC")
-    expect(entries[0].message).toBe("1970-01-01 00:00:01")
+    expect(nth(entries, 0).message).toBe("1970-01-01 00:00:01")
   })
 
   it("skips a null value", () => {
@@ -837,12 +849,14 @@ describe("logsModel line fields", () => {
       field("b", "string", ["kept"]),
     ])
     const { entries } = model([withNull], { lineFields: ["a", "b"] })
-    expect(entries[0].message).toBe("kept")
+    expect(nth(entries, 0).message).toBe("kept")
   })
 
   it("keeps the message column when no fields are named", () => {
-    expect(model([rows], { lineFields: [] }).entries[0].message).toBe("hello")
-    expect(model([rows]).entries[0].message).toBe("hello")
+    expect(nth(model([rows], { lineFields: [] }).entries, 0).message).toBe(
+      "hello"
+    )
+    expect(nth(model([rows]).entries, 0).message).toBe("hello")
   })
 
   it("deduplicates on the built line", () => {
@@ -856,7 +870,7 @@ describe("logsModel line fields", () => {
       dedup: "exact",
     })
     expect(entries).toHaveLength(1)
-    expect(entries[0].repeats).toBe(2)
+    expect(nth(entries, 0).repeats).toBe(2)
   })
 })
 

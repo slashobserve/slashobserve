@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, problemText } from "@/api/errors"
 
-import { inviteEmailProblem, inviteProblemText } from "./invites"
+import { inviteEmailProblem, inviteProblems } from "./invites"
 
 describe("inviteEmailProblem", () => {
   it("accepts one address and ignores surrounding space", () => {
@@ -29,14 +29,17 @@ describe("inviteEmailProblem", () => {
 
 describe("inviteProblemText", () => {
   it("tells the Admin what to change for each refusal", () => {
-    expect(inviteProblemText(new ApiError(409, "already_member", "x"))).toMatch(
-      /Change their role/
-    )
     expect(
-      inviteProblemText(new ApiError(422, "email_domain_not_allowed", "x"))
+      problemText(new ApiError(409, "already_member", "x"), inviteProblems)
+    ).toMatch(/Change their role/)
+    expect(
+      problemText(
+        new ApiError(422, "email_domain_not_allowed", "x"),
+        inviteProblems
+      )
     ).toMatch(/allowed email domains/)
-    expect(inviteProblemText(new ApiError(404, "not_found", "x"))).toMatch(
-      /no longer exists/
-    )
+    expect(
+      problemText(new ApiError(404, "not_found", "x"), inviteProblems)
+    ).toMatch(/no longer exists/)
   })
 })

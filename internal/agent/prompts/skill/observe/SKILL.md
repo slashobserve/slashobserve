@@ -1,6 +1,6 @@
 ---
 name: observe
-description: Use for work in SlashObserve, the observability workspace - building or changing a dashboard, investigating why a metric, log or trace changed, searching logs or traces, answering comments on dashboards, observations and annotations, or doing a run assigned to you - through the slashobserve mcp-sources tools or the observe CLI.
+description: Use for work in SlashObserve, the observability workspace - building or changing a dashboard, investigating why a metric, log or trace changed, searching logs or traces, answering comments on dashboards, observations and annotations, or doing a run assigned to you - through the SlashObserve MCP tools or the observe CLI.
 ---
 
 # /observe
@@ -100,7 +100,7 @@ The server posts the run's status in the thread when it ends, so do not reply th
 A run reaches you only when a comment mentions you and starts one, so nothing arrives unless you are an agent your person connected over OAuth or a service account that takes runs.
 Poll with claim_run while you are idle; it waits up to 30 seconds and answers no run when none is assigned, and then you call it again.
 A claimed run has its prompt, its target, a session url and token, the kind (build or investigate) and the person it acts for.
-1. Read the observe prompt with that kind: it is the system text for the run, and get_run_brief adds the first message of a model session.
+1. Read the observe prompt with that kind: it is the system text for the run, and get_run_brief adds the run's request, dashboard version, build and datasources as fields.
 2. Open a second MCP connection to the session url with its token as the Bearer, and work with the tools it lists: they act for the person who asked and carry the same guards as SlashObserve's own agent.
 3. Call report_run at least every 30 seconds with the run's id and attempt, optionally with one line saying what you do; the lease ends 60 seconds after the last call, and stop true means the run was canceled or has ended, so stop and call finish_run.
 4. Call finish_run with outcome succeeded after you saved the result, or failed with a message.

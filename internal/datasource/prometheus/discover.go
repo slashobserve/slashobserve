@@ -46,14 +46,14 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 	switch req.Kind {
 	case datasource.DiscoverMetrics, datasource.DiscoverLabels, datasource.DiscoverLabelValues, datasource.DiscoverInventory:
 	default:
-		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "discover kind %q is not supported by prometheus", truncateText(string(req.Kind)))
+		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "discover kind %q is not supported by prometheus", datasource.TruncateText(string(req.Kind)))
 	}
 	if req.Kind == datasource.DiscoverLabelValues {
 		if err := validateLabel(req.Label); err != nil {
 			return nil, err
 		}
 	}
-	ctx, cancel := bound(ctx, discoverTimeout)
+	ctx, cancel := datasource.Bound(ctx, discoverTimeout)
 	defer cancel()
 	end := datasource.Now(ctx)
 	start := end.Add(-lookback)
@@ -79,14 +79,14 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 			return nil, err
 		}
 		names = slices.DeleteFunc(names, func(n string) bool { return n == metricNameLabel })
-		labels, cut := filterSortLimit(names, req.Search, limit)
+		labels, cut := datasource.FilterSortLimit(names, req.Search, limit)
 		return &datasource.Catalog{Labels: labels, Truncated: cut}, nil
 	}
 	values, err := d.getStrings(ctx, "/api/v1/label/"+url.PathEscape(req.Label)+"/values", form)
 	if err != nil {
 		return nil, err
 	}
-	shown, cut := filterSortLimit(values, req.Search, limit)
+	shown, cut := datasource.FilterSortLimit(values, req.Search, limit)
 	return &datasource.Catalog{Values: shown, Truncated: cut}, nil
 }
 
@@ -106,7 +106,7 @@ func (d *Datasource) discoverMetrics(ctx context.Context, form url.Values, searc
 		wg.Wait()
 		return nil, err
 	}
-	names, cut := filterSortLimit(names, search, limit)
+	names, cut := datasource.FilterSortLimit(names, search, limit)
 	wg.Wait()
 	if metadata == nil {
 		metadata = map[string][]metricMetadata{}
@@ -126,7 +126,7 @@ func (d *Datasource) discoverInventory(ctx context.Context, form url.Values, sco
 	selector := cmp.Or(strings.TrimSpace(scope), everySeries)
 	matchers, err := promParser.ParseMetricSelector(selector)
 	if err != nil {
-		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "scope must be a series selector such as {job=\"checkout\"}: %s", truncateText(err.Error()))
+		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "scope must be a series selector such as {job=\"checkout\"}: %s", datasource.TruncateText(err.Error()))
 	}
 	form.Set("match[]", selector)
 	form.Set("limit", strconv.Itoa(maxInventorySeries+1))
@@ -149,7 +149,7 @@ func (d *Datasource) discoverInventory(ctx context.Context, form url.Values, sco
 	if err := json.Unmarshal(raw, &series); err != nil {
 		cancelMeta()
 		wg.Wait()
-		return nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned an unreadable result")
+		return nil, datasource.Unreadable()
 	}
 	wg.Wait()
 	truncated := len(series) > maxInventorySeries
@@ -251,22 +251,6 @@ func (d *Datasource) metadata(ctx context.Context, form url.Values) map[string][
 	return out
 }
 
-func filterSortLimit(values []string, search string, limit int) (kept []string, cut bool) {
-	search = strings.ToLower(search)
-	out := make([]string, 0, len(values))
-	for _, v := range values {
-		if search == "" || strings.Contains(strings.ToLower(v), search) {
-			out = append(out, v)
-		}
-	}
-	slices.Sort(out)
-	out = slices.Compact(out)
-	if len(out) > limit {
-		return out[:limit], true
-	}
-	return out, false
-}
-
 func validateLabel(label string) error {
 	if !spec.IsLabelName(label) {
 		return datasource.Errorf(datasource.ErrInvalidQuery, "label must match [A-Za-z_][A-Za-z0-9_]*")
@@ -279,7 +263,7 @@ func (d *Datasource) VariableValues(ctx context.Context, q datasource.Query, r d
 		return nil, err
 	}
 	lim := d.opts.Limits.Tighten(q.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	exp, err := macros.Expand(macros.PromQL, q.Text, macros.Env{
 		Range:          r,
@@ -306,7 +290,7 @@ func (d *Datasource) VariableValues(ctx context.Context, q datasource.Query, r d
 	}
 	if selector != "" {
 		if _, err := promParser.ParseMetricSelector(selector); err != nil {
-			return nil, datasource.Errorf(datasource.ErrInvalidQuery, "%s", truncateText(err.Error()))
+			return nil, datasource.Errorf(datasource.ErrInvalidQuery, "%s", datasource.TruncateText(err.Error()))
 		}
 		form.Set("match[]", selector)
 	}

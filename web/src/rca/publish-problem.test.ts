@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest"
 
-import { ApiError, NetworkError } from "@/api/errors"
+import { ApiError, NetworkError, unreachableText } from "@/api/errors"
 
 import type { Block } from "@/observations/queries"
 
 import { publishProblem } from "./publish-problem"
+import { must } from "@/test/must"
 
 function failure(
   status: number,
@@ -68,7 +69,7 @@ describe("publishProblem", () => {
       failure(500, "internal", ""),
       "Could not publish",
     ],
-    ["a network failure", new NetworkError("offline"), "Could not publish"],
+    ["a network failure", new NetworkError("offline"), unreachableText],
   ]
 
   it.each(cases)("words %s", (_name, error, expected) => {
@@ -97,7 +98,7 @@ describe("publishProblem", () => {
     })
 
     it("keeps the generic wording when no block has that position", () => {
-      expect(publishProblem(error, [blocks[0]])).toEqual({
+      expect(publishProblem(error, [must(blocks[0])])).toEqual({
         text: "A panel could not be frozen: ran out of time",
       })
     })

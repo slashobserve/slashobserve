@@ -241,7 +241,6 @@ func NewHandler(service *Service, findingURL func(f Finding) string, logger *slo
 func (h *Handler) Register(api auth.Routes) {
 	api.GET("/findings", auth.RoleViewer, h.list)
 	api.GET("/findings/:id", auth.RoleViewer, h.get)
-	api.POST("/findings/:id/pin", auth.RoleViewer, h.pin)
 	api.POST("/findings/:id/dashboard", auth.RoleViewer, h.saveDashboard)
 }
 
@@ -303,25 +302,6 @@ func (h *Handler) get(c *gin.Context) {
 	c.JSON(http.StatusOK, envelopeOf(h.render(f), f.Folder, f.Abilities))
 }
 
-func (h *Handler) pin(c *gin.Context) {
-	MarkDeprecated(c)
-	id, ok := httpapi.UUIDParam(c, "id")
-	if !ok {
-		return
-	}
-	a, created, err := h.service.Pin(c.Request.Context(), httpapi.Caller(c), id)
-	if err != nil {
-		h.fail(c, "pin finding", err)
-		return
-	}
-	if !created {
-		c.JSON(http.StatusOK, annotations.JSONOf(a))
-		return
-	}
-	c.Header("Location", "/api/v1/annotations/"+a.ID)
-	c.JSON(http.StatusCreated, annotations.JSONOf(a))
-}
-
 func (h *Handler) saveDashboard(c *gin.Context) {
 	MarkDeprecated(c)
 	id, ok := httpapi.UUIDParam(c, "id")
@@ -351,10 +331,6 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", ErrPlacement.Error())
 	case errors.Is(err, ErrInvalidCursor):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "cursor is not valid")
-	case errors.Is(err, ErrNoDashboard):
-		httpapi.AbortError(c, http.StatusConflict, "finding_has_no_dashboard", err.Error())
-	case errors.Is(err, ErrNotSaved):
-		httpapi.AbortError(c, http.StatusConflict, "finding_not_saved", err.Error())
 	case errors.Is(err, ErrRequesterOnly):
 		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.AccessMessage)
 	case errors.Is(err, ErrNoEvidence):

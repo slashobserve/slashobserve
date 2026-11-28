@@ -73,7 +73,7 @@ func newAnswerRig(t *testing.T) *answerRig {
 	service := dashboards.New(database.DB, runner, access, logger)
 	notes := annotations.New(database.DB, access)
 	observationService := observations.New(database.DB, access, nil, nil, logger)
-	found, err := findings.New(database.DB, access, notes, service, observationService, logger)
+	found, err := findings.New(database.DB, access, service, observationService, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func (r *answerRig) answeredAsk(t *testing.T, restricted bool) pgtype.UUID {
 		if err != nil {
 			return err
 		}
-		return threads.NewRuns(r.db.DB).RunEnded(ctx, q, row)
+		return threads.NewRuns().RunEnded(ctx, q, row)
 	})
 	if err != nil {
 		t.Fatal(err)

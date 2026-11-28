@@ -11,7 +11,7 @@ import {
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
 import { invitesQuery, type Invite } from "./invites"
-import { InvitesTable } from "./invites-table"
+import { InvitesTable, memberInviteText } from "./invites-table"
 
 const calls = vi.hoisted(() => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -32,6 +32,7 @@ const invite = {
   invited_by: "Grace",
   created_at: "2026-11-11T10:00:00Z",
   sign_in_url: "https://example.com/in",
+  member: false,
 } as Invite
 
 beforeEach(() => {
@@ -69,6 +70,17 @@ describe("InvitesTable", () => {
         "Withdrew the invite for ada@example.com"
       )
     )
+  })
+
+  it("says an invite will not apply when its email has signed in already", async () => {
+    const queryClient = testQueryClient()
+    queryClient.setQueryData(invitesQuery().queryKey, [
+      invite,
+      { ...invite, id: "i2", email: "bo@example.com", member: true },
+    ])
+    renderWithProviders(<InvitesTable />, { queryClient })
+
+    expect(await screen.findAllByText(memberInviteText)).toHaveLength(1)
   })
 
   function listInvites(emails: readonly string[]) {

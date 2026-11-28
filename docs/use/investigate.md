@@ -92,14 +92,14 @@ The comment API takes only the observation as a target: a `finding:<id>` target 
 1. Open the finding's card on the dashboard or in the chat.
 2. Choose **Pin to dashboard**.
 
-The finding becomes an annotation at the end of the finding's window, tagged `finding`.
-Its text is the finding's first line and a link to it.
+The card pins the finding's observation, so the annotation sits at the end of the observation's range, tagged `finding`.
+Its text is the observation's title and a link to it.
 Charts on the dashboard then show it as a marker; see [Annotations](annotations.md).
 
-The card then reads "Pinned to the dashboard" with an **Open dashboard** link, and pinning again changes nothing.
+The card then reads "Pinned to the dashboard" with an **Open dashboard** link, and pinning again changes nothing, here or from the observation's page.
 Pinning needs Edit on the dashboard, so the button is not shown to a Commenter or Viewer.
 They see "Pinned to the dashboard" once someone else has pinned it.
-Over the API, `POST /api/v1/findings/{id}/pin` without Edit answers `403` `forbidden_role` with `needed_access` `edit`.
+Over the API, `POST /api/v1/observations/{id}/pin` without Edit answers `403` `forbidden_role` with `needed_access` `edit`.
 
 ## Share a finding
 
@@ -319,6 +319,6 @@ Details of the flags:
 
 ### Deprecated finding routes
 
-The `/api/v1/findings` routes that remain are deprecated adapters over observations: list, read, pin, make a dashboard and panel data.
-Use the observation's own routes.
+The `/api/v1/findings` routes that remain are deprecated adapters over observations: list, read, make a dashboard and panel data.
+For a saved finding, use the observation's own routes; a chat-only answer has no observation, so these routes stay for it.
 The finding tools and commands are gone.

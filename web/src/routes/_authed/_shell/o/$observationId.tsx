@@ -5,7 +5,7 @@ import { useRecordRecent } from "@/home/recent"
 import { ObservationPage } from "@/observations/observation-page"
 import { useObservation } from "@/observations/queries"
 
-type ObservationSearch = { rca?: "1"; thread?: string }
+type ObservationSearch = { rca?: "1" | undefined; thread?: string | undefined }
 
 export const Route = createFileRoute("/_authed/_shell/o/$observationId")({
   staticData: {
@@ -31,7 +31,9 @@ function ObservationRoute() {
     <ObservationPage
       key={observationId}
       observationId={observationId}
-      focusedThreadId={search.thread}
+      {...(search.thread === undefined
+        ? {}
+        : { focusedThreadId: search.thread })}
       onClearThread={() =>
         void navigate({
           search: (prev) => ({ ...prev, thread: undefined }),

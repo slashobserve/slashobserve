@@ -47,9 +47,9 @@ func (d *Datasource) LogFacets(ctx context.Context, req datasource.FacetRequest)
 		return datasource.Facets{}, err
 	}
 	lim := d.opts.Limits.Tighten(req.Query.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
-	text, err := expand(req.Query, req.Range, instantInterval(req.Range, req.Query.MinInterval))
+	text, err := expand(req.Query, req.Range, datasource.InstantInterval(req.Range, req.Query.MinInterval))
 	if err != nil {
 		return datasource.Facets{}, err
 	}
@@ -102,7 +102,7 @@ func (d *Datasource) LogFacets(ctx context.Context, req datasource.FacetRequest)
 		return out, nil
 	}
 	out.Sampled = true
-	out.LinesSampled = lineCount(sample.frames)
+	out.LinesSampled = datasource.FrameRows(sample.frames)
 	out.Fields = append(out.Fields, sample.fields(indexLabels, requestedFields, req.Limit)...)
 	out.Truncated = out.Truncated || len(sample.detected) >= maxDetectedFields
 	return out, nil
@@ -187,7 +187,7 @@ func (d *Datasource) sampleNewest(ctx context.Context, text string, r datasource
 		if !ok {
 			break
 		}
-		wanted := sample - lineCount(frames)
+		wanted := sample - datasource.FrameRows(frames)
 		got, err := d.run(win.Ctx, "/loki/api/v1/query_range", sampleParams(text, windowOf(w), wanted), lim, wanted)
 		if ranOut := win.End(err); err != nil {
 			if !ranOut {
@@ -196,7 +196,7 @@ func (d *Datasource) sampleNewest(ctx context.Context, text string, r datasource
 			break
 		}
 		frames, sampled.From = append(frames, got...), w.From
-		if lineCount(frames) >= sample {
+		if datasource.FrameRows(frames) >= sample {
 			break
 		}
 	}
@@ -255,7 +255,7 @@ func (d *Datasource) labelFacet(ctx context.Context, selector string, window url
 	}
 	var data queryData
 	if err := json.Unmarshal(raw, &data); err != nil {
-		return datasource.FacetField{}, unreadable()
+		return datasource.FacetField{}, datasource.Unreadable()
 	}
 	field := datasource.FacetField{Name: name, Kind: datasource.FacetKindLabel, Exact: true, Unit: facetBytesUnit, Values: []datasource.FacetValue{}}
 	err = decodeEach(data.Result, 0, func(s series) error {
@@ -265,7 +265,7 @@ func (d *Datasource) labelFacet(ctx context.Context, selector string, window url
 		}
 		n, err := strconv.ParseFloat(s.Value.value, 64)
 		if err != nil {
-			return unreadable()
+			return datasource.Unreadable()
 		}
 		field.Values = append(field.Values, datasource.FacetValue{Value: value, Count: int64(n)})
 		return nil
@@ -305,7 +305,7 @@ func (d *Datasource) detectedFields(ctx context.Context, text string, window url
 		Fields []detectedField `json:"fields"`
 	}
 	if err := json.Unmarshal(raw, &body); err != nil {
-		return nil, false, unreadable()
+		return nil, false, datasource.Unreadable()
 	}
 	return body.Fields, false, nil
 }

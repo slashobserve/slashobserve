@@ -26,7 +26,8 @@ export function EditorViewSwitch({ view, onChange }: Props) {
     if (step === 0) return
     event.preventDefault()
     const at = views.findIndex((item) => item.view === view)
-    const next = views[(at + step + views.length) % views.length].view
+    const next = views[(at + step + views.length) % views.length]?.view
+    if (next === undefined) return
     onChange(next)
     buttons.current[next]?.focus()
   }

@@ -204,6 +204,7 @@ model       ok      anthropic claude-haiku-5-5, effort low
 ```
 
 `doctor` exits 1 when any check fails and 0 otherwise, since a warning never fails it.
+The `server` check fails with `this instance is stopping` when `/readyz` says the instance is shutting down; `doctor` does not wait for it, so run it again once the instance has restarted.
 It takes no flags.
 `--json` prints `{"ok": <bool>, "checks": [{"check", "status", "detail"}]}` instead of the table.
 Colour marks `ok`, `warn` and `fail` only in a terminal and when `NO_COLOR` is not set.
@@ -305,6 +306,9 @@ observe status <request-id> --wait
 `status` without `--wait` exits 0 even when the request failed.
 With `--wait` it exits 1 when the request failed, was canceled or the waiting stopped at `--timeout`.
 A failed request prints `observe failed: <reason>` and a canceled one `observe canceled: <reason>`, each followed by the hint line below when the server allows a next move.
+With `--json` that error keeps the code `failed` and adds `run_id` and `run_state` (`failed` or `canceled`).
+The wait reads the request's `state`, and the older `status` when a server sends a state the CLI does not know.
+Ctrl-C during a wait exits 1 with `still running on the server: observe status <id>`, under the code `interrupted`; the request keeps running.
 When polling fails 3 times in a row, the CLI exits 1 and says `the request may still be running: observe status <id>`.
 An Admin can show anyone's request with `observe status`, read only.
 
@@ -353,7 +357,7 @@ It accepts `--no-wait`, `--timeout` and `--open` like a prompt, and `--note <tex
 The note follows the same rule as a prompt: 1 to 4000 characters and no control characters, see [Text rules](../reference/text-rules.md).
 The server's `400` message is printed as it is.
 Continuing a request that was saved, was already continued or has no build fails with a one-line message naming it.
-Continuing a revision fails when its dashboard has a newer version than the build started from.
+Continuing a revision whose dashboard has a newer version than the build started from carries the build onto that version.
 
 `observe retry <request-id>` starts a finished request again as a new request with the same prompt.
 It waits the way a prompt does and prints the result, and it accepts `--no-wait`, `--open` and `--timeout`.
@@ -405,6 +409,7 @@ observe requests archive <request-id>
 `requests rename` and `o edit --title` also rename the chat or observation that shares the title, as [Chat](chat.md#one-title-for-a-chat-and-its-observation) describes, and say so or say that the other title was left as it is.
 You can repeat each command without effect, so a retry after a dropped connection is safe.
 An archived request stays readable with `observe status`.
+Archiving the last request of a chat archives the chat too.
 
 `requests archive <id> --delete-observation --yes` first deletes the observation the request saved, as `observe o delete` does and with the same permission.
 That is Manage on its folder, or Edit when you started the observation.
@@ -1261,11 +1266,9 @@ A comment is for everyone and asks no agent unless you add `--to agent`.
 
 - `comments reply <comment-id> <text...>` adds a reply to a thread, and the id can be any comment of the thread.
   It prints `Replied to thread <id> as <id>`, even with `-q`.
-  - `comments reply <dashboard-id> <comment-id> <text...>` does the same on a dashboard through the dashboard comment endpoint.
-    When the first two arguments are both ids, the first is the dashboard id.
-  - Everything after the ids is the reply text, so flags such as `--json`, `-q`, `--block`, `--reply-to` or `--to` must come before the ids.
+  - Everything after the id is the reply text, so flags such as `--json`, `-q`, `--block`, `--reply-to` or `--to` must come before the id.
+    A second id after the first is part of the text.
   - `--block <block-id>` anchors the reply to one block of an observation, and `--reply-to <comment-id>` names the comment of the same thread that the reply answers, which the web app shows quoted.
-  - `--to`, `--block` and `--reply-to` work only with the comment id alone, because the dashboard comment endpoint takes none of them.
 - `comments edit <comment-id> <text...>` replaces the text of your own comment, while you can still comment on its target.
   Everyone else gets 403 `not_author`.
   It prints `Edited comment <id>`, and the flags go before the id, as for `add`.
@@ -1277,7 +1280,7 @@ A comment is for everyone and asks no agent unless you add `--to agent`.
 
 #### Resolve and reopen threads
 
-`comments resolve <comment-id>` resolves a thread, and `comments resolve <dashboard-id> <comment-id>` does the same through the dashboard endpoint.
+`comments resolve <comment-id>` resolves a thread on any target.
 It prints `Resolved thread <id>`, or `Resolved thread <id> by version N` with `--version N`, which records the version that fixed a dashboard thread.
 A Commenter gets `not_starter` on a thread someone else started, and an Editor resolves any.
 When the thread was already resolved, `--version` is not applied and the command exits 1.
@@ -1546,7 +1549,7 @@ Listing exits 0 whatever it finds, and `--json` prints the response of `GET /api
 
 `health repair <dashboard-id>...` asks the agent to repair 1 to 50 dashboards.
 It prints one row per dashboard with `queued` and the request id, or the reason it was skipped.
-The reasons are `active`, `nothing_to_repair`, `not_found`, `forbidden_role`, `provisioned` (a starter dashboard, which only a release changes) and `queue_full`.
+The reasons are `active`, `nothing_to_repair`, `not_found`, `forbidden_role`, and `provisioned` (a starter dashboard, which only a release changes).
 It needs an Editor key and a model on the server, and exits 1 when it queued no repair.
 
 `health run` starts a check of every dashboard now and needs an Admin key.
@@ -1779,9 +1782,11 @@ observe grafana import <connection id> --all
 `--folders` with `--all` exits 2.
 Without either flag it prints the folders as a table of uid, title and dashboard count and exits 2.
 
-It then waits for the import and shows `Imported <done> of <total>` on a terminal.
+It then waits while the import is `running` and shows `Imported <done> of <total>` on a terminal.
+It reads the import's `state`, and the older `status` when a server sends a state the CLI does not know.
 At the end it prints how many dashboards were done, skipped and failed, a table of the failed ones with their error, and a notice for dashboards with panels that did not verify.
 It exits 1 when any dashboard failed or the import failed or was canceled, and `--json` prints the final import, whose `state` is `finished`, `failed` or `canceled`.
+An import that stops in any other state also exits 1, with that state in the error line, and `--json` prints it as it came.
 An interrupt stops the waiting while the import continues on the server.
 The server keeps a connection's last 20 imports.
 
@@ -2050,6 +2055,7 @@ With `--json`, the error is one JSON object on standard error, so a script can b
 ```
 
 The object can also carry `start` and `end`, integers, when the server sends a byte range.
+An agent request that ended failed or canceled while the CLI waited carries `run_id` and `run_state` too.
 
 Details of the codes:
 
@@ -2057,7 +2063,7 @@ Details of the codes:
 - `usage` is a wrong command line.
 - `unauthenticated` is a missing or refused key.
 - `unreachable` means the server cannot be reached.
-- `interrupted` is an interrupt.
+- `interrupted` is an interrupt, a Ctrl-C during a wait included.
 - `http_<status>` is a status where the server sent no code.
 - `failed` is anything else.
 

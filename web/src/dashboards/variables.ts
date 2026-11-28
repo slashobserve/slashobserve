@@ -34,7 +34,8 @@ export type VariableOptions = Record<string, string[] | undefined>
 export function sortSelections(selections: Selections): Selections {
   const out: Selections = {}
   for (const name of Object.keys(selections).sort()) {
-    out[name] = selections[name]
+    const values = selections[name]
+    if (values !== undefined) out[name] = values
   }
   return out
 }
@@ -46,7 +47,9 @@ export type ValuesData = {
 }
 
 export function optionTexts(
-  data: Pick<ValuesData, "values" | "texts"> | undefined
+  data:
+    | { values: ValuesData["values"]; texts?: ValuesData["texts"] | undefined }
+    | undefined
 ): (value: string) => string {
   const { values, texts } = data ?? { values: [] }
   if (!texts) return (value) => value
@@ -65,7 +68,7 @@ export type VariableDisplay = {
   selectable: string[] | undefined
 }
 
-export type ValuesRange = { from?: string; to?: string }
+export type ValuesRange = { from?: string | undefined; to?: string | undefined }
 
 export function valuesRange(
   variable: Variable,
@@ -166,8 +169,9 @@ function fromUrl(
   const concrete = values.filter(
     (value) => value !== ALL && (value !== "" || keepsEmpty)
   )
-  if (concrete.length === 0) return []
-  return variable.multi ? concrete : [concrete[0]]
+  const [first] = concrete
+  if (first === undefined) return []
+  return variable.multi ? concrete : [first]
 }
 
 function declaredSelection(
@@ -221,7 +225,7 @@ function groupBySelection(
 function intervalSelection(
   variable: IntervalVariable,
   urlValue: string | undefined
-): string {
+): string | undefined {
   const options = intervalOptions(variable)
   if (urlValue !== undefined && options.includes(urlValue)) return urlValue
   if (variable.default !== undefined && options.includes(variable.default)) {
@@ -234,7 +238,7 @@ function datasourceSelection(
   variable: DatasourceVariable,
   urlValue: string | undefined,
   available: string[]
-): string {
+): string | undefined {
   if (urlValue !== undefined && available.includes(urlValue)) return urlValue
   if (variable.default !== undefined && available.includes(variable.default)) {
     return variable.default
@@ -258,9 +262,11 @@ export function resolveSelections(
       case "textbox":
         selections[variable.name] = [urlValues[0] ?? variable.default ?? ""]
         break
-      case "interval":
-        selections[variable.name] = [intervalSelection(variable, urlValues[0])]
+      case "interval": {
+        const interval = intervalSelection(variable, urlValues[0])
+        if (interval !== undefined) selections[variable.name] = [interval]
         break
+      }
       case "adhoc": {
         const selection = adhocSelection(variable, urlValues)
         if (selection) selections[variable.name] = selection
@@ -274,10 +280,9 @@ export function resolveSelections(
       case "datasource": {
         const available = options[variable.name]
         if (available === undefined) waiting.push(variable.name)
-        else if (available.length > 0) {
-          selections[variable.name] = [
-            datasourceSelection(variable, urlValues[0], available),
-          ]
+        else {
+          const chosen = datasourceSelection(variable, urlValues[0], available)
+          if (chosen !== undefined) selections[variable.name] = [chosen]
         }
         break
       }
@@ -292,9 +297,10 @@ export function resolveSelections(
           selections[variable.name] = [ALL]
         } else {
           const available = options[variable.name]
+          const first = available?.[0]
           if (available === undefined) waiting.push(variable.name)
-          else if (available.length > 0) {
-            selections[variable.name] = [available[0]]
+          else if (first !== undefined) {
+            selections[variable.name] = [first]
           }
         }
       }

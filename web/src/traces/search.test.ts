@@ -6,8 +6,8 @@ import {
   linkWithoutPage,
   normaliseTraceId,
   rangeInFuture,
+  searchRange,
   traceViewDatasource,
-  tracesTimeRange,
   traceViewRange,
   validateTraceEntrySearch,
   validateTraceSearch,
@@ -92,7 +92,7 @@ describe("validateTraceSearch", () => {
   })
 
   it("defaults the search range to the last hour", () => {
-    expect(tracesTimeRange(validateTraceSearch({ from: "now-1d" }))).toEqual({
+    expect(searchRange(validateTraceSearch({ from: "now-1d" }))).toEqual({
       from: "now-1h",
       to: "now",
     })

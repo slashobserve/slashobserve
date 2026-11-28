@@ -4,7 +4,7 @@ import { assetGeojsonUrl, remoteHost } from "@/lib/remote-assets"
 import type { Detail, Tip } from "../geo-model"
 import { project, type LonLat, type Point } from "../projection"
 
-export type Position = readonly number[]
+export type Position = readonly [number, number, ...number[]]
 
 export type Geometry =
   | { type: "Point"; coordinates: Position }
@@ -137,7 +137,11 @@ function collect(
     geometryTypes.has(value.type) &&
     Array.isArray(value.coordinates)
   ) {
-    out.push({ id, properties, geometry: value as Geometry })
+    out.push({
+      ...(id === undefined ? {} : { id }),
+      properties,
+      geometry: value as Geometry,
+    })
   }
 }
 
@@ -343,7 +347,8 @@ function openPath(line: readonly Position[], extent: Extent): string {
 
 function ringPath(ring: readonly Position[], extent: Extent): string {
   const flat = unwrapRing(ring.filter(isPosition))
-  if (flat.length === 0) return ""
+  const [first] = flat
+  if (first === undefined) return ""
   const lons = flat.map(([lon]) => lon)
   const east = Math.max(...lons)
   const west = Math.min(...lons)
@@ -353,8 +358,8 @@ function ringPath(ring: readonly Position[], extent: Extent): string {
     : [0]
   for (const [lon, lat] of flat) grow(extent, clampLon(lon), lat)
   if (wraps) {
-    grow(extent, -antimeridianJump, flat[0][1])
-    grow(extent, antimeridianJump, flat[0][1])
+    grow(extent, -antimeridianJump, first[1])
+    grow(extent, antimeridianJump, first[1])
   }
   return shifts
     .map((shift) => {

@@ -77,24 +77,18 @@ func (a *app) runServicesOne(cmd *cobra.Command, uid string, opts servicesOption
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(body servicesBody) error {
+		for _, name := range matching(body.Services, opts.service) {
+			out.line("%s", text(name))
+		}
+		if body.Truncated {
+			out.notice("The list is cut at %d services; narrow it with --service.", len(body.Services))
+		}
+		if body.Field != "" {
+			out.notice("Services are in %s over the last %s.", text(body.Field), windowText(body.WindowSeconds))
+		}
 		return nil
-	}
-	body, err := decode[servicesBody](data)
-	if err != nil {
-		return err
-	}
-	for _, name := range matching(body.Services, opts.service) {
-		out.line("%s", text(name))
-	}
-	if body.Truncated {
-		out.notice("The list is cut at %d services; narrow it with --service.", len(body.Services))
-	}
-	if body.Field != "" {
-		out.notice("Services are in %s over the last %s.", text(body.Field), windowText(body.WindowSeconds))
-	}
-	return nil
+	})
 }
 
 func (a *app) runServicesAll(cmd *cobra.Command, opts servicesOptions) error {

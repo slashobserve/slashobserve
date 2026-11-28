@@ -144,8 +144,8 @@ describe("blockRows", () => {
   it("orders by position and keys a row by its first block", () => {
     const rows = blockRows([block("b", 1, "half"), block("a", 0, "half")])
     expect(rows).toHaveLength(1)
-    expect(rows[0].key).toBe("a")
-    expect(rows[0].blocks.map((b) => b.id)).toEqual(["a", "b"])
+    expect(rows[0]?.key).toBe("a")
+    expect(rows[0]?.blocks.map((b) => b.id)).toEqual(["a", "b"])
   })
 })
 

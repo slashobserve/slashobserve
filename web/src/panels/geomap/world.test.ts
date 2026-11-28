@@ -2,9 +2,18 @@ import { describe, expect, it } from "vitest"
 
 import { worldOutline } from "./world"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 function segments(path: string): { command: string; x: number; y: number }[] {
   return [...path.matchAll(/([ML])(-?[\d.e-]+) (-?[\d.e-]+)/g)].map(
-    ([, command, x, y]) => ({ command, x: Number(x), y: Number(y) })
+    ([, command, x, y]) => ({
+      command: must(command),
+      x: Number(x),
+      y: Number(y),
+    })
   )
 }
 
@@ -24,7 +33,7 @@ describe("worldOutline", () => {
     const points = segments(await worldOutline())
     points.forEach((point, index) => {
       if (point.command === "M" || index === 0) return
-      expect(Math.abs(point.x - points[index - 1].x)).toBeLessThan(0.5)
+      expect(Math.abs(point.x - must(points[index - 1]).x)).toBeLessThan(0.5)
     })
   })
 

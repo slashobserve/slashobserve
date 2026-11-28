@@ -10,23 +10,39 @@ export type SendState =
   | { status: "failed"; failure: Failure }
   | { status: "started"; started: Started }
 
-export type PlacedSend = { place: string; holds: number; send: SendState }
+export type PlacedSend = {
+  place: string
+  holds: number
+  send: SendState
+  clientId: string
+  sentBodies: readonly string[]
+}
 
 export type SendEvent =
-  | { type: "placed"; place: string }
+  | { type: "placed"; place: string; clientId: string }
   | { type: "hold_started"; place: string }
   | { type: "hold_ended"; place: string; hold: number }
   | { type: "hold_cancelled"; place: string }
   | { type: "edited"; place: string }
   | { type: "failed"; place: string; failure: Failure | null }
-  | { type: "send_started"; place: string }
-  | { type: "delivered"; place: string; started: Started | null }
+  | { type: "send_started"; place: string; body: string }
+  | {
+      type: "delivered"
+      place: string
+      started: Started | null
+      clientId: string
+    }
+  | { type: "superseded"; place: string; failure: Failure; clientId: string }
   | { type: "opened"; place: string }
 
 const idle: SendState = { status: "idle" }
 
-export function sendAt(place: string): PlacedSend {
-  return { place, holds: 0, send: idle }
+export function sendAt(place: string, clientId: string): PlacedSend {
+  return { place, holds: 0, send: idle, clientId, sentBodies: [] }
+}
+
+export function sentOtherBody(state: PlacedSend, body: string): boolean {
+  return state.sentBodies.some((sent) => sent !== body)
 }
 
 export function sendIn(state: PlacedSend, place: string): SendState {
@@ -63,6 +79,10 @@ function next(state: PlacedSend, event: SendEvent): SendState {
       return send.status === "sending"
         ? { status: "opening", started: event.started }
         : send
+    case "superseded":
+      return send.status === "sending"
+        ? { status: "failed", failure: event.failure }
+        : send
     case "opened":
       if (send.status !== "opening") return send
       return send.started === null
@@ -71,18 +91,45 @@ function next(state: PlacedSend, event: SendEvent): SendState {
   }
 }
 
+function attempts(
+  state: PlacedSend,
+  event: SendEvent
+): Pick<PlacedSend, "clientId" | "sentBodies"> {
+  switch (event.type) {
+    case "send_started":
+      return {
+        clientId: state.clientId,
+        sentBodies: [...state.sentBodies, event.body],
+      }
+    case "delivered":
+    case "superseded":
+      return { clientId: event.clientId, sentBodies: [] }
+    default:
+      return state
+  }
+}
+
 export function reduceSend(state: PlacedSend, event: SendEvent): PlacedSend {
   if (event.type === "placed") {
     return event.place === state.place
       ? state
-      : { ...state, place: event.place, send: idle }
+      : {
+          ...state,
+          place: event.place,
+          send: idle,
+          clientId: event.clientId,
+          sentBodies: [],
+        }
   }
   if (event.place !== state.place) return state
   const send = next(state, event)
   if (send === state.send) return state
+  const { clientId, sentBodies } = attempts(state, event)
   return {
     ...state,
     send,
     holds: send.status === "holding" ? send.hold : state.holds,
+    clientId,
+    sentBodies,
   }
 }

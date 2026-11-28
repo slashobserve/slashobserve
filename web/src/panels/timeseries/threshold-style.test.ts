@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest"
 
 import { thresholdBands, thresholdParts } from "./threshold-style"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 const steps = [
   { color: "ok" },
   { value: 70, color: "warning" },
@@ -51,7 +56,7 @@ describe("thresholdBands", () => {
 
   it("sorts steps written out of order", () => {
     const bands = thresholdBands(
-      [steps[2], steps[0], steps[1]],
+      [must(steps[2]), must(steps[0]), must(steps[1])],
       "absolute",
       0,
       100

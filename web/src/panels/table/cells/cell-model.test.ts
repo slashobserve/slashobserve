@@ -3,8 +3,6 @@ import { describe, expect, it } from "vitest"
 import {
   cellSpecOf,
   fillTextColor,
-  gaugeFraction,
-  gaugeRange,
   jsonView,
   lastNumber,
   numberSeries,
@@ -128,40 +126,5 @@ describe("numberSeries", () => {
   it("finds the last number", () => {
     expect(lastNumber([1, 2, null])).toBe(2)
     expect(lastNumber([null])).toBeNull()
-  })
-})
-
-describe("gauge range", () => {
-  it("uses the configured range, then the unit's, then the column's data", () => {
-    expect(
-      gaugeRange({ min: 10, max: 20 }, { fieldMin: 0, fieldMax: 5 })
-    ).toEqual({ min: 10, max: 20 })
-    expect(gaugeRange({ unit: "percentunit" }, { fieldMax: 7 })).toEqual({
-      min: 0,
-      max: 1,
-    })
-    expect(gaugeRange({}, { fieldMin: 3, fieldMax: 9 })).toEqual({
-      min: 0,
-      max: 9,
-    })
-    expect(gaugeRange({}, { fieldMin: -4, fieldMax: 9 })).toEqual({
-      min: -4,
-      max: 9,
-    })
-  })
-
-  it("widens an empty range by one", () => {
-    expect(gaugeRange({}, { fieldMin: 0, fieldMax: 0 })).toEqual({
-      min: 0,
-      max: 1,
-    })
-  })
-
-  it("clamps the fraction into the range", () => {
-    const range = { min: 0, max: 10 }
-    expect(gaugeFraction(5, range)).toBe(0.5)
-    expect(gaugeFraction(50, range)).toBe(1)
-    expect(gaugeFraction(-5, range)).toBe(0)
-    expect(gaugeFraction(null, range)).toBe(0)
   })
 })

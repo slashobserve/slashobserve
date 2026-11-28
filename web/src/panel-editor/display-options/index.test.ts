@@ -68,7 +68,7 @@ describe("displayOptions", () => {
       )
     )
     const skipped = new Set(editedElsewhere[type] ?? [])
-    const missing = displayKeysByType[type].filter(
+    const missing = displayKeysByType[type]!.filter(
       (key) => !declared.has(key) && !skipped.has(key)
     )
     expect(missing).toEqual([])

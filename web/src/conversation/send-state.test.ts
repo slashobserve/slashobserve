@@ -7,6 +7,7 @@ import {
   reduceSend,
   sendAt,
   sendIn,
+  sentOtherBody,
   type PlacedSend,
   type SendEvent,
   type Started,
@@ -21,7 +22,7 @@ const started: Started = {
 }
 
 function walk(...events: SendEvent[]): PlacedSend {
-  return events.reduce(reduceSend, sendAt(here))
+  return events.reduce(reduceSend, sendAt(here, "id-1"))
 }
 
 function at(place: string, ...events: SendEvent[]) {
@@ -29,9 +30,9 @@ function at(place: string, ...events: SendEvent[]) {
 }
 
 const held: SendEvent = { type: "hold_started", place: here }
-const sendStarted: SendEvent = { type: "send_started", place: here }
+const sendStarted: SendEvent = { type: "send_started", place: here, body: "a" }
 const failed: SendEvent = { type: "failed", place: here, failure }
-const moved: SendEvent = { type: "placed", place: there }
+const moved: SendEvent = { type: "placed", place: there, clientId: "id-2" }
 
 describe("reduceSend", () => {
   it("starts idle", () => {
@@ -80,7 +81,12 @@ describe("reduceSend", () => {
   })
 
   it("opens what was delivered, then shows what the agent started", () => {
-    const delivered: SendEvent = { type: "delivered", place: here, started }
+    const delivered: SendEvent = {
+      type: "delivered",
+      place: here,
+      started,
+      clientId: "id-2",
+    }
     const opened: SendEvent = { type: "opened", place: here }
     expect(at(here, sendStarted, delivered)).toEqual({
       status: "opening",
@@ -99,14 +105,21 @@ describe("reduceSend", () => {
       at(
         here,
         sendStarted,
-        { type: "delivered", place: here, started: null },
+        { type: "delivered", place: here, started: null, clientId: "id-2" },
         opened
       )
     ).toEqual({ status: "idle" })
   })
 
   it("ignores a delivery or an opening that no send is waiting for", () => {
-    expect(at(here, { type: "delivered", place: here, started })).toEqual({
+    expect(
+      at(here, {
+        type: "delivered",
+        place: here,
+        started,
+        clientId: "id-2",
+      })
+    ).toEqual({
       status: "idle",
     })
     expect(at(here, failed, { type: "opened", place: here })).toEqual({
@@ -135,13 +148,81 @@ describe("reduceSend", () => {
         type: "delivered",
         place: here,
         started,
+        clientId: "id-3",
       })
     ).toEqual({ status: "idle" })
   })
 
   it("is idle on coming back, with a hold number the old hold cannot match", () => {
-    const back = walk(held, moved, { type: "placed", place: here })
+    const back = walk(held, moved, {
+      type: "placed",
+      place: here,
+      clientId: "id-3",
+    })
     expect(back.send).toEqual({ status: "idle" })
     expect(reduceSend(back, held).send).toEqual({ status: "holding", hold: 2 })
+  })
+})
+
+describe("client ids", () => {
+  const edited: SendEvent = { type: "send_started", place: here, body: "b" }
+  const superseded: SendEvent = {
+    type: "superseded",
+    place: here,
+    failure,
+    clientId: "id-2",
+  }
+
+  it("keeps the id and records each body across failed attempts", () => {
+    const state = walk(sendStarted, failed, edited, failed)
+    expect(state.clientId).toBe("id-1")
+    expect(state.sentBodies).toEqual(["a", "b"])
+    expect(sentOtherBody(state, "b")).toBe(true)
+    expect(sentOtherBody(walk(sendStarted, failed, sendStarted), "a")).toBe(
+      false
+    )
+  })
+
+  it("keeps the id after an edit", () => {
+    const state = walk(sendStarted, failed, { type: "edited", place: here })
+    expect(state.clientId).toBe("id-1")
+    expect(state.sentBodies).toEqual(["a"])
+  })
+
+  it("records no body for a send that was already under way", () => {
+    expect(walk(sendStarted, edited).sentBodies).toEqual(["a"])
+  })
+
+  it("takes a fresh id once a send is delivered", () => {
+    const state = walk(sendStarted, {
+      type: "delivered",
+      place: here,
+      started: null,
+      clientId: "id-2",
+    })
+    expect(state.clientId).toBe("id-2")
+    expect(state.sentBodies).toEqual([])
+  })
+
+  it("takes a fresh id and says so when the first message was sent", () => {
+    const state = walk(sendStarted, failed, edited, superseded)
+    expect(state.send).toEqual({ status: "failed", failure })
+    expect(state.clientId).toBe("id-2")
+    expect(state.sentBodies).toEqual([])
+  })
+
+  it("ignores a supersession that no send is waiting for", () => {
+    const state = walk(sendStarted, failed, superseded)
+    expect(state.clientId).toBe("id-1")
+  })
+
+  it("takes a fresh id in another place, and keeps it on coming back to the same one", () => {
+    const state = walk(sendStarted, failed, moved)
+    expect(state.clientId).toBe("id-2")
+    expect(state.sentBodies).toEqual([])
+    expect(
+      reduceSend(state, { type: "placed", place: there, clientId: "id-9" })
+        .clientId
+    ).toBe("id-2")
   })
 })

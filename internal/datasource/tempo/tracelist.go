@@ -40,7 +40,7 @@ func (d *Datasource) ListTraces(ctx context.Context, req datasource.TraceListReq
 		return datasource.TraceList{}, err
 	}
 	lim := d.opts.Limits.Tighten(req.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	limit := cmpPositive(req.Limit, datasource.TraceListBudget)
 	rows, metrics, err := d.searchRows(ctx, ListQuery(req), req.Range, limit)
@@ -49,7 +49,7 @@ func (d *Datasource) ListTraces(ctx context.Context, req datasource.TraceListReq
 	}
 	out := datasource.TraceList{Traces: make([]datasource.TraceSummary, 0, len(rows)), Complete: len(rows) < limit && !metrics.partial()}
 	for _, r := range rows {
-		out.Traces = append(out.Traces, datasource.TraceSummary{ID: r.traceID, RootService: r.service, Route: r.name, Start: r.start, Duration: time.Duration(r.duration)})
+		out.Traces = append(out.Traces, datasource.TraceSummary{ID: r.TraceID, RootService: r.Service, Route: r.Name, Start: r.Start, Duration: time.Duration(r.Duration)})
 	}
 	return out, nil
 }

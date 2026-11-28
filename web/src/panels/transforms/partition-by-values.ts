@@ -11,14 +11,14 @@ import {
 
 type PartitionOptions = Extract<Transform, { type: "partitionByValues" }>
 
-export type Group = { values: string[]; rows: number[] }
+export type Group = { values: string[]; first: number; rows: number[] }
 
 export function groupRows(keys: PreparedField[], count: number): Group[] {
   const groups = new Map<string, Group>()
   for (let row = 0; row < count; row++) {
     const values = keys.map((key) => String(cell(key, row) ?? ""))
     const id = JSON.stringify(values)
-    const group = groups.get(id) ?? { values, rows: [] }
+    const group = groups.get(id) ?? { values, first: row, rows: [] }
     group.rows.push(row)
     groups.set(id, group)
   }
@@ -53,7 +53,10 @@ function partition(
         labels: {
           ...frame.labels,
           ...Object.fromEntries(
-            keys.map((key, at) => [key.name, group.values[at]])
+            keys.flatMap((key, at) => {
+              const value = group.values[at]
+              return value === undefined ? [] : [[key.name, value]]
+            })
           ),
         },
         fields,

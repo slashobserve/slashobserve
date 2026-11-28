@@ -19,6 +19,7 @@ import {
   usePanelInboxList,
   useSetInboxItemDone,
 } from "./queries"
+import { must } from "@/test/must"
 
 function item(seq: number): InboxItem {
   return { seq } as InboxItem
@@ -104,8 +105,8 @@ describe("useInboxCount", () => {
       wrapper: wrapperFor(client, false),
     })
     await waitFor(() => expect(result.current).toBe(4))
-    expect(requests[0].searchParams.get("view")).toBe("for_you")
-    expect(requests[0].searchParams.get("filter")).toBe("open")
+    expect(must(requests[0]).searchParams.get("view")).toBe("for_you")
+    expect(must(requests[0]).searchParams.get("filter")).toBe("open")
   })
 
   test("polls For you on a page outside the shell and not inside it", () => {
@@ -279,7 +280,7 @@ describe("useInboxLive", () => {
   }
 
   function emit() {
-    act(() => FakeEventSource.instances[0].emit("activity", event))
+    act(() => must(FakeEventSource.instances[0]).emit("activity", event))
   }
 
   test("refreshes only For you at once on the first event while the panel is closed", () => {

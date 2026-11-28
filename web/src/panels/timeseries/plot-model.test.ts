@@ -21,6 +21,11 @@ import {
 import { axesInUse } from "./series-config"
 import type { Cell } from "./stack"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 function config(props: Partial<FieldConfig> = {}): FieldConfig {
   return {
     thresholdMode: "absolute",
@@ -271,7 +276,7 @@ describe("plotStateFor fill below to", () => {
       [upper({}, 35), lower],
       new Set()
     )
-    expect(state.bands[0].fill?.percent).toBe(35)
+    expect(must(state.bands[0]).fill?.percent).toBe(35)
   })
 
   it("offsets the band past the ghost lines", () => {
@@ -281,7 +286,7 @@ describe("plotStateFor fill below to", () => {
       [upper(), lower],
       new Set()
     )
-    expect(state.bands[0].series).toEqual([2, 3])
+    expect(must(state.bands[0]).series).toEqual([2, 3])
   })
 
   it("ignores a name no series carries, itself and a stacked series", () => {
@@ -467,7 +472,7 @@ describe("thresholdsFor", () => {
         config: config({ axis: "right", thresholds: own }),
       }),
     ]
-    const left = axesInUse(rows, [rows[0].config], {}, 1).left
+    const left = axesInUse(rows, [must(rows[0]).config], {}, 1).left
     expect(thresholdsFor(rows, left, panel)).toEqual({
       list: panel.thresholds,
       mode: "percentage",

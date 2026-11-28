@@ -10,6 +10,11 @@ import {
   type NetworkNode,
 } from "./network"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 const nodes: NetworkNode[] = [
   { id: "a", lat: 10, lon: 20 },
   { id: "b", lat: 30, lon: 40 },
@@ -24,8 +29,8 @@ describe("networkModel", () => {
   it("joins located nodes with a line between their places", () => {
     const model = networkModel(nodes, [edge(0, "a", "b")], {}, undefined)
     expect(model.edges).toHaveLength(1)
-    expect(model.edges[0].from).toEqual(project(20, 10))
-    expect(model.edges[0].to).toEqual(project(40, 30))
+    expect(must(model.edges[0]).from).toEqual(project(20, 10))
+    expect(must(model.edges[0]).to).toEqual(project(40, 30))
   })
 
   it("builds edges only between located nodes and counts the rest", () => {

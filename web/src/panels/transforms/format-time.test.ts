@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import { formatTime } from "./format-time"
 import type { PreparedFrame } from "./names"
 
@@ -21,6 +23,7 @@ describe("formatTime", () => {
       format: "YYYY-MM-DD HH:mm",
       utc: true,
     })
+    defined(out)
     expect(out.fields[0]).toEqual({
       name: "Time",
       type: "string",
@@ -35,7 +38,8 @@ describe("formatTime", () => {
       [{ ref: "A", fields: [{ name: "Time", type: "time", values: [local] }] }],
       { type: "formatTime", field: "Time", format: "HH:mm" }
     )
-    expect(out.fields[0].values).toEqual(["15:04"])
+    defined(out)
+    expect(must(out.fields[0]).values).toEqual(["15:04"])
   })
 
   it("leaves a field that is not a time field or not named", () => {

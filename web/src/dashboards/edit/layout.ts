@@ -163,15 +163,15 @@ export function resizeItem(
 
 function stackSections(layout: Layout, membership: Membership): Layout {
   const headers = layout.filter((item) => item.static).sort((a, b) => a.y - b.y)
+  const loose = { header: undefined, members: [] as LayoutItem[] }
   const sections = [
-    { header: undefined, members: [] as LayoutItem[] },
+    loose,
     ...headers.map((header) => ({ header, members: [] as LayoutItem[] })),
   ]
   for (const item of layout) {
     if (item.static) continue
     const owner = membership.get(item.i)
-    const section =
-      sections.find((entry) => entry.header?.i === owner) ?? sections[0]
+    const section = sections.find((entry) => entry.header?.i === owner) ?? loose
     section.members.push(item)
   }
   const placed = new Map<string, LayoutItem>()

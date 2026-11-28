@@ -152,16 +152,7 @@ func (r *Registry) getTrace(ctx context.Context, input json.RawMessage) (Result,
 }
 
 func (r *Registry) acquireUpstream(ctx context.Context, datasourceUID string) (release func(), err error) {
-	waitCtx, cancel := context.WithTimeout(ctx, r.deps.Runner.UpstreamWait())
-	defer cancel()
-	release, err = r.deps.Runner.AcquireUpstream(waitCtx, datasourceUID)
-	switch {
-	case err == nil:
-		return release, nil
-	case ctx.Err() != nil:
-		return nil, ctx.Err()
-	}
-	return nil, queryproxy.ErrUpstreamBusy
+	return r.deps.Runner.AcquireUpstreamBounded(ctx, datasourceUID)
 }
 
 func summarizeTrace(id string, f datasource.Frame) traceOut {

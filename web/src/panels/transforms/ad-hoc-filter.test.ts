@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { AdhocFilter } from "@/dashboards/variable-controls/adhoc"
 import type { Variable } from "@/spec"
+import { must } from "@/panels/must"
 
 import { adhocFiltersOf, filterByAdhoc } from "./ad-hoc-filter"
 import type { PreparedFrame } from "./names"
@@ -16,7 +17,7 @@ const table: PreparedFrame = {
 }
 
 function rows(frames: PreparedFrame[], field: string): unknown[] {
-  return frames[0].fields.find((f) => f.name === field)?.values ?? []
+  return must(frames[0]).fields.find((f) => f.name === field)?.values ?? []
 }
 
 function filter(
@@ -80,7 +81,7 @@ describe("filterByAdhoc", () => {
     }
     const out = filterByAdhoc([table, other], [[filter("pod", "=", "a-1")]])
     expect(out[1]).toBe(other)
-    expect(out[0].fields[0].values).toEqual(["a-1"])
+    expect(must(must(out[0]).fields[0]).values).toEqual(["a-1"])
   })
 
   it("applies only the filters whose key a frame has", () => {

@@ -1,0 +1,865 @@
+{
+  "name": "revise-outline",
+  "brief": {
+    "request": {
+      "mode": "revise",
+      "source": "prompt",
+      "prompt": "change s7, s12, row-a and inner_1 (not s99)",
+      "panel_id": "s3",
+      "from": null,
+      "to": null,
+      "time_zone": null,
+      "zone": null,
+      "as_of": null,
+      "continue_note": null,
+      "thread_context": null,
+      "continues": false,
+      "attempt": 1,
+      "investigation": false,
+      "pointer": {
+        "anchor": null,
+        "block_id": null,
+        "observation_id": null,
+        "thread_ask": false
+      }
+    },
+    "current": {
+      "dashboard_id": "big",
+      "number": 12,
+      "spec": {
+        "specVersion": "0",
+        "title": "Big",
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "panels": [
+          {
+            "id": "s0",
+            "type": "stat",
+            "title": "Service 0 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 0,
+              "y": 0,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-0\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s1",
+            "type": "stat",
+            "title": "Service 1 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 6,
+              "y": 0,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-1\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s2",
+            "type": "stat",
+            "title": "Service 2 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 12,
+              "y": 0,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-2\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s3",
+            "type": "stat",
+            "title": "Service 3 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 18,
+              "y": 0,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-3\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s4",
+            "type": "stat",
+            "title": "Service 4 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 0,
+              "y": 4,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-4\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s5",
+            "type": "stat",
+            "title": "Service 5 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 6,
+              "y": 4,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-5\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s6",
+            "type": "stat",
+            "title": "Service 6 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 12,
+              "y": 4,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-6\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s7",
+            "type": "stat",
+            "title": "Service 7 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 18,
+              "y": 4,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-7\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s8",
+            "type": "stat",
+            "title": "Service 8 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 0,
+              "y": 8,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-8\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s9",
+            "type": "stat",
+            "title": "Service 9 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 6,
+              "y": 8,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-9\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s10",
+            "type": "stat",
+            "title": "Service 10 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 12,
+              "y": 8,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-10\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s11",
+            "type": "stat",
+            "title": "Service 11 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 18,
+              "y": 8,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-11\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s12",
+            "type": "stat",
+            "title": "Service 12 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 0,
+              "y": 12,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-12\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s13",
+            "type": "stat",
+            "title": "Service 13 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 6,
+              "y": 12,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-13\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s14",
+            "type": "stat",
+            "title": "Service 14 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 12,
+              "y": 12,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-14\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s15",
+            "type": "stat",
+            "title": "Service 15 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 18,
+              "y": 12,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-15\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s16",
+            "type": "stat",
+            "title": "Service 16 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 0,
+              "y": 16,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-16\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s17",
+            "type": "stat",
+            "title": "Service 17 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 6,
+              "y": 16,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-17\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s18",
+            "type": "stat",
+            "title": "Service 18 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 12,
+              "y": 16,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-18\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s19",
+            "type": "stat",
+            "title": "Service 19 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 18,
+              "y": 16,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-19\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s20",
+            "type": "stat",
+            "title": "Service 20 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 0,
+              "y": 20,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-20\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s21",
+            "type": "stat",
+            "title": "Service 21 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 6,
+              "y": 20,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-21\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s22",
+            "type": "stat",
+            "title": "Service 22 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 12,
+              "y": 20,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-22\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s23",
+            "type": "stat",
+            "title": "Service 23 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 18,
+              "y": 20,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-23\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s24",
+            "type": "stat",
+            "title": "Service 24 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 0,
+              "y": 24,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-24\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s25",
+            "type": "stat",
+            "title": "Service 25 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 6,
+              "y": 24,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-25\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s26",
+            "type": "stat",
+            "title": "Service 26 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 12,
+              "y": 24,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-26\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s27",
+            "type": "stat",
+            "title": "Service 27 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 18,
+              "y": 24,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-27\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s28",
+            "type": "stat",
+            "title": "Service 28 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 0,
+              "y": 28,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-28\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s29",
+            "type": "stat",
+            "title": "Service 29 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 6,
+              "y": 28,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-29\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s30",
+            "type": "stat",
+            "title": "Service 30 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 12,
+              "y": 28,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-30\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s31",
+            "type": "stat",
+            "title": "Service 31 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 18,
+              "y": 28,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-31\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s32",
+            "type": "stat",
+            "title": "Service 32 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 0,
+              "y": 32,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-32\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s33",
+            "type": "stat",
+            "title": "Service 33 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 6,
+              "y": 32,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-33\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s34",
+            "type": "stat",
+            "title": "Service 34 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 12,
+              "y": 32,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-34\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s35",
+            "type": "stat",
+            "title": "Service 35 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 18,
+              "y": 32,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-35\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s36",
+            "type": "stat",
+            "title": "Service 36 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 0,
+              "y": 36,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-36\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s37",
+            "type": "stat",
+            "title": "Service 37 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 6,
+              "y": 36,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-37\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s38",
+            "type": "stat",
+            "title": "Service 38 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 12,
+              "y": 36,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-38\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s39",
+            "type": "stat",
+            "title": "Service 39 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 18,
+              "y": 36,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-39\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s40",
+            "type": "stat",
+            "title": "Service 40 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 0,
+              "y": 40,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-40\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "s41",
+            "type": "stat",
+            "title": "Service 41 <errors> — café",
+            "description": "A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. ",
+            "gridPos": {
+              "x": 6,
+              "y": 40,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"svc-41\",code=~\"5..\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "id": "row-a",
+            "type": "row",
+            "title": "Row A",
+            "gridPos": {
+              "x": 0,
+              "y": 60,
+              "w": 24,
+              "h": 1
+            },
+            "panels": [
+              {
+                "id": "inner_1",
+                "type": "timeseries",
+                "title": "Inner",
+                "gridPos": {
+                  "x": 0,
+                  "y": 61,
+                  "w": 24,
+                  "h": 8
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "up"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "unverified": {
+        "panels": null,
+        "variables": null
+      },
+      "conversion": null
+    },
+    "build": null,
+    "datasources": [
+      {
+        "uid": "prom",
+        "type": "prometheus",
+        "name": "Prometheus",
+        "source": "",
+        "healthy": true,
+        "checked_at": "0001-01-01T00:00:00Z",
+        "health_state": "",
+        "everyone": false
+      }
+    ],
+    "withheld": false,
+    "guide": {
+      "text": "",
+      "schema": null
+    },
+    "draft": null
+  },
+  "reason": "",
+  "now": "2026-11-25T05:29:00Z",
+  "state": {
+    "task": "",
+    "loop": false,
+    "facts": true,
+    "ledger": null,
+    "triage": "",
+    "digest": null
+  },
+  "want": {
+    "context": "Configured datasources:\n- prom (prometheus): healthy\n\nYou are revising dashboard big, currently version 12. Change it for the request, or answer it with save_finding if it only asks a question. The Spec is too large to send whole, so this is its outline: read the full JSON of other panels with get_panels.\nTitle: \"Big\"\nTime: {\"from\":\"now-1h\",\"to\":\"now\"}\nRefresh: \"\"\nTags: []\nLinks: []\nVariables: []\nPanels (id type title, row, position as x y w h):\n- s0 stat \"Service 0 <errors> — café\" x0 y0 w6 h4\n- s1 stat \"Service 1 <errors> — café\" x6 y0 w6 h4\n- s2 stat \"Service 2 <errors> — café\" x12 y0 w6 h4\n- s3 stat \"Service 3 <errors> — café\" x18 y0 w6 h4\n- s4 stat \"Service 4 <errors> — café\" x0 y4 w6 h4\n- s5 stat \"Service 5 <errors> — café\" x6 y4 w6 h4\n- s6 stat \"Service 6 <errors> — café\" x12 y4 w6 h4\n- s7 stat \"Service 7 <errors> — café\" x18 y4 w6 h4\n- s8 stat \"Service 8 <errors> — café\" x0 y8 w6 h4\n- s9 stat \"Service 9 <errors> — café\" x6 y8 w6 h4\n- s10 stat \"Service 10 <errors> — café\" x12 y8 w6 h4\n- s11 stat \"Service 11 <errors> — café\" x18 y8 w6 h4\n- s12 stat \"Service 12 <errors> — café\" x0 y12 w6 h4\n- s13 stat \"Service 13 <errors> — café\" x6 y12 w6 h4\n- s14 stat \"Service 14 <errors> — café\" x12 y12 w6 h4\n- s15 stat \"Service 15 <errors> — café\" x18 y12 w6 h4\n- s16 stat \"Service 16 <errors> — café\" x0 y16 w6 h4\n- s17 stat \"Service 17 <errors> — café\" x6 y16 w6 h4\n- s18 stat \"Service 18 <errors> — café\" x12 y16 w6 h4\n- s19 stat \"Service 19 <errors> — café\" x18 y16 w6 h4\n- s20 stat \"Service 20 <errors> — café\" x0 y20 w6 h4\n- s21 stat \"Service 21 <errors> — café\" x6 y20 w6 h4\n- s22 stat \"Service 22 <errors> — café\" x12 y20 w6 h4\n- s23 stat \"Service 23 <errors> — café\" x18 y20 w6 h4\n- s24 stat \"Service 24 <errors> — café\" x0 y24 w6 h4\n- s25 stat \"Service 25 <errors> — café\" x6 y24 w6 h4\n- s26 stat \"Service 26 <errors> — café\" x12 y24 w6 h4\n- s27 stat \"Service 27 <errors> — café\" x18 y24 w6 h4\n- s28 stat \"Service 28 <errors> — café\" x0 y28 w6 h4\n- s29 stat \"Service 29 <errors> — café\" x6 y28 w6 h4\n- s30 stat \"Service 30 <errors> — café\" x12 y28 w6 h4\n- s31 stat \"Service 31 <errors> — café\" x18 y28 w6 h4\n- s32 stat \"Service 32 <errors> — café\" x0 y32 w6 h4\n- s33 stat \"Service 33 <errors> — café\" x6 y32 w6 h4\n- s34 stat \"Service 34 <errors> — café\" x12 y32 w6 h4\n- s35 stat \"Service 35 <errors> — café\" x18 y32 w6 h4\n- s36 stat \"Service 36 <errors> — café\" x0 y36 w6 h4\n- s37 stat \"Service 37 <errors> — café\" x6 y36 w6 h4\n- s38 stat \"Service 38 <errors> — café\" x12 y36 w6 h4\n- s39 stat \"Service 39 <errors> — café\" x18 y36 w6 h4\n- s40 stat \"Service 40 <errors> — café\" x0 y40 w6 h4\n- s41 stat \"Service 41 <errors> — café\" x6 y40 w6 h4\n- row-a row \"Row A\" x0 y60 w24 h1\n- inner_1 timeseries \"Inner\" row=row-a x0 y61 w24 h8\nPanels in full, rows without their children:\n```json\n[{\"id\":\"s3\",\"type\":\"stat\",\"title\":\"Service 3 \\u003cerrors\\u003e — café\",\"description\":\"A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. \",\"gridPos\":{\"x\":18,\"y\":0,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"svc-3\\\",code=~\\\"5..\\\"}[5m]))\"}]},{\"id\":\"s7\",\"type\":\"stat\",\"title\":\"Service 7 \\u003cerrors\\u003e — café\",\"description\":\"A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. \",\"gridPos\":{\"x\":18,\"y\":4,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"svc-7\\\",code=~\\\"5..\\\"}[5m]))\"}]},{\"id\":\"s12\",\"type\":\"stat\",\"title\":\"Service 12 \\u003cerrors\\u003e — café\",\"description\":\"A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. \",\"gridPos\":{\"x\":0,\"y\":12,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"svc-12\\\",code=~\\\"5..\\\"}[5m]))\"}]},{\"id\":\"row-a\",\"type\":\"row\",\"title\":\"Row A\",\"gridPos\":{\"x\":0,\"y\":60,\"w\":24,\"h\":1}},{\"id\":\"inner_1\",\"type\":\"timeseries\",\"title\":\"Inner\",\"gridPos\":{\"x\":0,\"y\":61,\"w\":24,\"h\":8},\"datasource\":\"prom\",\"queries\":[{\"query\":\"up\"}]}]\n```\nThe request is about panel s3 titled \"Service 3 <errors> — café\".\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nWhen you answer with save_finding, write each figure from a read that gave fact ids in `facts` as its fact, `{{f3}}`, which the server fills in (`{{f3:ms}}`, `{{f3:%}}` or `{{f3:3}}` change the unit or the figures within 1%), copy trace ids whole, and list each quantity asked in `answers` with its one fact.",
+    "user": "Configured datasources:\n- prom (prometheus): healthy\n\nYou are revising dashboard big, currently version 12. Change it for the request, or answer it with save_finding if it only asks a question. The Spec is too large to send whole, so this is its outline: read the full JSON of other panels with get_panels.\nTitle: \"Big\"\nTime: {\"from\":\"now-1h\",\"to\":\"now\"}\nRefresh: \"\"\nTags: []\nLinks: []\nVariables: []\nPanels (id type title, row, position as x y w h):\n- s0 stat \"Service 0 <errors> — café\" x0 y0 w6 h4\n- s1 stat \"Service 1 <errors> — café\" x6 y0 w6 h4\n- s2 stat \"Service 2 <errors> — café\" x12 y0 w6 h4\n- s3 stat \"Service 3 <errors> — café\" x18 y0 w6 h4\n- s4 stat \"Service 4 <errors> — café\" x0 y4 w6 h4\n- s5 stat \"Service 5 <errors> — café\" x6 y4 w6 h4\n- s6 stat \"Service 6 <errors> — café\" x12 y4 w6 h4\n- s7 stat \"Service 7 <errors> — café\" x18 y4 w6 h4\n- s8 stat \"Service 8 <errors> — café\" x0 y8 w6 h4\n- s9 stat \"Service 9 <errors> — café\" x6 y8 w6 h4\n- s10 stat \"Service 10 <errors> — café\" x12 y8 w6 h4\n- s11 stat \"Service 11 <errors> — café\" x18 y8 w6 h4\n- s12 stat \"Service 12 <errors> — café\" x0 y12 w6 h4\n- s13 stat \"Service 13 <errors> — café\" x6 y12 w6 h4\n- s14 stat \"Service 14 <errors> — café\" x12 y12 w6 h4\n- s15 stat \"Service 15 <errors> — café\" x18 y12 w6 h4\n- s16 stat \"Service 16 <errors> — café\" x0 y16 w6 h4\n- s17 stat \"Service 17 <errors> — café\" x6 y16 w6 h4\n- s18 stat \"Service 18 <errors> — café\" x12 y16 w6 h4\n- s19 stat \"Service 19 <errors> — café\" x18 y16 w6 h4\n- s20 stat \"Service 20 <errors> — café\" x0 y20 w6 h4\n- s21 stat \"Service 21 <errors> — café\" x6 y20 w6 h4\n- s22 stat \"Service 22 <errors> — café\" x12 y20 w6 h4\n- s23 stat \"Service 23 <errors> — café\" x18 y20 w6 h4\n- s24 stat \"Service 24 <errors> — café\" x0 y24 w6 h4\n- s25 stat \"Service 25 <errors> — café\" x6 y24 w6 h4\n- s26 stat \"Service 26 <errors> — café\" x12 y24 w6 h4\n- s27 stat \"Service 27 <errors> — café\" x18 y24 w6 h4\n- s28 stat \"Service 28 <errors> — café\" x0 y28 w6 h4\n- s29 stat \"Service 29 <errors> — café\" x6 y28 w6 h4\n- s30 stat \"Service 30 <errors> — café\" x12 y28 w6 h4\n- s31 stat \"Service 31 <errors> — café\" x18 y28 w6 h4\n- s32 stat \"Service 32 <errors> — café\" x0 y32 w6 h4\n- s33 stat \"Service 33 <errors> — café\" x6 y32 w6 h4\n- s34 stat \"Service 34 <errors> — café\" x12 y32 w6 h4\n- s35 stat \"Service 35 <errors> — café\" x18 y32 w6 h4\n- s36 stat \"Service 36 <errors> — café\" x0 y36 w6 h4\n- s37 stat \"Service 37 <errors> — café\" x6 y36 w6 h4\n- s38 stat \"Service 38 <errors> — café\" x12 y36 w6 h4\n- s39 stat \"Service 39 <errors> — café\" x18 y36 w6 h4\n- s40 stat \"Service 40 <errors> — café\" x0 y40 w6 h4\n- s41 stat \"Service 41 <errors> — café\" x6 y40 w6 h4\n- row-a row \"Row A\" x0 y60 w24 h1\n- inner_1 timeseries \"Inner\" row=row-a x0 y61 w24 h8\nPanels in full, rows without their children:\n```json\n[{\"id\":\"s3\",\"type\":\"stat\",\"title\":\"Service 3 \\u003cerrors\\u003e — café\",\"description\":\"A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. \",\"gridPos\":{\"x\":18,\"y\":0,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"svc-3\\\",code=~\\\"5..\\\"}[5m]))\"}]},{\"id\":\"s7\",\"type\":\"stat\",\"title\":\"Service 7 \\u003cerrors\\u003e — café\",\"description\":\"A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. \",\"gridPos\":{\"x\":18,\"y\":4,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"svc-7\\\",code=~\\\"5..\\\"}[5m]))\"}]},{\"id\":\"s12\",\"type\":\"stat\",\"title\":\"Service 12 \\u003cerrors\\u003e — café\",\"description\":\"A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. A long description of the panel. \",\"gridPos\":{\"x\":0,\"y\":12,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"svc-12\\\",code=~\\\"5..\\\"}[5m]))\"}]},{\"id\":\"row-a\",\"type\":\"row\",\"title\":\"Row A\",\"gridPos\":{\"x\":0,\"y\":60,\"w\":24,\"h\":1}},{\"id\":\"inner_1\",\"type\":\"timeseries\",\"title\":\"Inner\",\"gridPos\":{\"x\":0,\"y\":61,\"w\":24,\"h\":8},\"datasource\":\"prom\",\"queries\":[{\"query\":\"up\"}]}]\n```\nThe request is about panel s3 titled \"Service 3 <errors> — café\".\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nWhen you answer with save_finding, write each figure from a read that gave fact ids in `facts` as its fact, `{{f3}}`, which the server fills in (`{{f3:ms}}`, `{{f3:%}}` or `{{f3:3}}` change the unit or the figures within 1%), copy trace ids whole, and list each quantity asked in `answers` with its one fact.\n\n<request>\nchange s7, s12, row-a and inner_1 (not s99)\n</request>"
+  }
+}

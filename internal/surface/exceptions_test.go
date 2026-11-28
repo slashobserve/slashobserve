@@ -64,7 +64,6 @@ var exceptions = map[string]exception{
 
 	"listFindings":           {MCP: notBuilt, CLI: notBuilt},
 	"getFinding":             {MCP: notBuilt, CLI: notBuilt},
-	"pinFinding":             {MCP: notBuilt, CLI: notBuilt},
 	"saveFindingAsDashboard": {MCP: notBuilt, CLI: notBuilt},
 	"getFindingPanelData":    {MCP: personOnly, CLI: personOnly},
 
@@ -160,9 +159,8 @@ var exceptions = map[string]exception{
 	"listRepairs":    {MCP: notBuilt, CLI: notBuilt},
 	"requestRepairs": {MCP: notBuilt, CLI: notBuilt},
 
-	"createDashboardRevision": {MCP: notBuilt},
-	"listDashboardRevisions":  {MCP: builtInRuns},
-	"getDashboardRevision":    {MCP: builtInRuns},
+	"listDashboardRevisions": {MCP: builtInRuns},
+	"getDashboardRevision":   {MCP: builtInRuns},
 
 	"deleteSavedSearch": {MCP: savedSearchCuration},
 

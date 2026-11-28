@@ -216,7 +216,9 @@ func TestAuthenticateRefusesTheTokenOfAReleasedClaimWhileItIsStillStored(t *test
 	f := newFixture(t)
 	queued := f.queue(t, revisions.AssignGrant, grantID)
 	first := f.claim(t, grantClaimer)
-	f.runs.Release(context.Background(), f.stored(t, queued.ID))
+	if err := f.runs.Release(context.Background(), f.stored(t, queued.ID)); err != nil {
+		t.Fatalf("release: %v", err)
+	}
 
 	second, found, err := f.runs.Claim(context.Background(), grantClaimer.claimant())
 	if err != nil || !found {
@@ -247,5 +249,23 @@ func TestAuthenticateRefusesTheTokenOfARunWhoseGrantWasRevoked(t *testing.T) {
 
 	if _, ok := f.authenticate(t, "Bearer "+offer.Session.Token); ok {
 		t.Fatal("the run token still worked after its grant was revoked")
+	}
+}
+
+func TestAuthenticateRefusesTheTokenOfARunWhoseGrantExpired(t *testing.T) {
+	f := newFixture(t)
+	f.d.Exec(t, "INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1, 'issuer', 'subject', 'ada@example.com', 'Ada')", mustUUID(t, userID))
+	f.d.Exec(t, "INSERT INTO oauth_clients (id, redirect_uris) VALUES ('client', ARRAY['http://localhost/cb'])")
+	f.d.Exec(t, "INSERT INTO oauth_grants (id, client_id, user_id, resource, expires_at) VALUES ($1, 'client', $2, 'r', now() + interval '1 day')", mustUUID(t, grantID), mustUUID(t, userID))
+	f.queue(t, revisions.AssignGrant, grantID)
+	offer := f.claim(t, grantClaimer)
+	if _, ok := f.authenticate(t, "Bearer "+offer.Session.Token); !ok {
+		t.Fatal("the token was refused before the grant expired")
+	}
+
+	f.d.Exec(t, "UPDATE oauth_grants SET expires_at = now() - interval '1 second' WHERE id = $1", mustUUID(t, grantID))
+
+	if _, ok := f.authenticate(t, "Bearer "+offer.Session.Token); ok {
+		t.Fatal("the run token still worked after its grant expired")
 	}
 }

@@ -1,5 +1,5 @@
+import { loadProblemText } from "@/api/errors"
 import { LoadProblem } from "@/components/load-problem"
-import { loadProblemText } from "@/service-accounts/queries"
 import { ThemeSwitch } from "@/shell/theme-switch"
 
 import { DashboardTopRow } from "./dashboard-top-row"

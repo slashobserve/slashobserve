@@ -11,6 +11,7 @@ import {
 export type DatasourceTypeOf = (uid: string) => string | undefined
 
 type Labels = Record<string, string>
+type WireField = WireFrame["fields"][number]
 type Kind = "prometheus" | "sql"
 
 type Context = {
@@ -54,27 +55,30 @@ function goQuote(value: string): string {
   return `"${out}"`
 }
 
+function byKey([a]: [string, string], [b]: [string, string]): number {
+  return a < b ? -1 : a > b ? 1 : 0
+}
+
 function formatLabels(labels: Labels): string {
-  const keys = Object.keys(labels).sort()
-  if (keys.length === 0) return ""
-  return `{${keys.map((key) => `${key}="${labels[key]}"`).join(", ")}}`
+  const entries = Object.entries(labels).sort(byKey)
+  if (entries.length === 0) return ""
+  return `{${entries.map(([key, value]) => `${key}="${value}"`).join(", ")}}`
 }
 
 function metricNameFromLabels(labels: Labels): string {
-  const hasName = Object.hasOwn(labels, "__name__")
-  const name = hasName ? labels.__name__ : ""
-  const pairs = Object.keys(labels)
-    .filter((key) => key !== "__name__")
-    .map((key) => `${key}=${goQuote(labels[key])}`)
+  const name = Object.hasOwn(labels, "__name__") ? labels.__name__ : undefined
+  const pairs = Object.entries(labels)
+    .filter(([key]) => key !== "__name__")
+    .map(([key, value]) => `${key}=${goQuote(value)}`)
     .sort()
-  if (pairs.length === 0) return hasName ? name : "{}"
-  return `${name}{${pairs.join(", ")}}`
+  if (pairs.length === 0) return name ?? "{}"
+  return `${name ?? ""}{${pairs.join(", ")}}`
 }
 
 function renderLegend(template: string, labels: Labels): string {
   return template.replace(/\{\{\s*(.+?)\s*\}\}/g, (_match, key: string) => {
     const label = key.trim()
-    return Object.hasOwn(labels, label) ? labels[label] : ""
+    return Object.hasOwn(labels, label) ? (labels[label] ?? "") : ""
   })
 }
 
@@ -86,10 +90,11 @@ function prometheusLabels(frame: WireFrame): Labels {
 }
 
 function inferKind(frame: WireFrame): Kind {
+  const [first, second] = frame.fields
   const isPrometheusShape =
     frame.fields.length === 2 &&
-    frame.fields[0].type === "time" &&
-    frame.fields[1].name === "Value"
+    first?.type === "time" &&
+    second?.name === "Value"
   return frame.name !== undefined || isPrometheusShape ? "prometheus" : "sql"
 }
 
@@ -131,10 +136,10 @@ function frameName({ frame, kind }: Source): string | undefined {
 
 function contextOf(sources: Source[]): Context {
   const named = sources.filter((source) => source.named)
-  const frameNamesDiffer = named.some(
-    (source, index) =>
-      index > 0 && frameName(named[index - 1]) !== frameName(source)
-  )
+  const frameNamesDiffer = named.some((source, index) => {
+    const previous = named[index - 1]
+    return previous !== undefined && frameName(previous) !== frameName(source)
+  })
   let singleLabel: string | null = null
   let conflicting = false
   for (const source of named) {
@@ -150,9 +155,9 @@ function contextOf(sources: Source[]): Context {
 function uniqueName(
   name: string,
   frame: WireFrame,
+  field: WireField,
   fieldIndex: number
 ): string {
-  const field = frame.fields[fieldIndex]
   if (name !== field.name) return name
   const sameName = frame.fields.filter((other) => other.name === name)
   if (sameName.length < 2) return name
@@ -167,6 +172,7 @@ function generic(
   grafana: GrafanaField,
   context: Context,
   frame: WireFrame,
+  field: WireField,
   fieldIndex: number
 ): string {
   const parts: string[] = []
@@ -192,10 +198,10 @@ function generic(
     parts.push(grafana.frame)
   }
   const name = parts.join(" ") || fieldName || "Value"
-  return uniqueName(name, frame, fieldIndex)
+  return uniqueName(name, frame, field, fieldIndex)
 }
 
-function legendText(source: Source, field: WireFrame["fields"][number]) {
+function legendText(source: Source, field: WireField) {
   const legend = source.query?.legend
   if (!legend || legend === "__auto") return ""
   const rendered = renderLegend(legend, prometheusLabels(source.frame))
@@ -209,7 +215,7 @@ function legendText(source: Source, field: WireFrame["fields"][number]) {
 export function legendSeriesName(
   panel: DataPanel,
   frame: WireFrame,
-  field: WireFrame["fields"][number],
+  field: WireField,
   datasourceTypeOf?: DatasourceTypeOf
 ): string | undefined {
   const text = legendText(resolveSource(panel, frame, datasourceTypeOf), field)
@@ -219,6 +225,7 @@ export function legendSeriesName(
 function prometheusName(
   source: Source,
   context: Context,
+  field: WireField,
   fieldIndex: number
 ): string {
   const { frame, query } = source
@@ -229,7 +236,7 @@ function prometheusName(
     displayName =
       Object.keys(labels).length > 0 ? "" : metricNameFromLabels(labels)
   } else if (legend) {
-    displayName = legendText(source, frame.fields[fieldIndex])
+    displayName = legendText(source, field)
   } else {
     displayName = metricNameFromLabels(labels)
   }
@@ -241,13 +248,18 @@ function prometheusName(
     { labels, frame: undefined },
     context,
     frame,
+    field,
     fieldIndex
   )
 }
 
-function sqlName(source: Source, context: Context, fieldIndex: number): string {
+function sqlName(
+  source: Source,
+  context: Context,
+  field: WireField,
+  fieldIndex: number
+): string {
   const { frame } = source
-  const field = frame.fields[fieldIndex]
   const rendered = legendText(source, field)
   if (rendered !== "") return rendered
   return generic(
@@ -255,6 +267,7 @@ function sqlName(source: Source, context: Context, fieldIndex: number): string {
     { labels: frame.labels, frame: frame.ref },
     context,
     frame,
+    field,
     fieldIndex
   )
 }
@@ -268,8 +281,8 @@ function stampField(
   if (field.type !== "number") return field
   const seriesName =
     source.kind === "prometheus"
-      ? prometheusName(source, context, fieldIndex)
-      : sqlName(source, context, fieldIndex)
+      ? prometheusName(source, context, field, fieldIndex)
+      : sqlName(source, context, field, fieldIndex)
   return { ...field, seriesName }
 }
 
@@ -326,10 +339,13 @@ export function displayLabels(
   panel: DataPanel,
   series: readonly NamedSeries[]
 ): string[] {
-  if (series.length < 2) return series.map(({ name }) => name)
+  const head = series[0]
+  if (series.length < 2 || head === undefined) {
+    return series.map(({ name }) => name)
+  }
   const differing = labelOrder(series).filter((key) =>
     series.some(
-      ({ frame }) => labelValue(frame, key) !== labelValue(series[0].frame, key)
+      ({ frame }) => labelValue(frame, key) !== labelValue(head.frame, key)
     )
   )
   const labelled = series.map((item) => {

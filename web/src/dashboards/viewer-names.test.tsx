@@ -45,7 +45,7 @@ describe("ViewerNames", () => {
     const fetch = stubViewers(["Ada", "Grace"])
     renderNames()
     expect(await screen.findByText("Also viewing: Ada, Grace")).toBeTruthy()
-    const [request] = fetch.mock.calls[0]
+    const [request] = fetch.mock.calls[0]!
     expect([request.method, new URL(request.url).pathname]).toEqual([
       "POST",
       `/api/v1/dashboards/${dashboardId}/viewers`,

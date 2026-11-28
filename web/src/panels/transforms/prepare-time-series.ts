@@ -31,7 +31,13 @@ function splitNumbers(frame: PreparedFrame): PreparedFrame[] {
   }))
 }
 
-function toLong(frames: PreparedFrame[]): PreparedFrame {
+function emptyField(name: string, type: PreparedField["type"]): PreparedField {
+  return { name, type, values: [] }
+}
+
+function toLong(
+  frames: readonly [PreparedFrame, ...PreparedFrame[]]
+): PreparedFrame {
   const labels = [...new Set(frames.flatMap(labelKeys))].sort()
   const names = [
     ...new Set(
@@ -47,33 +53,38 @@ function toLong(frames: PreparedFrame[]): PreparedFrame {
     type: "time",
     values: [],
   }
-  const labelFields: PreparedField[] = labels.map((name) => ({
+  const labelFields = labels.map((name) => ({
     name,
-    type: "string",
-    values: [],
+    field: emptyField(name, "string"),
   }))
-  const valueFields: PreparedField[] = names.map((name) => ({
+  const valueFields = names.map((name) => ({
     name,
-    type: "number",
-    values: [],
+    field: emptyField(name, "number"),
   }))
   for (const frame of frames) {
     const source = firstTimeField(frame)
     const count = rowCount(frame)
     for (let row = 0; row < count; row++) {
       time.values.push(source ? cell(source, row) : null)
-      labels.forEach((name, at) =>
-        labelFields[at].values.push(frame.labels?.[name] ?? "")
-      )
-      names.forEach((name, at) => {
+      for (const { name, field } of labelFields) {
+        field.values.push(frame.labels?.[name] ?? "")
+      }
+      for (const { name, field: out } of valueFields) {
         const field = frame.fields.find(
           (candidate) => candidate.type === "number" && candidate.name === name
         )
-        valueFields[at].values.push(field ? cell(field, row) : null)
-      })
+        out.values.push(field ? cell(field, row) : null)
+      }
     }
   }
-  return { ref: frames[0].ref, fields: [time, ...labelFields, ...valueFields] }
+  return {
+    ref: frames[0].ref,
+    fields: [
+      time,
+      ...labelFields.map(({ field }) => field),
+      ...valueFields.map(({ field }) => field),
+    ],
+  }
 }
 
 export function prepareTimeSeries(
@@ -81,7 +92,8 @@ export function prepareTimeSeries(
   { format }: PrepareOptions
 ): PreparedFrame[] {
   const series = frames.filter(hasSeries)
-  if (series.length === 0) return frames.map(copyFrame)
+  const [head, ...tail] = series
+  if (head === undefined) return frames.map(copyFrame)
   const rest = frames.filter((frame) => !series.includes(frame)).map(copyFrame)
   switch (format) {
     case "wide":
@@ -89,6 +101,6 @@ export function prepareTimeSeries(
     case "many":
       return [...series.flatMap(splitNumbers), ...rest]
     case "long":
-      return [toLong(series), ...rest]
+      return [toLong([head, ...tail]), ...rest]
   }
 }

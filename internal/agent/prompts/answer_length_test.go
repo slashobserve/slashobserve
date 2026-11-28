@@ -115,20 +115,14 @@ func TestInvestigateAsksForOneValuePerQuantityAndAVerdictFirst(t *testing.T) {
 	}
 	full := Investigate()
 	for _, want := range core {
-		for _, task := range append([]route.Task{route.Full}, route.Tasks...) {
-			if !strings.Contains(InvestigateFor(Variant{Task: task}, allTypes), want) {
-				t.Errorf("%s text lacks the core rule %q", task.Name(), want)
-			}
+		if !strings.Contains(full, want) {
+			t.Errorf("the text lacks the core rule %q", want)
 		}
 	}
 	for task, wants := range byTask {
-		own := InvestigateFor(Variant{Task: task}, allTypes)
 		for _, want := range wants {
-			if !strings.Contains(own, want) {
-				t.Errorf("%s text lacks %q", task.Name(), want)
-			}
 			if !strings.Contains(full, want) {
-				t.Errorf("the full text lacks %q", want)
+				t.Errorf("the text lacks %q of the %s playbook", want, task.Name())
 			}
 		}
 	}

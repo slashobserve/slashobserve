@@ -49,8 +49,6 @@ func TestAddresses(t *testing.T) {
 		{"folder", Folder(public, id), "https://observe.example/team/f/" + id},
 		{"chat", Chat(public, id), "https://observe.example/team/c/" + id},
 		{"build", Build(nil, id), "/b/" + id},
-		{"finding", Finding(public, "abc"), "https://observe.example/team/findings/abc"},
-		{"relative finding", Finding(nil, "abc"), "/findings/abc"},
 		{"observation", Observation(public, "abc"), "https://observe.example/team/o/abc"},
 		{"relative observation", Observation(nil, "abc"), "/o/abc"},
 		{"logs search", Logs(public, "loki", url.Values{"q": {`{app="shop"}`}}), "https://observe.example/team/logs/loki?q=%7Bapp%3D%22shop%22%7D"},

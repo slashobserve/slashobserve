@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime } from "@/components/relative-time"
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert"
@@ -10,11 +11,10 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Block, Observation } from "@/observations/queries"
 import { cn } from "@/lib/utils"
-import { loadProblemText } from "@/service-accounts/queries"
 import { SidePanel } from "@/shell/side-panel"
 
 import { publishProblem, type PublishProblem } from "./publish-problem"
-import { RcaLinks } from "./rca-links"
+import { linkFormBlock, RcaLinks } from "./rca-links"
 import { RevisionActions } from "./revision-actions"
 import { rcasQuery, usePublishRca, type RcaSummary } from "./queries"
 
@@ -22,15 +22,17 @@ type Props = {
   observation: Observation
   onClose: () => void
   trigger: RefObject<HTMLElement | null>
-  privateFolder?: () => void
+  personal: boolean
+  privateFolder?: (() => void) | undefined
   blocks?: readonly Block[]
-  onShowBlock?: (blockId: string) => void
+  onShowBlock?: ((blockId: string) => void) | undefined
 }
 
 export function RcaPanel({
   observation,
   onClose,
   trigger,
+  personal,
   privateFolder,
   blocks = [],
   onShowBlock,
@@ -44,6 +46,10 @@ export function RcaPanel({
   const canPublish = observation.allowed_actions.includes("publish")
   const list = revisions.data
   const next = (list?.[0]?.revision ?? 0) + 1
+  const chosen =
+    selected === null
+      ? undefined
+      : list?.find((rca) => rca.revision === selected)
 
   function submit() {
     if (publish.isPending) return
@@ -159,31 +165,32 @@ export function RcaPanel({
           <Skeleton className="h-16 w-full animate-none motion-safe:animate-pulse" />
         )}
       </section>
-      {selected === null ? null : (
+      {chosen === undefined ? null : (
         <RevisionActions
-          key={`actions-${selected}`}
+          key={`actions-${chosen.revision}`}
           observationId={observation.id}
-          revision={selected}
-          canWithdraw={canPublish}
+          rca={chosen}
+          canPublish={canPublish}
           onWithdrawn={() => setSelected(null)}
         />
       )}
-      {selected === null ? null : (
+      {chosen === undefined ? null : (
         <section
-          aria-label={`Public links of revision ${selected}`}
+          aria-label={`Public links of revision ${chosen.revision}`}
           className="flex flex-col gap-2"
         >
           <h3 className="text-[13px] font-semibold">
-            Public links, revision {selected}
+            Public links, revision {chosen.revision}
           </h3>
           <p className="text-xs text-muted-foreground">
             Anyone with a link can view this frozen revision without signing in.
             It never shows a query.
           </p>
           <RcaLinks
-            key={selected}
+            key={chosen.revision}
             observationId={observation.id}
-            revision={selected}
+            revision={chosen.revision}
+            form={linkFormBlock(chosen, { personal, canPublish })}
           />
         </section>
       )}

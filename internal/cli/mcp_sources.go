@@ -193,16 +193,10 @@ func (a *app) runMCPSourcesList(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		if a.json {
-			a.output().body(data)
+		return render(a.output(), data, func(source mcpSource) error {
+			a.output().fields(mcpSourcesFields(source))
 			return nil
-		}
-		source, err := decode[mcpSource](data)
-		if err != nil {
-			return err
-		}
-		a.output().fields(mcpSourcesFields(source))
-		return nil
+		})
 	}
 	data, err := c.get(cmd.Context(), "mcp-sources", nil)
 	if err != nil {
@@ -390,11 +384,16 @@ func (a *app) runMCPSourcesDiscover(cmd *cobra.Command, args []string) error {
 			Gone    int `json:"gone"`
 			Ignored int `json:"ignored"`
 		} `json:"tally"`
+		Superseded bool `json:"superseded"`
 	}](data)
 	if err != nil {
 		return err
 	}
 	out := a.output()
+	if found.Superseded {
+		out.line("Another discovery of this source finished first; its result is stored, so this one changed nothing")
+		return nil
+	}
 	if found.Source.Failure != nil {
 		return fmt.Errorf("discovery failed: %s", text(*found.Source.Failure))
 	}

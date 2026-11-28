@@ -2,11 +2,9 @@ package proxyhttp
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
-	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -90,7 +88,7 @@ func (h *Handler) traceLogs(c *gin.Context) {
 		Limit:   req.limit(),
 		User:    queryproxy.UserFor(principal),
 	}
-	frames, err := h.safeTraceLogs(ctx, uid, source, logsRequest)
+	frames, err := source.TraceLogs(ctx, logsRequest)
 	datasource.NoteQuery(ctx, uid, logsRequest.Text(), rng, datasource.FrameRows(frames))
 	if err != nil {
 		h.exploreFail(c, uid, err)
@@ -102,24 +100,14 @@ func (h *Handler) traceLogs(c *gin.Context) {
 		h.fail(c, errInternal)
 		return
 	}
+	if h.tooLarge(c, len(entry.frames)) {
+		return
+	}
 	writeData(c, entry, false, entry.executedAt, "")
 }
 
-func (h *Handler) safeTraceLogs(ctx context.Context, uid string, source datasource.TraceLogSource, req datasource.TraceLogsRequest) (frames []datasource.Frame, err error) {
-	defer func() {
-		if p := recover(); p != nil {
-			h.logger.ErrorContext(ctx, "datasource trace logs panicked",
-				slog.String("datasource_uid", uid),
-				slog.String("panic_type", fmt.Sprintf("%T", p)),
-				slog.String("stack", string(debug.Stack())))
-			frames, err = nil, errInternal
-		}
-	}()
-	return source.TraceLogs(ctx, req)
-}
-
 func traceLogsEntry(rng datasource.TimeRange, frames []datasource.Frame) (dataEntry, error) {
-	part, err := marshalFrames([]queryproxy.QueryResult{{Ref: traceLogsRef, Kind: queryproxy.KindInstant, Frames: frames}})
+	part, err := queryproxy.MarshalFrames([]queryproxy.QueryResult{{Ref: traceLogsRef, Kind: queryproxy.KindInstant, Frames: frames}})
 	if err != nil {
 		return dataEntry{}, err
 	}

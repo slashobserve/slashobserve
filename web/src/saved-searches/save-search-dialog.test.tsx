@@ -7,6 +7,7 @@ import { renderWithProviders } from "@/test/render"
 
 import { logsDraft, tracesDraft, type SearchDraft } from "./draft"
 import { SaveSearchDialog } from "./save-search-dialog"
+import { must } from "@/test/must"
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
 
@@ -98,15 +99,17 @@ afterEach(() => {
 describe("SaveSearchDialog", () => {
   it("saves the query with its pills folded in, the columns and the range", async () => {
     const saved = stubServer()
-    const pills = encodePills(
-      addPill([], {
-        kind: "is",
-        field: "service",
-        value: "checkout",
-        negate: false,
-        pinned: false,
-        paused: false,
-      })
+    const pills = must(
+      encodePills(
+        addPill([], {
+          kind: "is",
+          field: "service",
+          value: "checkout",
+          negate: false,
+          pinned: false,
+          paused: false,
+        })
+      )
     )
     const { user } = open(
       logsDraftOf({ q: "level:error", f: pills, cols: "host,message" })

@@ -1,0 +1,39 @@
+{
+  "about": "The grounding send-back of an enforced run.",
+  "traces": [
+    {
+      "name": "an ungrounded finding is sent back once even past the limit and never counts as a rejection",
+      "source": "TestAnUngroundedFindingIsSentBackOnceEvenPastTheLimitAndNeverCountsAsARejection",
+      "start": {"mode":"investigate","agent":{"investigation_calls":6,"grounding":"enforce"},"window_calls":6,"streak":{"kind":"generic","count":2}},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"markdown":"523 ms"},"ungrounded":"send back: read it, correct it, or remove it"},"expect":{"verdict":"refuse","message_has":"read it, correct it, or remove it","step":"The answer was sent back for a fix: it named a figure, service or time that the run never read"}},
+        {"end_turn":{"stop":null}},
+        {"check":{"streak":{"kind":"generic","count":2}}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_metrics","input":{"q":"recheck"}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"markdown":"523 ms"},"ungrounded":"send back: read it, correct it, or remove it"},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "without the watch an ungrounded finding is admitted",
+      "source": "TestWithoutTheWatchAnUngroundedFindingIsAdmitted",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"markdown":"523 ms"},"ungrounded":"send back: read it, correct it, or remove it"},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a suggest run never watches grounding",
+      "source": "WatchGrounding",
+      "start": {"mode":"suggest","agent":{"grounding":"enforce"}},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"markdown":"523 ms"},"ungrounded":"send back: read it, correct it, or remove it"},"expect":{"verdict":"dispatch"}}
+      ]
+    }
+  ]
+}

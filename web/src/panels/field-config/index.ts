@@ -4,6 +4,7 @@ export {
   type DisplayOptions,
   type DisplayValue,
 } from "./display"
+export { dataRange, gaugeFraction, gaugeRange } from "./gauge-range"
 export {
   appendLinkParams,
   dashboardLinks,

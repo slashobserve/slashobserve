@@ -96,22 +96,16 @@ export async function createComment(
   id: string,
   version: number,
   panelId: string,
-  body: string,
-  requestRevision = false
+  body: string
 ): Promise<string> {
-  const response = await request.post(`/api/v1/dashboards/${id}/comments`, {
+  const response = await request.post("/api/v1/threads", {
     headers: mutationHeaders,
-    data: {
-      version,
-      panel_id: panelId,
-      body,
-      request_revision: requestRevision,
-    },
+    data: { target: `dashboard:${id}`, version, panel_id: panelId, body },
   })
   const created = (await expectStatus(response, 201, "create comment")) as {
-    comment: { id: string }
+    thread: { id: string }
   }
-  return created.comment.id
+  return created.thread.id
 }
 
 export function uniqueAccountName(base = "e2e-keys"): string {

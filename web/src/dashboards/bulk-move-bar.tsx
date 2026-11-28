@@ -1,6 +1,7 @@
 import { useId, useState } from "react"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -11,7 +12,6 @@ import {
 } from "@/components/ui/select"
 import { moveChoices } from "@/folders/move-targets"
 import type { Folder } from "@/folders/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { bulkMoveResult, splitByFolder } from "./bulk-move"
 import type { DashboardSummary } from "./dashboard-columns"

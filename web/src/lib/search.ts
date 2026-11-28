@@ -13,6 +13,16 @@ export function parseSearch(searchStr: string): Record<string, SearchValue> {
   return out
 }
 
+export function firstString(value: unknown): string | undefined {
+  const item = Array.isArray(value) ? value[0] : value
+  return typeof item === "string" ? item : undefined
+}
+
+export function firstText(value: unknown): string | undefined {
+  const item = Array.isArray(value) ? value[0] : value
+  return typeof item === "number" ? String(item) : firstString(item)
+}
+
 function isPrimitive(value: unknown): value is string | number | boolean {
   return (
     typeof value === "string" ||

@@ -47,7 +47,7 @@ observations-id-rcas:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/RCARefusal"
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
@@ -154,7 +154,7 @@ observations-id-rcas-revision:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/RCARefusal"
                 - $ref: "../openapi.yaml#/components/schemas/Error"
       "500":

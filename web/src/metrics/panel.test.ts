@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import { appendPanel } from "@/dashboards/append-panel"
 
 import { metricsPanelFor } from "./panel"
+import { must } from "@/test/must"
 
 const base = {
   id: "p1",
@@ -58,7 +59,7 @@ describe("appending a metrics panel", () => {
       "metrics",
       "metrics-2",
     ])
-    expect(next.panels[1].gridPos.y).toBe(10)
-    expect(next.panels[1].type).toBe("table")
+    expect(must(next.panels[1]).gridPos.y).toBe(10)
+    expect(must(next.panels[1]).type).toBe("table")
   })
 })

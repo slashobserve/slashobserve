@@ -31,8 +31,8 @@ func TestBuildHoldsTheRulesTheGuideAndTheExampleButNotTheSchema(t *testing.T) {
 	if len(system) > systemTextBudget {
 		t.Fatalf("system text is %d bytes, over the %d byte budget", len(system), systemTextBudget)
 	}
-	if !strings.Contains(system, "- Never create a placeholder panel. Keep existing placeholders unchanged apart from their position, and delete one only when the request asks.") {
-		t.Fatal("system prompt lacks the placeholder rule")
+	if strings.Count(strings.ToLower(system), "never create a `placeholder` panel") != 1 || !strings.Contains(system, "delete it only when the request asks") {
+		t.Fatal("system text must state the placeholder rule once, with deletes only when asked")
 	}
 }
 

@@ -11,9 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
-	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auditfolder"
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -38,7 +36,6 @@ var ErrNoObservations = errors.New("findings need an observation service")
 type Service struct {
 	store        *store
 	access       *folders.Access
-	annotations  *annotations.Service
 	dashboards   *dashboards.Service
 	observations Observations
 	threads      ThreadReader
@@ -46,11 +43,11 @@ type Service struct {
 	logger       *slog.Logger
 }
 
-func New(database *db.DB, access *folders.Access, ann *annotations.Service, dash *dashboards.Service, observations Observations, logger *slog.Logger) (*Service, error) {
+func New(database *db.DB, access *folders.Access, dash *dashboards.Service, observations Observations, logger *slog.Logger) (*Service, error) {
 	if observations == nil {
 		return nil, ErrNoObservations
 	}
-	return &Service{store: &store{db: database}, access: access, annotations: ann, dashboards: dash, observations: observations, logger: logger}, nil
+	return &Service{store: &store{db: database}, access: access, dashboards: dash, observations: observations, logger: logger}, nil
 }
 
 func (s *Service) ReadThreadsWith(read ThreadReader) {
@@ -74,6 +71,7 @@ type SaveInput struct {
 	ObserveWorthy   bool
 	Structured      Structured
 	Unverified      []Unverified
+	ClaimEpoch      int
 }
 
 func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Finding, bool, error) {
@@ -135,55 +133,63 @@ func (s *Service) answersWithoutObservation(ctx context.Context, requestID pgtyp
 	return !observationID.Valid, err
 }
 
-func (s *Service) SaveAsObservation(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (Finding, bool, error) {
+type SaveOutcome string
+
+const (
+	SaveCreated   SaveOutcome = "created"
+	SaveKept      SaveOutcome = "kept"
+	SaveUnchanged SaveOutcome = "unchanged"
+)
+
+func (s *Service) SaveAsObservation(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (Finding, SaveOutcome, error) {
 	f, found, err := s.store.forRequest(ctx, requestID)
 	if err == nil && !found {
 		err = ErrNotFound
 	}
 	if err != nil {
-		return Finding{}, false, err
+		return Finding{}, "", err
 	}
 	id, err := db.ParseUUID(f.ID)
 	if err != nil {
-		return Finding{}, false, err
+		return Finding{}, "", err
 	}
 	if _, _, err := s.place(ctx, by, f); err != nil {
-		return Finding{}, false, err
-	}
-	if f.Saved() {
-		f, err = s.Get(ctx, by, id)
-		return f, true, err
+		return Finding{}, "", err
 	}
 	if !isRequester(by, f) {
-		return Finding{}, false, ErrRequesterOnly
+		if f.Saved() {
+			f, err = s.Get(ctx, by, id)
+			return f, SaveUnchanged, err
+		}
+		return Finding{}, "", ErrRequesterOnly
 	}
 	conclusion := Conclusion{RunID: requestID, Title: f.Title, Markdown: f.Markdown, Evidence: f.Evidence, From: f.From, To: f.To, Causes: f.Structured.Causes}
-	kept, err := folders.RunAnswerKeptWithAdmins(ctx, s.store.db.Queries(), requestID)
-	if err != nil {
-		return Finding{}, false, err
-	}
-	if kept {
-		if conclusion.FolderID, err = s.restrictedAnswerFolder(ctx, requestID); err != nil {
-			return Finding{}, false, err
-		}
-	}
 	if f.DashboardID != "" {
 		if conclusion.DashboardID, err = db.ParseUUID(f.DashboardID); err != nil {
-			return Finding{}, false, err
+			return Finding{}, "", err
 		}
 	}
-	attached, err := s.store.attachObservation(ctx, id, func(q *dbsqlc.Queries) (pgtype.UUID, bool, error) {
+	outcome, err := s.store.keepInObservation(ctx, id, func(q *dbsqlc.Queries) (pgtype.UUID, bool, error) {
+		kept, err := folders.RunAnswerKeptWithAdmins(ctx, q, requestID)
+		if err != nil {
+			return pgtype.UUID{}, false, err
+		}
+		if kept {
+			if conclusion.FolderID, err = restrictedAnswerFolder(ctx, q, requestID); err != nil {
+				return pgtype.UUID{}, false, err
+			}
+		}
 		return s.observations.WriteConclusion(ctx, q, by, conclusion)
 	})
 	if err != nil {
-		return Finding{}, false, err
+		return Finding{}, "", err
 	}
 	f, err = s.Get(ctx, by, id)
-	return f, !attached, err
+	return f, outcome, err
 }
 
-func (s *Service) restrictedAnswerFolder(ctx context.Context, runID pgtype.UUID) (pgtype.UUID, error) {
-	folder, err := s.store.db.Queries().RestrictedAnswerFolder(ctx, dbsqlc.RestrictedAnswerFolderParams{RunID: runID, AuditFolderKey: auditfolder.FolderKey})
+func restrictedAnswerFolder(ctx context.Context, q *dbsqlc.Queries, runID pgtype.UUID) (pgtype.UUID, error) {
+	folder, err := q.RestrictedAnswerFolder(ctx, dbsqlc.RestrictedAnswerFolderParams{RunID: runID, AuditFolderKey: auditfolder.FolderKey})
 	if err != nil {
 		return pgtype.UUID{}, fmt.Errorf("read the folder only Admins read for an answer that read Admin-only data: %w", err)
 	}
@@ -205,10 +211,11 @@ func (s *Service) ShowIn(ctx context.Context, q *dbsqlc.Queries, by auth.Princip
 	if err != nil {
 		return err
 	}
-	current, err := q.LockFinding(ctx, id)
+	locked, err := q.LockFinding(ctx, id)
 	if err != nil {
 		return fmt.Errorf("lock finding: %w", err)
 	}
+	current := locked.ObservationID
 	if current == observationID {
 		return nil
 	}
@@ -377,92 +384,6 @@ func (s *Service) visibleFolders(ctx context.Context, by auth.Principal) ([]pgty
 	return levels.Visible(), nil
 }
 
-func (s *Service) pinnable(ctx context.Context, by auth.Principal, id pgtype.UUID) (Finding, error) {
-	f, err := s.Get(ctx, by, id)
-	switch {
-	case err != nil:
-		return Finding{}, err
-	case !f.Saved():
-		return Finding{}, ErrNotSaved
-	case f.DashboardID == "":
-		return Finding{}, ErrNoDashboard
-	}
-	return f, nil
-}
-
-func (s *Service) Pin(ctx context.Context, by auth.Principal, id pgtype.UUID) (annotations.Annotation, bool, error) {
-	f, err := s.pinnable(ctx, by, id)
-	if err != nil {
-		return annotations.Annotation{}, false, err
-	}
-	if f.AnnotationID != "" {
-		a, err := s.pinned(ctx, f)
-		if !errors.Is(err, ErrNotFound) {
-			return a, false, err
-		}
-	}
-	dashboardID, err := db.ParseUUID(f.DashboardID)
-	if err != nil {
-		return annotations.Annotation{}, false, err
-	}
-	pin, err := pinOf(f, dashboardID)
-	if err != nil {
-		return annotations.Annotation{}, false, err
-	}
-	a, err := s.annotations.Create(ctx, by, pin)
-	switch {
-	case errors.Is(err, annotations.ErrNotFound):
-		return annotations.Annotation{}, false, ErrNotFound
-	case err != nil:
-		return annotations.Annotation{}, false, err
-	}
-	annotationID, err := db.ParseUUID(a.ID)
-	if err != nil {
-		return annotations.Annotation{}, false, err
-	}
-	observationID, err := db.ParseUUID(f.ObservationID)
-	if err != nil {
-		return annotations.Annotation{}, false, err
-	}
-	won, err := s.store.setAnnotation(ctx, actor.In(ctx, by, ""), id, dashboardID, observationID, annotationID)
-	if err != nil {
-		return annotations.Annotation{}, false, err
-	}
-	if won {
-		return a, true, nil
-	}
-	if err := s.annotations.Delete(ctx, by, annotationID); err != nil {
-		s.logger.WarnContext(ctx, "delete the annotation of a pin that lost the race", logattrs.Failure("finding_pin_cleanup_failed", err, slog.String("finding_id", f.ID), slog.String("annotation_id", a.ID))...)
-	}
-	winner, err := s.store.get(ctx, id)
-	if err != nil {
-		return annotations.Annotation{}, false, err
-	}
-	a, err = s.pinned(ctx, winner)
-	return a, false, err
-}
-
-func pinOf(f Finding, dashboardID pgtype.UUID) (annotations.CreateInput, error) {
-	pin := annotations.CreateInput{DashboardID: dashboardID, From: f.CreatedAt, Text: PinText(f), Tags: []string{PinTag}}
-	if f.RequestTo != nil {
-		pin.From = *f.RequestTo
-	}
-	run, err := runOf(f)
-	pin.AnswerOf = run
-	return pin, err
-}
-
-func (s *Service) pinned(ctx context.Context, f Finding) (annotations.Annotation, error) {
-	if f.AnnotationID == "" {
-		return annotations.Annotation{}, ErrNotFound
-	}
-	id, err := db.ParseUUID(f.AnnotationID)
-	if err != nil {
-		return annotations.Annotation{}, err
-	}
-	return s.store.annotation(ctx, id)
-}
-
 func (s *Service) SaveAsDashboard(ctx context.Context, by auth.Principal, id pgtype.UUID) (dashboards.Dashboard, dashboards.Version, error) {
 	f, err := s.Get(ctx, by, id)
 	if err != nil {
@@ -497,38 +418,6 @@ func runOf(f Finding) (pgtype.UUID, error) {
 		return pgtype.UUID{}, nil
 	}
 	return db.ParseUUID(f.AgentRequestID)
-}
-
-type Placement struct {
-	Dashboard pgtype.UUID
-	Folder    *folders.Folder
-	Activity  activity.Owner
-	Abilities folders.Abilities
-}
-
-func (s *Service) Access(ctx context.Context, by auth.Principal, id pgtype.UUID) (Placement, error) {
-	f, err := s.store.get(ctx, id)
-	if err != nil {
-		return Placement{}, err
-	}
-	folder, abilities, err := s.place(ctx, by, f)
-	if err != nil {
-		return Placement{}, err
-	}
-	if !f.Saved() {
-		return Placement{}, ErrNotSaved
-	}
-	observationID, err := db.ParseUUID(f.ObservationID)
-	if err != nil {
-		return Placement{}, err
-	}
-	var dashboardID pgtype.UUID
-	if f.DashboardID != "" {
-		if dashboardID, err = db.ParseUUID(f.DashboardID); err != nil {
-			return Placement{}, err
-		}
-	}
-	return Placement{Dashboard: dashboardID, Folder: &folder, Activity: activity.OnObservation(observationID), Abilities: abilities}, nil
 }
 
 func (f Finding) SavableBy(by auth.Principal) bool {

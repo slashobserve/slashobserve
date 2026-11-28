@@ -143,7 +143,7 @@ describe("observationChanges block lines", () => {
       ...noContext,
       datasources: known,
     })
-    return changes[1].detail
+    return changes[1]!.detail
   }
 
   it("names the datasource of a panel block and says it is live", () => {
@@ -230,8 +230,8 @@ describe("observationChanges from activity", () => {
         ],
       }
     )
-    expect(changes[0].detail).toBe("Checkout errors · In My Dashboards")
-    expect(changes[1].verb).toBe(
+    expect(changes[0]?.detail).toBe("Checkout errors · In My Dashboards")
+    expect(changes[1]?.verb).toBe(
       "renamed this observation from Checkout errors to Checkout 5xx"
     )
   })
@@ -244,7 +244,7 @@ describe("observationChanges from activity", () => {
         events: [event(1, "observation.created", { title: "First title" })],
       }
     )
-    expect(changes[0].detail).toBe("First title · In My Dashboards")
+    expect(changes[0]?.detail).toBe("First title · In My Dashboards")
   })
 
   it("draws no rename for the first update when the start is not known", () => {
@@ -291,7 +291,7 @@ describe("discussionToggleLabel", () => {
 describe("observationChanges state and block events", () => {
   it("does not state the live state on the start line of a resolved observation", () => {
     const resolved = { ...observation([]), state: "resolved" } as Observation
-    expect(observationChanges(resolved, noContext)[0].detail).toBe(
+    expect(observationChanges(resolved, noContext)[0]?.detail).toBe(
       "Checkout errors · In My Dashboards"
     )
   })

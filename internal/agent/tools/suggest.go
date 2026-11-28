@@ -46,12 +46,20 @@ func (r *Registry) proposePanel(ctx context.Context, principal auth.Principal, r
 	if res, ok := panelStaysPanel(run, head.Type); !ok {
 		return res, nil
 	}
-	if len(raw) > spec.MaxSuggestedPanelBytes {
-		return toolError(codeTooLarge, fmt.Sprintf("the panel is %d bytes, over the %d byte limit", len(raw), spec.MaxSuggestedPanelBytes)), nil
-	}
-	candidate, err := spec.WithPanel(run.Base, run.PanelID, raw)
+	candidate, err := spec.ApplyPanelPatch(run.Base, spec.PanelPatch{Upsert: []json.RawMessage{raw}})
 	if err != nil {
 		return suggestionFailure(err)
+	}
+	entry, ok := candidate.FindPanel(run.PanelID)
+	if !ok {
+		return invalid("this run proposes a change to panel %s; the upserted panel must have that id", run.PanelID), nil
+	}
+	panel, err := json.Marshal(entry.Panel)
+	if err != nil {
+		return Result{}, err
+	}
+	if len(panel) > spec.MaxSuggestedPanelBytes {
+		return toolError(codeTooLarge, fmt.Sprintf("the panel is %d bytes, over the %d byte limit", len(panel), spec.MaxSuggestedPanelBytes)), nil
 	}
 	if issues := importOnlyIssues(candidate, run.Base); len(issues) > 0 {
 		return suggestionRejected(issues), nil
@@ -71,7 +79,7 @@ func (r *Registry) proposePanel(ctx context.Context, principal auth.Principal, r
 			}
 		}
 	}
-	return success("Proposed a change to panel "+clip(run.PanelID, maxStepNameBytes), suggestedOut{Suggested: true, PanelID: run.PanelID, Panel: raw}), nil
+	return success("Proposed a change to panel "+clip(run.PanelID, maxStepNameBytes), suggestedOut{Suggested: true, PanelID: run.PanelID, Panel: panel}), nil
 }
 
 func panelStaysPanel(run Run, t spec.PanelType) (Result, bool) {
@@ -101,6 +109,10 @@ func suggestionFailure(err error) (Result, error) {
 	var invalidSpec *spec.ValidationError
 	if errors.As(err, &invalidSpec) {
 		return suggestionRejected(invalidSpec.Issues), nil
+	}
+	var patchErr *spec.PatchError
+	if errors.As(err, &patchErr) {
+		return suggestionRejected(patchErr.Issues), nil
 	}
 	return Result{}, err
 }

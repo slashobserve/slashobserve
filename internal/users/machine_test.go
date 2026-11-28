@@ -73,6 +73,7 @@ func decodeRefusal(t *testing.T, code string, rec *httptest.ResponseRecorder) re
 
 func TestARefusalNamesThePersonsStateAndWhatTheCallerMayStillDo(t *testing.T) {
 	r := newRig(t)
+	r.addUser("first", time.Now().Add(-2*time.Hour))
 	ada := r.addUser("ada", time.Now().Add(-time.Hour))
 	r.makeAdmin(ada)
 	bob := r.addUser("bob", time.Now())

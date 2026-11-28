@@ -5,10 +5,9 @@ import {
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { ApiError, unwrap } from "@/api/errors"
+import { type ProblemTexts, unwrap } from "@/api/errors"
 import { userKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import type { User } from "./queries"
 
@@ -35,19 +34,12 @@ export function teamNameProblem(name: string): string | null {
   return null
 }
 
-export function teamProblemText(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.code === "team_exists") {
-      return "A team with this name already exists."
-    }
-    if (error.code === "too_many_teams") {
-      return "200 teams already exist. Delete one first."
-    }
-    if (error.status === 404) {
-      return "This team or person no longer exists."
-    }
-  }
-  return loadProblemText(error)
+export const teamProblems: ProblemTexts = {
+  codes: {
+    team_exists: "A team with this name already exists.",
+    too_many_teams: "200 teams already exist. Delete one first.",
+  },
+  notFound: "This team or person no longer exists.",
 }
 
 export function candidatesFor(team: Team, people: readonly User[]): User[] {

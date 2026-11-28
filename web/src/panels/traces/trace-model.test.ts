@@ -15,6 +15,12 @@ import {
   type Span,
 } from "./trace-model"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 const panel = {
   id: "p1",
   title: "Panel",
@@ -84,8 +90,8 @@ describe("traceModel columns", () => {
       ["b", 1],
       ["c", 1],
     ])
-    expect(spans[1].offset).toBeCloseTo(0.1)
-    expect(spans[1].width).toBeCloseTo(0.4)
+    expect(nth(spans, 1).offset).toBeCloseTo(0.1)
+    expect(nth(spans, 1).width).toBeCloseTo(0.4)
     if (result.reason === null) {
       expect(result.rootService).toBe("web")
       expect(result.rootOperation).toBe("GET /")
@@ -108,7 +114,7 @@ describe("traceModel columns", () => {
     ])
     const spans = spansOf(result)
     expect(spans.map((span) => span.duration)).toEqual([100, 40])
-    expect(spans[1].operation).toBe("child")
+    expect(nth(spans, 1).operation).toBe("child")
     if (result.reason === null)
       expect(result.formatDuration(100)).toBe("100 ms")
     if (result.reason === null)
@@ -140,7 +146,7 @@ describe("traceModel columns", () => {
   it("keeps a lower-case duration column in milliseconds", () => {
     const fields = grafana()
     const spans = spansOf(model(fields))
-    expect(spans[0].duration).toBe(100)
+    expect(nth(spans, 0).duration).toBe(100)
   })
 
   it("keeps a Duration column in milliseconds when it holds fractions", () => {
@@ -149,7 +155,7 @@ describe("traceModel columns", () => {
         ? field("Duration", "number", [100, 40.5, 20])
         : item
     )
-    expect(spansOf(model(fields))[1].duration).toBe(40.5)
+    expect(nth(spansOf(model(fields)), 1).duration).toBe(40.5)
   })
 
   it("returns the reason when no frame has a span id and a start time", () => {
@@ -353,17 +359,17 @@ describe("traceModel attributes", () => {
         ]),
       ])
     )
-    expect(spans[0].attributes).toEqual([
+    expect(nth(spans, 0).attributes).toEqual([
       { key: "a", text: "x", source: "span" },
       { key: "http", text: "GET", source: "span" },
       { key: "ok", text: "true", source: "span" },
       { key: "region", text: "eu", source: "resource" },
       { key: "z", text: "1", source: "span" },
     ])
-    expect(spans[1].attributes).toEqual([
+    expect(nth(spans, 1).attributes).toEqual([
       { key: "nested", text: '{"deep":1}', source: "span" },
     ])
-    expect(spans[2].attributes).toEqual([
+    expect(nth(spans, 2).attributes).toEqual([
       { key: "k", text: "false", source: "resource" },
     ])
   })
@@ -377,7 +383,7 @@ describe("traceModel attributes", () => {
         field("ResourceAttributes", "other", [{ "service.name": "checkout" }]),
       ])
     )
-    expect(spans[0].attributes).toEqual([
+    expect(nth(spans, 0).attributes).toEqual([
       { key: "http.route", text: "/pay", source: "span" },
       { key: "service.name", text: "checkout", source: "resource" },
     ])
@@ -393,7 +399,7 @@ describe("traceModel attributes", () => {
         ]),
       ])
     )
-    expect(spans[0].attributes[0].text).toBe("<img src=x onerror=1>")
+    expect(nth(nth(spans, 0).attributes, 0).text).toBe("<img src=x onerror=1>")
   })
 })
 
@@ -416,8 +422,8 @@ describe("traceModel kind and events", () => {
         field("SpanEvents", "string", [events]),
       ])
     )
-    expect(spans[0].kind).toBe("Client")
-    expect(spans[0].events).toEqual([
+    expect(nth(spans, 0).kind).toBe("Client")
+    expect(nth(spans, 0).events).toEqual([
       {
         time: 1862,
         name: "exception",
@@ -468,7 +474,7 @@ describe("traceModel links", () => {
         field("SpanLinks", "string", [links]),
       ])
     )
-    expect(spans[0].links).toEqual([
+    expect(nth(spans, 0).links).toEqual([
       {
         traceId: "0af7651916cd43dd8448eb211c80319c",
         spanId: "b7ad6b7169203331",

@@ -31,7 +31,7 @@ function pill(next: Partial<Pill> & Pick<Pill, "kind" | "field">): Pill {
   }
 }
 
-const everyKind: Pill[] = [
+const everyKind: [Pill, Pill, Pill, Pill, Pill, Pill] = [
   pill({ id: "0", kind: "is", field: "service.name", value: "checkout" }),
   pill({
     id: "1",
@@ -115,7 +115,7 @@ describe("pill encoding", () => {
     const encoded = encodePills([
       pill({ kind: "range", field: "n", op: "<", value: "3", negate: true }),
     ])
-    expect(decodePills(encoded)[0].negate).toBe(false)
+    expect(decodePills(encoded)[0]?.negate).toBe(false)
   })
 })
 
@@ -155,7 +155,7 @@ describe("addPill", () => {
     const paused = addPill([], { ...base, paused: true })
     const resumed = addPill(paused, base)
     expect(resumed).toHaveLength(1)
-    expect(resumed[0].paused).toBe(false)
+    expect(resumed[0]?.paused).toBe(false)
   })
 
   it("stops at the limit", () => {
@@ -202,7 +202,7 @@ describe("replacePill and removePill", () => {
   it("removes a pill and renumbers", () => {
     const next = removePill(everyKind.slice(0, 3), "0")
     expect(next.map((item) => item.id)).toEqual(["0", "1"])
-    expect(next[0].field).toBe("host.name")
+    expect(next[0]?.field).toBe("host.name")
   })
 })
 
@@ -229,7 +229,7 @@ describe("mergePills", () => {
     const full = Array.from({ length: maxPills }, (_, index) =>
       pill({ id: String(index), kind: "is", field: `f${index}`, value: "v" })
     )
-    expect(mergePills(full, [{ ...full[0] }])).toEqual({ pills: full })
+    expect(mergePills(full, [{ ...full[0]! }])).toEqual({ pills: full })
   })
 
   it("refuses a value too long to keep in the link", () => {
@@ -306,12 +306,12 @@ describe("unpinnedCleared", () => {
   it("keeps only pinned pills", () => {
     const kept = unpinnedCleared(everyKind)
     expect(kept.map((item) => item.field)).toEqual(["host.name"])
-    expect(kept[0].id).toBe("0")
+    expect(kept[0]?.id).toBe("0")
   })
 })
 
 describe("applyPills on the search family", () => {
-  const pills = [
+  const pills: [Pill, Pill, Pill, Pill, Pill] = [
     pill({ kind: "is", field: "service.name", value: "checkout" }),
     pill({ kind: "is", field: "host.name", value: "canary-*", negate: true }),
     pill({ kind: "oneOf", field: "log.level", values: ["error", "warn"] }),
@@ -339,7 +339,7 @@ describe("applyPills on the search family", () => {
 
   it("skips paused pills", () => {
     const paused = pills.map((item) => ({ ...item, paused: true }))
-    paused[0].paused = false
+    paused[0]!.paused = false
     expect(applyPills("timeout", "elasticsearch", paused)).toBe(
       'timeout and service.name:"checkout"'
     )

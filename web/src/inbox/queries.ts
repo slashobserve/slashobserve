@@ -52,7 +52,12 @@ function inboxInfiniteQuery(view: InboxView, filter: InboxFilter = "open") {
       api
         .GET("/inbox", {
           params: {
-            query: { view, filter, cursor: pageParam, limit: pageSize },
+            query: {
+              view,
+              filter,
+              ...(pageParam === undefined ? {} : { cursor: pageParam }),
+              limit: pageSize,
+            },
           },
           signal,
         })
@@ -106,7 +111,6 @@ function useInboxMutation<Input>(
 ) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: send,
     onMutate: async (input: Input) => {
       await queryClient.cancelQueries({ queryKey: inboxKeys.all })

@@ -3,11 +3,11 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { FilterIcon } from "lucide-react"
 
+import { loadProblemText } from "@/api/errors"
 import { StatusLabel } from "@/components/status-label"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatDateTimeMs } from "@/lib/time"
-import { loadProblemText } from "@/service-accounts/queries"
 import { SettingsProblem } from "@/settings/settings-card"
 import { SidePanel } from "@/shell/side-panel"
 

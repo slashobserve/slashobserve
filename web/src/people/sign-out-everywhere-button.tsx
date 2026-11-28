@@ -3,7 +3,7 @@ import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, problemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -17,16 +17,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { leaveSession } from "@/lib/auth"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { useSignOutEverywhere, type User } from "./queries"
-
-function problemText(error: unknown): string {
-  if (error instanceof ApiError && error.status === 404) {
-    return "This person no longer exists."
-  }
-  return loadProblemText(error)
-}
 
 export function SignOutEverywhereButton({ user }: { user: User }) {
   const { principal } = useRouteContext({ from: "/_authed" })
@@ -67,7 +59,9 @@ export function SignOutEverywhereButton({ user }: { user: User }) {
           leave()
           return
         }
-        setProblem(problemText(error))
+        setProblem(
+          problemText(error, { notFound: "This person no longer exists." })
+        )
       },
     })
   }

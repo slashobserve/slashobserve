@@ -25,7 +25,9 @@ function webRoutePaths(): string[] {
     routeTree
   )
   if (block === null) throw new Error("FileRoutesByFullPath not found")
-  return [...block[1].matchAll(/^\s*'([^']+)':/gm)].map((match) => match[1])
+  return [...(block[1] ?? "").matchAll(/^\s*'([^']+)':/gm)].flatMap((match) =>
+    match[1] === undefined ? [] : [match[1]]
+  )
 }
 
 describe("web routes", () => {

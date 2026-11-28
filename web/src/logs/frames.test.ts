@@ -41,7 +41,7 @@ describe("keepRows", () => {
         ],
       },
     ])
-    expect(frame.fields[0].values).toEqual([1, 2, 3, 4])
+    expect(frame.fields[0]?.values).toEqual([1, 2, 3, 4])
   })
 
   it("drops frames left empty", () => {
@@ -69,7 +69,7 @@ describe("mergeTail", () => {
     const times = Array.from({ length: 1200 }, (_, i) => 1_000 + i)
     const merged = mergeTail(emptyTail, [logFrame(times)])
     expect(rowCount(merged.frames)).toBe(1000)
-    const kept = merged.frames[0].fields[0].values as number[]
+    const kept = merged.frames[0]!.fields[0]!.values as number[]
     expect(Math.min(...kept)).toBe(1_200)
     expect(Math.max(...kept)).toBe(2_199)
   })
@@ -129,7 +129,7 @@ describe("withoutKeys", () => {
     const keys = mergeTail(emptyTail, [logFrame([1, 2])]).keys
     const hidden = withoutKeys(frames, keys)
     expect(rowCount(hidden)).toBe(1)
-    expect(hidden[0].fields[0].values).toEqual([3])
+    expect(hidden[0]?.fields[0]?.values).toEqual([3])
     expect(withoutKeys(frames, new Set())).toBe(frames)
   })
 })

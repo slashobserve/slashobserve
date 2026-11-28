@@ -42,7 +42,7 @@ function SnapshotFrame({
   children,
 }: {
   block: Block
-  caption?: string
+  caption?: string | undefined
   children: ReactNode
 }) {
   return (

@@ -175,7 +175,7 @@ describe("issueRows", () => {
     const issues: JsonIssue[] = [
       { path: "", message: "The panel must be a JSON object.", scope: "panel" },
     ]
-    expect(issueRows(issues).rows[0].location).toBeNull()
+    expect(issueRows(issues).rows[0]?.location).toBeNull()
   })
 
   it("shows at most 20 and counts the rest", () => {

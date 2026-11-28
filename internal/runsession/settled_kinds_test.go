@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	agentProtocolPath = "../../observe-agent/src/protocol.ts"
+	agentProtocolPath = "../../harness/src/protocol.ts"
 	runMetaDocPath    = "../../docs/use/mcp.md"
 )
 
@@ -89,7 +89,7 @@ func TestEverySettledKindIsKnownToTheAgentAndTheDocs(t *testing.T) {
 		t.Fatal("state.go declares no settled kinds")
 	}
 	if agent := agentSettledKinds(t); !slices.Equal(kinds, agent) {
-		t.Errorf("settled kinds differ: Go %v, observe-agent settledKinds %v", kinds, agent)
+		t.Errorf("settled kinds differ: Go %v, harness settledKinds %v", kinds, agent)
 	}
 	sentence := settledSentence(t)
 	for _, kind := range kinds {

@@ -124,42 +124,32 @@ func (a *app) datasourcesRecheckCommand() *cobra.Command {
 }
 
 func (a *app) runDatasourcesList(cmd *cobra.Command, _ []string) error {
-	c, err := a.newClient()
-	if err != nil {
-		return err
-	}
-	data, err := c.get(cmd.Context(), "datasources", nil)
+	data, err := a.fetch(cmd.Context(), "datasources", nil)
 	if err != nil {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
-		return nil
-	}
-	list, err := decode[datasourceList](data)
-	if err != nil {
-		return err
-	}
-	if len(list.Datasources) == 0 {
-		out.notice("No datasources yet")
-		return nil
-	}
-	withAudience := slices.ContainsFunc(list.Datasources, func(ds datasourceEntry) bool { return ds.Audience != "" })
-	header := []string{"UID", "TYPE", "NAME", "HEALTH", "SOURCE", "DASHBOARDS", "CHECKED"}
-	rows := make([][]string, 0, len(list.Datasources))
-	for _, ds := range list.Datasources {
-		row := []string{text(ds.UID), text(ds.Type), text(ds.Name), datasourceHealth(ds), text(ds.Source), strconv.Itoa(ds.DashboardCount), when(ds.CheckedAt)}
-		if withAudience {
-			row = slices.Insert(row, 5, text(ds.Audience))
+	return render(out, data, func(list datasourceList) error {
+		if len(list.Datasources) == 0 {
+			out.notice("No datasources yet")
+			return nil
 		}
-		rows = append(rows, row)
-	}
-	if withAudience {
-		header = slices.Insert(header, 5, "AUDIENCE")
-	}
-	out.table(header, rows)
-	return nil
+		withAudience := slices.ContainsFunc(list.Datasources, func(ds datasourceEntry) bool { return ds.Audience != "" })
+		header := []string{"UID", "TYPE", "NAME", "HEALTH", "SOURCE", "DASHBOARDS", "CHECKED"}
+		rows := make([][]string, 0, len(list.Datasources))
+		for _, ds := range list.Datasources {
+			row := []string{text(ds.UID), text(ds.Type), text(ds.Name), datasourceHealth(ds), text(ds.Source), strconv.Itoa(ds.DashboardCount), when(ds.CheckedAt)}
+			if withAudience {
+				row = slices.Insert(row, 5, text(ds.Audience))
+			}
+			rows = append(rows, row)
+		}
+		if withAudience {
+			header = slices.Insert(header, 5, "AUDIENCE")
+		}
+		out.table(header, rows)
+		return nil
+	})
 }
 
 func (a *app) runDatasourcesRecheck(cmd *cobra.Command, args []string) error {
@@ -267,21 +257,15 @@ func (a *app) metricsCommand() *cobra.Command {
 				return err
 			}
 			out := a.output()
-			if a.json {
-				out.body(data)
+			return render(out, data, func(body metricsBody) error {
+				rows := make([][]string, 0, len(body.Metrics))
+				for _, m := range body.Metrics {
+					rows = append(rows, []string{text(m.Name), dash(m.Type), dash(m.Unit), dash(m.Table), text(m.Help)})
+				}
+				out.table([]string{"NAME", "TYPE", "UNIT", "TABLE", "HELP"}, rows)
+				truncatedNotice(out, body.Truncated, opts.limit)
 				return nil
-			}
-			body, err := decode[metricsBody](data)
-			if err != nil {
-				return err
-			}
-			rows := make([][]string, 0, len(body.Metrics))
-			for _, m := range body.Metrics {
-				rows = append(rows, []string{text(m.Name), dash(m.Type), dash(m.Unit), dash(m.Table), text(m.Help)})
-			}
-			out.table([]string{"NAME", "TYPE", "UNIT", "TABLE", "HELP"}, rows)
-			truncatedNotice(out, body.Truncated, opts.limit)
-			return nil
+			})
 		},
 	}
 	opts.addFlags(cmd, false, false)
@@ -335,19 +319,13 @@ func (a *app) labelValuesCommand() *cobra.Command {
 
 func (a *app) printNames(data []byte, limit int, pick func(namesBody) []string) error {
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(body namesBody) error {
+		for _, name := range pick(body) {
+			out.line("%s", text(name))
+		}
+		truncatedNotice(out, body.Truncated, limit)
 		return nil
-	}
-	body, err := decode[namesBody](data)
-	if err != nil {
-		return err
-	}
-	for _, name := range pick(body) {
-		out.line("%s", text(name))
-	}
-	truncatedNotice(out, body.Truncated, limit)
-	return nil
+	})
 }
 
 func (a *app) lintCommand() *cobra.Command {
@@ -439,24 +417,18 @@ func (a *app) logVolumeCommand() *cobra.Command {
 				return err
 			}
 			out := a.output()
-			if a.json {
-				out.body(data)
+			return render(out, data, func(body volumeBody) error {
+				rows := make([][]string, 0, len(body.Buckets))
+				for _, b := range body.Buckets {
+					rows = append(rows, []string{text(b.Start), strconv.Itoa(b.Error), strconv.Itoa(b.Warning), strconv.Itoa(b.Info), strconv.Itoa(b.Other)})
+				}
+				out.table([]string{"START", "ERROR", "WARNING", "INFO", "OTHER"}, rows)
+				out.line("Total %d", body.Total)
+				if body.Partial {
+					out.warn("The datasource ran out of time, so only the lines from %s on were counted; the earlier buckets read 0.", body.CountedFrom)
+				}
 				return nil
-			}
-			body, err := decode[volumeBody](data)
-			if err != nil {
-				return err
-			}
-			rows := make([][]string, 0, len(body.Buckets))
-			for _, b := range body.Buckets {
-				rows = append(rows, []string{text(b.Start), strconv.Itoa(b.Error), strconv.Itoa(b.Warning), strconv.Itoa(b.Info), strconv.Itoa(b.Other)})
-			}
-			out.table([]string{"START", "ERROR", "WARNING", "INFO", "OTHER"}, rows)
-			out.line("Total %d", body.Total)
-			if body.Partial {
-				out.warn("The datasource ran out of time, so only the lines from %s on were counted; the earlier buckets read 0.", body.CountedFrom)
-			}
-			return nil
+			})
 		},
 	}
 	opts.addFlags(cmd)
@@ -486,24 +458,18 @@ func (a *app) traceStatsCommand() *cobra.Command {
 				return err
 			}
 			out := a.output()
-			if a.json {
-				out.body(data)
+			return render(out, data, func(body traceStatsBody) error {
+				rows := make([][]string, 0, len(body.Buckets))
+				for _, b := range body.Buckets {
+					rows = append(rows, []string{text(b.Start), strconv.Itoa(b.Spans), strconv.Itoa(b.Errors), millisText(b.P50), millisText(b.P95), millisText(b.P99)})
+				}
+				out.table([]string{"START", "SPANS", "ERRORS", "P50", "P95", "P99"}, rows)
+				out.line("Spans %d, errors %d", body.Spans, body.Errors)
+				if body.Partial {
+					out.warn("Tempo did not search every block, so the counts are a lower bound.")
+				}
 				return nil
-			}
-			body, err := decode[traceStatsBody](data)
-			if err != nil {
-				return err
-			}
-			rows := make([][]string, 0, len(body.Buckets))
-			for _, b := range body.Buckets {
-				rows = append(rows, []string{text(b.Start), strconv.Itoa(b.Spans), strconv.Itoa(b.Errors), millisText(b.P50), millisText(b.P95), millisText(b.P99)})
-			}
-			out.table([]string{"START", "SPANS", "ERRORS", "P50", "P95", "P99"}, rows)
-			out.line("Spans %d, errors %d", body.Spans, body.Errors)
-			if body.Partial {
-				out.warn("Tempo did not search every block, so the counts are a lower bound.")
-			}
-			return nil
+			})
 		},
 	}
 	opts.addFlags(cmd)
@@ -560,16 +526,10 @@ func (a *app) traceLogsCommand() *cobra.Command {
 				return err
 			}
 			out := a.output()
-			if a.json {
-				out.body(data)
+			return render(out, data, func(parsed exploreResponse) error {
+				printLogLines(out, newestLines(logLines(parsed.Frames), limit), from, to)
 				return nil
-			}
-			parsed, err := decode[exploreResponse](data)
-			if err != nil {
-				return err
-			}
-			printLogLines(out, newestLines(logLines(parsed.Frames), limit), from, to)
-			return nil
+			})
 		},
 	}
 	flags := cmd.Flags()

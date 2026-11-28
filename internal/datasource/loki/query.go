@@ -73,11 +73,7 @@ func (d *Datasource) QueryInstant(ctx context.Context, q datasource.Query, r dat
 	if err := r.Validate(); err != nil {
 		return nil, err
 	}
-	return d.query(ctx, q, r, instantInterval(r, q.MinInterval), true)
-}
-
-func instantInterval(r datasource.TimeRange, minimum time.Duration) time.Duration {
-	return max(time.Second, (r.To.Sub(r.From) / 1000).Truncate(time.Second), minimum)
+	return d.query(ctx, q, r, datasource.InstantInterval(r, q.MinInterval), true)
 }
 
 func (d *Datasource) query(ctx context.Context, q datasource.Query, r datasource.TimeRange, step time.Duration, instant bool) ([]datasource.Frame, error) {
@@ -90,7 +86,7 @@ func (d *Datasource) query(ctx context.Context, q datasource.Query, r datasource
 }
 
 func (d *Datasource) queryText(ctx context.Context, text string, lim datasource.Limits, r datasource.TimeRange, step time.Duration, instant bool) ([]datasource.Frame, error) {
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	params := url.Values{"query": {text}}
 	switch {
@@ -143,7 +139,7 @@ func (d *Datasource) run(ctx context.Context, path string, params url.Values, li
 	}
 	var data queryData
 	if err := json.Unmarshal(raw, &data); err != nil {
-		return nil, unreadable()
+		return nil, datasource.Unreadable()
 	}
 	switch data.ResultType {
 	case "streams":
@@ -151,20 +147,20 @@ func (d *Datasource) run(ctx context.Context, path string, params url.Values, li
 	case "matrix", "vector":
 		return seriesFrames(data.Result, lim)
 	}
-	return nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned unsupported result type %q", truncateText(data.ResultType))
+	return nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned unsupported result type %q", datasource.TruncateText(data.ResultType))
 }
 
 func decodeEach[T any](result json.RawMessage, maxItems int, each func(T) error) error {
 	dec := json.NewDecoder(bytes.NewReader(result))
 	open, err := dec.Token()
 	if err != nil {
-		return unreadable()
+		return datasource.Unreadable()
 	}
 	if open == nil {
 		return nil
 	}
 	if open != json.Delim('[') {
-		return unreadable()
+		return datasource.Unreadable()
 	}
 	for n := 0; dec.More(); n++ {
 		if maxItems > 0 && n == maxItems {
@@ -172,14 +168,14 @@ func decodeEach[T any](result json.RawMessage, maxItems int, each func(T) error)
 		}
 		var item T
 		if err := dec.Decode(&item); err != nil {
-			return unreadable()
+			return datasource.Unreadable()
 		}
 		if err := each(item); err != nil {
 			return err
 		}
 	}
 	if _, err := dec.Token(); err != nil {
-		return unreadable()
+		return datasource.Unreadable()
 	}
 	return nil
 }
@@ -211,15 +207,15 @@ func streamFrame(s stream) (datasource.Frame, error) {
 	lines := make([]any, 0, len(s.Values))
 	for _, entry := range s.Values {
 		if len(entry) < 2 {
-			return datasource.Frame{}, unreadable()
+			return datasource.Frame{}, datasource.Unreadable()
 		}
 		var ts, line string
 		if json.Unmarshal(entry[0], &ts) != nil || json.Unmarshal(entry[1], &line) != nil {
-			return datasource.Frame{}, unreadable()
+			return datasource.Frame{}, datasource.Unreadable()
 		}
 		ns, err := strconv.ParseInt(ts, 10, 64)
 		if err != nil {
-			return datasource.Frame{}, unreadable()
+			return datasource.Frame{}, datasource.Unreadable()
 		}
 		times = append(times, time.Unix(0, ns).UTC())
 		lines = append(lines, line)

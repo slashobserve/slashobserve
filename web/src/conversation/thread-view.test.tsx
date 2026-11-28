@@ -14,6 +14,7 @@ import { renderWithProviders, testQueryClient } from "@/test/render"
 
 import { noModelReviseText, pinnedText, type AgentGate } from "./delivery"
 import { ThreadView } from "./thread-view"
+import { must } from "@/test/must"
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -180,9 +181,9 @@ function Harness({
   on = target,
 }: {
   initial: ThreadWithMessages
-  later?: Message
-  gate?: AgentGate
-  on?: string
+  later?: Message | undefined
+  gate?: AgentGate | undefined
+  on?: string | undefined
 }) {
   const [entry, setEntry] = useState(initial)
   return (
@@ -460,7 +461,7 @@ describe("ThreadView", () => {
     expect(posts.map(([input]) => new URL(input.url).pathname)).toEqual([
       "/api/v1/threads/t1/apply",
     ])
-    expect(await posts[0][0].clone().json()).toEqual({ finding_id: "f1" })
+    expect(await must(posts[0])[0].clone().json()).toEqual({ finding_id: "f1" })
   })
 
   it.each([

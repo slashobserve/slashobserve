@@ -13,10 +13,10 @@ export type SparkOptions = {
   points: "auto" | "always" | "never"
   pointSize: number
   spanNulls: boolean | number
-  min?: number
-  max?: number
-  softMin?: number
-  softMax?: number
+  min?: number | undefined
+  max?: number | undefined
+  softMin?: number | undefined
+  softMax?: number | undefined
 }
 
 type Point = readonly [number, number]
@@ -76,6 +76,7 @@ function pathOf(
   interpolation: SparkInterpolation
 ): string {
   const [first, ...rest] = points
+  if (first === undefined) return ""
   let d = `M${fixed(first[0])},${fixed(first[1])}`
   let [px, py] = first
   for (const [x, y] of rest) {
@@ -138,10 +139,13 @@ export function sparkShape(
         shape.paths.push(pathOf(points, options.interpolation))
         if (options.fill > 0) {
           const base = sparkHeight - inset
-          const last = points[points.length - 1]
-          shape.areas.push(
-            `${pathOf(points, options.interpolation)} L${fixed(last[0])},${fixed(base)} L${fixed(points[0][0])},${fixed(base)} Z`
-          )
+          const first = points[0]
+          const last = points.at(-1)
+          if (first !== undefined && last !== undefined) {
+            shape.areas.push(
+              `${pathOf(points, options.interpolation)} L${fixed(last[0])},${fixed(base)} L${fixed(first[0])},${fixed(base)} Z`
+            )
+          }
         }
       }
     }

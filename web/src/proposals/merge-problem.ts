@@ -1,26 +1,15 @@
-import { ApiError } from "@/api/errors"
-import { loadProblemText } from "@/service-accounts/queries"
+import { ApiError, type ProblemTexts } from "@/api/errors"
 
-const staleCodes = new Set([
-  "proposal_changed",
-  "version_conflict",
-  "invalid_transition",
-])
-
-export function mergeProblem(error: unknown): string {
-  if (error instanceof ApiError) {
-    switch (error.code) {
-      case "proposal_changed":
-        return "This proposal has a newer revision. Review it and merge again."
-      case "version_conflict":
-        return "The dashboard changed while merging. Review the conflicts and merge again."
-      case "invalid_transition":
-        return "This proposal is already closed."
-    }
-  }
-  return loadProblemText(error)
+const staleTexts: Record<string, string> = {
+  proposal_changed:
+    "This proposal has a newer revision. Review it and merge again.",
+  version_conflict:
+    "The dashboard changed while merging. Review the conflicts and merge again.",
+  invalid_transition: "This proposal is already closed.",
 }
 
+export const mergeProblems: ProblemTexts = { codes: staleTexts }
+
 export function mergeLeftProposalStale(error: unknown): boolean {
-  return error instanceof ApiError && staleCodes.has(error.code)
+  return error instanceof ApiError && Object.hasOwn(staleTexts, error.code)
 }

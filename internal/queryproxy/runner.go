@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"runtime/debug"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -157,6 +156,19 @@ func (r *Runner) UpstreamWait() time.Duration { return r.upstreamWait }
 
 func (r *Runner) AcquireUpstream(ctx context.Context, datasourceUID string) (release func(), err error) {
 	return r.slots.Acquire(ctx, datasourceUID)
+}
+
+func (r *Runner) AcquireUpstreamBounded(ctx context.Context, datasourceUID string) (release func(), err error) {
+	waitCtx, cancel := context.WithTimeout(ctx, r.upstreamWait)
+	defer cancel()
+	release, err = r.AcquireUpstream(waitCtx, datasourceUID)
+	switch {
+	case err == nil:
+		return release, nil
+	case ctx.Err() != nil:
+		return nil, ctx.Err()
+	}
+	return nil, ErrUpstreamBusy
 }
 
 func QueryKind(p *spec.Panel, q spec.Query) Kind {
@@ -648,8 +660,7 @@ func upstream[T any](ctx context.Context, r *Runner, subject string, inst dataso
 			r.logger.ErrorContext(ctx, "datasource call panicked",
 				slog.String("subject", subject),
 				slog.String("datasource", inst.UID),
-				slog.String("panic_type", fmt.Sprintf("%T", p)),
-				slog.String("stack", string(debug.Stack())))
+				slog.String("panic_type", fmt.Sprintf("%T", p)))
 			var zero T
 			out, err = zero, errInternal
 		}

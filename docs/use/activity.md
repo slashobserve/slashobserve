@@ -240,6 +240,7 @@ Those refuse a change with 409 `provisioned`.
    It is an ordinary dashboard in the Audit folder.
 
 Comments, pins, annotations, views, Ask and deleting a starter work as on any dashboard.
+Deleting, annotating and pinning need Edit on the folder, as anywhere: a dashboard read answers `permissions.edit` false on a starter, so it also answers `can_delete` and `can_annotate`, which say what you may still do there, and the web app offers only those.
 The agent's changes to a starter are refused before anything is queued, a comment that requests a revision included.
 
 ### How starters stay current

@@ -303,7 +303,7 @@ func (s *Service) releaseLogged(ctx context.Context, row dbsqlc.AgentRequest, ch
 	case err != nil:
 		s.logger.ErrorContext(ctx, "release agent request; its lease will expire", logattrs.Failure("agent_request_release_failed", err, attrs...)...)
 	case !released:
-		s.logger.WarnContext(ctx, "agent request was finished elsewhere; not releasing it", attrs...)
+		s.logger.WarnContext(ctx, "agent request was finished elsewhere or has committed its result; not releasing it", attrs...)
 	}
 	return err
 }

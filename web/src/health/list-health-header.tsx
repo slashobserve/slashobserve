@@ -4,10 +4,10 @@ import { useRouteContext } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { dashboardKeys } from "@/api/keys"
 import { Button } from "@/components/ui/button"
 import { roleAtLeast } from "@/lib/roles"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { lastRunProblem, summaryLabels, type RunRequest } from "./health-labels"
 import { healthSummaryQuery, useRunHealth } from "./queries"

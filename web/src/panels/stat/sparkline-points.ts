@@ -19,18 +19,32 @@ function bucketExtremes(points: readonly Point[], columns: number): Point[] {
   for (let bucket = 0; bucket < columns; bucket++) {
     const start = Math.floor(bucket * size)
     const end = Math.floor((bucket + 1) * size)
-    let low = start
-    let high = start
+    const startPoint = points[start]
+    if (startPoint === undefined) continue
+    let low = startPoint
+    let high = startPoint
+    let lowIndex = start
+    let highIndex = start
     for (let index = start + 1; index < end; index++) {
-      if (points[index][1] < points[low][1]) low = index
-      if (points[index][1] > points[high][1]) high = index
+      const point = points[index]
+      if (point === undefined) break
+      if (point[1] < low[1]) {
+        low = point
+        lowIndex = index
+      }
+      if (point[1] > high[1]) {
+        high = point
+        highIndex = index
+      }
     }
-    if (low === high) kept.push(points[low])
-    else if (low < high) kept.push(points[low], points[high])
-    else kept.push(points[high], points[low])
+    if (lowIndex === highIndex) kept.push(low)
+    else if (lowIndex < highIndex) kept.push(low, high)
+    else kept.push(high, low)
   }
-  if (kept[0] !== points[0]) kept.unshift(points[0])
-  if (kept.at(-1) !== points.at(-1)) kept.push(points[points.length - 1])
+  const first = points[0]
+  const last = points.at(-1)
+  if (first !== undefined && kept[0] !== first) kept.unshift(first)
+  if (last !== undefined && kept.at(-1) !== last) kept.push(last)
   return kept
 }
 

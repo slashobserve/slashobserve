@@ -4,9 +4,6 @@ import (
 	"encoding/json"
 	"slices"
 
-	"github.com/slashobserve/slashobserve/internal/agent/brief"
-	"github.com/slashobserve/slashobserve/internal/agent/grounding"
-	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -23,11 +20,11 @@ const (
 	settledEnded     SettledKind = "ended"
 )
 
-const maxStoredDigestBytes = 8 << 10
-
 type State struct {
-	Guard             guard.State          `json:"guard"`
-	Digest            brief.Digest         `json:"digest"`
+	Mode              tools.Mode           `json:"mode"`
+	ParentVersion     int                  `json:"parent_version"`
+	Rejected          int                  `json:"rejected,omitempty"`
+	Counts            Counts               `json:"counts"`
 	Restarts          int                  `json:"restarts"`
 	Build             *tools.BuildProgress `json:"build,omitempty"`
 	Suggestion        json.RawMessage      `json:"suggestion,omitempty"`
@@ -41,33 +38,25 @@ type State struct {
 	Wrote             bool                 `json:"wrote,omitempty"`
 	Committed         string               `json:"committed,omitempty"`
 	Usage             revisions.Usage      `json:"usage"`
-	Turn              OpenTurn             `json:"turn"`
 
-	Ledger      []revisions.Hypothesis `json:"ledger,omitempty"`
-	Loop        bool                   `json:"loop,omitempty"`
-	DataReads   int                    `json:"data_reads,omitempty"`
-	TransientAt map[string]int         `json:"transient_at,omitempty"`
-
-	Grounding *grounding.Record `json:"grounding,omitempty"`
-
-	Triage *Triage `json:"triage,omitempty"`
+	Ledger []revisions.Hypothesis `json:"ledger,omitempty"`
 
 	Task     route.Task `json:"task,omitempty"`
 	AllTools bool       `json:"all_tools,omitempty"`
+
+	Agent *tools.AgentState `json:"agent_state,omitempty"`
+}
+
+type Counts struct {
+	ToolCalls        int `json:"tool_calls"`
+	Repairs          int `json:"repairs"`
+	BuildSaves       int `json:"build_saves"`
+	OnePanelRefusals int `json:"one_panel_refusals"`
 }
 
 type Settled struct {
 	Kind    SettledKind `json:"kind,omitempty"`
 	Version int         `json:"version,omitempty"`
-}
-
-type OpenTurn struct {
-	Seq      int    `json:"seq"`
-	ID       string `json:"id,omitempty"`
-	Open     bool   `json:"open,omitempty"`
-	Calls    int    `json:"calls,omitempty"`
-	Admitted int    `json:"admitted,omitempty"`
-	Settled  int    `json:"settled,omitempty"`
 }
 
 func (s *State) rejection() revisions.Rejection {
@@ -86,29 +75,31 @@ func (s *State) noteCreated(ids []string) {
 	}
 }
 
-func (s *State) addDiscovery(found tools.Discovery) {
-	s.Digest.Add(found)
-	kept, bytes := 0, 0
-	for i := len(s.Digest.Entries) - 1; i >= 0; i-- {
-		e := s.Digest.Entries[i]
-		bytes += len(e.Datasource) + len(e.Of)
-		for _, name := range e.Names {
-			bytes += len(name)
-		}
-		if bytes > maxStoredDigestBytes {
-			break
-		}
-		kept++
-	}
-	s.Digest.Entries = s.Digest.Entries[len(s.Digest.Entries)-kept:]
-}
-
 func (s *State) noteLedger(ledger []revisions.Hypothesis) (changed bool) {
-	changed = !guard.SameLedger(s.Ledger, ledger)
-	s.Guard.NoteLedger(s.Ledger, ledger)
-	s.noteTransient(ledger)
+	changed = !sameLedger(s.Ledger, ledger)
 	s.Ledger = ledger
 	return changed
+}
+
+func sameLedger(a, b []revisions.Hypothesis) bool {
+	return slices.EqualFunc(a, b, func(x, y revisions.Hypothesis) bool {
+		return x.ID == y.ID && x.Text == y.Text && x.Status == y.Status && x.Closing == y.Closing && x.KnockOnOf == y.KnockOnOf && x.Next == y.Next && slices.Equal(x.Evidence, y.Evidence)
+	})
+}
+
+func (s *State) beginSession(parentVersion int) {
+	s.ParentVersion = parentVersion
+}
+
+func (s *State) restart() {
+	s.Rejected = 0
+}
+
+func (s *State) phase(name string) string {
+	if s.Rejected > 0 && tools.Phase(name) == tools.PhaseSave {
+		return phaseRepair
+	}
+	return tools.Phase(name)
 }
 
 func (s *State) meta(restarted bool) RunMeta {

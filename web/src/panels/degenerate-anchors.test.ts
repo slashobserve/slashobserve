@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { parseAnchor } from "@/conversation/anchor"
+import { encodedBytes, maxEncoded } from "@/conversation/anchor"
 
 import { hitTest as alertAt } from "./alertlist/anchors"
 import { hitTest as barAt } from "./barchart/anchors"
@@ -14,6 +14,11 @@ import { hitTest as timeseriesAt, rangeTest } from "./timeseries/anchors"
 import { hitTest as valueAt } from "./value-anchors"
 
 const body = { width: 400, height: 200 }
+
+function expectFits(anchor: object | null) {
+  expect(anchor).not.toBeNull()
+  expect(encodedBytes(anchor!)).toBeLessThanOrEqual(maxEncoded)
+}
 const point = { x: 10, y: 10 }
 
 const manyLabels = Object.fromEntries(
@@ -180,9 +185,9 @@ describe("anchors stay inside what the server accepts", () => {
     }
     const anchor = timeseriesAt(layout, { x: 1, y: 10 })
     expect(anchor).not.toBeNull()
-    expect(() => parseAnchor(anchor)).not.toThrow()
+    expectFits(anchor)
     const line = timeseriesAt(layout, { x: 50, y: 10 })
-    expect(() => parseAnchor(line)).not.toThrow()
+    expectFits(line)
   })
 
   it("table row with many dimension columns", () => {
@@ -209,7 +214,7 @@ describe("anchors stay inside what the server accepts", () => {
       point
     )
     expect(anchor).not.toBeNull()
-    expect(() => parseAnchor(anchor)).not.toThrow()
+    expectFits(anchor)
   })
 
   it("alert row with many labels", () => {
@@ -225,7 +230,7 @@ describe("anchors stay inside what the server accepts", () => {
       },
       point
     )
-    expect(() => parseAnchor(anchor)).not.toThrow()
+    expectFits(anchor)
   })
 
   it("log line with many labels and a long message", () => {
@@ -246,7 +251,7 @@ describe("anchors stay inside what the server accepts", () => {
       },
       point
     )
-    expect(() => parseAnchor(anchor)).not.toThrow()
+    expectFits(anchor)
   })
 
   it("value with many labels", () => {
@@ -264,7 +269,7 @@ describe("anchors stay inside what the server accepts", () => {
       },
       point
     )
-    expect(() => parseAnchor(anchor)).not.toThrow()
+    expectFits(anchor)
   })
 
   it("text of four byte characters that would encode past the limit", () => {
@@ -282,6 +287,6 @@ describe("anchors stay inside what the server accepts", () => {
       },
       point
     )
-    if (anchor !== null) expect(() => parseAnchor(anchor)).not.toThrow()
+    if (anchor !== null) expectFits(anchor)
   })
 })

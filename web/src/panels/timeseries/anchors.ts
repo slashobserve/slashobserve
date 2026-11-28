@@ -75,7 +75,9 @@ function seriesAt(
   at: Point,
   index: number
 ): Nearest | null {
-  const x = pixelAt(layout, layout.xs[index])
+  const seconds = layout.xs[index]
+  if (seconds === undefined) return null
+  const x = pixelAt(layout, seconds)
   let best: Nearest | null = null
   for (const [series, entry] of layout.series.entries()) {
     const y = entry.ys[index]
@@ -88,8 +90,11 @@ function seriesAt(
 function lineAt(layout: TimeseriesAnchorLayout, at: Point): number | null {
   let best: Nearest | null = null
   for (let index = 0; index + 1 < layout.xs.length; index++) {
-    const left = pixelAt(layout, layout.xs[index])
-    const right = pixelAt(layout, layout.xs[index + 1])
+    const leftSeconds = layout.xs[index]
+    const rightSeconds = layout.xs[index + 1]
+    if (leftSeconds === undefined || rightSeconds === undefined) continue
+    const left = pixelAt(layout, leftSeconds)
+    const right = pixelAt(layout, rightSeconds)
     if (at.x < left || at.x > right) continue
     const share = right > left ? (at.x - left) / (right - left) : 0
     for (const [series, entry] of layout.series.entries()) {
@@ -110,14 +115,15 @@ export function hitTest(
   if (at === null) return null
   const pos = positionOf(point, layout.body)
   const index = nearestIndex(layout, at.x)
-  const time = msToIso(
-    (index < 0 ? secondsAt(layout, at.x) : layout.xs[index]) * 1000
-  )
+  const seconds = index < 0 ? secondsAt(layout, at.x) : layout.xs[index]
+  if (seconds === undefined) return null
+  const time = msToIso(seconds * 1000)
   if (time === null) return null
   if (index < 0) return { kind: "time", pos, from: time }
   const near = seriesAt(layout, at, index)
   if (near !== null && near.away <= pointRadius) {
     const entry = layout.series[near.series]
+    if (entry === undefined) return null
     const value = entry.values[index]
     return fit({
       kind: "point",
@@ -132,6 +138,7 @@ export function hitTest(
   const line = lineAt(layout, at)
   if (line !== null) {
     const entry = layout.series[line]
+    if (entry === undefined) return null
     return fit({
       kind: "series",
       pos,
@@ -182,7 +189,12 @@ function sampleIndex(layout: TimeseriesAnchorLayout, seconds: number): number {
     }
   })
   if (best < 0) return -1
-  const step = xs.length > 1 ? (xs[xs.length - 1] - xs[0]) / (xs.length - 1) : 0
+  const first = xs[0]
+  const last = xs.at(-1)
+  const step =
+    xs.length > 1 && first !== undefined && last !== undefined
+      ? (last - first) / (xs.length - 1)
+      : 0
   return distance <= step / 2 ? best : -1
 }
 
@@ -198,9 +210,11 @@ function pointRect(
   layout: TimeseriesAnchorLayout,
   index: number,
   y: number
-): Rect {
+): Rect | null {
+  const seconds = layout.xs[index]
+  if (seconds === undefined) return null
   return {
-    x: layout.plot.x + pixelAt(layout, layout.xs[index]) - pointRadius,
+    x: layout.plot.x + pixelAt(layout, seconds) - pointRadius,
     y: layout.plot.y + y - pointRadius,
     width: pointRadius * 2,
     height: pointRadius * 2,
@@ -226,7 +240,7 @@ function locatePoint(
   const seconds = secondsOf(anchor.from)
   if (series < 0 || !inWindow(layout, seconds)) return null
   const index = sampleIndex(layout, seconds)
-  const y = index < 0 ? null : layout.series[series].ys[index]
+  const y = index < 0 ? null : layout.series[series]?.ys[index]
   return y === null || y === undefined ? null : pointRect(layout, index, y)
 }
 
@@ -237,7 +251,9 @@ function locateSeries(
   const series = seriesIndex(layout, anchor)
   if (series < 0) return null
   const x = anchor.pos.x * layout.body.width - layout.plot.x
-  const { ys } = layout.series[series]
+  const entry = layout.series[series]
+  if (entry === undefined) return null
+  const { ys } = entry
   const index = nearestIndex(layout, x)
   const y = index < 0 ? null : ys[index]
   if (y !== null && y !== undefined) return pointRect(layout, index, y)

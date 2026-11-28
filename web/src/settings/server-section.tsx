@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query"
 
+import { loadProblemText } from "@/api/errors"
 import { instanceQuery } from "@/api/instance"
 import { StatusLabel } from "@/components/status-label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAgentInfo } from "@/observe/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { effortName, providerName } from "./format"
 import {

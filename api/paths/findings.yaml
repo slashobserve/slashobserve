@@ -9,7 +9,7 @@ findings:
       With `dashboard_id` only that dashboard's findings are listed, and a dashboard the caller cannot view gives 404.
       With `folder_id` only the findings without a dashboard whose observation sits in that folder are listed, and a folder the caller cannot view gives 404; findings on the folder's dashboards are not included, so list them with `dashboard_id`.
       `dashboard_id` and `folder_id` do not go together.
-      Deprecated: findings are observations now; use /observations. Removed in the release after this one.
+      Deprecated for saved findings, which are read through their observation (`/observations`); the route stays for chat-only answers, which have no observation, and for the web app.
     parameters:
       - name: dashboard_id
         in: query
@@ -72,7 +72,7 @@ findings-id:
       A read of such an answer is recorded in the audit trail as `run.view` of its request, once per reader and request in 10 minutes.
       A refused read is recorded every time, as a denied `run.view` with the finding as its target.
       The `Link` header names the observation as the `successor-version`, and is absent while there is none.
-      Deprecated: findings are observations now; use /observations. Removed in the release after this one.
+      Deprecated for saved findings, which are read through their observation (`/observations`); the route stays for chat-only answers, which have no observation, and for the web app.
     responses:
       "200":
         description: The finding.
@@ -96,67 +96,6 @@ findings-id:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
-findings-id-pin:
-  parameters:
-    - name: id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-  post:
-    operationId: pinFinding
-    x-audit: { action: finding.pin, target: { kind: finding, id: path.id } }
-    deprecated: true
-    summary: Pin a finding to its dashboard as an annotation.
-    description: >-
-      The annotation's text is the finding's first line and a link to it, tagged `finding`, at the end of the finding's window; pinning needs Edit on the dashboard.
-      Pinning a finding that is already pinned answers 200 with the same annotation.
-      Deprecated: findings are observations now; use /observations. Removed in the release after this one.
-    responses:
-      "201":
-        description: The annotation made for the finding.
-        headers:
-          Location:
-            required: true
-            schema:
-              type: string
-          Deprecation:
-            $ref: "../openapi.yaml#/components/headers/Deprecation"
-        content:
-          application/json:
-            schema:
-              $ref: "../openapi.yaml#/components/schemas/Annotation"
-      "200":
-        description: The finding was already pinned; this is its annotation.
-        headers:
-          Deprecation:
-            $ref: "../openapi.yaml#/components/headers/Deprecation"
-        content:
-          application/json:
-            schema:
-              $ref: "../openapi.yaml#/components/schemas/Annotation"
-      "400":
-        $ref: "../openapi.yaml#/components/responses/BadRequest"
-      "401":
-        $ref: "../openapi.yaml#/components/responses/Unauthorized"
-      "403":
-        $ref: "../openapi.yaml#/components/responses/Forbidden"
-      "404":
-        $ref: "../openapi.yaml#/components/responses/NotFound"
-      "409":
-        description: >-
-          The finding has no dashboard to pin to (`finding_has_no_dashboard`), or is the answer to a plain question that is not an observation yet (`finding_not_saved`).
-          Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
-          Or the finding is `restricted` and its dashboard is not in a folder only Admins can read (`restricted_answer`, saying why).
-        content:
-          application/json:
-            schema:
-              oneOf:
-                - $ref: "../openapi.yaml#/components/schemas/Error"
-                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
-      "500":
-        $ref: "../openapi.yaml#/components/responses/Internal"
 findings-id-dashboard:
   parameters:
     - name: id
@@ -174,7 +113,7 @@ findings-id-dashboard:
       Anyone who can read the finding may call it; the dashboard lands in the caller's My Dashboards and every evidence query is run again before it is saved.
       The caller's own chat that the answer came from becomes a chat about the new dashboard, when it is about no dashboard or observation yet; it stays private to the caller, and a failure to attach it does not fail the call.
       A finding without evidence gives 409 `finding_has_no_evidence`.
-      Deprecated: findings are observations now; use /observations. Removed in the release after this one.
+      Deprecated for saved findings, which are read through their observation (`/observations`); the route stays for chat-only answers, which have no observation, and for the web app.
     responses:
       "201":
         description: The new dashboard and its first version.
@@ -205,7 +144,7 @@ findings-id-dashboard:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "422":
@@ -233,7 +172,7 @@ findings-id-panels-panel-id-data:
     description: >-
       Runs one evidence panel of a finding. Only browser sessions may call it; a key gets 403 `user_session_required`. Evidence queries are stored with the finding and were checked when it was saved.
       Anyone who can read the finding may call it, `from` and `to` default to the finding's window, nothing is cached, and the response has the shape of panel data.
-      Deprecated: findings are observations now; use /observations. Removed in the release after this one.
+      Deprecated for saved findings, which are read through their observation (`/observations`); the route stays for chat-only answers, which have no observation, and for the web app.
     parameters:
       - name: from
         in: query

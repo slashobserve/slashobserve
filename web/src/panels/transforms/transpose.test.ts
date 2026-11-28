@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import type { PreparedFrame } from "./names"
 import { transpose } from "./transpose"
 
@@ -15,6 +17,7 @@ const table: PreparedFrame = {
 describe("transpose", () => {
   it("turns fields into rows and rows into fields", () => {
     const [out] = transpose([table], { type: "transpose" })
+    defined(out)
     expect(out.name).toBe("stats")
     expect(out.fields.map((field) => field.name)).toEqual([
       "Field",
@@ -39,6 +42,7 @@ describe("transpose", () => {
       firstName: "Metric",
       restName: "Series",
     })
+    defined(out)
     expect(out.fields.map((field) => field.name)).toEqual([
       "Metric",
       "Series 1",
@@ -52,8 +56,9 @@ describe("transpose", () => {
     ["true", true, "other"],
   ] as const)("fills empty cells for %s", (empty, filled, type) => {
     const [out] = transpose([table], { type: "transpose", empty })
-    expect(out.fields[2].values).toEqual([2, filled])
-    expect(out.fields[2].type).toBe(type)
+    defined(out)
+    expect(must(out.fields[2]).values).toEqual([2, filled])
+    expect(must(out.fields[2]).type).toBe(type)
   })
 
   it("keeps mixed columns as they are", () => {
@@ -65,7 +70,8 @@ describe("transpose", () => {
       ],
     }
     const [out] = transpose([mixed], { type: "transpose" })
-    expect(out.fields[1].values).toEqual(["a", 5])
-    expect(out.fields[1].type).toBe("other")
+    defined(out)
+    expect(must(out.fields[1]).values).toEqual(["a", 5])
+    expect(must(out.fields[1]).type).toBe("other")
   })
 })

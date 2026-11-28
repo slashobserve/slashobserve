@@ -91,7 +91,7 @@ function ActionControl({
   return (
     <Link
       to={action.to.to}
-      search={action.to.search}
+      {...(action.to.search === undefined ? {} : { search: action.to.search })}
       aria-label={label(action.label)}
       className={cn(buttonVariants({ variant: "outline", size: "xs" }))}
     >

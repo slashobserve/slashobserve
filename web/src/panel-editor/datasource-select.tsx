@@ -14,7 +14,9 @@ const typeLabels: Record<string, string> = {
 }
 
 function typeLabel(type: string): string {
-  return Object.hasOwn(typeLabels, type) ? typeLabels[type] : type
+  return (
+    (Object.hasOwn(typeLabels, type) ? typeLabels[type] : undefined) ?? type
+  )
 }
 
 function variableRef(variable: DatasourceVariable): string {

@@ -49,9 +49,9 @@ export function ReportCard({ report, imported, busy }: Props) {
             : event.key === "End"
               ? last
               : null
-    if (next === null) return
+    const target = next === null ? undefined : reportFilters[next]?.id
+    if (target === undefined) return
     event.preventDefault()
-    const target = reportFilters[next].id
     setFilter(target)
     tabs.current[target]?.focus()
   }

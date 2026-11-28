@@ -158,8 +158,8 @@ describe("PanelBlock", () => {
 
     expect(await screen.findByText("No data")).toBeTruthy()
     const [url] = dataRequests(fetch)
-    expect(url.searchParams.get("from")).toBe("2026-11-06T10:00:00Z")
-    expect(url.searchParams.get("to")).toBe("2026-11-06T11:00:00Z")
+    expect(url?.searchParams.get("from")).toBe("2026-11-06T10:00:00Z")
+    expect(url?.searchParams.get("to")).toBe("2026-11-06T11:00:00Z")
   })
 
   it("names the datasource, says which window the block is pinned to and credits the person who added it", async () => {
@@ -314,7 +314,7 @@ describe("PanelBlock", () => {
         dataRequests(fetch).at(-1)?.searchParams.getAll("var-env")
       ).toEqual(["staging"])
     )
-    expect(dataRequests(fetch)[0].searchParams.getAll("var-env")).toEqual([
+    expect(dataRequests(fetch)[0]?.searchParams.getAll("var-env")).toEqual([
       "prod",
     ])
   })
@@ -331,8 +331,8 @@ describe("PanelBlock", () => {
     ).toBeTruthy()
     await waitFor(() => expect(dataRequests(fetch)).toHaveLength(1))
     const [url] = dataRequests(fetch)
-    expect(url.searchParams.get("from")).toBe(page.from)
-    expect(url.searchParams.get("to")).toBe(page.to)
+    expect(url?.searchParams.get("from")).toBe(page.from)
+    expect(url?.searchParams.get("to")).toBe(page.to)
   })
 
   it("shows the last hour live when neither the page nor the block has a range", async () => {
@@ -344,8 +344,8 @@ describe("PanelBlock", () => {
     ).toBeTruthy()
     await waitFor(() => expect(dataRequests(fetch)).toHaveLength(1))
     const [url] = dataRequests(fetch)
-    expect(url.searchParams.get("from")).toBe("now-1h")
-    expect(url.searchParams.get("to")).toBe("now")
+    expect(url?.searchParams.get("from")).toBe("now-1h")
+    expect(url?.searchParams.get("to")).toBe("now")
   })
 
   it("pins a following block to the window it shows now", async () => {
@@ -450,7 +450,7 @@ describe("PanelBlock", () => {
     expect(await screen.findByText("checkout")).toBeTruthy()
     expect(screen.queryByRole("textbox")).toBeNull()
     await waitFor(() => expect(dataRequests(fetch)).toHaveLength(1))
-    expect(dataRequests(fetch)[0].searchParams.getAll("var-svc")).toEqual([
+    expect(dataRequests(fetch)[0]?.searchParams.getAll("var-svc")).toEqual([
       "checkout",
     ])
   })

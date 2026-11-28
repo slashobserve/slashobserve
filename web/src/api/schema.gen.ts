@@ -1315,55 +1315,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/dashboards/{id}/comments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        /**
-         * List the comments of a dashboard across all versions, oldest first.
-         * @description Each thread's first comment carries `allowed_actions`, what the caller may do with the thread now, and a reply carries none.
-         */
-        get: operations["listDashboardComments"];
-        put?: never;
-        /**
-         * Comment on a panel or the whole dashboard, or reply to a thread.
-         * @description A comment starts a thread or replies to one. A thread's first comment is anchored to a version and to a panel id, or to the whole dashboard when `panel_id` is absent or null, and never moves; `panel_present` on responses says whether the latest version still has that panel and is always true for a whole-dashboard comment. A reply names its thread's comment in `parent_id` and omits `version` and `panel_id`; it takes both from its thread. Replies are one level deep: replying to a reply attaches the new reply to that reply's thread. A thread's status lives on its first comment and a reply's `status` mirrors it. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Each comment's `actor` is who wrote it, with the `label` to show, such as `Ada (via Claude Code)`; `resolved_actor` is who resolved the thread, `Observe Agent for Ada` when an agent run did. `mentions` lists the people and `@observe` the body mentions, `edited_at` is set once the body was edited, and `can_edit` says whether the caller may edit it. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, goes to the dashboard's event stream. A comment queues a revision only when `request_revision` is true and an LLM provider is configured; a reply never requests a revision. The comment and the revision are created in one transaction, and the comment's `revision` holds the queued revision. When the revision succeeds, the server resolves the thread with `resolved_by_version` set to the saved version, unless it is already resolved. With no LLM provider configured, no revision is queued and `revision` stays null. At most 5 revisions may be queued or running per dashboard; beyond that the comment is not created. A starter takes comments but no revision, so `request_revision` on one answers 409 `provisioned` and creates nothing.
-         */
-        post: operations["createDashboardComment"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/dashboards/{id}/comments/{comment_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-                comment_id: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Resolve or reopen a comment.
-         * @description Setting the status a comment already has answers 200 with the comment unchanged and sends no event. A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `status` and `author` (plus `panel_id` for a comment on a panel), where `author` is the caller who changed the status or, when an agent request resolves the thread, its requester. Changing a reply changes its thread and returns the thread's first comment. A caller with only Comment resolves only a thread they started, and anyone else answers 403 `not_starter`; a caller who can edit resolves any thread, and reopening is open to every commenter. `resolved_by_version` names the version that fixed the thread; it must be at least the version the thread is on (400) and at most the dashboard's latest version (422), it is stored only when the call changes the status to resolved, and reopening clears it.
-         */
-        patch: operations["setDashboardCommentStatus"];
-        trace?: never;
-    };
     "/threads": {
         parameters: {
             query?: never;
@@ -1379,7 +1330,7 @@ export interface paths {
         put?: never;
         /**
          * Start a thread on a dashboard, an annotation, an observation or a proposal.
-         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on an annotation or an observation. `block_id` anchors the first message to one block of an observation; absent or null means the whole observation. It is refused on a dashboard, an annotation or a proposal, and must name a block of this observation, with 422 `invalid_block` otherwise. Deleting the block keeps the message, now about the whole observation. `anchor` points the thread at one spot of a dashboard panel or, with `block_id`, of an observation block, and is refused on an annotation or a proposal (422 `invalid_target`) or when its kind lacks a field it needs (422 `invalid_anchor`). `block_id` with an anchor sets the thread's block; without an anchor it keeps its message meaning, the block the first message is about. `block_id` with an anchor of a kind that cannot sit on a block, `variable`, answers 422 `invalid_anchor` naming both fields. An observation has one page thread, its discussion, and any number of anchored threads; starting a second page thread adds the message to the first. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). Mention a person with `@[Name](user:<id>)`, the built-in agent with `@observe`, one of your own connected agents with `@[Name](grant:<grant id>)` and a service account that takes runs with `@[Name](service_account:<id>)`, at most 20 mentions in a message, a repeated mention counting each time (422 `too_many_mentions`). A grant that is not yours, revoked or expired, a service account that takes no runs, and a person who does not exist or cannot see the target all answer 422 `invalid_mention`; a service-account key may mention `@observe` and service accounts, never a grant. A mention is recorded, shows in the activity log, and a mentioned person gets it in their Inbox. `to` decides who the message is for. Absent, a message that mentions one agent asks it, a message that mentions a person asks no agent, and any other message asks the thread's agent unless it is off. `agent` asks the agent it mentions, else the thread's agent, else `@observe`; `everyone` asks no agent and turns the thread's agent off. The agent a message asks becomes the thread's agent, so later plain replies ask it too. More than one agent in a message answers 422 `too_many_agents` and writes nothing, whatever `to` says. The agent asked gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context. A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts a read-only `investigate` run about the observation, which needs Comment on it, has no per-person cap and answers in the thread without writing on the page. An annotation or a proposal thread starts no run. A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider, or a thread agent that was disconnected, which is then cleared), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` or `too_many_runs`. A started run is in `message.run`, and `to` in the answer says how the message was delivered. `client_id` is a UUID the caller makes for the message; sending it again answers 200 with the message already posted, `replayed: true`, the same `message.run` or `message.run_refusal` as the first time and no new run, and reusing it on another target answers 422 `client_id_reused`. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream; a change of the thread's agent is audited as `thread.agent_set`. A comment sent to a dashboard with `request_revision` has its own path. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
+         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on an annotation or an observation. `block_id` anchors the first message to one block of an observation; absent or null means the whole observation. It is refused on a dashboard, an annotation or a proposal, and must name a block of this observation, with 422 `invalid_block` otherwise. Deleting the block keeps the message, now about the whole observation. `anchor` points the thread at one spot of a dashboard panel or, with `block_id`, of an observation block, and is refused on an annotation or a proposal (422 `invalid_target`) or when its kind lacks a field it needs (422 `invalid_anchor`). `block_id` with an anchor sets the thread's block; without an anchor it keeps its message meaning, the block the first message is about. `block_id` with an anchor of a kind that cannot sit on a block, `variable`, answers 422 `invalid_anchor` naming both fields. An observation has one page thread, its discussion, and any number of anchored threads; starting a second page thread adds the message to the first. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). Mention a person with `@[Name](user:<id>)`, the built-in agent with `@observe`, one of your own connected agents with `@[Name](grant:<grant id>)` and a service account that takes runs with `@[Name](service_account:<id>)`, at most 20 mentions in a message, a repeated mention counting each time (422 `too_many_mentions`). A grant that is not yours, revoked or expired, a service account that takes no runs, and a person who does not exist or cannot see the target all answer 422 `invalid_mention`; a service-account key may mention `@observe` and service accounts, never a grant. A mention is recorded, shows in the activity log, and a mentioned person gets it in their Inbox. `to` decides who the message is for. Absent, a message that mentions one agent asks it, a message that mentions a person asks no agent, and any other message asks the thread's agent unless it is off. `agent` asks the agent it mentions, else the thread's agent, else `@observe`; `everyone` asks no agent and turns the thread's agent off. The agent a message asks becomes the thread's agent, so later plain replies ask it too. More than one agent in a message answers 422 `too_many_agents` and writes nothing, whatever `to` says. The agent asked gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context. A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts a read-only `investigate` run about the observation, which needs Comment on it, has no per-person cap and answers in the thread without writing on the page. An annotation or a proposal thread starts no run. A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider, or a thread agent that was disconnected, which is then cleared), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` or `too_many_runs`. A started run is in `message.run`, and `to` in the answer says how the message was delivered. `client_id` is a UUID the caller makes for the message; sending it again answers 200 with the message already posted, `replayed: true`, the same `message.run` or `message.run_refusal` as the first time and no new run, and reusing it on another target answers 422 `client_id_reused`. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream; a change of the thread's agent is audited as `thread.agent_set`. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
          */
         post: operations["openThread"];
         delete?: never;
@@ -1687,7 +1638,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the server for its tools and compare them with what was approved.
-         * @description Only Admins can call this endpoint. The server connects over MCP streamable HTTP through the outbound allowlist and lists its tools. A tool the server marks destructive (`destructiveHint: true`), or whose description or input schema is too large, is stored as `refused` with the reason. Any other new tool is stored as `offered` with `read_only` saying whether the server marks it read-only; nothing is approved automatically. An approved tool whose name, description, input schema or read-only mark changed becomes `changed` and is not served until an Admin approves it again. An approved tool the server no longer lists becomes `gone`. A failed discovery answers 200 with `source.state` `unreachable` and `source.failure` naming why: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
+         * @description Only Admins can call this endpoint. The server connects over MCP streamable HTTP through the outbound allowlist and lists its tools. A tool the server marks destructive (`destructiveHint: true`), or whose description or input schema is too large, is stored as `refused` with the reason. Any other new tool is stored as `offered` with `read_only` saying whether the server marks it read-only; nothing is approved automatically. An approved tool whose name, description, input schema or read-only mark changed becomes `changed` and is not served until an Admin approves it again. An approved tool the server no longer lists becomes `gone`. A failed discovery answers 200 with `source.state` `unreachable` and `source.failure` naming why: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`. Two discoveries of one source may overlap: the one stored second changes nothing and answers 200 with `superseded` true and the source as the other left it.
          */
         post: operations["discoverMCPSourceTools"];
         delete?: never;
@@ -2312,11 +2263,7 @@ export interface paths {
          */
         get: operations["listDashboardRevisions"];
         put?: never;
-        /**
-         * Ask the agent to revise a dashboard with a follow-up prompt.
-         * @description The request is queued and answers 202 at once; the agent saves the result as a new version of the dashboard. A prompt that only asks a question may instead end with a finding, and then the revision succeeds with `result_version` null. Watch the dashboard's event stream for `revision.updated` and `version.created` (the version arrives first, then `revision.updated` with status `succeeded`; do not depend on their order), or poll the revision. The agent revises the latest version of the dashboard; `base_version` is the version the caller was looking at and only gives the agent context. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). At most 5 revisions may be queued or running per dashboard. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`. With `panel_id` the agent focuses on that panel. With `comment_id` the request is about a comment thread; on success the thread is resolved with the saved version.
-         */
-        post: operations["createDashboardRevision"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2426,7 +2373,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the agent a question, have it build a new dashboard, revise an existing one, or investigate.
-         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. `kind` says what the request may do: `ask`, the default, reads and answers; `revise` changes the dashboard named by `dashboard_id`; `investigate` reads data into an observation. An `ask` without `dashboard_id` and `observation_id` builds a new dashboard (`intent` is `ask` until it saves one, then `apply`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` set and `dashboard_id`, `result_version` and `observation_id` null, and `kind` stays `build`. That answer makes no observation: it stays on the request, read by the requester and Admins, until the requester saves it with `POST /observe/{id}/observation`. With `kind` `revise` and `dashboard_id` the agent revises that dashboard (`intent` is `apply`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. With `kind` `revise`, `applies_finding_id` in place of `prompt` applies an answer's suggested change: the finding must be the answer of a request you can read about `dashboard_id` (404 `not_found` otherwise, 400 `invalid_request` when it is about another dashboard, was answered in another chat than `chat_id` or suggests no change), and its `suggested_change` becomes the prompt, so sending both answers 400 `invalid_request`. While a request applying that finding is queued or running, or after it succeeded, another one answers 200 with `replayed` true and that request when it is yours, and 409 `already_applied` when it is someone else's. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` set, keeps its `dashboard_id`, and `result_version` stays null; it too makes no observation until its requester saves it. Every request you start here is a turn of a chat, which you and Admins can read and nobody else sees. With `chat_id` the request is the next turn of that chat of yours (404 `not_found` when it is someone else's, archived or unknown, and 403 `chat_read_only` for an Admin who can read it, because only its owner asks in it), and the chat must be about the same dashboard or observation as the request, or about none on both sides (400 `invalid_request`). Without `chat_id` a new chat starts under the request's own id, except a `revise`, which joins your most recent live chat on that dashboard when there is one; `new_chat` true always starts a new chat and excludes `chat_id` (400 `invalid_request`). The agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters), read when the turn starts running, and the turns of one chat run one at a time in the order they were sent; a queued turn with a stop requested does not hold the next one back. `client_id` is a UUID the client picks once per message so a resend starts nothing new: a second request of yours with the same `client_id` answers 200 with `replayed` true and the request the first one started, and one with another prompt or another `chat_id` answers 422 `client_id_reused`. `anchor` points the turn at one spot on the dashboard or observation it is about, and needs `dashboard_id` or `observation_id`; `block_id` names a block of `observation_id` the turn is about, needs `observation_id`, and must be a block of that observation (404 `not_found`); with `anchor` it is the block the anchor sits on, under an anchor of a kind that can sit on a block, which `variable` cannot (400 `invalid_request`), and without it the turn is about the whole block. When a build in a chat about nothing saves a new dashboard, the chat becomes about that dashboard. With `kind` `investigate` the agent reads data and ends by saving a finding (`kind` is `investigate` on the request), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). Every investigation gets an observation when it is queued, the one named by `observation_id` or a new one, and the request carries its id as `observation_id`, which is null for a reader who cannot open that observation; a new observation goes in the dashboard's folder when you can edit it, else in your own folder, and without any folder to write in the run has no observation and `observation_id` is null. An investigation with no observation to write into, because no folder could take a new one or the named one is full, says so in its first step, and its answer stays on the request. A named `observation_id` must be visible to you (404 `not_found`) and allow at least commenting on it (403 `forbidden_role`). An `ask` with `dashboard_id` or `observation_id`, one of them, is a private ask about it: the agent reads data and answers with a finding, but writes nothing shared, so no observation is opened or written, no version is saved and the investigation caps do not apply. A private ask needs Comment on what it is about (403 `forbidden_role`), and its request and answer are read only by you and, read only, by Admins, until you share the answer into a comment thread, whose readers then read both, read only. `kind` must be `ask`, `revise` or `investigate`, `revise` needs `dashboard_id` and takes no `panel_id`, `from`, `to` or `observation_id`, `base_version` needs `revise`, `from` and `to` on an `ask` need `dashboard_id` or `observation_id`, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. `time_zone` names the IANA time zone the person reads times in, such as `Asia/Kolkata`: the agent writes every time in its answer in that zone with the zone's label, a retry or continue keeps it, and without it, or with `UTC`, times are written in UTC; an unknown zone answers 400 `invalid_request`. `as_of` sets the run's now, as epoch milliseconds or an RFC 3339 time, for replaying an incident that is over: every relative time the run resolves, such as `now-1h` in `from`, `to` or a query the agent runs, resolves to it, the agent is told that time, and the request and its finding carry it as `as_of`; it needs the Admin role (403 `forbidden_role`), a relative time, a time in the future, a `to` later than it, or a `kind` that builds or revises a dashboard answers 400 `invalid_request`, it is for `investigate` and for an `ask` with `dashboard_id` or `observation_id`, and a retry or continue keeps it, for an Admin only (403 `forbidden_role`), while a later turn of a chat passes `as_of` again. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
+         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. `kind` says what the request may do: `ask`, the default, reads and answers; `revise` changes the dashboard named by `dashboard_id`; `investigate` reads data into an observation. An `ask` without `dashboard_id` and `observation_id` builds a new dashboard (`intent` is `ask` until it saves one, then `apply`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` set and `dashboard_id`, `result_version` and `observation_id` null, and `kind` stays `build`. That answer makes no observation: it stays on the request, read by the requester and Admins, until the requester saves it with `POST /observe/{id}/observation`. With `kind` `revise` and `dashboard_id` the agent revises that dashboard (`intent` is `apply`); `base_version` defaults to the dashboard's latest version. With `kind` `revise`, `applies_finding_id` in place of `prompt` applies an answer's suggested change: the finding must be the answer of a request you can read about `dashboard_id` (404 `not_found` otherwise, 400 `invalid_request` when it is about another dashboard, was answered in another chat than `chat_id` or suggests no change), and its `suggested_change` becomes the prompt, so sending both answers 400 `invalid_request`. While a request applying that finding is queued or running, or after it succeeded, another one answers 200 with `replayed` true and that request when it is yours, and 409 `already_applied` when it is someone else's. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` set, keeps its `dashboard_id`, and `result_version` stays null; it too makes no observation until its requester saves it. Every request you start here is a turn of a chat, which you and Admins can read and nobody else sees. With `chat_id` the request is the next turn of that chat of yours (404 `not_found` when it is someone else's, archived or unknown, and 403 `chat_read_only` for an Admin who can read it, because only its owner asks in it), and the chat must be about the same dashboard or observation as the request, or about none on both sides (400 `invalid_request`). Without `chat_id` a new chat starts under the request's own id, except a `revise`, which joins your most recent live chat on that dashboard when there is one; `new_chat` true always starts a new chat and excludes `chat_id` (400 `invalid_request`). The agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters), read when the turn starts running, and the turns of one chat run one at a time in the order they were sent; a queued turn with a stop requested does not hold the next one back. `client_id` is a UUID the client picks once per message so a resend starts nothing new: a second request of yours with the same `client_id` answers 200 with `replayed` true and the request the first one started, and one with another prompt or another `chat_id` answers 422 `client_id_reused`. `anchor` points the turn at one spot on the dashboard or observation it is about, and needs `dashboard_id` or `observation_id`; `block_id` names a block of `observation_id` the turn is about, needs `observation_id`, and must be a block of that observation (404 `not_found`); with `anchor` it is the block the anchor sits on, under an anchor of a kind that can sit on a block, which `variable` cannot (400 `invalid_request`), and without it the turn is about the whole block. When a build in a chat about nothing saves a new dashboard, the chat becomes about that dashboard. With `kind` `investigate` the agent reads data and ends by saving a finding (`kind` is `investigate` on the request), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). Every investigation gets an observation when it is queued, the one named by `observation_id` or a new one, and the request carries its id as `observation_id`, which is null for a reader who cannot open that observation; a new observation goes in the dashboard's folder when you can edit it, else in your own folder, and without any folder to write in the run has no observation and `observation_id` is null. An investigation with no observation to write into, because no folder could take a new one or the named one is full, says so in its first step, and its answer stays on the request. A named `observation_id` must be visible to you (404 `not_found`) and allow at least commenting on it (403 `forbidden_role`). An `ask` with `dashboard_id` or `observation_id`, one of them, is a private ask about it: the agent reads data and answers with a finding, but writes nothing shared, so no observation is opened or written, no version is saved and the investigation caps do not apply. A private ask needs Comment on what it is about (403 `forbidden_role`), and its request and answer are read only by you and, read only, by Admins, until you share the answer into a comment thread, whose readers then read both, read only. `kind` must be `ask`, `revise` or `investigate`, `revise` needs `dashboard_id` and takes no `panel_id`, `from`, `to` or `observation_id`, `base_version` needs `revise`, `from` and `to` on an `ask` need `dashboard_id` or `observation_id`, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. `time_zone` names the IANA time zone the person reads times in, such as `Asia/Kolkata`: the agent writes every time in its answer in that zone with the zone's label, a retry or continue keeps it, and without it, or with `UTC`, times are written in UTC; an unknown zone answers 400 `invalid_request`. `as_of` sets the run's now, as epoch milliseconds or an RFC 3339 time, for replaying an incident that is over: every relative time the run resolves, such as `now-1h` in `from`, `to` or a query the agent runs, resolves to it, the agent is told that time, and the request and its finding carry it as `as_of`; it needs the Admin role (403 `forbidden_role`), a relative time, a time in the future, a `to` later than it, or a `kind` that builds or revises a dashboard answers 400 `invalid_request`, it is for `investigate` and for an `ask` with `dashboard_id` or `observation_id`, and a retry or continue keeps it, for an Admin only (403 `forbidden_role`), while a later turn of a chat passes `as_of` again. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
          */
         post: operations["createObserveRequest"];
         delete?: never;
@@ -2499,7 +2446,7 @@ export interface paths {
         post?: never;
         /**
          * Archive one of your agent requests so it leaves your list.
-         * @description Only the principal that made the request may archive it (403 `forbidden`); a request hidden from the caller answers 404. The request stays readable through `GET /observe/{id}`, and archiving it again changes nothing.
+         * @description Only the principal that made the request may archive it (403 `forbidden`); a request hidden from the caller answers 404. The request stays readable through `GET /observe/{id}`, and archiving it again changes nothing. Archiving the last turn of a chat that is not archived yet archives the chat too; a chat with a turn left stays.
          */
         delete: operations["archiveObserveRequest"];
         options?: never;
@@ -2568,7 +2515,7 @@ export interface paths {
         put?: never;
         /**
          * Continue a stopped agent request in a new request that takes over its build.
-         * @description The new request copies the stopped request's intent, dashboard, comment, panel, prompt and base version, records `continues_id`, and takes the build, so the agent continues from the panels already built with its own model-call budget. The stopped request gains `continued_by` and can no longer be saved or continued. A request is continuable when it is `failed`, its build was not saved, it still has its build, and nothing continues it yet; otherwise the call answers 409 `not_continuable` with its `state`, the `allowed_actions` the caller has and, when the state alone does not say why, a `reason`: `no_build`, `kept`, `continued`, `retried`, `investigation`, or `lost_race` when another continue, retry or save took the build while the call ran. Continue and `POST /observe/{id}/build/save` on the same request are exclusive: Continue after a save answers 409 `not_continuable`, and a save after Continue answers 404 `not_found` because the build moved to the new request. Only the principal that made the request may call it, with the same access as starting a run; someone else gets 403 `forbidden` on a revision they can see and 404 on a new-dashboard request. The new request keeps the stopped request's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one. A revision whose dashboard has a newer version than the build's base answers 409 `version_conflict` with `latest_version`. The new request counts against the same caps as `POST /observe`, and is assigned to the same agent as the stopped one. The optional `note` is stored on the new request as `continue_note` and given to the agent in every seed of that run, including its restarts. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description The new request copies the stopped request's intent, dashboard, comment, panel, prompt and base version, records `continues_id`, and takes the build, so the agent continues from the panels already built with its own model-call budget. The stopped request gains `continued_by` and can no longer be saved or continued. A request is continuable when it is `failed`, its build was not saved, it still has its build, and nothing continues it yet; otherwise the call answers 409 `not_continuable` with its `state`, the `allowed_actions` the caller has and, when the state alone does not say why, a `reason`: `no_build`, `kept`, `continued`, `retried`, `investigation`, or `lost_race` when another continue, retry or save took the build while the call ran. Continue and `POST /observe/{id}/build/save` on the same request are exclusive: Continue after a save answers 409 `not_continuable`, and a save after Continue answers 404 `not_found` because the build moved to the new request. Only the principal that made the request may call it, with the same access as starting a run; someone else gets 403 `forbidden` on a revision they can see and 404 on a new-dashboard request. The new request keeps the stopped request's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one. A revision whose dashboard has a newer version than the build's base (`build_state` `stale`) is continued too: the new run moves the build onto the latest version when it starts, or starts again from that version when the changes collide. The new request counts against the same caps as `POST /observe`, and is assigned to the same agent as the stopped one. The optional `note` is stored on the new request as `continue_note` and given to the agent in every seed of that run, including its restarts. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["continueObserveRequest"];
         delete?: never;
@@ -2634,7 +2581,7 @@ export interface paths {
         put?: never;
         /**
          * Save the answer of an agent request as an observation.
-         * @description A plain question asked in chat or in a comment is answered on the request alone, in `finding` with `observation_id` null, and makes no observation; an investigation already has its own. This files that answer as an observation with its text and evidence: in the folder of the dashboard the question was about, else in the requester's default folder (a person's My Dashboards, a key's General). An answer whose request read data only Admins can query, such as the audit trail, is filed in the folder of the dashboard or observation it was about when only Admins can read that folder, else in the built-in Audit folder instead. Only the principal that made the request may call it; anyone else, an Admin included, gets 404 or 403 and nothing changes. The request gains `observation_id` and `url`, and `finding.observation_id` is set. A repeat call answers 200 with `replayed` true and the same observation. A request without an answer answers 409 `no_answer`.
+         * @description A plain question asked in chat or in a comment is answered on the request alone, in `finding` with `observation_id` null, and makes no observation; an investigation already has its own. This files that answer as an observation with its text and evidence: in the folder of the dashboard the question was about, else in the requester's default folder (a person's My Dashboards, a key's General). An answer whose request read data only Admins can query, such as the audit trail, is filed in the folder of the dashboard or observation it was about when only Admins can read that folder, else in the built-in Audit folder instead. Only the principal that made the request may call it; anyone else, an Admin included, gets 404 or 403 and nothing changes. The request gains `observation_id` and `url`, and `finding.observation_id` is set. An answer that a thread share only showed on an observation's page is saved in that observation: the call answers 200 with `outcome` `kept`, and a later withdraw of the share leaves it there. A repeat call answers 200 with `replayed` true, `outcome` `unchanged` and the same observation. A request without an answer answers 409 `no_answer`.
          */
         post: operations["saveObserveRequestAnswer"];
         delete?: never;
@@ -2721,7 +2668,7 @@ export interface paths {
         /**
          * List the findings the caller can read, newest first.
          * @deprecated
-         * @description Without a filter the caller's own findings are listed whose observation sits in a folder the caller can view. With `dashboard_id` only that dashboard's findings are listed, and a dashboard the caller cannot view gives 404. With `folder_id` only the findings without a dashboard whose observation sits in that folder are listed, and a folder the caller cannot view gives 404; findings on the folder's dashboards are not included, so list them with `dashboard_id`. `dashboard_id` and `folder_id` do not go together. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
+         * @description Without a filter the caller's own findings are listed whose observation sits in a folder the caller can view. With `dashboard_id` only that dashboard's findings are listed, and a dashboard the caller cannot view gives 404. With `folder_id` only the findings without a dashboard whose observation sits in that folder are listed, and a folder the caller cannot view gives 404; findings on the folder's dashboards are not included, so list them with `dashboard_id`. `dashboard_id` and `folder_id` do not go together. Deprecated for saved findings, which are read through their observation (`/observations`); the route stays for chat-only answers, which have no observation, and for the web app.
          */
         get: operations["listFindings"];
         put?: never;
@@ -2744,34 +2691,11 @@ export interface paths {
         /**
          * Read one finding.
          * @deprecated
-         * @description A finding follows the folder of its observation: anyone who can view that folder may read it, on a dashboard or not. `folder` is that folder and `permissions` what the caller may do with the finding. A finding the caller cannot read gives 404, never 403. The answer to a plain question has no observation until its requester saves it: only the requester and an Admin read it, on a dashboard only while they can view that dashboard, `folder` is null and `permissions` allow viewing only. A read of such an answer is recorded in the audit trail as `run.view` of its request, once per reader and request in 10 minutes. A refused read is recorded every time, as a denied `run.view` with the finding as its target. The `Link` header names the observation as the `successor-version`, and is absent while there is none. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
+         * @description A finding follows the folder of its observation: anyone who can view that folder may read it, on a dashboard or not. `folder` is that folder and `permissions` what the caller may do with the finding. A finding the caller cannot read gives 404, never 403. The answer to a plain question has no observation until its requester saves it: only the requester and an Admin read it, on a dashboard only while they can view that dashboard, `folder` is null and `permissions` allow viewing only. A read of such an answer is recorded in the audit trail as `run.view` of its request, once per reader and request in 10 minutes. A refused read is recorded every time, as a denied `run.view` with the finding as its target. The `Link` header names the observation as the `successor-version`, and is absent while there is none. Deprecated for saved findings, which are read through their observation (`/observations`); the route stays for chat-only answers, which have no observation, and for the web app.
          */
         get: operations["getFinding"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/findings/{id}/pin": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Pin a finding to its dashboard as an annotation.
-         * @deprecated
-         * @description The annotation's text is the finding's first line and a link to it, tagged `finding`, at the end of the finding's window; pinning needs Edit on the dashboard. Pinning a finding that is already pinned answers 200 with the same annotation. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
-         */
-        post: operations["pinFinding"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2792,7 +2716,7 @@ export interface paths {
         /**
          * Save a finding's evidence panels as a new dashboard.
          * @deprecated
-         * @description Anyone who can read the finding may call it; the dashboard lands in the caller's My Dashboards and every evidence query is run again before it is saved. The caller's own chat that the answer came from becomes a chat about the new dashboard, when it is about no dashboard or observation yet; it stays private to the caller, and a failure to attach it does not fail the call. A finding without evidence gives 409 `finding_has_no_evidence`. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
+         * @description Anyone who can read the finding may call it; the dashboard lands in the caller's My Dashboards and every evidence query is run again before it is saved. The caller's own chat that the answer came from becomes a chat about the new dashboard, when it is about no dashboard or observation yet; it stays private to the caller, and a failure to attach it does not fail the call. A finding without evidence gives 409 `finding_has_no_evidence`. Deprecated for saved findings, which are read through their observation (`/observations`); the route stays for chat-only answers, which have no observation, and for the web app.
          */
         post: operations["saveFindingAsDashboard"];
         delete?: never;
@@ -2814,7 +2738,7 @@ export interface paths {
         /**
          * Run the queries of one evidence panel of a finding and return their frames.
          * @deprecated
-         * @description Runs one evidence panel of a finding. Only browser sessions may call it; a key gets 403 `user_session_required`. Evidence queries are stored with the finding and were checked when it was saved. Anyone who can read the finding may call it, `from` and `to` default to the finding's window, nothing is cached, and the response has the shape of panel data. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
+         * @description Runs one evidence panel of a finding. Only browser sessions may call it; a key gets 403 `user_session_required`. Evidence queries are stored with the finding and were checked when it was saved. Anyone who can read the finding may call it, `from` and `to` default to the finding's window, nothing is cached, and the response has the shape of panel data. Deprecated for saved findings, which are read through their observation (`/observations`); the route stays for chat-only answers, which have no observation, and for the web app.
          */
         get: operations["getFindingPanelData"];
         put?: never;
@@ -3911,7 +3835,7 @@ export interface paths {
         put?: never;
         /**
          * Queue the agent to repair the failing panels of dashboards.
-         * @description Editors and Admins can call this endpoint. Send `dashboard_ids` to repair those dashboards, or `all` to repair every dashboard the list shows, in `folder_id` when it is set. Each dashboard gets one ordinary revision with source `prompt` and the fixed prompt "Repair every panel and variable listed as unverified so its query runs and returns data; keep every other panel unchanged and never delete an unverified panel." The agent never edits a placeholder panel, so a dashboard whose only problems are placeholders is skipped. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when it has no unverified panel or variable, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, `provisioned` when it is a starter dashboard the server keeps current with each release, and `queue_full` when the caller already has 20 repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description Editors and Admins can call this endpoint. Send `dashboard_ids` to repair those dashboards, or `all` to repair every dashboard the list shows, in `folder_id` when it is set. Each dashboard gets one ordinary revision with source `prompt` and the fixed prompt "Repair every panel and variable listed as unverified so its query runs and returns data; keep every other panel unchanged and never delete an unverified panel." The agent never edits a placeholder panel, so a dashboard whose only problems are placeholders is skipped. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when it has no unverified panel or variable, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `provisioned` when it is a starter dashboard the server keeps current with each release. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["requestRepairs"];
         delete?: never;
@@ -4192,7 +4116,7 @@ export interface paths {
         put?: never;
         /**
          * Queue the agent to repair the failing panels and variables the health check found.
-         * @description Editors and Admins can call this endpoint. Each dashboard gets one ordinary revision (`intent` `apply`) whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable or was of an older version than the latest, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, `provisioned` when it is a starter dashboard the server keeps current with each release, and `queue_full` when the caller already has 20 health repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description Editors and Admins can call this endpoint. Each dashboard gets one ordinary revision (`intent` `apply`) whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable or was of an older version than the latest, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `provisioned` when it is a starter dashboard the server keeps current with each release. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["requestHealthRepairs"];
         delete?: never;
@@ -4384,7 +4308,7 @@ export interface paths {
         };
         /**
          * List who can do work for the signed-in person.
-         * @description Puts the Observe Agent, the person's connected agents and the service accounts that take runs in one read. `observe_agent` names the configured provider and model (never an address or a key); `provider` and `model` are null while the agent is off. `runtime` is always `sidecar`, the `observe-agent` process. Its `last_7_days` covers every built-in run of the workspace for an Admin (`scope` is `workspace`) and only the caller's own runs for anyone else (`scope` is `you`). `connected` lists only the caller's own live connections, newest first and at most 100. `grant_id` is the id a mention names as `@[Name](grant:<grant_id>)`, and a service account's `id` is the one in `@[Name](service_account:<id>)`. `service_accounts` lists every account that takes runs, ordered by name and at most 100, with `last_7_days` for an Admin and null for anyone else, because a person needs the names to mention them. `present` is true while the agent holds a run or asked for work in the last 40 seconds, and `presence` says which: `working` while it holds a run, `listening` when it asked for work in the last 40 seconds and `offline` otherwise; see `docs/reference/states.md`. Each `last_7_days` counts the runs created in the last seven days assigned to that agent: `failed` leaves out canceled runs, `cost_usd` is the sum of the recorded run costs and null when finished runs exist and none has one, `unpriced_runs` counts the finished runs without a recorded cost, which the sum leaves out because an unknown price is never counted as zero, and `median_queue_wait_seconds` is the median time from request to start over the runs that started, null when none did. `writes_7d` counts the activity rows of the last seven days written by the caller over MCP under the connection's client name, so two connections of one client name share the count. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
+         * @description Puts the Observe Agent, the person's connected agents and the service accounts that take runs in one read. `observe_agent` names the configured provider and model (never an address or a key); `provider` and `model` are null while the agent is off. `runtime` is always `sidecar`, the `harness` process. Its `last_7_days` covers every built-in run of the workspace for an Admin (`scope` is `workspace`) and only the caller's own runs for anyone else (`scope` is `you`). `connected` lists only the caller's own live connections, newest first and at most 100. `grant_id` is the id a mention names as `@[Name](grant:<grant_id>)`, and a service account's `id` is the one in `@[Name](service_account:<id>)`. `service_accounts` lists every account that takes runs, ordered by name and at most 100, with `last_7_days` for an Admin and null for anyone else, because a person needs the names to mention them. `present` is true while the agent holds a run or asked for work in the last 40 seconds, and `presence` says which: `working` while it holds a run, `listening` when it asked for work in the last 40 seconds and `offline` otherwise; see `docs/reference/states.md`. Each `last_7_days` counts the runs created in the last seven days assigned to that agent: `failed` leaves out canceled runs, `cost_usd` is the sum of the recorded run costs and null when finished runs exist and none has one, `unpriced_runs` counts the finished runs without a recorded cost, which the sum leaves out because an unknown price is never counted as zero, and `median_queue_wait_seconds` is the median time from request to start over the runs that started, null when none did. `writes_7d` counts the activity rows of the last seven days written by the caller over MCP under the connection's client name, so two connections of one client name share the count. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
          */
         get: operations["listAgents"];
         put?: never;
@@ -4582,6 +4506,8 @@ export interface components {
             updated_at: string;
             /** @description The address to share with the person; signing in there with the invited email uses the invite. */
             sign_in_url: string;
+            /** @description True when someone with this email, ignoring case, has signed in already, for example a person whose email changed to it after the invite was sent. The invite is never applied to a person who has signed in before, so it will not apply; withdraw it. Always false on the invite `POST /invites` returns. */
+            member: boolean;
         };
         InviteList: {
             invites: components["schemas"]["Invite"][];
@@ -4857,10 +4783,8 @@ export interface components {
             investigation: boolean;
             /** @description The requester's title, else the first line of the prompt without `@observe`, cut at a word to 60 characters, else the intent word. */
             title: string;
-            /** @enum {string} */
-            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
-            /** @enum {string} */
-            result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation" | "answer";
+            state: components["schemas"]["RunState"];
+            result_kind: components["schemas"]["RunResultKind"];
             failure_code: string | null;
             /** Format: date-time */
             created_at: string;
@@ -5506,6 +5430,8 @@ export interface components {
                 /** @description Tools left out because their name is not 1 to 128 letters, digits, dots, hyphens or underscores, or is repeated. */
                 ignored: number;
             };
+            /** @description True when another discovery of the same source was stored while this one fetched, so this one changed nothing: `source` is the stored state that discovery left and `tally` is all zero. */
+            superseded: boolean;
         };
         ApproveMCPSourceToolRequest: {
             /** @description The hash of the definition that was read; the approval is refused when the tool no longer has it. */
@@ -5822,6 +5748,10 @@ export interface components {
             creator: components["schemas"]["Creator"];
             folder: components["schemas"]["DashboardFolder"];
             permissions: components["schemas"]["Permissions"];
+            /** @description Whether the caller may delete the dashboard, which needs Edit on its folder; true for an Editor on a starter dashboard, whose `permissions.edit` is false. */
+            can_delete: boolean;
+            /** @description Whether the caller may add, change and remove annotations on the dashboard and pin to it, which needs Edit on its folder; true for an Editor on a starter dashboard, whose `permissions.edit` is false. */
+            can_annotate: boolean;
             /** @description True for a starter dashboard the server keeps current with each release, such as those in the Audit folder. Its `permissions.edit` is false, every change to its content answers 409 `provisioned`, and duplicating it makes an ordinary editable dashboard. */
             provisioned: boolean;
             /**
@@ -5873,6 +5803,10 @@ export interface components {
             view_count: number;
             folder: components["schemas"]["DashboardFolder"];
             permissions: components["schemas"]["Permissions"];
+            /** @description Whether the caller may delete the dashboard, which needs Edit on its folder; true for an Editor on a starter dashboard, whose `permissions.edit` is false. */
+            can_delete: boolean;
+            /** @description Whether the caller may add, change and remove annotations on the dashboard and pin to it, which needs Edit on its folder; true for an Editor on a starter dashboard, whose `permissions.edit` is false. */
+            can_annotate: boolean;
             /** @description True for a starter dashboard the server keeps current with each release. Its `permissions.edit` is false, so a list never offers to move or change it. */
             provisioned: boolean;
             /**
@@ -6161,63 +6095,6 @@ export interface components {
             /** @description The proposal's head revision now. */
             revision: number;
         };
-        Comment: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            dashboard_id: string;
-            /**
-             * Format: uuid
-             * @description The thread's first comment, for a reply; null for a thread's first comment.
-             */
-            parent_id: string | null;
-            version: number;
-            /** @description The panel the thread is on; null for the whole dashboard. A reply has its thread's panel. */
-            panel_id: string | null;
-            body: string;
-            /**
-             * @description For a reply, the status of its thread.
-             * @enum {string}
-             */
-            status: "open" | "resolved";
-            /** @description What the caller may do with this thread now, on its first comment; empty on a reply. `resolve` is absent while the thread's agent run is queued or running. See docs/reference/states.md. */
-            allowed_actions: ("open" | "reply" | "resolve" | "reopen")[];
-            /** @description Whether the thread, on its first comment, holds a message from someone else, or an agent run's reply, that the caller has not read; always false on a reply and for a service-account key. `POST /api/v1/threads/{thread_id}/read` clears it. */
-            unread: boolean;
-            author: components["schemas"]["Author"];
-            actor: components["schemas"]["Actor"];
-            /** Format: date-time */
-            created_at: string;
-            /** Format: date-time */
-            updated_at: string;
-            /**
-             * Format: date-time
-             * @description When the body was last edited; null when it never was.
-             */
-            edited_at: string | null;
-            /** Format: date-time */
-            resolved_at: string | null;
-            resolved_by: components["schemas"]["Author"] | null;
-            /** @description Who resolved the thread, with the one `label` to show; `Observe Agent for <name>` when an agent run did. Null on a reply and on an open thread. */
-            resolved_actor: components["schemas"]["Actor"] | null;
-            /** @description The version that fixed the thread, when the resolver named one. Also set by the server when an agent request sent from the thread succeeds. Always null on a reply. */
-            resolved_by_version: number | null;
-            /** @description Whether the latest version of the dashboard still has the panel the comment is anchored to. Always true for a whole-dashboard comment. */
-            panel_present: boolean;
-            /** @description The people and agents the body mentions, in the order shown. */
-            mentions: components["schemas"]["Mention"][];
-            /** @description Whether the caller may edit this comment's body, which only its author may do and only while the caller can still comment. */
-            can_edit: boolean;
-            /** @description Whether the caller may delete this comment; see `can_delete` on a thread message. */
-            can_delete: boolean;
-            /** @description The latest revision requested for this comment, or null when none was requested. */
-            revision: {
-                /** Format: uuid */
-                id: string;
-                /** @enum {string} */
-                status: "queued" | "running" | "succeeded" | "failed";
-            } | null;
-        };
         Mention: {
             /** @enum {string} */
             kind: "user" | "agent" | "grant" | "service_account";
@@ -6225,9 +6102,6 @@ export interface components {
             id: string;
             /** @description The name the mention showed when it was written. */
             name: string;
-        };
-        CommentEnvelope: {
-            comment: components["schemas"]["Comment"];
         };
         Thread: {
             /**
@@ -6266,14 +6140,13 @@ export interface components {
             resolved_at: string | null;
             /** @description Who resolved the thread, `Observe Agent for <name>` when an agent run did; null while it is open. */
             resolved_actor: components["schemas"]["Actor"] | null;
-            /** @description The version that fixed the thread, when the resolver named one or the agent request sent from the thread succeeded. */
+            /** @description The version that fixed the thread, when the resolver named one. */
             resolved_by_version: number | null;
             /** @description The latest revision requested for this thread, or null when none was requested. */
             revision: {
                 /** Format: uuid */
                 id: string;
-                /** @enum {string} */
-                status: "queued" | "running" | "succeeded" | "failed";
+                status: components["schemas"]["RunStatus"];
             } | null;
             /** @description The spot the thread points at; null for a thread about the whole dashboard, panel or observation. */
             anchor: components["schemas"]["Anchor"] | null;
@@ -6381,8 +6254,7 @@ export interface components {
             run?: {
                 /** Format: uuid */
                 id: string;
-                /** @enum {string} */
-                status: "queued" | "running" | "succeeded" | "failed";
+                status: components["schemas"]["RunStatus"];
                 /**
                  * @description Who takes the run, the built-in agent, a connected agent or a service account.
                  * @enum {string}
@@ -6789,7 +6661,7 @@ export interface components {
             investigation: boolean;
             /**
              * Format: uuid
-             * @description The comment that requested the revision; null for a prompt, or after the comment was deleted.
+             * @description The comment thread an `apply` run answers, such as the thread an answer's suggested change was applied from; null for a prompt, or after the comment was deleted.
              */
             comment_id: string | null;
             /** @description The panel the request is about (a comment's panel, or the panel a prompt was sent from); null for the whole dashboard. */
@@ -6798,18 +6670,9 @@ export interface components {
             prompt: string;
             /** @description The version the requester was looking at; null for the `observe` request that created the dashboard. The agent revises the latest version. */
             base_version: number | null;
-            /** @enum {string} */
-            status: "queued" | "running" | "succeeded" | "failed";
-            /**
-             * @description Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`.
-             * @enum {string}
-             */
-            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
-            /**
-             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version.
-             * @enum {string}
-             */
-            result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation" | "answer";
+            status: components["schemas"]["RunStatus"];
+            state: components["schemas"]["RunState"];
+            result_kind: components["schemas"]["RunResultKind"];
             attempts: number;
             /** @description What the caller may do with the revision now, in display order and by the same rule as `AgentRequest.allowed_actions`. `retry` is offered to anyone who can see a finished revision and may start that kind of request, not only the requester; every other action is the requester's. */
             allowed_actions: ("cancel" | "keep_build" | "continue" | "retry" | "pin" | "archive")[];
@@ -6881,11 +6744,7 @@ export interface components {
             /** @description The version the proposal is judged inside. */
             base_version: number;
             prompt: string;
-            /**
-             * @description Computed from `state`; kept for clients that read it.
-             * @enum {string}
-             */
-            status: "queued" | "running" | "succeeded" | "failed";
+            status: components["schemas"]["RunStatus"];
             /**
              * @description Where the suggestion is in its life, the same six states every run has. A suggestion cannot be canceled, so it is never `canceling` or `canceled`.
              * @enum {string}
@@ -6929,6 +6788,21 @@ export interface components {
              */
             effort: "low" | "medium" | "high" | "xhigh" | "max" | null;
         };
+        /**
+         * @description Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`.
+         * @enum {string}
+         */
+        RunState: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
+        /**
+         * @description The four-value status of a run, computed from `state`; kept for clients that read it.
+         * @enum {string}
+         */
+        RunStatus: "queued" | "running" | "succeeded" | "failed";
+        /**
+         * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version.
+         * @enum {string}
+         */
+        RunResultKind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation" | "answer";
         AgentStep: {
             /** Format: date-time */
             at: string;
@@ -7080,8 +6954,13 @@ export interface components {
             observation_id: string;
             /** @description The address of the observation, empty when the server has no public URL configured. */
             url: string;
-            /** @description True when the answer was already an observation, so this call changed nothing. */
+            /** @description True when the answer was already saved, so this call changed nothing (`outcome` `unchanged`). */
             replayed: boolean;
+            /**
+             * @description `created` when the answer became a new observation, `kept` when it was only shown on an observation's page by a thread share and is now saved there, so withdrawing the share leaves it on that observation, and `unchanged` when it was already saved.
+             * @enum {string}
+             */
+            outcome: "created" | "kept" | "unchanged";
         };
         AnswerShared: {
             /**
@@ -7140,18 +7019,9 @@ export interface components {
             panel_id: string | null;
             /** Format: uuid */
             comment_id: string | null;
-            /** @enum {string} */
-            status: "queued" | "running" | "succeeded" | "failed";
-            /**
-             * @description Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`.
-             * @enum {string}
-             */
-            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
-            /**
-             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version.
-             * @enum {string}
-             */
-            result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation" | "answer";
+            status: components["schemas"]["RunStatus"];
+            state: components["schemas"]["RunState"];
+            result_kind: components["schemas"]["RunResultKind"];
             attempts: number;
             /** @description The attempt number of the worker that holds or last held the request; equal to `attempts`. */
             attempt: number;
@@ -7319,8 +7189,7 @@ export interface components {
         ChatTurnSummary: {
             /** Format: uuid */
             id: string;
-            /** @enum {string} */
-            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
+            state: components["schemas"]["RunState"];
             prompt: string;
             /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
             investigation: boolean;
@@ -7398,18 +7267,9 @@ export interface components {
              */
             trigger: "person" | "mention" | "schedule" | "webhook" | "slack";
             prompt: string;
-            /** @enum {string} */
-            status: "queued" | "running" | "succeeded" | "failed";
-            /**
-             * @description Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`.
-             * @enum {string}
-             */
-            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
-            /**
-             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version.
-             * @enum {string}
-             */
-            result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation" | "answer";
+            status: components["schemas"]["RunStatus"];
+            state: components["schemas"]["RunState"];
+            result_kind: components["schemas"]["RunResultKind"];
             /** @description What the caller may do with the request now; empty on another principal's request that the caller sees only as an Admin. */
             allowed_actions: ("cancel" | "keep_build" | "continue" | "retry" | "pin" | "archive")[];
             /** Format: uuid */
@@ -7518,11 +7378,7 @@ export interface components {
              * @enum {string}
              */
             code: "request_finished" | "not_continuable" | "invalid_transition";
-            /**
-             * @description The state the request is in.
-             * @enum {string}
-             */
-            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
+            state: components["schemas"]["RunState"];
             /** @description The actions the caller may take now, as in the request's own `allowed_actions`. */
             allowed_actions: string[];
             /**
@@ -7648,7 +7504,7 @@ export interface components {
             next_steps: string[];
             /** @description True when the investigation found nothing wrong. */
             no_incident: boolean;
-            /** @description The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `report` or `enforce`; empty when the check found none or did not run. */
+            /** @description The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `enforce`; empty when the check found none or did not run. */
             unverified: components["schemas"]["FindingUnverified"][];
         };
         FindingAskOn: {
@@ -7715,7 +7571,7 @@ export interface components {
             next_steps?: string[];
             /** @description True when the investigation found nothing wrong. */
             no_incident?: boolean;
-            /** @description The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `report` or `enforce`; empty when the check found none or did not run. */
+            /** @description The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `enforce`; empty when the check found none or did not run. */
             unverified?: components["schemas"]["FindingUnverified"][];
             /**
              * Format: date-time
@@ -8381,8 +8237,7 @@ export interface components {
              * @description The agent request id.
              */
             id: string;
-            /** @enum {string} */
-            status: "queued" | "running" | "succeeded" | "failed";
+            status: components["schemas"]["RunStatus"];
             /** Format: date-time */
             finished_at: string | null;
         };
@@ -8407,7 +8262,7 @@ export interface components {
                 /** Format: uuid */
                 dashboard_id: string;
                 /** @enum {string} */
-                reason: "active" | "nothing_to_repair" | "not_found" | "forbidden_role" | "provisioned" | "queue_full";
+                reason: "active" | "nothing_to_repair" | "not_found" | "forbidden_role" | "provisioned";
             }[];
         };
         GrafanaResolved: {
@@ -8565,7 +8420,7 @@ export interface components {
              * @description What the repair came to, computed from the run and the latest health check. See `docs/reference/states.md`.
              * @enum {string}
              */
-            outcome: "queued" | "running" | "repaired" | "still_failing" | "failed";
+            outcome: "queued" | "running" | "repaired" | "still_failing" | "proposed" | "failed";
             /**
              * Format: uuid
              * @description The revision request of the repair.
@@ -9283,8 +9138,6 @@ export interface components {
         AuditFieldList: {
             fields: {
                 name: string;
-                /** @description The first of `aliases`, kept for older clients. */
-                alias: string | null;
                 /** @description The other names a query can use for the field, such as `actor` and `actor.name` for `actor_name`. */
                 aliases: string[];
                 /** @enum {string} */
@@ -12778,172 +12631,6 @@ export interface operations {
             };
         };
     };
-    listDashboardComments: {
-        parameters: {
-            query?: {
-                status?: "open" | "resolved" | "all";
-                panel_id?: string;
-                limit?: number;
-                cursor?: string;
-            };
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description One page of comments. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        comments: components["schemas"]["Comment"][];
-                        next_cursor: string | null;
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            500: components["responses"]["Internal"];
-        };
-    };
-    createDashboardComment: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /**
-                     * @description Whether to queue an agent revision for the comment, when an agent is configured. A reply cannot request one.
-                     * @default false
-                     */
-                    request_revision?: boolean;
-                    /** @description Required unless `parent_id` is set. */
-                    version?: number | null;
-                    /** @description The panel to comment on; absent or null means the whole dashboard. Not allowed with `parent_id`. */
-                    panel_id?: string | null;
-                    /**
-                     * Format: uuid
-                     * @description The comment to reply to. Not allowed with `version` or `panel_id`.
-                     */
-                    parent_id?: string | null;
-                    body: string;
-                };
-            };
-        };
-        responses: {
-            /** @description The new comment, open, with the queued revision in `revision` when one was requested. */
-            201: {
-                headers: {
-                    /** @description Identifies the comment resource for `PATCH`; there is no `GET` for a single comment. */
-                    Location: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CommentEnvelope"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            /** @description The dashboard or the comment named by `parent_id` does not exist, or the dashboard has no such `version` (`version_not_found`, with `latest_version`). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description `request_revision` is true and the dashboard is a starter the server keeps current with each release (`provisioned`); the comment is not created. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            413: components["responses"]["TooLarge"];
-            /** @description The panel id does not exist in that version's Spec (`unknown_panel`), or a mention is refused: `invalid_mention` (a person who does not exist or cannot see the dashboard, an agent that is not the caller's own, or a service account that takes no runs), `too_many_mentions` or `too_many_agents`. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description The dashboard already has 5 revisions queued or running (`too_many_revisions`); the comment is not created. */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            500: components["responses"]["Internal"];
-        };
-    };
-    setDashboardCommentStatus: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-                comment_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @enum {string} */
-                    status: "open" | "resolved";
-                    resolved_by_version?: number;
-                };
-            };
-        };
-        responses: {
-            /** @description The comment with its current status. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CommentEnvelope"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            413: components["responses"]["TooLarge"];
-            /** @description `resolved_by_version` is not a version of this dashboard (`unknown_version`). */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            500: components["responses"]["Internal"];
-        };
-    };
     listThreads: {
         parameters: {
             query: {
@@ -15660,94 +15347,6 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
-    createDashboardRevision: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    prompt: string;
-                    /** @description A version that exists on the dashboard. */
-                    base_version: number;
-                    /** @description The panel the prompt is about; it must exist in the latest version. Omit it or send null for the whole dashboard. */
-                    panel_id?: string | null;
-                    /**
-                     * Format: uuid
-                     * @description A comment or reply whose thread the agent should address; the request takes the thread's panel, so do not send panel_id with it. When the request succeeds, the server resolves the thread with resolved_by_version set to the saved version, unless it is already resolved.
-                     */
-                    comment_id?: string | null;
-                };
-            };
-        };
-        responses: {
-            /** @description The queued revision. */
-            202: {
-                headers: {
-                    Location: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RevisionEnvelope"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            /** @description The dashboard or the version does not exist, or `comment_id` names no comment on this dashboard. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description The dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to get a dashboard an agent can change. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            413: components["responses"]["TooLarge"];
-            /** @description The panel does not exist in the latest version (`unknown_panel`). */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description The dashboard already has 5 revisions queued or running (`too_many_revisions`). */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            500: components["responses"]["Internal"];
-            /** @description No LLM provider is configured (`agent_unavailable`). */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
     getDashboardRevision: {
         parameters: {
             query?: never;
@@ -16354,13 +15953,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request cannot be continued: `not_continuable` with its `state`, the `allowed_actions` the caller has and a `reason`, `assignee_unavailable` when the agent it was assigned to is a revoked, expired or foreign grant or a service account that no longer takes runs, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. */
+            /** @description The request cannot be continued: `not_continuable` with its `state`, the `allowed_actions` the caller has and a `reason`, `assignee_unavailable` when the agent it was assigned to is a revoked, expired or foreign grant or a service account that no longer takes runs. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RunRefusal"] | components["schemas"]["Error"] | components["schemas"]["VersionConflict"];
+                    "application/json": components["schemas"]["RunRefusal"] | components["schemas"]["Error"];
                 };
             };
             /** @description Too many agent requests are queued or running (`too_many_requests` for the caller, `agent_busy` for the instance, `too_many_revisions` for the dashboard). */
@@ -16503,7 +16102,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The answer was already an observation; nothing changed. */
+            /** @description The answer was shown on an observation's page and is now saved there (`kept`), or it was already saved and nothing changed (`unchanged`). */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -16826,54 +16425,6 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            500: components["responses"]["Internal"];
-        };
-    };
-    pinFinding: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The finding was already pinned; this is its annotation. */
-            200: {
-                headers: {
-                    Deprecation: components["headers"]["Deprecation"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Annotation"];
-                };
-            };
-            /** @description The annotation made for the finding. */
-            201: {
-                headers: {
-                    Location: string;
-                    Deprecation: components["headers"]["Deprecation"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Annotation"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description The finding has no dashboard to pin to (`finding_has_no_dashboard`), or is the answer to a plain question that is not an observation yet (`finding_not_saved`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the finding is `restricted` and its dashboard is not in a folder only Admins can read (`restricted_answer`, saying why). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
-                };
-            };
             500: components["responses"]["Internal"];
         };
     };

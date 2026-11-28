@@ -7,6 +7,12 @@ import {
   tooltipEntries,
 } from "./timeline-tooltip"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 function row(name: string, value: number | null, text = String(value)) {
   return {
     key: name,
@@ -71,10 +77,14 @@ describe("tooltipEntries", () => {
 
   it("leaves out rows hidden from the tooltip", () => {
     const hidden = { ...row("c", 5), hideInTooltip: true }
-    const { entries, total } = tooltipEntries([rows[0], hidden, rows[3]], 50, {
-      sort: "none",
-      hideZeros: false,
-    })
+    const { entries, total } = tooltipEntries(
+      [nth(rows, 0), hidden, nth(rows, 3)],
+      50,
+      {
+        sort: "none",
+        hideZeros: false,
+      }
+    )
     expect(names(entries)).toEqual(["a", "d"])
     expect(total).toBe(2)
     expect(entries.map(({ row: index }) => index)).toEqual([0, 2])
@@ -83,10 +93,10 @@ describe("tooltipEntries", () => {
 
 describe("singleTooltipSegment", () => {
   it("returns the state at the time, and nothing for a hidden row", () => {
-    expect(singleTooltipSegment(rows[0], 50)).toMatchObject({ text: "2" })
-    expect(singleTooltipSegment(rows[0], 150)).toBeNull()
+    expect(singleTooltipSegment(nth(rows, 0), 50)).toMatchObject({ text: "2" })
+    expect(singleTooltipSegment(nth(rows, 0), 150)).toBeNull()
     expect(
-      singleTooltipSegment({ ...rows[0], hideInTooltip: true }, 50)
+      singleTooltipSegment({ ...nth(rows, 0), hideInTooltip: true }, 50)
     ).toBeNull()
   })
 })

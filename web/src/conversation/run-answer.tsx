@@ -1,41 +1,44 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
-import { ApiError } from "@/api/errors"
 import type { Message, Thread } from "@/comments/thread-queries"
 import { observeRequestQuery } from "@/observe/queries"
 import { StopRequestButton } from "@/observe/request-actions"
+import { cn } from "@/lib/utils"
 
-import {
-  AnswerCard,
-  reviseFailureText,
-  type RevisionAsked,
-} from "./answer-card"
+import { AnswerCard } from "./answer-card"
 import { reviseBlock, threadPlace, type AgentGate } from "./delivery"
-import { planRevise, subjectOf } from "./send-plan"
-import {
-  askedAgentName,
-  runLineText,
-  runProgress,
-  type Run,
-} from "./thread-state"
-import { useDeliver } from "./use-composer"
+import { subjectOf } from "./send-plan"
+import { runLineText, runProgress, type Run } from "./thread-state"
+import { useReviseAnswer } from "./use-revise-answer"
 
 const runLinkClass = "underline underline-offset-2 hover:text-foreground"
 
-export function RunLink({ runId }: { runId: string }) {
+export function RunLink({
+  runId,
+  className,
+}: {
+  runId: string
+  className?: string
+}) {
   return (
     <Link
       to="/c/$requestId"
       params={{ requestId: runId }}
-      className={runLinkClass}
+      className={cn(runLinkClass, className)}
     >
       View the run
     </Link>
   )
 }
 
-export function RunLine({ message, run }: { message: Message; run: Run }) {
+export function RunLine({
+  run,
+  agentName,
+}: {
+  run: Pick<Run, "id" | "status" | "assigned_kind">
+  agentName: string
+}) {
   const builtin = run.assigned_kind === "builtin"
   const request = useQuery({
     ...observeRequestQuery(run.id),
@@ -46,7 +49,7 @@ export function RunLine({ message, run }: { message: Message; run: Run }) {
   return (
     <div className="flex items-center gap-2">
       <p role="status" className="text-xs text-muted-foreground">
-        {runLineText(run, progress, askedAgentName(message, run))}
+        {runLineText(run, progress, agentName)}
         {builtin ? (
           <>
             {" · "}
@@ -91,30 +94,17 @@ export function RunAnswer({
   gate: AgentGate
 }) {
   const subject = subjectOf(target)
-  const { deliver, pending } = useDeliver(subject)
   const findingId = answer.finding.id
   const runId = answer.finding.agent_request_id
   const mayRevise =
     subject?.kind === "dashboard" && thread.allowed_actions.includes("reply")
 
-  async function revise(): Promise<RevisionAsked> {
-    const plan = planRevise(
-      threadPlace(thread.id, thread),
-      subject,
-      findingId,
-      crypto.randomUUID()
-    )
-    if ("error" in plan) return plan.error || reviseFailureText(null)
-    try {
-      await deliver(plan)
-      return true
-    } catch (error) {
-      if (error instanceof ApiError && error.code === "already_applied") {
-        return true
-      }
-      return reviseFailureText(error)
-    }
-  }
+  const { revise, pending } = useReviseAnswer({
+    subject,
+    place: threadPlace(thread.id, thread),
+    revised: subject,
+    findingId,
+  })
 
   if (runId === null) return null
 

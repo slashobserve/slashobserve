@@ -3,6 +3,7 @@ package claims
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/url"
 
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -20,6 +21,29 @@ type ModelSettings struct {
 	ReplayDir             string `json:"replay_dir"`
 	LogProviderErrors     bool   `json:"log_provider_errors"`
 	SessionRenewBytes     int    `json:"session_renew_bytes"`
+}
+
+type AgentSettings struct {
+	InvestigationCalls    int            `json:"investigation_calls"`
+	InvestigationCallsMax int            `json:"investigation_calls_max"`
+	DefaultCalls          int            `json:"default_calls"`
+	TaskCalls             map[string]int `json:"task_calls"`
+	ChatCalls             int            `json:"chat_calls"`
+	SaveCalls             int            `json:"save_calls"`
+	SuggestCalls          int            `json:"suggest_calls"`
+	Loop                  bool           `json:"loop"`
+	Grounding             string         `json:"grounding"`
+	BriefSweep            bool           `json:"brief_sweep"`
+	SessionRenewBytes     int            `json:"session_renew_bytes"`
+}
+
+func (s *Service) agentFor(c Claimer) *AgentSettings {
+	if c.Kind != revisions.AssignBuiltin || s.agent == nil {
+		return nil
+	}
+	kept := *s.agent
+	kept.TaskCalls = maps.Clone(s.agent.TaskCalls)
+	return &kept
 }
 
 func (s *Service) BuiltIn() Claimer {

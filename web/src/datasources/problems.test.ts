@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, problemText } from "@/api/errors"
 
 import { DatasourceError } from "./admin-queries"
-import { saveProblemText, usersSummary } from "./problems"
+import { saveProblems, usersSummary } from "./problems"
 
 function datasourceError(status: number, code: string, body: unknown = {}) {
   return new DatasourceError(new ApiError(status, code, "server text"), body)
@@ -23,26 +23,31 @@ describe("DatasourceError", () => {
 
 describe("saveProblemText", () => {
   test("says what to change for the codes the server sends", () => {
-    expect(saveProblemText(datasourceError(409, "secret_key_missing"))).toMatch(
-      /SLASHOBSERVE_SECRET_KEY/
-    )
-    expect(saveProblemText(datasourceError(409, "uid_taken"))).toMatch(/id/)
-    expect(saveProblemText(datasourceError(422, "secret_required"))).toMatch(
-      /credential again/
-    )
-    expect(saveProblemText(datasourceError(409, "datasource_changed"))).toMatch(
-      /Reload/
-    )
     expect(
-      saveProblemText(datasourceError(403, "outbound_domain_not_allowed"))
+      problemText(datasourceError(409, "secret_key_missing"), saveProblems)
+    ).toMatch(/SLASHOBSERVE_SECRET_KEY/)
+    expect(
+      problemText(datasourceError(409, "uid_taken"), saveProblems)
+    ).toMatch(/id/)
+    expect(
+      problemText(datasourceError(422, "secret_required"), saveProblems)
+    ).toMatch(/credential again/)
+    expect(
+      problemText(datasourceError(409, "datasource_changed"), saveProblems)
+    ).toMatch(/Reload/)
+    expect(
+      problemText(
+        datasourceError(403, "outbound_domain_not_allowed"),
+        saveProblems
+      )
     ).toMatch(/Outbound access/)
-    expect(saveProblemText(datasourceError(404, "not_found"))).toMatch(
-      /no longer exists/
-    )
+    expect(
+      problemText(datasourceError(404, "not_found"), saveProblems)
+    ).toMatch(/no longer exists/)
   })
 
   test("falls back to the server sentence for other errors", () => {
-    expect(saveProblemText(datasourceError(500, "internal"))).toBe(
+    expect(problemText(datasourceError(500, "internal"), saveProblems)).toBe(
       "Server text."
     )
   })

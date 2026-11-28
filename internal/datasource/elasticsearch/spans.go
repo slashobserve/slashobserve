@@ -69,13 +69,14 @@ func (s *SpanIndex) Services(ctx context.Context, req datasource.ServiceRequest)
 	if req.Signal != "" && req.Signal != datasource.SignalTraces {
 		return datasource.ServiceList{}, datasource.Errorf(datasource.ErrInvalidQuery, "an index of Jaeger spans holds traces, not %s", req.Signal)
 	}
-	ctx, cancel := bound(ctx, discoverTimeout)
+	ctx, cancel := datasource.Bound(ctx, discoverTimeout)
 	defer cancel()
 	values, _, err := s.termsValues(ctx, spanServiceField, req.Range, req.Limit, nil)
 	if err != nil {
 		return datasource.ServiceList{}, err
 	}
-	return datasource.ServiceList{Signal: datasource.SignalTraces, Field: spanServiceField, Values: filterSortLimit(values, "", req.Limit)}, nil
+	kept, _ := datasource.FilterSortLimit(values, "", req.Limit)
+	return datasource.ServiceList{Signal: datasource.SignalTraces, Field: spanServiceField, Values: kept}, nil
 }
 
 func (s *SpanIndex) TraceLogs(context.Context, datasource.TraceLogsRequest) ([]datasource.Frame, error) {

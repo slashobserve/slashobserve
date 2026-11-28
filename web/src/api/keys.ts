@@ -63,7 +63,6 @@ export const dashboardKeys = {
   history: (id: string) => ["dashboards", id, "history"] as const,
   diff: (id: string, from: number, to: number) =>
     ["dashboards", id, "diff", from, to] as const,
-  comments: (id: string) => ["dashboards", id, "comments"] as const,
   viewers: (id: string) => ["dashboards", id, "viewers"] as const,
   revisions: (id: string) => ["dashboards", id, "revisions"] as const,
   revision: (id: string, revisionId: string) =>
@@ -148,6 +147,8 @@ export const datasourceKeys = {
   config: (uid: string) => ["datasources", uid, "config"] as const,
   metrics: (uid: string, search: string) =>
     ["datasources", uid, "metrics", search] as const,
+  lint: (uid: string, query: string) =>
+    ["datasources", uid, "lint", query] as const,
   labels: (uid: string, params: NameListParams) =>
     ["datasources", uid, "labels", params] as const,
   labelValues: (uid: string, label: string, params: NameListParams) =>
@@ -324,8 +325,11 @@ export type TraceLogsParams = {
 
 export const exploreKeys = {
   all: ["explore"] as const,
+  queries: (uid: string) => ["explore", uid, "query"] as const,
   query: (uid: string, params: ExploreParams) =>
     ["explore", uid, "query", params] as const,
+  volume: (uid: string, params: { query: string; from: string; to: string }) =>
+    ["explore", uid, "volume", params] as const,
   context: (uid: string, params: ContextParams) =>
     ["explore", uid, "context", params] as const,
   trace: (uid: string, id: string, range: { from: string; to: string }) =>

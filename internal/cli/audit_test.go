@@ -61,14 +61,6 @@ func TestAuditSearchSendsTheWindowAndPrintsATable(t *testing.T) {
 	}
 }
 
-func TestAuditSearchPrintsTheBodyWithJSON(t *testing.T) {
-	reply := `{"events":[],"next_cursor":null}`
-	call, stdout, _, code := runAudit(t, http.StatusOK, nil, reply, "--json", "audit", "search")
-	if code != 0 || strings.TrimSpace(stdout) != reply || call.query.Has("q") || call.query.Has("since") {
-		t.Fatalf("exit %d, call %+v, stdout %q", code, call, stdout)
-	}
-}
-
 func TestAuditSearchSaysWhenNothingMatches(t *testing.T) {
 	_, stdout, stderr, code := runAudit(t, http.StatusOK, nil, `{"events":[],"next_cursor":null}`, "audit", "search")
 	if code != 0 || !strings.Contains(stdout+stderr, "No audit events match in the window.") {
@@ -92,7 +84,7 @@ func TestAuditShowFacetsHistogramAndFieldsReadTheirRoutes(t *testing.T) {
 			"/api/v1/audit/histogram", url.Values{"buckets": {"2"}}, []string{"2026-11-21T11:00:00Z", "3 events, one bucket per 1h0m0s."}},
 		{[]string{"audit", "aggregate", "--query", `{"aggs":{"o":{"terms":{"field":"origin"}}}}`}, `{"levels":[{"name":"o"}],"metrics":[],"rows":[{"keys":["mcp"],"doc_count":4,"values":[]}],"truncated":false}`,
 			"/api/v1/audit/aggregate", url.Values{"q": {`{"aggs":{"o":{"terms":{"field":"origin"}}}}`}}, []string{"DOC_COUNT", "mcp", "4"}},
-		{[]string{"audit", "fields"}, `{"fields":[{"name":"actor_name","alias":"actor","aliases":["actor","actor.name"],"type":"text","description":"The actor's name","values":null}]}`,
+		{[]string{"audit", "fields"}, `{"fields":[{"name":"actor_name","aliases":["actor","actor.name"],"type":"text","description":"The actor's name","values":null}]}`,
 			"/api/v1/audit/fields", url.Values{}, []string{"actor_name", "actor, actor.name", "The actor's name"}},
 	} {
 		call, stdout, stderr, code := runAudit(t, http.StatusOK, nil, tc.reply, tc.args...)

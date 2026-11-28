@@ -7,8 +7,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -24,11 +24,71 @@ type Call struct {
 	Name  string
 	Input json.RawMessage
 	Turn  *Turn
+	Hints *Hints
+}
+
+type Hints struct {
+	Sweep bool   `json:"sweep"`
+	Step  string `json:"step"`
 }
 
 type RunMeta struct {
 	Settled *SettledKind         `json:"settled"`
 	Build   *tools.BuildProgress `json:"build"`
+	Call    *CallMeta            `json:"call,omitempty"`
+}
+
+type CallMeta struct {
+	Edits      *CallEdits     `json:"edits"`
+	Refusal    *string        `json:"refusal"`
+	Unchecked  *string        `json:"unchecked"`
+	Discovered *CallDiscovery `json:"discovered"`
+	Ranges     []CallRange    `json:"ranges"`
+}
+
+type CallEdits struct {
+	Panels   []string `json:"panels"`
+	Added    []string `json:"added"`
+	Deleted  []string `json:"deleted"`
+	Settings bool     `json:"settings"`
+}
+
+type CallDiscovery struct {
+	Datasource string   `json:"datasource"`
+	Of         string   `json:"of"`
+	Names      []string `json:"names"`
+}
+
+type CallRange struct {
+	From time.Time `json:"from"`
+	To   time.Time `json:"to"`
+}
+
+func callMeta(res tools.Result, ranges []datasource.TimeRange) *CallMeta {
+	meta := &CallMeta{Ranges: make([]CallRange, len(ranges))}
+	for i, r := range ranges {
+		meta.Ranges[i] = CallRange{From: r.From.UTC(), To: r.To.UTC()}
+	}
+	if e := res.Edits; len(e.Panels) > 0 || len(e.Added) > 0 || len(e.Deleted) > 0 || e.Settings {
+		meta.Edits = &CallEdits{Panels: nonNil(e.Panels), Added: nonNil(e.Added), Deleted: nonNil(e.Deleted), Settings: e.Settings}
+	}
+	if res.Refusal != "" {
+		meta.Refusal = ptr(string(res.Refusal))
+	}
+	if res.Unchecked != "" {
+		meta.Unchecked = ptr(res.Unchecked)
+	}
+	if found := res.Discovered; found != nil {
+		meta.Discovered = &CallDiscovery{Datasource: found.Datasource, Of: found.Of, Names: nonNil(found.Names)}
+	}
+	return meta
+}
+
+func nonNil[T any](s []T) []T {
+	if s == nil {
+		return []T{}
+	}
+	return s
 }
 
 type Answer struct {
@@ -48,11 +108,12 @@ func (a Answer) Text() string {
 }
 
 type admitted struct {
-	adm       guard.Admission
-	seq       int
-	notes     []string
-	answer    *Answer
-	grounding groundingCheck
+	phase string
+	hints *Hints
+}
+
+func (a admitted) sweep() bool {
+	return a.hints != nil && a.hints.Sweep
 }
 
 type dispatched struct {
@@ -65,12 +126,12 @@ type dispatched struct {
 }
 
 func (s *Service) Call(ctx context.Context, req revisions.Request, call Call, dispatch func(context.Context) (tools.Result, error)) (Answer, error) {
-	gc := guard.Call{Name: call.Name, Input: call.Input}
 	var first admitted
+	var scope tools.WriteScope
 	err := s.with(ctx, req, func(ctx context.Context, sess *session) error {
-		var err error
-		first, err = sess.admit(ctx, gc, call.Turn.valid())
-		return err
+		first = sess.admit(call)
+		scope = sess.state.writeScope()
+		return nil
 	})
 	if errors.Is(err, errRunNotRunning) {
 		return endedAnswer(), nil
@@ -78,30 +139,10 @@ func (s *Service) Call(ctx context.Context, req revisions.Request, call Call, di
 	if err != nil {
 		return Answer{}, err
 	}
-	if first.answer != nil {
-		return *first.answer, nil
-	}
-	var scope tools.WriteScope
-	if tools.Phase(call.Name) == tools.PhaseWrite {
-		err = s.with(ctx, req, func(ctx context.Context, sess *session) error {
-			scope = sess.state.writeScope()
-			return nil
-		})
-		if errors.Is(err, errRunNotRunning) {
-			return endedAnswer(), nil
-		}
-		if err != nil {
-			return Answer{}, err
-		}
-	}
 	done := dispatched{start: time.Now()}
 	noted, readRestricted := datasource.NotingRestrictedReads(ctx)
 	noted, ranges := tools.NotingRanges(noted)
-	noted = tools.WithFacts(tools.WithUnverified(noted, first.grounding.unverified), first.grounding.ledger)
-	if first.grounding.scored {
-		noted = tools.WithCauseSignals(noted, first.grounding.signals)
-	}
-	done.res, done.err = dispatch(tools.WithWriteScope(tools.WithUnchecked(tools.WithReadsRefused(noted, first.adm.ReadsRefused), first.adm.Unchecked), scope))
+	done.res, done.err = dispatch(tools.WithWriteScope(noted, scope))
 	done.took = time.Since(done.start)
 	done.ranges = ranges()
 	if readRestricted() {
@@ -115,14 +156,17 @@ func (s *Service) Call(ctx context.Context, req revisions.Request, call Call, di
 	var answer Answer
 	err = s.with(ctx, req, func(ctx context.Context, sess *session) error {
 		var err error
-		answer, err = sess.settle(ctx, gc, first, done)
+		answer, err = sess.settle(ctx, call.Name, first, done)
 		return err
 	})
 	switch {
 	case errors.Is(err, errRunNotRunning):
-		return Answer{Content: done.content, IsError: done.res.IsError, Meta: RunMeta{Settled: ptr(settledEnded)}}, done.err
+		return Answer{Content: done.content, IsError: done.res.IsError, Meta: RunMeta{Settled: ptr(settledEnded), Call: callMeta(done.res, done.ranges)}}, done.err
 	case err != nil:
 		return Answer{}, err
+	}
+	if done.err == nil {
+		answer.Meta.Call = callMeta(done.res, done.ranges)
 	}
 	return answer, done.err
 }
@@ -132,100 +176,41 @@ func endedAnswer(notes ...string) Answer {
 	return Answer{Content: content, IsError: true, Notes: notes, Meta: RunMeta{Settled: ptr(settledEnded)}}
 }
 
-func (sess *session) endedAnswer(notes []string) Answer {
-	if sess.endedBy != nil && sess.endedBy.step != "" {
-		notes = append(notes, sess.endedBy.step)
+func (sess *session) admit(call Call) admitted {
+	if call.Turn != nil && call.Turn.Usage != nil {
+		sess.state.noteModel(*call.Turn.Usage)
 	}
-	return endedAnswer(notes...)
+	out := admitted{hints: call.Hints, phase: sess.state.phase(call.Name)}
+	if !out.sweep() {
+		sess.state.Counts.ToolCalls++
+	}
+	return out
 }
 
-func (sess *session) admit(ctx context.Context, c guard.Call, turn *Turn) (admitted, error) {
-	var out admitted
-	if turn != nil && turn.Usage != nil {
-		sess.state.noteModel(*turn.Usage)
-	}
-	if sess.state.Turn.Open && !sess.state.Turn.joinedBy(turn) {
-		notes, err := sess.closeTurn(ctx)
-		if err != nil {
-			return out, err
-		}
-		out.notes = append(out.notes, notes...)
-		if sess.ended {
-			answer := sess.endedAnswer(out.notes)
-			out.answer = &answer
-			return out, nil
-		}
-	}
-	if !sess.state.Turn.Open {
-		sess.beginTurn(c, turn)
-	}
-	open := &sess.state.Turn
-	position := open.Admitted
-	open.Admitted++
-	out.seq = open.Seq
-	out.grounding = sess.state.checkGrounding(&c, sess.req.Prompt)
-	out.grounding.unverified = append(out.grounding.unverified, sess.state.checkCandidates(&c)...)
-	out.adm = sess.state.Guard.Admit(position, c)
-	if out.adm.Verdict != guard.Refuse {
-		return out, nil
-	}
-	sess.record(revisions.Step{At: time.Now(), Phase: out.adm.Phase, Tool: c.Name, Status: "error", Message: out.adm.Step})
-	answer := Answer{Content: out.adm.Content, IsError: true, Notes: out.notes}
-	notes, err := sess.complete(ctx, out.seq)
-	if sess.ended {
-		answer = sess.endedAnswerWith(answer, notes)
-	} else {
-		answer.Notes = append(answer.Notes, notes...)
-		answer.Meta = sess.state.meta(false)
-	}
-	out.answer = &answer
-	return out, err
-}
-
-func (sess *session) endedAnswerWith(answer Answer, notes []string) Answer {
-	answer.Notes = append(answer.Notes, notes...)
-	if sess.endedBy != nil && sess.endedBy.step != "" {
-		answer.Notes = append(answer.Notes, sess.endedBy.step)
-	}
-	answer.Meta = sess.state.meta(false)
-	return answer
-}
-
-func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dispatched) (Answer, error) {
+func (sess *session) settle(ctx context.Context, name string, a admitted, d dispatched) (Answer, error) {
 	state := &sess.state
-	state.Usage.ToolMS += d.took.Milliseconds()
-	sess.endRead(c, a)
-	step := revisions.Step{At: d.start, Phase: a.adm.Phase, Tool: c.Name, Status: "ok", DurationMS: d.took.Milliseconds()}
-	if d.err != nil {
-		return Answer{}, sess.settleFailed(ctx, c, a, step)
+	if a.sweep() {
+		if d.err != nil {
+			return Answer{}, d.err
+		}
+		return Answer{Content: d.content, IsError: d.res.IsError, Meta: state.meta(false)}, nil
 	}
-	d.content = state.issueFacts(c, d)
-	state.noteGrounding(c, d)
-	if !d.res.IsError && guard.ReadsData(c.Name) {
-		state.DataReads++
+	state.Usage.ToolMS += d.took.Milliseconds()
+	step := revisions.Step{At: d.start, Phase: a.phase, Tool: name, Status: "ok", DurationMS: d.took.Milliseconds()}
+	if d.err != nil {
+		step.Status, step.Message = "error", internalStep
+		sess.record(step)
+		return Answer{}, nil
 	}
 	if d.res.IsError {
 		step.Status = "error"
 	}
-	step.Message = state.stepMessage(c, a, d)
+	step.Message = state.stepMessage(name, a, d)
 	sess.record(step)
-	answer := Answer{Content: d.content, IsError: d.res.IsError, Notes: slices.Clone(a.notes)}
-	if a.adm.Note != "" {
-		answer.Notes = append(answer.Notes, a.adm.Note)
-	}
-	restarted := false
-	if a.adm.Verdict == guard.Dispatch {
-		var err error
-		if restarted, err = sess.settleOutcome(ctx, c, d, &answer); err != nil {
-			return Answer{}, err
-		}
-	}
-	if !sess.ended {
-		notes, err := sess.complete(ctx, a.seq)
-		answer.Notes = append(answer.Notes, notes...)
-		if err != nil {
-			return Answer{}, err
-		}
+	answer := Answer{Content: d.content, IsError: d.res.IsError}
+	restarted, err := sess.settleOutcome(ctx, name, d)
+	if err != nil {
+		return Answer{}, err
 	}
 	if restarted {
 		answer.Notes = append(answer.Notes, conflictNote)
@@ -237,76 +222,49 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 	return answer, nil
 }
 
-func (s *State) stepMessage(c guard.Call, a admitted, d dispatched) string {
+func (s *State) stepMessage(name string, a admitted, d dispatched) string {
+	message := name
 	switch {
-	case a.adm.Verdict != guard.Dispatch:
-		return a.adm.Step
 	case d.res.Ledger != nil && !d.res.IsError && !s.noteLedger(d.res.Ledger):
-		return stepLedgerUnchanged
+		message = stepLedgerUnchanged
 	case d.res.Step != "":
-		return d.res.Step
+		message = d.res.Step
 	}
-	return c.Name
-}
-
-func (sess *session) endRead(c guard.Call, a admitted) {
-	if a.adm.Verdict != guard.Refuse && sess.state.Turn.Open && sess.state.Turn.Seq == a.seq {
-		sess.state.Guard.EndRead(c)
-	}
-}
-
-func (sess *session) settleFailed(ctx context.Context, c guard.Call, a admitted, step revisions.Step) error {
-	step.Status, step.Message = "error", internalStep
-	if a.adm.Verdict == guard.Dispatch {
-		switch tools.Phase(c.Name) {
-		case tools.PhaseWrite:
-			sess.state.Guard.ForgetWrite(c)
-		case tools.PhaseSave:
-			sess.state.Guard.ForgetSave(c)
+	if a.hints != nil {
+		if hinted := claims.CleanText(a.hints.Step, maxMessageRunes); hinted != "" {
+			return hinted
 		}
 	}
-	sess.record(step)
-	_, err := sess.complete(ctx, a.seq)
-	return err
+	return message
 }
 
-func (sess *session) settleOutcome(ctx context.Context, c guard.Call, d dispatched, answer *Answer) (restarted bool, err error) {
+func (sess *session) settleOutcome(ctx context.Context, name string, d dispatched) (restarted bool, err error) {
 	state := &sess.state
-	settled, err := state.Guard.Settle(c, d.res, d.content)
-	if errors.Is(err, guard.ErrMalformed) {
-		sess.s.failure(ctx, "run session save result is malformed", string(revisions.FailureMalformedResult), err, sess.req)
-		return false, sess.end(ctx, endSpec{failure: revisions.FailureMalformedResult, message: "the " + c.Name + " tool returned an unreadable result"})
-	}
-	if settled.Note != "" {
-		answer.Notes = append(answer.Notes, settled.Note)
-	}
-	if !isSave(c.Name) {
+	if !isSave(name) {
 		if d.res.AllTools && !d.res.IsError {
 			state.AllTools = true
 		}
-		if tools.Phase(c.Name) == tools.PhaseWrite && !d.res.IsError {
+		if tools.Phase(name) == tools.PhaseWrite && !d.res.IsError {
 			state.Wrote = true
 			state.noteCreated(d.res.Created)
 		}
-		if found := d.res.Discovered; found != nil && !d.res.IsError {
-			state.addDiscovery(*found)
-		}
 		return false, nil
 	}
-	out := settled.Outcome
+	out, err := state.classifySave(name, d.res, d.content)
+	if errors.Is(err, errMalformed) {
+		sess.s.failure(ctx, "run session save result is malformed", string(revisions.FailureMalformedResult), err, sess.req)
+		return false, sess.end(ctx, endSpec{failure: revisions.FailureMalformedResult, message: "the " + name + " tool returned an unreadable result"})
+	}
 	state.IssueCodes, state.Failing, state.FailingOther = nil, nil, 0
 	state.RejectedFinding, state.RejectedTransient = false, false
 	if out.Rejected {
 		state.IssueCodes, state.Failing, state.FailingOther = out.IssueCodes, out.FailingPanels, out.FailingOther
 		state.RejectedFinding, state.RejectedTransient = out.RejectedFinding, out.Transient
 	}
-	if settled.Stop != nil {
-		return false, sess.end(ctx, endSpec{failure: settled.Stop.Failure, step: settled.Stop.Step})
-	}
 	return sess.apply(ctx, out)
 }
 
-func (sess *session) apply(ctx context.Context, out guard.Outcome) (restarted bool, err error) {
+func (sess *session) apply(ctx context.Context, out outcome) (restarted bool, err error) {
 	state := &sess.state
 	switch {
 	case out.Finding != "":
@@ -327,4 +285,8 @@ func (sess *session) apply(ctx context.Context, out guard.Outcome) (restarted bo
 		sess.refreshBuild(ctx)
 	}
 	return false, nil
+}
+
+func isSave(name string) bool {
+	return tools.Phase(name) == tools.PhaseSave
 }

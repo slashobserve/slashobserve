@@ -2,6 +2,7 @@ import type { Transform } from "@/spec"
 
 import { reduceAny } from "../reducers"
 import {
+  frameName,
   cell,
   copyFrame,
   matchesName,
@@ -42,7 +43,7 @@ export function groupFrame(
   const groups = groupRows(keys, rowCount(frame))
   const fields: PreparedField[] = keys.map((key) => ({
     ...key,
-    values: groups.map((group) => cell(key, group.rows[0])),
+    values: groups.map((group) => cell(key, group.first)),
   }))
   for (const { source, reducers } of aggregates) {
     for (const reducer of reducers) {
@@ -66,7 +67,7 @@ export function groupBy(
   return frames.map((frame) => {
     const grouped = groupFrame(frame, options)
     return grouped
-      ? { ref: frame.ref, name: frame.name, fields: grouped.fields }
+      ? { ref: frame.ref, ...frameName(frame), fields: grouped.fields }
       : copyFrame(frame)
   })
 }

@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest"
 
 import { maxTiles, visibleTiles } from "./tiles"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 const centered = (zoom: number) => ({ center: { x: 0.5, y: 0.5 }, zoom })
 
 describe("visibleTiles", () => {
@@ -9,8 +14,8 @@ describe("visibleTiles", () => {
     const tiles = visibleTiles(centered(0), 256, 256)
     expect(tiles).toHaveLength(1)
     expect(tiles[0]).toMatchObject({ z: 0, x: 0, y: 0, size: 256 })
-    expect(Math.abs(tiles[0].left)).toBe(0)
-    expect(Math.abs(tiles[0].top)).toBe(0)
+    expect(Math.abs(must(tiles[0]).left)).toBe(0)
+    expect(Math.abs(must(tiles[0]).top)).toBe(0)
   })
 
   it("scales tiles between whole zoom levels", () => {
@@ -57,20 +62,20 @@ describe("visibleTiles", () => {
     const view = { center: { x: 0.5, y: 0.5 }, zoom: 8 }
     const tiles = visibleTiles(view, 4000, 4000)
     expect(tiles.length).toBeLessThanOrEqual(maxTiles)
-    expect(tiles[0].z).toBeLessThan(8)
+    expect(must(tiles[0]).z).toBeLessThan(8)
   })
 
   it("never asks for a level above the given maximum", () => {
     const tiles = visibleTiles(centered(12), 300, 300, { maxLevel: 6 })
     expect(tiles.every((tile) => tile.z <= 6)).toBe(true)
-    expect(tiles[0].size).toBeCloseTo(256 * 2 ** 6, 6)
+    expect(must(tiles[0]).size).toBeCloseTo(256 * 2 ** 6, 6)
   })
 
   it("never asks for a level below the given minimum", () => {
     const tiles = visibleTiles(centered(1.5), 300, 300, { minLevel: 3 })
     expect(tiles.length).toBeGreaterThan(0)
     expect(tiles.every((tile) => tile.z === 3)).toBe(true)
-    expect(tiles[0].size).toBeCloseTo(256 * 2 ** -1.5, 6)
+    expect(must(tiles[0]).size).toBeCloseTo(256 * 2 ** -1.5, 6)
   })
 
   it("keeps the minimum level when a coarser one would cut the tile budget", () => {

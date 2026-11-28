@@ -39,8 +39,8 @@ def test_the_older_baseline_is_sent_whole_and_recorded_as_sent():
 
 
 def test_given_values_win_over_the_adapter_defaults():
-    options = LoopOptions(investigation_calls=20, investigation_loop=False, investigation_calls_max=24, finding_grounding="report", investigation_brief="off")
-    assert options.server_settings() == {"investigation_calls": 20, "investigation_loop": False, "investigation_calls_max": 24, "finding_grounding": "report", "investigation_brief": "off"}
+    options = LoopOptions(investigation_calls=20, investigation_loop=False, investigation_calls_max=24, finding_grounding="off", investigation_brief="off")
+    assert options.server_settings() == {"investigation_calls": 20, "investigation_loop": False, "investigation_calls_max": 24, "finding_grounding": "off", "investigation_brief": "off"}
 
 
 def test_calls_max_follows_calls_above_the_default_ceiling():

@@ -2,7 +2,8 @@ name: CI
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+  merge_group:
+    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
@@ -44,14 +45,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EVENT: ${{ github.event_name }}
           PR: ${{ github.event.pull_request.number }}
-          DRAFT: ${{ github.event.pull_request.draft }}
         run: |
           case "$EVENT" in
             pull_request)
-              mode=""
-              if [ "$DRAFT" = "true" ]; then mode=draft; fi
               gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" \
-                --jq '.[] | .filename, (.previous_filename // empty)' | scripts/ci-changes.sh $mode
+                --jq '.[] | .filename, (.previous_filename // empty)' | scripts/ci-changes.sh
               ;;
             schedule) scripts/ci-changes.sh audit-only ;;
             *) scripts/ci-changes.sh all ;;
@@ -97,7 +95,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [grafana, db, datasource, agent, rest-1, rest-2]
+        shard: [grafana, db, datasource, agent, rest-1, rest-2, rest-3, rest-4]
     env:
       TESTCONTAINERS_RYUK_DISABLED: "true"
     steps:
@@ -109,12 +107,14 @@ jobs:
       - name: Set up Go
         uses: ./.github/actions/setup-go
         with:
-          cache-name: race
+          cache-name: ${{ github.event_name == 'pull_request' && 'test' || 'race' }}
           shard: ${{ matrix.shard }}
 
+      # The race detector doubles compile and test time, so a pull request runs without it and the merge queue, main and the nightly run with it.
       - name: Go tests
         env:
           SHARD: ${{ matrix.shard }}
+          GO_TEST_RACE: ${{ github.event_name == 'pull_request' && ' ' || '-race' }}
         run: |
           packages="$(scripts/go-test-shard.sh "$SHARD")"
           [[ -n "${packages// /}" ]] || { echo "shard $SHARD has no packages" >&2; exit 1; }
@@ -141,7 +141,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock', 'observe-agent/bun.lock') }}
+          key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock', 'harness/bun.lock') }}
           restore-keys: bun-${{ runner.os }}-
 
       - name: Set up uv
@@ -150,7 +150,7 @@ jobs:
           version: 0.11.19
 
       - name: Web and agent lint, script and benchmark adapter tests
-        run: make -j4 --output-sync=target lint-web lint-agent test-agent test-scripts test-benchmarks
+        run: make -j4 --output-sync=target lint-web lint-harness test-harness test-scripts test-benchmarks
 
   web-test:
     name: web-test (${{ matrix.shard }}/2)
@@ -177,7 +177,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock', 'observe-agent/bun.lock') }}
+          key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock', 'harness/bun.lock') }}
           restore-keys: bun-${{ runner.os }}-
 
       - name: Web tests
@@ -210,7 +210,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock', 'observe-agent/bun.lock') }}
+          key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock', 'harness/bun.lock') }}
           restore-keys: bun-${{ runner.os }}-
 
       - name: Build
@@ -243,11 +243,11 @@ jobs:
   check:
     name: check
     if: always()
-    needs: [changes, go-lint, go-test, web-lint, web-test, build, image]
+    needs: [changes, go-lint, go-test, web-lint, web-test, build, image, e2e-api, e2e-browser]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Every lint, test and build job the change needs passed
+      - name: Every job the change needs passed
         env:
           NEEDS: ${{ toJSON(needs) }}
         run: |
@@ -285,7 +285,7 @@ jobs:
   e2e-api:
     name: e2e-api
     needs: changes
-    if: needs.changes.outputs.stack == 'true'
+    if: needs.changes.outputs.stack == 'true' && github.event_name == 'merge_group'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -319,15 +319,15 @@ jobs:
           if-no-files-found: ignore
 
   e2e-browser:
-    name: e2e-browser (${{ matrix.shard }}/4)
+    name: e2e-browser (${{ matrix.shard }}/2)
     needs: changes
-    if: needs.changes.outputs.stack == 'true'
+    if: needs.changes.outputs.stack == 'true' && github.event_name == 'merge_group'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2]
     env:
       SLASHOBSERVE_IMAGE: slashobserve-e2e:ci
     steps:
@@ -361,7 +361,7 @@ jobs:
 
       - name: Browser suite shard
         env:
-          PW_SHARD: ${{ matrix.shard }}/4
+          PW_SHARD: ${{ matrix.shard }}/2
         run: make e2e-browser
 
       - name: Collect compose logs

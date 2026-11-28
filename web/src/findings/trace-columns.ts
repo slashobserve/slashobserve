@@ -24,11 +24,10 @@ function datasourceRefOf(
   panel: DataPanel,
   frame: PreparedFrame
 ): string | undefined {
-  const index = panel.queries.findIndex(
-    (query, at) => queryRef(query, at) === frame.ref
+  const query = panel.queries.find(
+    (candidate, at) => queryRef(candidate, at) === frame.ref
   )
-  if (index >= 0) {
-    const query = panel.queries[index]
+  if (query !== undefined) {
     return isPanelQuery(query)
       ? (query.datasource ?? panel.datasource)
       : undefined
@@ -69,9 +68,12 @@ function note(choices: Choices, column: string, choice: string) {
 }
 
 function agreed(choices: Choices): [string, string][] {
-  return [...choices].flatMap(([column, seen]) =>
-    seen.size === 1 && !seen.has(skipped) ? [[column, [...seen][0]]] : []
-  )
+  return [...choices].flatMap(([column, seen]): [string, string][] => {
+    const [only] = seen
+    return seen.size === 1 && only !== undefined && only !== skipped
+      ? [[column, only]]
+      : []
+  })
 }
 
 export function traceColumnOverrides(

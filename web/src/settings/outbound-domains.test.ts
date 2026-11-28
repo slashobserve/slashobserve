@@ -1,10 +1,10 @@
 import { describe, expect, test } from "vitest"
 
-import { ApiError, NetworkError } from "@/api/errors"
+import { ApiError, NetworkError, problemText } from "@/api/errors"
 
 import {
   domainDraftError,
-  domainProblemText,
+  domainProblems,
   matchText,
   originText,
   removeConsequence,
@@ -113,19 +113,19 @@ describe("domainProblemText", () => {
     [404, "not_found", "not found", "That domain was already removed."],
     [500, "internal", "boom", "Boom."],
   ])("explains %i %s", (status, code, message, expected) => {
-    expect(domainProblemText(new ApiError(status, code, message))).toBe(
-      expected
-    )
+    expect(
+      problemText(new ApiError(status, code, message), domainProblems)
+    ).toBe(expected)
   })
 
   test("says the server is unreachable on a network failure", () => {
-    expect(domainProblemText(new NetworkError("offline"))).toBe(
+    expect(problemText(new NetworkError("offline"), domainProblems)).toBe(
       "Could not reach the server. Check your connection and try again."
     )
   })
 
   test("falls back for an unknown failure", () => {
-    expect(domainProblemText(new Error("x"))).toBe(
+    expect(problemText(new Error("x"), domainProblems)).toBe(
       "Something went wrong. Try again."
     )
   })

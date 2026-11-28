@@ -110,7 +110,9 @@ export function tailVolume(
   }))
   for (const time of times) {
     if (!Number.isFinite(time) || time < origin || time > now) continue
-    out[Math.min(buckets - 1, Math.floor((time - origin) / stepMs))].count++
+    const bucket =
+      out[Math.min(buckets - 1, Math.floor((time - origin) / stepMs))]
+    if (bucket !== undefined) bucket.count++
   }
   return out
 }

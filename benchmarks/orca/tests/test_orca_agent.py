@@ -5,7 +5,8 @@ from types import SimpleNamespace
 import pytest
 from harbor.models.agent.context import AgentContext
 
-from slashobserve_bench import orca, orca_agent
+from slashobserve_bench import adapter, orca, orca_agent
+from slashobserve_bench.api import RunTimeout
 
 PORTS = "export PROMETHEUS_URL=http://prometheus:9090\nexport OPENSEARCH_URL=http://opensearch:9200\n"
 TASK_TOML = '[metadata]\ncurrent = "2026-04-18T14:05:00-04:00"\n'
@@ -91,8 +92,8 @@ class FakeClient:
     def __init__(self, base_url, key):
         pass
 
-    def mcp_tools(self, uid, collection="mcp-sources"):
-        FakeClient.collections.append((uid, collection))
+    def mcp_tools(self, uid):
+        FakeClient.collections.append(uid)
         return self.tools
 
     def start_run(self, body):
@@ -156,10 +157,10 @@ def test_options_come_from_agent_kwargs(tmp_path):
 
 
 def test_loop_settings_come_from_agent_kwargs(tmp_path):
-    agent = orca_agent.OrcaAgent(logs_dir=tmp_path, model_name="replay/replay", investigation_loop="true", finding_grounding="report", investigation_brief="off")
+    agent = orca_agent.OrcaAgent(logs_dir=tmp_path, model_name="replay/replay", investigation_loop="true", finding_grounding="off", investigation_brief="off")
     assert agent.options.investigation_loop is True
     assert agent.options.investigation_brief == "off"
-    assert agent.options.finding_grounding == "report"
+    assert agent.options.finding_grounding == "off"
 
 
 def test_unknown_option_is_refused(tmp_path):
@@ -243,19 +244,9 @@ def test_by_default_the_code_server_serves_the_task_source_to_the_run(setup):
     assert FakeStack.started.extra_files["mcp-sources.yaml"].startswith("mcpSources:\n")
     assert ("SLASHOBSERVE_MCP_SOURCES_FILE", "/etc/slashobserve/mcp-sources.yaml") in FakeStack.started.config.extra_env
     assert ("SLASHOBSERVE_OUTBOUND_DOMAINS", orca.CODE_HOST) in FakeStack.started.config.extra_env
-    assert FakeClient.collections == [(orca.CODE_SOURCE, "mcp-sources")]
+    assert FakeClient.collections == [orca.CODE_SOURCE]
     assert f"MCP source `{orca.CODE_SOURCE}`" in FakeClient.body["prompt"]
     assert FakeCodeServer.stopped == 1
-
-
-def test_the_old_source_names_are_one_option_away(setup):
-    agent, environment, logs = setup
-    agent.options = orca.Options(source_names="context")
-    run(agent, environment)
-    assert FakeStack.started.extra_files["context-sources.yaml"].startswith("contextSources:\n")
-    assert ("SLASHOBSERVE_CONTEXT_SOURCES_FILE", "/etc/slashobserve/context-sources.yaml") in FakeStack.started.config.extra_env
-    assert FakeClient.collections == [(orca.CODE_SOURCE, "context-sources")]
-    assert "SLASHOBSERVE_CONTEXT_SOURCES_FILE with the key contextSources" in (logs / "notes.txt").read_text()
 
 
 def test_code_off_runs_without_a_code_server_or_note(setup):
@@ -287,13 +278,13 @@ def test_unapproved_code_tools_fail_the_trial(setup, monkeypatch):
     assert FakeCodeServer.stopped == 1
 
 
-def test_a_server_without_the_source_names_the_other_naming():
+def test_a_server_without_mcp_sources_names_a_newer_image_or_code_off():
     class Missing:
-        def mcp_tools(self, uid, collection):
+        def mcp_tools(self, uid):
             raise orca_agent.ApiError(404, "not found")
 
-    with pytest.raises(orca_agent.CodeContextUnavailable, match="pass --ak source_names=context"):
-        orca_agent.wait_for_code_tools(Missing(), orca.SOURCE_NAMES["mcp"], 0)
+    with pytest.raises(orca_agent.CodeContextUnavailable, match="slashobserve:latest has no MCP sources.*code_context=off"):
+        orca_agent.wait_for_code_tools(Missing(), "ghcr.io/slashobserve/slashobserve:latest", 0)
 
 
 def test_setup_fails_when_the_code_server_image_is_absent(tmp_path, monkeypatch):
@@ -361,10 +352,10 @@ def test_a_timed_out_run_still_saves_its_trajectory_and_cost(setup):
     agent.options = orca.Options(wall_timeout_sec=60)
     FakeClient.pending = True
     monkey = pytest.MonkeyPatch()
-    monkey.setattr(orca_agent, "wait_for_terminal", lambda poll, timeout: poll() and (_ for _ in ()).throw(orca_agent.RunTimeout("slow")))
+    monkey.setattr(adapter, "wait_for_terminal", lambda poll, timeout: poll() and (_ for _ in ()).throw(RunTimeout("slow")))
     context = AgentContext()
     try:
-        with pytest.raises(orca_agent.RunTimeout):
+        with pytest.raises(RunTimeout):
             asyncio.run(agent.run("Task. The current time is Apr 18, 2026 at 14:05 ET.", environment, context))
     finally:
         monkey.undo()

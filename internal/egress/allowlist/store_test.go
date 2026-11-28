@@ -100,7 +100,7 @@ func TestReleaseRemovesOnlyAnUnusedConnectionEntry(t *testing.T) {
 	database := dbtest.New(t)
 	store := New(database.DB, Lock{}, slog.New(slog.DiscardHandler))
 	by := auth.Principal{Kind: auth.KindServiceAccount, ID: "3f1c2a52-8c5e-4a53-9a3e-1d2d4c0a9b11", Name: "ci", Role: auth.RoleAdmin}
-	if _, err := store.AddForConnection(t.Context(), by, pattern(t, "grafana.example.com")); err != nil {
+	if _, err := store.SaveOnAllowedHost(t.Context(), by, "grafana.example.com", func(*dbsqlc.Queries) error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.Add(t.Context(), by, pattern(t, "manual.example.com")); err != nil {
@@ -121,7 +121,7 @@ func TestReleaseWaitsForTheLockAWebhookTakesWhileItIsSaved(t *testing.T) {
 	database := dbtest.New(t)
 	store := New(database.DB, Lock{}, slog.New(slog.DiscardHandler))
 	by := auth.Principal{Kind: auth.KindServiceAccount, ID: "3f1c2a52-8c5e-4a53-9a3e-1d2d4c0a9b11", Name: "ci", Role: auth.RoleAdmin}
-	if _, err := store.AddForConnection(t.Context(), by, pattern(t, "grafana.example.com")); err != nil {
+	if _, err := store.SaveOnAllowedHost(t.Context(), by, "grafana.example.com", func(*dbsqlc.Queries) error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	held := make(chan struct{})
@@ -226,7 +226,7 @@ func TestAnAdminAllowingAConnectionsHostByHandKeepsItWhenTheConnectionGoes(t *te
 	database := dbtest.New(t)
 	store := New(database.DB, Lock{}, slog.New(slog.DiscardHandler))
 	admin := userPrincipal(t, database, "ada@example.com", auth.RoleAdmin)
-	if _, err := store.AddForConnection(t.Context(), admin, pattern(t, "grafana.example.com")); err != nil {
+	if _, err := store.SaveOnAllowedHost(t.Context(), admin, "grafana.example.com", func(*dbsqlc.Queries) error { return nil }); err != nil {
 		t.Fatal(err)
 	}
 	rec := serveWithDatabase(t, store, admin, http.MethodPost, "", `{"domain":"grafana.example.com"}`)

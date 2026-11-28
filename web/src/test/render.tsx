@@ -13,15 +13,15 @@ import userEvent from "@testing-library/user-event"
 import { parseSearch, stringifySearch } from "@/lib/search"
 
 type Options = {
-  queryClient?: QueryClient
-  route?: { path: string; url: string }
+  queryClient?: QueryClient | undefined
+  route?: { path: string; url: string } | undefined
 }
 
 export function testQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: { retry: false, staleTime: Infinity },
-      mutations: { retry: false },
+      mutations: { retry: false, networkMode: "always" },
     },
   })
 }

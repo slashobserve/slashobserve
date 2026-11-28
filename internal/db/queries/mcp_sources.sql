@@ -38,7 +38,7 @@ RETURNING *;
 DELETE FROM mcp_sources WHERE uid = @uid;
 
 -- name: MarkMCPSourceChecked :exec
-UPDATE mcp_sources SET checked_at = clock_timestamp(), failure = sqlc.narg('failure')
+UPDATE mcp_sources SET checked_at = clock_timestamp(), failure = sqlc.narg('failure'), discoveries = discoveries + 1
 WHERE id = @id;
 
 -- name: NoteMCPSourceReachability :exec

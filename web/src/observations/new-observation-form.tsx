@@ -3,6 +3,7 @@ import { useQueryClient, type QueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,7 +14,6 @@ import { datasourcesQuery } from "@/datasources/queries"
 import { observationLink } from "@/lib/links"
 import { cleanText, lineRule, textError } from "@/lib/user-text"
 import { useAgentInfo, useCreateObserveRequest } from "@/observe/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { FolderSelect } from "./folder-select"
 import {

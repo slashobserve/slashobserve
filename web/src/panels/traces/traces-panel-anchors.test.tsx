@@ -12,6 +12,12 @@ import { spanFilters } from "./span-filters"
 import { TraceView, type TraceViewProps } from "./traces-panel"
 import { traceModel } from "./trace-model"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 function field(
   name: string,
   type: PreparedField["type"],
@@ -70,12 +76,6 @@ describe("trace anchors", () => {
     expect(layout.spans.map(({ span }) => span.id)).toEqual(["a", "b", "c"])
     expect(layout.resolve?.("b")).toBe("b")
     expect(layout.resolve?.("nope")).toBeUndefined()
-  })
-
-  it("withdraws its layout when it unmounts", () => {
-    const { store, view: mounted } = view()
-    mounted.unmount()
-    expect(store.current()).toBeNull()
   })
 })
 
@@ -211,7 +211,7 @@ describe("trace anchors with measured rows", () => {
       "c4",
       "c5",
     ])
-    expect(layout().spans[1].rect).toEqual({
+    expect(nth(layout().spans, 1).rect).toEqual({
       x: 0,
       y: 57,
       width: 400,

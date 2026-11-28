@@ -101,8 +101,12 @@ export function failureText(
   code: string | null,
   buildLeft = true
 ): FailureText | null {
-  if (code === null || !Object.hasOwn(texts, code)) return null
-  const text = texts[code]
-  if (buildLeft || !Object.hasOwn(withoutBuild, code)) return text
-  return { ...text, next: withoutBuild[code] }
+  const text =
+    code !== null && Object.hasOwn(texts, code) ? texts[code] : undefined
+  if (code === null || text === undefined) return null
+  const next = Object.hasOwn(withoutBuild, code)
+    ? withoutBuild[code]
+    : undefined
+  if (buildLeft || next === undefined) return text
+  return { ...text, next }
 }

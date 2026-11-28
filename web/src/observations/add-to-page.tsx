@@ -62,7 +62,8 @@ export function AddToPage({
       toast.error(partialFailureText(added.length, inputs.length, error))
     } finally {
       running.current = false
-      if (added.length > 0) onAdded(added[0])
+      const [first] = added
+      if (first !== undefined) onAdded(first)
     }
   }
 

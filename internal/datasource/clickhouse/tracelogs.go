@@ -3,7 +3,6 @@ package clickhouse
 import (
 	"context"
 	"strconv"
-	"time"
 
 	ch "github.com/ClickHouse/clickhouse-go/v2"
 
@@ -11,10 +10,9 @@ import (
 )
 
 const (
-	traceLogsSelect   = "SELECT Timestamp, SeverityText, Body, ServiceName, TraceId, SpanId, LogAttributes FROM otel_logs WHERE Timestamp >= {from:DateTime64(9, 'UTC')} AND Timestamp <= {to:DateTime64(9, 'UTC')} AND TraceId = {trace:String}"
-	traceLogsSpan     = " AND SpanId = {span:String}"
-	traceLogsOrder    = " ORDER BY Timestamp DESC LIMIT {n:UInt64}"
-	clickHouseTimeFmt = "2006-01-02 15:04:05.000000000"
+	traceLogsSelect = "SELECT Timestamp, SeverityText, Body, ServiceName, TraceId, SpanId, LogAttributes FROM otel_logs WHERE Timestamp >= {from:DateTime64(9, 'UTC')} AND Timestamp <= {to:DateTime64(9, 'UTC')} AND TraceId = {trace:String}"
+	traceLogsSpan   = " AND SpanId = {span:String}"
+	traceLogsOrder  = " ORDER BY Timestamp DESC LIMIT {n:UInt64}"
 )
 
 var _ datasource.TraceLogSource = (*Datasource)(nil)
@@ -43,8 +41,8 @@ func (d *Datasource) TraceLogs(ctx context.Context, req datasource.TraceLogsRequ
 func traceLogsQuery(req datasource.TraceLogsRequest) (string, ch.Parameters) {
 	text := traceLogsSelect
 	params := ch.Parameters{
-		"from":  clickHouseTime(req.Range.From),
-		"to":    clickHouseTime(req.Range.To),
+		"from":  parameterTime(req.Range.From),
+		"to":    parameterTime(req.Range.To),
 		"trace": req.TraceID,
 		"n":     strconv.Itoa(req.Limit),
 	}
@@ -53,8 +51,4 @@ func traceLogsQuery(req datasource.TraceLogsRequest) (string, ch.Parameters) {
 		params["span"] = req.SpanID
 	}
 	return text + traceLogsOrder, params
-}
-
-func clickHouseTime(t time.Time) string {
-	return t.UTC().Format(clickHouseTimeFmt)
 }

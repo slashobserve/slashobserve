@@ -4,7 +4,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   type KeyboardEvent,
   type ReactNode,
 } from "react"
@@ -12,6 +11,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Link, useNavigate, useRouter, useSearch } from "@tanstack/react-router"
 import { ArrowLeftIcon, DownloadIcon, LogsIcon } from "lucide-react"
 
+import { useNarrow } from "@/lib/use-narrow"
 import { ApiError } from "@/api/errors"
 import { CopyButton } from "@/components/copy-button"
 import { PageHeader } from "@/components/page-header"
@@ -37,7 +37,7 @@ import {
 } from "@/logs/datasource-picker"
 import { exploreErrorText, offlineText } from "@/logs/explore"
 import { usePrepared } from "@/logs/prepared"
-import { useElementSize } from "@/logs/use-element-size"
+import { useElementSize } from "@/lib/use-element-size"
 import { currentTraceOrigin } from "@/traces/trace-origin"
 import { SidePanel } from "@/shell/side-panel"
 import { TopRowActions } from "@/shell/top-row-actions"
@@ -92,7 +92,6 @@ const noFilters = spanFilters({})
 const noIds: ReadonlySet<string> = new Set()
 const noDatasources: readonly DatasourceStatus[] = []
 const skeletonRows = [0, 1, 2, 3, 4, 5]
-const phoneQuery = "(max-width: 899px)"
 const pageMaxSpans = 20000
 const toolbarHint = "Click a row for details. Drag on the ruler to zoom."
 const foldedToolbarHint = `Find searches every loaded span. ${toolbarHint}`
@@ -102,20 +101,6 @@ const keysHint =
   "Use j and k to move, Enter to open a span, Escape to close the details."
 const foldedHint =
   "Folded rows keep the hidden spans' totals so the timeline still adds up. Open a folded row to see its slowest 50 spans; open the rest from there."
-
-function subscribePhone(onChange: () => void) {
-  const media = window.matchMedia(phoneQuery)
-  media.addEventListener("change", onChange)
-  return () => media.removeEventListener("change", onChange)
-}
-
-function usePhone(): boolean {
-  return useSyncExternalStore(
-    subscribePhone,
-    () => window.matchMedia(phoneQuery).matches,
-    () => false
-  )
-}
 
 type SearchUpdate = (next: Partial<TraceViewSearch>, replace?: boolean) => void
 
@@ -231,12 +216,12 @@ function TraceHeader({
   actions,
 }: {
   id: string
-  datasource?: DatasourceStatus
-  model?: TraceModelData
-  traceActions?: TraceActions
+  datasource?: DatasourceStatus | undefined
+  model?: TraceModelData | undefined
+  traceActions?: TraceActions | undefined
   actions: PageActions
 }) {
-  const phone = usePhone()
+  const phone = useNarrow()
   const title = model
     ? [model.rootService, model.rootOperation].filter(Boolean).join(" ")
     : ""
@@ -672,8 +657,8 @@ function TraceExplorer({
   onDownload: () => void
   actions: PageActions
 }) {
-  const { ref, width, height } = useElementSize<HTMLDivElement>()
-  const attributes = usePhone() ? "inline" : "external"
+  const { ref, node, width, height } = useElementSize<HTMLDivElement>()
+  const attributes = useNarrow() ? "inline" : "external"
   const detailsId = useId()
   const searchRef = useRef<HTMLInputElement>(null)
   const [search, setSearch] = useState("")
@@ -758,12 +743,12 @@ function TraceExplorer({
 
   useEffect(() => {
     if (spanPanelOpen || closedSpan.current === null) return
-    const row = ref.current?.querySelector<HTMLElement>(
+    const row = node?.querySelector<HTMLElement>(
       `[data-span-id="${CSS.escape(closedSpan.current)}"]`
     )
     closedSpan.current = null
     row?.focus()
-  }, [spanPanelOpen, ref])
+  }, [spanPanelOpen, node])
 
   const openMatch = (step: 1 | -1) => {
     if (matchIds.length === 0) return
@@ -773,7 +758,8 @@ function TraceExplorer({
           ? 0
           : matchIds.length - 1
         : (matchIndex + step + matchIds.length) % matchIds.length
-    changeOpenId(matchIds[next])
+    const id = matchIds[next]
+    if (id !== undefined) changeOpenId(id)
   }
   const toggleService = (name: string) =>
     setHiddenServices((current) => {
@@ -909,12 +895,12 @@ function TraceExplorer({
               </>
             }
             highlighted={filtered.matched}
-            criticalPathIds={showPath ? pathIds : undefined}
-            dimmed={dimmed}
+            {...(showPath ? { criticalPathIds: pathIds } : {})}
+            {...(dimmed === undefined ? {} : { dimmed })}
             zoom={zoom}
             onZoom={setZoom}
             header={false}
-            fold={folded ? groups : undefined}
+            {...(folded ? { fold: groups } : {})}
           />
         ) : null}
       </div>

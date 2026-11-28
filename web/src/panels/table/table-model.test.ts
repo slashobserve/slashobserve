@@ -22,6 +22,12 @@ import {
   type TableModel,
 } from "./table-model"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 beforeEach(() => {
   vi.stubGlobal("location", { origin: "https://observe.example.com" })
 })
@@ -81,14 +87,14 @@ function build(
     return found
   }
   const cell = (label: string, row: number) =>
-    cellOf(fields, column(label), model.rows[row])
+    cellOf(fields, column(label), nth(model.rows, row))
   const links = (label: string, row: number) =>
-    cellLinks(fields, column(label), model.rows[row], cell(label, row), {
+    cellLinks(fields, column(label), nth(model.rows, row), cell(label, row), {
       vars: {},
       fields,
     })
   const actions = (label: string, row: number) =>
-    cellActions(fields, column(label), model.rows[row], cell(label, row), {
+    cellActions(fields, column(label), nth(model.rows, row), cell(label, row), {
       vars: {},
       fields,
     })
@@ -119,9 +125,9 @@ describe("table columns", () => {
     ]
     const frames = prepareFrames(legended, wire)
     const fields = createFieldResolver(legended)
-    const [table, range] = frames.map((one) =>
-      tableModel([one], fields, undefined)
-    )
+    const models = frames.map((one) => tableModel([one], fields, undefined))
+    const table = nth(models, 0)
+    const range = nth(models, 1)
     expect(labels(table)).toEqual(["Time", "placed"])
     expect(range.columns.map((column) => column.label)).toContain("Value")
   })
@@ -309,7 +315,7 @@ describe("table footer", () => {
       { footer: ["countAll", "p50", "p100"] }
     )
     expect(footer.map(({ label }) => label)).toEqual(["Count all", "50th %"])
-    expect(footer[0].cells).toEqual([null, "2"])
+    expect(nth(footer, 0).cells).toEqual([null, "2"])
   })
 
   const two = () => [
@@ -518,8 +524,8 @@ describe("table links", () => {
       [withRoute("/cart", 1), withRoute("/pay", 2)],
       { links }
     )
-    expect(cellLinksOf("n", 1)[0].href).toBe("/routes?name=%2Fpay")
-    expect(cellLinksOf("pod", 0)[0].href).toBe("/routes?name=%2Fcart")
+    expect(nth(cellLinksOf("n", 1), 0).href).toBe("/routes?name=%2Fpay")
+    expect(nth(cellLinksOf("pod", 0), 0).href).toBe("/routes?name=%2Fcart")
   })
 })
 
@@ -569,7 +575,7 @@ describe("table link scope", () => {
   const named = (pod: string, seriesName: string) =>
     frame([time, { ...number([1]), seriesName }], { labels: { pod } })
   const titleAt = (frames: PreparedFrame[], label: string, row: number) =>
-    build(frames, { links }).links(label, row)[0].title
+    nth(build(frames, { links }).links(label, row), 0).title
 
   it("names each row's series from the field of its own frame", () => {
     const frames = [named("a", "alpha"), named("b", "beta")]
@@ -625,7 +631,7 @@ describe("table rows from several queries", () => {
     (_, order) => {
       const values: Record<string, number> = { A: 1.23456, B: 5000 }
       const { cell } = build(
-        order.map((ref) => frame([number([values[ref]], "n")], { ref })),
+        order.map((ref) => frame([number([values[ref] ?? 0], "n")], { ref })),
         { overrides: [{ match: { query: "B" }, decimals: 0 }] }
       )
       const a = order.indexOf("A")
@@ -675,9 +681,9 @@ describe("table cell types", () => {
 
   it("keeps the plain cell and threshold colors with no cell type", () => {
     const { model, fields } = build([rows], { thresholds })
-    expect(cellSpecAt(fields, model.columns[0], model.rows[0]).type).toBe(
-      "auto"
-    )
+    expect(
+      cellSpecAt(fields, nth(model.columns, 0), nth(model.rows, 0)).type
+    ).toBe("auto")
   })
 
   it("colors a text cell by the field color when there are no thresholds", () => {
@@ -714,10 +720,10 @@ describe("table cell types", () => {
         ],
       }
     )
-    expect(rowFill(fields, model.columns, model.rows[0])).toBe(
+    expect(rowFill(fields, model.columns, nth(model.rows, 0))).toBe(
       "var(--threshold-ok)"
     )
-    expect(rowFill(fields, model.columns, model.rows[1])).toBe(
+    expect(rowFill(fields, model.columns, nth(model.rows, 1))).toBe(
       "var(--threshold-warning)"
     )
   })
@@ -727,7 +733,7 @@ describe("table cell types", () => {
       thresholds,
       cell: { type: "background" },
     })
-    expect(rowFill(fields, model.columns, model.rows[0])).toBeNull()
+    expect(rowFill(fields, model.columns, nth(model.rows, 0))).toBeNull()
   })
 
   it("shows a sparkline cell's last value and keeps its series", () => {
@@ -740,7 +746,7 @@ describe("table cell types", () => {
       lineWidth: 3,
     })
     expect(cell("Trend", 0).text).toBe("3")
-    const spark = sparklineAt(fields, model.columns[1], model.rows[0])
+    const spark = sparklineAt(fields, nth(model.columns, 1), nth(model.rows, 0))
     expect(spark?.values).toEqual([1, null, 3])
     expect(spark?.options.lineWidth).toBe(3)
   })
@@ -750,7 +756,9 @@ describe("table cell types", () => {
       unit: "percent",
       cell: { type: "gauge" },
     })
-    expect(gaugeFractionAt(fields, model.columns[0], model.rows[0])).toEqual({
+    expect(
+      gaugeFractionAt(fields, nth(model.columns, 0), nth(model.rows, 0))
+    ).toEqual({
       min: 0,
       max: 100,
       value: 25,
@@ -779,9 +787,13 @@ describe("nested frames", () => {
       { "field:host": "a" },
       { "field:host": "b" },
     ])
-    expect(model.rows[0].nested?.headers).toBe(false)
-    expect(model.rows[0].nested?.frame.fields[0].values).toEqual([1, 2])
-    expect(model.rows[1].nested?.frame.fields[0].values).toEqual([3])
+    expect(nth(model.rows, 0).nested?.headers).toBe(false)
+    expect(
+      nth(nth(model.rows, 0).nested?.frame.fields ?? [], 0).values
+    ).toEqual([1, 2])
+    expect(
+      nth(nth(model.rows, 1).nested?.frame.fields ?? [], 0).values
+    ).toEqual([3])
   })
 
   it("gives a row without a nested frame no expansion", () => {
@@ -800,7 +812,7 @@ describe("nested frames", () => {
 
   it("leaves other rows without nested frames", () => {
     const { model } = build([frame([text(["a"], "host")])])
-    expect(model.rows[0].nested).toBeNull()
+    expect(nth(model.rows, 0).nested).toBeNull()
   })
 })
 
@@ -825,7 +837,7 @@ describe("frame selection", () => {
   })
 
   it("leaves a single frame alone", () => {
-    expect(selectFrames([frames[0]], 3)).toEqual([frames[0]])
+    expect(selectFrames([nth(frames, 0)], 3)).toEqual([frames[0]])
   })
 
   it("draws only the chosen frame's rows", () => {
@@ -843,7 +855,7 @@ describe("cell tooltips", () => {
 
   const tooltip = (extra: Partial<DataPanel>, row: number) => {
     const { fields, model, column } = build([rows], extra)
-    return cellTooltipAt(fields, column("host"), model.rows[row])
+    return cellTooltipAt(fields, column("host"), nth(model.rows, row))
   }
 
   it("shows another field's value of the same row", () => {
@@ -879,9 +891,9 @@ describe("cell tooltips", () => {
       overrides: [{ match: { field: "note" }, displayName: "Note" }],
       tooltipField: "Note",
     })
-    expect(cellTooltipAt(fields, column("host"), model.rows[0])?.text).toBe(
-      "Serves traffic"
-    )
+    expect(
+      cellTooltipAt(fields, column("host"), nth(model.rows, 0))?.text
+    ).toBe("Serves traffic")
   })
 })
 
@@ -900,7 +912,7 @@ describe("time cells and zones", () => {
     const fields = createFieldResolver(panel())
     const model = tableModel([rows], fields, zone)
     const column = model.columns.find((c) => c.label === "Seen")!
-    expect(cellOf(fields, column, model.rows[0]).text).toBe(want)
+    expect(cellOf(fields, column, nth(model.rows, 0)).text).toBe(want)
   })
 
   it("draws a time tooltip in the zone too", () => {
@@ -908,7 +920,7 @@ describe("time cells and zones", () => {
     const fields = createFieldResolver(withTooltip)
     const model = tableModel([rows], fields, "Asia/Kolkata")
     const column = model.columns.find((c) => c.label === "Note")!
-    expect(cellTooltipAt(fields, column, model.rows[0])?.text).toBe(
+    expect(cellTooltipAt(fields, column, nth(model.rows, 0))?.text).toBe(
       "2026-10-17 09:05:07"
     )
   })

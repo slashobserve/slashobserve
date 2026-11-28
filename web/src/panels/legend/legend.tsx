@@ -140,7 +140,7 @@ type Props = {
   available: number
   width: number
   onToggle: (key: string) => void
-  onHover?: LegendHover
+  onHover?: LegendHover | undefined
   more?: number
 }
 
@@ -163,7 +163,9 @@ export function Legend({
   const valuesPx =
     reducers.length > 0
       ? inlineValuesWidth(
-          items.map((_, row) => inlineValues(reducers, cells[row], headers)),
+          items.map((_, row) =>
+            inlineValues(reducers, cells[row] ?? [], headers)
+          ),
           measure(rootFontSize()),
           rootFontSize()
         )
@@ -192,7 +194,9 @@ export function Legend({
       {items.map((item, row) => {
         const visible = !hidden.has(item.key)
         const values =
-          reducers.length > 0 ? inlineValues(reducers, cells[row], headers) : ""
+          reducers.length > 0
+            ? inlineValues(reducers, cells[row] ?? [], headers)
+            : ""
         return (
           <button
             key={item.key}
@@ -209,7 +213,10 @@ export function Legend({
               line={item.line}
               style={item.style}
             />
-            <LegendName label={item.label} text={shownNames[row]} />
+            <LegendName
+              label={item.label}
+              text={shownNames[row] ?? item.label}
+            />
             {reducers.length > 0 ? (
               <span className="whitespace-pre text-muted-foreground">
                 {values}

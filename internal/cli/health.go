@@ -125,25 +125,19 @@ func (a *app) runHealth(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
-		return nil
-	}
-	list, err := decode[healthList](data)
-	if err != nil {
-		return err
-	}
-	if len(list.Dashboards) == 0 {
-		out.line("No dashboard has a health problem.")
-	} else {
-		out.table([]string{"ID", "DASHBOARD", "FOLDER", "STATE", "KIND", "PANEL OR VARIABLE", "CHECKED", "REPAIR"}, healthRows(list.Dashboards))
-		if note := recheckNote(list.Dashboards); note != "" {
-			out.line("%s", note)
+	return render(out, data, func(list healthList) error {
+		if len(list.Dashboards) == 0 {
+			out.line("No dashboard has a health problem.")
+		} else {
+			out.table([]string{"ID", "DASHBOARD", "FOLDER", "STATE", "KIND", "PANEL OR VARIABLE", "CHECKED", "REPAIR"}, healthRows(list.Dashboards))
+			if note := recheckNote(list.Dashboards); note != "" {
+				out.line("%s", note)
+			}
 		}
-	}
-	out.line("%s", jobLine(list.Job))
-	pageFooter(out, len(list.Dashboards), nil, list.NextCursor)
-	return nil
+		out.line("%s", jobLine(list.Job))
+		pageFooter(out, len(list.Dashboards), nil, list.NextCursor)
+		return nil
+	})
 }
 
 func healthRows(dashboards []healthDashboard) [][]string {
@@ -179,6 +173,8 @@ func repairState(r *healthRepair) string {
 		return "repaired in version " + strconv.Itoa(*r.Version)
 	case r.Outcome == "still_failing" && r.Version != nil:
 		return "repair saved version " + strconv.Itoa(*r.Version) + ", still failing"
+	case r.Outcome == "proposed":
+		return "repair proposed, waiting for an editor to merge it"
 	case r.Outcome == "failed" && r.Error != nil:
 		return "repair failed: " + text(*r.Error)
 	}

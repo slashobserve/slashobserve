@@ -67,7 +67,7 @@ export function useDashboardEvents(
   {
     pinnedVersion,
     toastVersions = true,
-  }: { pinnedVersion?: number; toastVersions?: boolean }
+  }: { pinnedVersion?: number | undefined; toastVersions?: boolean }
 ): { status: LiveStatus } {
   const queryClient = useQueryClient()
   const router = useRouter()
@@ -118,7 +118,6 @@ export function useDashboardEvents(
       invalidate(
         dashboardKeys.latest(dashboardId),
         dashboardKeys.history(dashboardId),
-        dashboardKeys.comments(dashboardId),
         threads,
         dashboardKeys.revisions(dashboardId),
         proposalKeys.all
@@ -201,7 +200,6 @@ export function useDashboardEvents(
           }
           if (reconnected) {
             invalidate(
-              dashboardKeys.comments(dashboardId),
               threads,
               dashboardKeys.revisions(dashboardId),
               proposalKeys.all
@@ -239,7 +237,7 @@ export function useDashboardEvents(
           return
         case "comment.created":
         case "comment.updated":
-          invalidate(dashboardKeys.comments(dashboardId), threads)
+          invalidate(threads)
           return
         case "revision.updated":
           invalidate(dashboardKeys.revisions(dashboardId), threads)

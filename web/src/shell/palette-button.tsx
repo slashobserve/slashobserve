@@ -7,7 +7,7 @@ import { usePaletteStore } from "./palette-store"
 
 type Props =
   | { variant: "phone" }
-  | { variant: "sidebar"; onNavigate?: () => void }
+  | { variant: "sidebar"; onNavigate?: (() => void) | undefined }
   | { variant: "rail" }
 
 const label = "Search or jump to"

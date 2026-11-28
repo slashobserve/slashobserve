@@ -1,11 +1,10 @@
-import type { ApiIssue } from "@/api/errors"
+import { sentence, type ApiIssue } from "@/api/errors"
 import { isTransient, issueLines } from "@/api/issues"
 import { lowerFirst } from "@/lib/text"
 import { isDataPanel, isPanelQuery, queryRef, type Panel } from "@/spec"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import type { MergeConflict } from "@/proposals/queries"
-import { sentence } from "@/observe/queries"
 
 import type { JsonIssue } from "./panel-json"
 

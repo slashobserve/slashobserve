@@ -31,8 +31,9 @@ const remarkPlugins = [remarkGfm]
 
 const commentComponents: Components = {
   ...components,
-  h1: components.h3,
-  h2: components.h3,
+  ...(components.h3 === undefined
+    ? {}
+    : { h1: components.h3, h2: components.h3 }),
   img: ({ alt }) => <>{alt}</>,
   p: ({ children }) => (
     <p className="my-1 whitespace-pre-line first:mt-0 last:mb-0">{children}</p>

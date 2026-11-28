@@ -5,6 +5,7 @@ import { renderWithProviders } from "@/test/render"
 
 import { RepairQueue } from "./repair-page"
 import type { RepairItem } from "./repair-state"
+import { must } from "@/test/must"
 
 function item(id: string, title: string, extra: Partial<RepairItem> = {}) {
   return {
@@ -72,7 +73,7 @@ describe("RepairQueue", () => {
     })
     expect(buttons[1]).toHaveAttribute("aria-disabled", "true")
 
-    await user.click(buttons[0])
+    await user.click(must(buttons[0]))
     await waitFor(() => expect(posted).toEqual([{ dashboard_ids: ["d1"] }]))
   })
 

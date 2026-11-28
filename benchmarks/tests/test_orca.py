@@ -246,29 +246,19 @@ def test_a_code_context_that_is_neither_off_nor_a_hook_is_refused():
         orca.Options(code_context="none")
 
 
-def test_source_names_default_to_the_new_ones_and_take_only_the_two_namings():
-    assert orca.Options().names.setting == "SLASHOBSERVE_MCP_SOURCES_FILE"
-    assert orca.Options(source_names="context").names.key == "contextSources"
+def test_the_old_source_naming_option_is_gone():
     with pytest.raises(ValueError):
-        orca.Options(source_names="both")
+        orca.Options(source_names="context")
 
 
-@pytest.mark.parametrize(
-    ("option", "key", "setting", "file"),
-    [
-        ("mcp", "mcpSources", "SLASHOBSERVE_MCP_SOURCES_FILE", "mcp-sources.yaml"),
-        ("context", "contextSources", "SLASHOBSERVE_CONTEXT_SOURCES_FILE", "context-sources.yaml"),
-    ],
-)
-def test_the_code_source_is_provisioned_under_either_naming(option, key, setting, file):
-    names = orca.SOURCE_NAMES[option]
-    text = orca.code_files(names)[file]
-    assert text.splitlines()[:2] == [f"{key}:", "  - uid: orca-code"]
+def test_the_code_source_is_provisioned_as_an_mcp_source():
+    text = orca.code_files()["mcp-sources.yaml"]
+    assert text.splitlines()[:2] == ["mcpSources:", "  - uid: orca-code"]
     assert '    url: "http://codeserver.orca.internal:8080/mcp"' in text
     assert "    allowPrivate: true" in text
     assert '    approve: ["list_dir", "read_file", "grep"]' in text
-    assert orca.code_settings(names) == (
-        (setting, f"/etc/slashobserve/{file}"),
+    assert orca.code_settings() == (
+        ("SLASHOBSERVE_MCP_SOURCES_FILE", "/etc/slashobserve/mcp-sources.yaml"),
         ("SLASHOBSERVE_OUTBOUND_DOMAINS", "codeserver.orca.internal"),
     )
 
@@ -292,16 +282,16 @@ def test_code_tools_are_ready_only_when_all_three_are_approved():
     assert orca.code_tools_problem([]) == "list_dir is missing, read_file is missing, grep is missing"
 
 
-def test_the_mismatch_hint_names_the_other_naming():
-    assert "pass --ak source_names=context" in orca.code_mismatch_hint(orca.SOURCE_NAMES["mcp"])
-    assert "pass --ak source_names=mcp" in orca.code_mismatch_hint(orca.SOURCE_NAMES["context"])
+def test_the_unavailable_hint_names_a_newer_image_and_code_off():
+    hint = orca.code_unavailable_hint("ghcr.io/slashobserve/slashobserve:latest")
+    assert "ghcr.io/slashobserve/slashobserve:latest has no MCP sources" in hint
+    assert "--ak code_context=off" in hint
 
 
 def test_the_notes_say_which_code_context_applied():
     assert orca.code_note_line(orca.Options()) == (
         "code context: the code server slashobserve-codeserver:local over a read-only copy of /app/opentelemetry-demo, "
-        "provisioned as the MCP source orca-code with list_dir, read_file, grep approved, "
-        "through SLASHOBSERVE_MCP_SOURCES_FILE with the key mcpSources"
+        "provisioned as the MCP source orca-code with list_dir, read_file, grep approved"
     )
     assert orca.code_note_line(orca.Options(code_context="x:y")) == "code context: registered through x:y"
     assert orca.code_note_line(orca.Options(code_context="off")) == "code context: off, the run had no source code (--ak code_context=off)"

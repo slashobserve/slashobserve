@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -33,337 +32,6 @@ func settledOf(a Answer) string {
 		return ""
 	}
 	return string(*a.Meta.Settled)
-}
-
-func TestReadsRunUntilTheSixthTurnWithoutASaveAndThenAreRefused(t *testing.T) {
-	r := newRig(t)
-	req := r.revise()
-	dispatched := &dispatchCount{}
-	for n := range 5 {
-		answer := r.call(req, "list_metrics", `{"q":"`+strconv.Itoa(n)+`"}`, nil, dispatched.wrap(readOK))
-		if answer.IsError {
-			t.Fatalf("read %d was refused: %s", n+1, answer.Content)
-		}
-		if nudged := hasNote(answer, "Save the next panel"); nudged != (n == 4) {
-			t.Fatalf("read %d: nudge = %v, notes %q", n+1, nudged, answer.Notes)
-		}
-	}
-	refused := r.call(req, "list_metrics", `{"q":"z"}`, nil, dispatched.wrap(readOK))
-	if !refused.IsError || contentCode(t, refused) != "invalid_request" {
-		t.Fatalf("sixth read = %s, want refused", refused.Content)
-	}
-	if dispatched.n != 5 {
-		t.Fatalf("dispatched %d reads, want 5: a refused call never runs", dispatched.n)
-	}
-	if got := r.stored(req).State; got != string(revisions.StateRunning) {
-		t.Fatalf("run state = %s", got)
-	}
-	last := r.steps.all()[len(r.steps.all())-1]
-	if last.Status != "error" || !strings.HasPrefix(last.Message, "Refused list_metrics") {
-		t.Fatalf("refusal step = %+v", last)
-	}
-}
-
-func TestAFindingSavedAfterARefusedReadLearnsHowManyWereRefused(t *testing.T) {
-	r := newRig(t)
-	req := r.revise()
-	for n := range 5 {
-		r.read(req, n)
-	}
-	r.read(req, 6)
-	var refused int
-	saved := r.call(req, "save_finding", `{"x":1}`, nil, func(ctx context.Context) (tools.Result, error) {
-		refused = tools.ReadsRefused(ctx)
-		return findingSaved(ctx)
-	})
-	if refused != 1 || settledOf(saved) != "finding" {
-		t.Fatalf("reads refused %d, meta %+v", refused, saved.Meta)
-	}
-}
-
-func TestAReadInATurnThatHoldsASaveRunsAfterTheSixthTurn(t *testing.T) {
-	r := newRig(t)
-	req := r.revise()
-	for n := range 5 {
-		r.read(req, n)
-	}
-	turn := &Turn{ID: "t6", Calls: 2, Saves: 1}
-	read := r.call(req, "list_metrics", `{"q":"z"}`, turn, readOK)
-	if read.IsError {
-		t.Fatalf("a read in a turn with a save was refused: %s", read.Content)
-	}
-	save := r.call(req, "update_panels", `{"n":1}`, turn, buildSaved(r, "a", 2))
-	if save.IsError {
-		t.Fatalf("save refused: %s", save.Content)
-	}
-	if save.Meta.Build == nil || save.Meta.Build.Saves != 1 {
-		t.Fatalf("meta = %+v", save.Meta)
-	}
-}
-
-func TestAThirdIdenticalReadIsRefusedAndTheSecondCarriesTheReplayNote(t *testing.T) {
-	r := newRig(t)
-	req := r.revise()
-	first := r.call(req, "list_metrics", `{"q":"a"}`, nil, readOK)
-	second := r.call(req, "list_metrics", `{"q":"a"}`, nil, readOK)
-	third := r.call(req, "list_metrics", `{"q":"a"}`, nil, readOK)
-	if first.IsError || len(first.Notes) != 0 {
-		t.Fatalf("first = %+v", first)
-	}
-	if second.IsError || !hasNote(second, "result of the same earlier call") {
-		t.Fatalf("second = %+v", second)
-	}
-	if !third.IsError || !strings.Contains(string(third.Content), "already ran 2 times") {
-		t.Fatalf("third = %s", third.Content)
-	}
-}
-
-func TestASecondSaveInOneTurnIsRefusedWithoutRunning(t *testing.T) {
-	r := newRig(t)
-	req := r.revise()
-	turn := &Turn{ID: "t1", Calls: 2, Saves: 2}
-	dispatched := &dispatchCount{}
-	first := r.call(req, "update_panels", `{"n":1}`, turn, dispatched.wrap(buildSaved(r, "a", 3)))
-	second := r.call(req, "update_panels", `{"n":2}`, turn, dispatched.wrap(buildSaved(r, "b", 3)))
-	if first.IsError || !second.IsError || !strings.Contains(string(second.Content), "only one save per turn") {
-		t.Fatalf("first %s, second %s", first.Content, second.Content)
-	}
-	if dispatched.n != 1 {
-		t.Fatalf("dispatched %d saves, want 1", dispatched.n)
-	}
-}
-
-func TestARepeatedSaveIsRefused(t *testing.T) {
-	r := newRig(t)
-	req := r.revise()
-	r.call(req, "update_panels", `{"n":1}`, nil, buildSaved(r, "a", 3))
-	again := r.call(req, "update_panels", `{"n":1}`, nil, buildSaved(r, "a", 3))
-	if !again.IsError || !strings.Contains(string(again.Content), "identical to an earlier one") {
-		t.Fatalf("repeat = %s", again.Content)
-	}
-}
-
-func TestSaveFindingIsRefusedWhileABuildExists(t *testing.T) {
-	r := newRig(t)
-	req := r.revise()
-	r.call(req, "update_panels", `{"n":1}`, nil, buildSaved(r, "a", 3))
-	answer := r.call(req, "save_finding", `{"x":1}`, nil, findingSaved)
-	if !answer.IsError || !strings.Contains(string(answer.Content), "already saved panels") {
-		t.Fatalf("finding = %s", answer.Content)
-	}
-}
-
-func TestThreeRejectedSavesInARowEndTheRunValidationExhausted(t *testing.T) {
-	r := newRig(t)
-	req := r.revise()
-	var last Answer
-	for n := range guard.MaxRejectionsInRow {
-		last = r.call(req, "update_panels", `{"n":`+strconv.Itoa(n+1)+`}`, nil, rejectedSave)
-	}
-	row := r.stored(req)
-	if row.State != string(revisions.StateFailed) || row.FailureCode.String != string(revisions.FailureValidationExhausted) {
-		t.Fatalf("run = %s %q", row.State, row.FailureCode.String)
-	}
-	want := "the dashboard still failed validation after 3 rejected saves in a row; still failing: p1, p2; ask the agent to fix them one panel at a time (last issues: unknown_field)"
-	if row.Error.String != want {
-		t.Fatalf("stored message = %q, want %q", row.Error.String, want)
-	}
-	if settledOf(last) != "ended" || !last.IsError {
-		t.Fatalf("last answer = %+v", last)
-	}
-	if !hasNote(last, "Stopped: 3 ") || !hasNote(last, " in a row were rejected") {
-		t.Fatalf("last notes = %q", last.Notes)
-	}
-	if n := r.sessionRows(req); n != 0 {
-		t.Fatalf("%d session rows remain after the run ended", n)
-	}
-	if n := r.tokenCount(req); n != 0 {
-		t.Fatalf("%d run tokens remain after the run ended", n)
-	}
-}
-
-func TestThreeRejectedFindingsEndAnInvestigationNamingTheEvidenceThatTimedOut(t *testing.T) {
-	r := newRig(t)
-	req := r.investigate()
-	timedOut := func(context.Context) (tools.Result, error) {
-		return tools.Result{
-			Content: map[string]any{"code": "invalid_spec", "failing_panels": []string{"evidence-2"}, "issues": []map[string]string{{"code": "query_timeout"}}},
-			IsError: true,
-		}, nil
-	}
-	for n := range guard.MaxRejectionsInRow {
-		r.call(req, "save_finding", `{"n":`+strconv.Itoa(n+1)+`}`, nil, timedOut)
-	}
-	row := r.stored(req)
-	if row.FailureCode.String != string(revisions.FailureValidationExhausted) {
-		t.Fatalf("failure = %q", row.FailureCode.String)
-	}
-	want := "the finding was rejected in 3 saves in a row; its evidence that failed: evidence-2 (last issues: a query timed out (query_timeout)); a datasource did not answer in time, so ask again when it is healthy"
-	if row.Error.String != want {
-		t.Fatalf("stored message = %q, want %q", row.Error.String, want)
-	}
-}
-
-func TestTheUsageOfATurnIsStoredWhenItsResultEndsTheRun(t *testing.T) {
-	r := newRig(t)
-	req := r.revise()
-	for n := range guard.MaxRejectionsInRow {
-		turn := &Turn{ID: "turn-" + strconv.Itoa(n+1), Calls: 1, Saves: 1, Usage: &revisions.Usage{ModelCalls: n + 1, OutputTokens: int64(100 * (n + 1))}}
-		r.call(req, "update_panels", `{"n":`+strconv.Itoa(n+1)+`}`, turn, rejectedSave)
-	}
-	var usage revisions.Usage
-	if err := json.Unmarshal(r.stored(req).RunUsage, &usage); err != nil {
-		t.Fatal(err)
-	}
-	if usage.ModelCalls != guard.MaxRejectionsInRow || usage.OutputTokens != int64(100*guard.MaxRejectionsInRow) {
-		t.Fatalf("usage = %+v, want the %d model calls of the turns that ended the run", usage, guard.MaxRejectionsInRow)
-	}
-}
-
-func TestToolErrorsAreNotFailedModelCalls(t *testing.T) {
-	r := newRig(t)
-	req := r.revise()
-	for n := range guard.MaxRejectionsInRow {
-		r.call(req, "update_panels", `{"n":`+strconv.Itoa(n+1)+`}`, nil, rejectedSave)
-	}
-	var usage revisions.Usage
-	if err := json.Unmarshal(r.stored(req).RunUsage, &usage); err != nil {
-		t.Fatal(err)
-	}
-	if usage.FailedCalls != 0 || usage.ToolCalls != guard.MaxRejectionsInRow {
-		t.Fatalf("usage = %+v, want no failed calls and %d tool calls", usage, guard.MaxRejectionsInRow)
-	}
-}
-
-func TestTwoStalledTurnsEndTheRunNoProgress(t *testing.T) {
-	r := newRig(t)
-	req := r.revise()
-	for n := range 5 {
-		r.read(req, n)
-	}
-	r.call(req, "list_metrics", `{"q":"y"}`, nil, readOK)
-	last := r.call(req, "list_metrics", `{"q":"z"}`, nil, readOK)
-	row := r.stored(req)
-	if row.State != string(revisions.StateFailed) || row.FailureCode.String != string(revisions.FailureNoProgress) {
-		t.Fatalf("run = %s %q", row.State, row.FailureCode.String)
-	}
-	if row.Error.String != "the agent stopped making progress" || settledOf(last) != "ended" {
-		t.Fatalf("error %q, answer %+v", row.Error.String, last)
-	}
-}
-
-func TestSavesThatChangeNothingNewEndTheRunNoProgress(t *testing.T) {
-	r := newRig(t)
-	req := r.revise()
-	var last Answer
-	for n := range 7 {
-		last = r.call(req, "update_panels", `{"n":`+strconv.Itoa(n+1)+`}`, nil, buildSaved(r, "a", 9))
-		if state := r.stored(req).State; state != string(revisions.StateRunning) {
-			t.Fatalf("the run ended at save %d: %s", n+1, state)
-		}
-	}
-	if !hasNote(last, "changed no panel that still needs work") {
-		t.Fatalf("the churn note is missing: %q", last.Notes)
-	}
-	last = r.call(req, "update_panels", `{"n":8}`, nil, buildSaved(r, "a", 9))
-	row := r.stored(req)
-	if row.State != string(revisions.StateFailed) || row.FailureCode.String != string(revisions.FailureNoProgress) {
-		t.Fatalf("run = %s %q", row.State, row.FailureCode.String)
-	}
-	if !hasNote(last, "Stopped: 4 saves in a row changed nothing new") {
-		t.Fatalf("stop note missing: %q", last.Notes)
-	}
-}
-
-func TestACallAfterTheRunEndedAnswersRunEndedWithoutRunningTheTool(t *testing.T) {
-	r := newRig(t)
-	req := r.revise()
-	for n := range guard.MaxRejectionsInRow {
-		r.call(req, "update_panels", `{"n":`+strconv.Itoa(n+1)+`}`, nil, rejectedSave)
-	}
-	dispatched := &dispatchCount{}
-	answer := r.call(req, "list_metrics", `{"q":"a"}`, nil, dispatched.wrap(readOK))
-	if !answer.IsError || contentCode(t, answer) != "run_ended" || settledOf(answer) != "ended" || dispatched.n != 0 {
-		t.Fatalf("answer %+v, dispatched %d", answer, dispatched.n)
-	}
-}
-
-func TestAKeyedTurnSettlesWhenItsLastCallReturnsAndTheNudgeLandsOnThatCall(t *testing.T) {
-	r := newRig(t)
-	req := r.revise()
-	for n := range 4 {
-		r.read(req, n)
-	}
-	turn := &Turn{ID: "t5", Calls: 2}
-	first := r.call(req, "list_metrics", `{"q":"x"}`, turn, readOK)
-	if hasNote(first, "Save the next panel") {
-		t.Fatalf("the nudge landed on the first call of the turn: %q", first.Notes)
-	}
-	second := r.call(req, "list_metrics", `{"q":"y"}`, turn, readOK)
-	if !hasNote(second, "Save the next panel") {
-		t.Fatalf("the nudge is missing on the call that completes the turn: %q", second.Notes)
-	}
-}
-
-func TestAKeyedTurnOfTwoCallsRefusesTheEleventhCallWhereKeylessRefusesTheSixth(t *testing.T) {
-	r := newRig(t)
-	req := r.revise()
-	for turn := range 5 {
-		key := &Turn{ID: strconv.Itoa(turn), Calls: 2}
-		for call := range 2 {
-			q := strconv.Itoa(turn) + "-" + strconv.Itoa(call)
-			if answer := r.call(req, "list_metrics", `{"q":"`+q+`"}`, key, readOK); answer.IsError {
-				t.Fatalf("turn %d call %d was refused: %s", turn+1, call+1, answer.Content)
-			}
-		}
-	}
-	if got := r.call(req, "list_metrics", `{"q":"zz"}`, &Turn{ID: "z", Calls: 1}, readOK); !got.IsError || contentCode(t, got) != "invalid_request" {
-		t.Fatalf("the sixth keyed turn was not refused: %s", got.Content)
-	}
-}
-
-func TestTwoServicesOnOneDatabaseDecideAsOne(t *testing.T) {
-	r := newRig(t)
-	other := New(Config{DB: r.d.DB, Runs: r.runs, Claims: r.claims, Builds: r.store, Dashboards: r.store, Statuses: healthy{}, Steps: r.steps})
-	req := r.revise()
-	call := func(s *Service, q string) Answer {
-		answer, err := s.Call(context.Background(), req, Call{Name: "list_metrics", Input: json.RawMessage(`{"q":"` + q + `"}`)}, readOK)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return answer
-	}
-	services := []*Service{r.svc, other}
-	for n := range 5 {
-		call(services[n%2], strconv.Itoa(n))
-	}
-	if got := call(services[1], "z"); !got.IsError || contentCode(t, got) != "invalid_request" {
-		t.Fatalf("the sixth call on the other service = %s", got.Content)
-	}
-}
-
-func TestAnInvestigationKeepsTheCallLimitItStartedWithWhenTheSettingIsLowered(t *testing.T) {
-	r := newRig(t, withInvestigationCalls(20))
-	lowered := New(Config{DB: r.d.DB, Runs: r.runs, Claims: r.claims, Builds: r.store, Dashboards: r.store, Statuses: healthy{}, Steps: r.steps, InvestigationCalls: 12})
-	req := r.investigate()
-	for n := range 14 {
-		if got := r.read(req, n); got.IsError {
-			t.Fatalf("read %d was refused under 20: %s", n+1, got.Content)
-		}
-	}
-	for n := 14; n < 19; n++ {
-		got, err := lowered.Call(context.Background(), req, Call{Name: "list_metrics", Input: json.RawMessage(`{"q":"` + strconv.Itoa(n) + `"}`)}, readOK)
-		if err != nil || got.IsError {
-			t.Fatalf("read %d on the lowered service: refused %v, err %v", n+1, got.IsError, err)
-		}
-		if nudged := hasNote(got, "One more read at most"); nudged != (n == 18) {
-			t.Fatalf("read %d: nudge = %v, notes %q", n+1, nudged, got.Notes)
-		}
-	}
-	refused, err := lowered.Call(context.Background(), req, Call{Name: "list_metrics", Input: json.RawMessage(`{"q":"z"}`)}, readOK)
-	if err != nil || !refused.IsError || contentCode(t, refused) != "invalid_request" {
-		t.Fatalf("read 20 = %s, err %v, want refused at the limit of 20", refused.Content, err)
-	}
 }
 
 func TestParentVersionStaysPinnedUntilTheBrief(t *testing.T) {
@@ -440,21 +108,6 @@ func TestAToolErrorIsReturnedAndCountedAndTheTurnStillSettles(t *testing.T) {
 	}
 }
 
-func TestDiscoveriesFeedTheBriefDigest(t *testing.T) {
-	r := newRig(t)
-	req := r.revise()
-	r.call(req, "list_metrics", `{"q":"a"}`, nil, func(context.Context) (tools.Result, error) {
-		return tools.Result{Content: map[string]any{"ok": true}, Discovered: &tools.Discovery{Datasource: "prom", Of: "metrics", Names: []string{"http_requests_total"}}}, nil
-	})
-	brief, err := r.svc.Brief(context.Background(), req, "renewed")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(brief.Message, "http_requests_total") {
-		t.Fatalf("the brief lacks the digest:\n%s", brief.Message)
-	}
-}
-
 func TestAWriteIsDispatchedWithTheObjectsAnEarlierWriteCreated(t *testing.T) {
 	r := newRig(t)
 	req := r.revise()
@@ -475,5 +128,56 @@ func TestAWriteIsDispatchedWithTheObjectsAnEarlierWriteCreated(t *testing.T) {
 	last := r.steps.all()[len(r.steps.all())-1]
 	if last.Phase != tools.PhaseWrite || last.Tool != "rename_folder" {
 		t.Fatalf("step = %+v", last)
+	}
+}
+
+func TestADispatchedCallCarriesItsCallMeta(t *testing.T) {
+	r := newRig(t)
+	req := r.revise()
+	built := r.call(req, "update_panels", `{"n":1}`, nil, buildSaved(r, "a", 3))
+	if built.Meta.Call == nil || built.Meta.Call.Edits == nil || built.Meta.Call.Edits.Panels[0] != "a" {
+		t.Fatalf("build call meta = %+v", built.Meta.Call)
+	}
+}
+
+func TestTheUsageOfATurnIsKeptWithTheSession(t *testing.T) {
+	r := newRig(t)
+	req := r.revise()
+	for n := range 3 {
+		turn := &Turn{ID: "turn-" + strconv.Itoa(n+1), Calls: 1, Saves: 1, Usage: &revisions.Usage{ModelCalls: n + 1, OutputTokens: int64(100 * (n + 1))}}
+		r.call(req, "update_panels", `{"n":`+strconv.Itoa(n+1)+`}`, turn, rejectedSave)
+	}
+	state := r.storedState(req)
+	usage := state.usage()
+	if usage.ModelCalls != 3 || usage.OutputTokens != 300 || usage.FailedCalls != 0 || usage.ToolCalls != 3 {
+		t.Fatalf("usage = %+v, want 3 model calls, 300 output tokens, no failed calls and 3 tool calls", usage)
+	}
+}
+
+func TestACallAfterTheRunEndedAnswersRunEndedWithoutRunningTheTool(t *testing.T) {
+	r := newRig(t)
+	req := r.revise()
+	if _, err := r.svc.Finish(context.Background(), req, tools.RunFinish{Outcome: outcomeFailed, Message: "gave up"}); err != nil {
+		t.Fatal(err)
+	}
+	dispatched := &dispatchCount{}
+	answer := r.call(req, "list_metrics", `{"q":"a"}`, nil, dispatched.wrap(readOK))
+	if !answer.IsError || contentCode(t, answer) != "run_ended" || settledOf(answer) != "ended" || dispatched.n != 0 {
+		t.Fatalf("answer %+v, dispatched %d", answer, dispatched.n)
+	}
+}
+
+func TestTwoServicesOnOneDatabaseShareOneSession(t *testing.T) {
+	r := newRig(t)
+	other := New(Config{DB: r.d.DB, Runs: r.runs, Claims: r.claims, Builds: r.store, Dashboards: r.store, Statuses: healthy{}, Steps: r.steps})
+	req := r.revise()
+	services := []*Service{r.svc, other}
+	for n := range 6 {
+		if _, err := services[n%2].Call(context.Background(), req, Call{Name: "list_metrics", Input: json.RawMessage(`{"q":"` + strconv.Itoa(n) + `"}`)}, readOK); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := r.storedState(req).Counts.ToolCalls; got != 6 {
+		t.Fatalf("tool calls = %d, want the 6 of both services", got)
 	}
 }

@@ -48,7 +48,7 @@ export async function lintQuery(
     .POST("/datasources/{uid}/lint", {
       params: { path: { uid } },
       body: { query },
-      signal,
+      ...(signal === undefined ? {} : { signal }),
     })
     .then(unwrap)
   return {

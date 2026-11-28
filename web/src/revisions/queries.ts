@@ -25,7 +25,13 @@ export function revisionsQuery(id: string) {
       followCursor((cursor) =>
         api
           .GET("/dashboards/{id}/revisions", {
-            params: { path: { id }, query: { limit: pageSize, cursor } },
+            params: {
+              path: { id },
+              query: {
+                limit: pageSize,
+                ...(cursor === undefined ? {} : { cursor }),
+              },
+            },
             signal,
           })
           .then(unwrap)

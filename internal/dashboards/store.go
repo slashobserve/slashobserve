@@ -69,7 +69,13 @@ type Dashboard struct {
 	Abilities     folders.Abilities
 	Provisioned   bool
 	ManagedBy     folders.ManagedBy
+	// Abilities hides Edit on a starter dashboard; this keeps the caller's own Edit, which still deletes and annotates it.
+	editsBesidesContent bool
 }
+
+func (d Dashboard) MayDelete() bool { return d.Abilities.Edit || d.editsBesidesContent }
+
+func (d Dashboard) MayAnnotate() bool { return d.Abilities.Edit || d.editsBesidesContent }
 
 type VersionMeta struct {
 	Number         int

@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { problemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -18,7 +19,7 @@ import { Button } from "@/components/ui/button"
 import { dashboardLink } from "@/lib/links"
 
 import { DatasourceError, useDeleteDatasource } from "./admin-queries"
-import { saveProblemText, usersSummary } from "./problems"
+import { saveProblems, usersSummary } from "./problems"
 import type { DatasourceStatus } from "./queries"
 
 export function RemoveDatasourceButton({
@@ -37,7 +38,9 @@ export function RemoveDatasourceButton({
       ? remove.error
       : null
   const problem =
-    remove.isError && inUse === null ? saveProblemText(remove.error) : null
+    remove.isError && inUse === null
+      ? problemText(remove.error, saveProblems)
+      : null
 
   function changeOpen(next: boolean) {
     if (!next && remove.isPending) return

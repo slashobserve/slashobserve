@@ -3,6 +3,7 @@ import { Link, useRouteContext } from "@tanstack/react-router"
 import { EllipsisIcon, LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { problemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -24,7 +25,7 @@ import {
 
 import {
   actionsFor,
-  lifecycleProblemText,
+  lifecycleProblems,
   removalText,
   usePersonAction,
   type PersonAction,
@@ -165,7 +166,7 @@ export function PersonMenu({ user }: { user: User }) {
               {change.isError ? (
                 <Alert variant="destructive">
                   <AlertDescription>
-                    {lifecycleProblemText(change.error)}
+                    {problemText(change.error, lifecycleProblems)}
                   </AlertDescription>
                 </Alert>
               ) : null}

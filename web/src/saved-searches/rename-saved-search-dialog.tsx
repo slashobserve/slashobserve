@@ -2,6 +2,7 @@ import { useId, useState, type FormEvent } from "react"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -13,7 +14,6 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { useRenameSavedSearch, type SavedSearch } from "./queries"
 

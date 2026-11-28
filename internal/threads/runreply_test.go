@@ -63,7 +63,7 @@ func (r *rig) mentionRun(t *testing.T, target Target) (thread string, run dbsqlc
 func (r *rig) runEnded(t *testing.T, run dbsqlc.AgentRequest) error {
 	t.Helper()
 	return r.db.InTx(reading(t.Context()), func(q *dbsqlc.Queries) error {
-		return NewRuns(r.db.DB).RunEnded(reading(t.Context()), q, run)
+		return NewRuns().RunEnded(reading(t.Context()), q, run)
 	})
 }
 
@@ -293,7 +293,7 @@ func TestARunReplyNeverReopensAResolvedThread(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t, "rps", "errors")
 	thread, run := r.mentionRun(t, target(KindDashboard, dash))
-	if _, _, err := r.comments.SetStatus(reading(t.Context()), testUser, dash, mustParse(t, thread), StatusResolved, new(1)); err != nil {
+	if _, _, err := r.service.SetStatus(reading(t.Context()), testUser, mustParse(t, thread), StatusResolved, new(1)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -334,24 +334,6 @@ func TestARunSkipsItsReplyInsteadOfWaitingForADelete(t *testing.T) {
 	deleting.finish(t)
 	if len(r.runReplies(t, dashThread)) != 0 || len(r.runReplies(t, obsThread)) != 0 {
 		t.Fatal("a run replied into a thread whose target was being deleted")
-	}
-}
-
-func TestARevisionRunFromACommentResolvesItAndAnswersInIt(t *testing.T) {
-	r := newAgentRig(t, true)
-	dash := r.createDashboard(t, "rps", "errors")
-	r.addVersion(t, dash, 1)
-	comment := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("errors"), Body: "show this per route", RequestRevision: true})
-
-	if err := r.runEnded(t, r.runFor(t, dash, comment, 2)); err != nil {
-		t.Fatal(err)
-	}
-	if got := r.threadRow(t, comment.ID).Status; got != StatusResolved {
-		t.Fatalf("thread status = %s, want resolved", got)
-	}
-	replies := r.runReplies(t, comment.ID)
-	if len(replies) != 1 || replies[0].Body != "Saved version 2 of this dashboard." {
-		t.Fatalf("run replies = %+v, want the saved-version answer", replies)
 	}
 }
 
@@ -415,7 +397,7 @@ func TestACutProposalTitleEndsInAnEllipsis(t *testing.T) {
 }
 
 func (r *rig) sweeper() *revisions.Service {
-	return revisions.NewService(r.db.DB, slog.New(slog.DiscardHandler), revisions.WithThreads(NewRuns(r.db.DB)))
+	return revisions.NewService(r.db.DB, slog.New(slog.DiscardHandler), revisions.WithThreads(NewRuns()))
 }
 
 func (r *rig) endWithoutAReply(t *testing.T, run dbsqlc.AgentRequest) {

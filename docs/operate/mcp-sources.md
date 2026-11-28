@@ -125,6 +125,7 @@ An agent's call moves it too: a call the server cannot reach turns the source `u
 A call that is refused before it is sent (a tool that is not approved, arguments that do not fit, a source at its call limit) changes nothing.
 
 A failed discovery answers `200` with the failure code in `failure`: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
+When two discoveries of one source run at once, the one that finishes second stores nothing and answers `200` with `superseded` true and the source as the first one left it, so an older list of tools never replaces a newer one.
 Changing the address or the secret resets the check.
 Changing the address also deletes the stored tools, so approvals never carry over to another server.
 A change that sends an empty `description` removes it.
@@ -157,6 +158,7 @@ mcpSources:
   A source with it shows `private: true` in the API and the web app, and every audit event of the source carries `private: true`.
   Removing the line makes the source public again, resets its check and refuses an `http` address.
 - `approve` is an optional list of tool names, such as `approve: [list_dir, read_file]`.
+  A name is 1 to 128 letters, digits, dots, dashes or underscores with at least one letter or digit, the rule a discovered tool's name must meet, so a name no tool can have stops the server at start.
   At every start, after it makes the entries match, the server runs a discovery for each source with a list, in the background, so the tools can be a few seconds behind the start.
   It approves a listed tool the first time the server sees it, when the tool is `offered` and was not known before that discovery.
   That is the only definition the file ever pins: a tool an Admin revoked, a tool an Admin or an earlier discovery already knew and left unapproved, and a tool that is `changed` stay as they are until an Admin approves them, so a revoke sticks across restarts and the file never approves a definition nobody read.

@@ -175,9 +175,9 @@ export function buildTimeline(input: {
   versions: readonly VersionMeta[]
   imported?: ImportedDashboard | null
   investigations?: readonly RunningRequest[]
-  findings?: readonly Finding[]
+  findings?: readonly Finding[] | undefined
   proposals?: readonly ProposalSummary[]
-  annotations?: readonly Annotation[]
+  annotations?: readonly Annotation[] | undefined
 }): TimelineEntry[] {
   const entries: TimelineEntry[] = []
 

@@ -198,7 +198,7 @@ describe("addRow", () => {
   })
 
   it("keeps float noise out of the new value", () => {
-    expect(addRow([row("warning", "0.57")])[1].value).toBe("1.57")
+    expect(addRow([row("warning", "0.57")])[1]?.value).toBe("1.57")
   })
 
   it("adds nothing at the limit", () => {

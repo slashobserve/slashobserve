@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query"
 import { SquareIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { ApiError } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -16,20 +15,11 @@ import {
   type ObserveRequest,
 } from "./queries"
 
-function errorParts(error: unknown): { code: string; message: string } {
-  return error instanceof ApiError
-    ? { code: error.code, message: error.message }
-    : { code: "", message: "" }
-}
-
 function useCancelRun(id: string) {
   const cancel = useCancelRequest(id)
   function run() {
     cancel.mutate(undefined, {
-      onError: (error) => {
-        const { code, message } = errorParts(error)
-        toast.error(cancelErrorText(code, message))
-      },
+      onError: (error) => toast.error(cancelErrorText(error)),
     })
   }
   return { pending: cancel.isPending, run }
@@ -143,10 +133,7 @@ export function ContinueBuildButton({
                   close()
                   onContinued(next)
                 },
-                onError: (error) => {
-                  const { code, message } = errorParts(error)
-                  toast.error(continueErrorText(code, message))
-                },
+                onError: (error) => toast.error(continueErrorText(error)),
               }
             )
           }}

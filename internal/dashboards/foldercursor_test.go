@@ -100,18 +100,20 @@ func TestListFiltersParseFolderAndOrder(t *testing.T) {
 		wantStatus int
 		wantFolder pgtype.UUID
 		wantBy     bool
+		wantName   bool
+		wantViews  bool
 	}{
-		{"defaults to recency", "", http.StatusOK, pgtype.UUID{}, false},
-		{"order updated", "order=updated", http.StatusOK, pgtype.UUID{}, false},
-		{"order folder", "order=folder", http.StatusOK, pgtype.UUID{}, true},
-		{"order views is not by folder", "order=views", http.StatusOK, pgtype.UUID{}, false},
-		{"order name is not by folder", "order=name", http.StatusOK, pgtype.UUID{}, false},
-		{"a folder", "folder=" + cursorFolderID, http.StatusOK, mustUUID(t, cursorFolderID), false},
-		{"a folder with the folder order", "folder=" + cursorFolderID + "&order=folder", http.StatusOK, mustUUID(t, cursorFolderID), true},
-		{"an unknown order", "order=title", http.StatusBadRequest, pgtype.UUID{}, false},
-		{"an empty order", "order=", http.StatusBadRequest, pgtype.UUID{}, false},
-		{"a folder that is not a UUID", "folder=checkout", http.StatusBadRequest, pgtype.UUID{}, false},
-		{"an empty folder", "folder=", http.StatusBadRequest, pgtype.UUID{}, false},
+		{"defaults to recency", "", http.StatusOK, pgtype.UUID{}, false, false, false},
+		{"order updated", "order=updated", http.StatusOK, pgtype.UUID{}, false, false, false},
+		{"order folder", "order=folder", http.StatusOK, pgtype.UUID{}, true, false, false},
+		{"order views", "order=views", http.StatusOK, pgtype.UUID{}, false, false, true},
+		{"order name", "order=name", http.StatusOK, pgtype.UUID{}, false, true, false},
+		{"a folder", "folder=" + cursorFolderID, http.StatusOK, mustUUID(t, cursorFolderID), false, false, false},
+		{"a folder with the folder order", "folder=" + cursorFolderID + "&order=folder", http.StatusOK, mustUUID(t, cursorFolderID), true, false, false},
+		{"an unknown order", "order=title", http.StatusBadRequest, pgtype.UUID{}, false, false, false},
+		{"an empty order", "order=", http.StatusBadRequest, pgtype.UUID{}, false, false, false},
+		{"a folder that is not a UUID", "folder=checkout", http.StatusBadRequest, pgtype.UUID{}, false, false, false},
+		{"an empty folder", "folder=", http.StatusBadRequest, pgtype.UUID{}, false, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -119,8 +121,8 @@ func TestListFiltersParseFolderAndOrder(t *testing.T) {
 			if code != tt.wantStatus {
 				t.Fatalf("status %d, want %d", code, tt.wantStatus)
 			}
-			if tt.wantStatus == http.StatusOK && (params.Folder != tt.wantFolder || params.ByFolder != tt.wantBy) {
-				t.Fatalf("folder %v by folder %t, want %v and %t", params.Folder, params.ByFolder, tt.wantFolder, tt.wantBy)
+			if tt.wantStatus == http.StatusOK && (params.Folder != tt.wantFolder || params.ByFolder != tt.wantBy || params.ByName != tt.wantName || params.ByViews != tt.wantViews) {
+				t.Fatalf("folder %v, by folder %t, by name %t, by views %t, want %v, %t, %t and %t", params.Folder, params.ByFolder, params.ByName, params.ByViews, tt.wantFolder, tt.wantBy, tt.wantName, tt.wantViews)
 			}
 		})
 	}
@@ -168,20 +170,6 @@ func TestViewsCursorIsRejectedAsATimeCursorAndAFolderCursor(t *testing.T) {
 	}
 	if _, err := decodeFolderCursor(cursor); !errors.Is(err, ErrInvalidCursor) {
 		t.Errorf("a views cursor was accepted as a folder cursor: %v", err)
-	}
-}
-
-func TestListFiltersParseOrderViews(t *testing.T) {
-	_, params := listFilterStatus(t, "order=views")
-	if !params.ByViews || params.ByFolder {
-		t.Fatalf("by views %t, by folder %t, want true and false", params.ByViews, params.ByFolder)
-	}
-}
-
-func TestListFiltersParseOrderName(t *testing.T) {
-	_, params := listFilterStatus(t, "order=name")
-	if !params.ByName || params.ByViews || params.ByFolder {
-		t.Fatalf("by name %t, by views %t, by folder %t, want true, false and false", params.ByName, params.ByViews, params.ByFolder)
 	}
 }
 

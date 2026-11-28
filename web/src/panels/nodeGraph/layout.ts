@@ -5,6 +5,12 @@ export type LayoutEdge = { source: string; target: string }
 
 type Adjacency = number[][]
 
+function entry<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  if (item === undefined) throw new RangeError(`No graph entry at ${index}`)
+  return item
+}
+
 function successorsOf(
   nodes: readonly LayoutNode[],
   edges: readonly LayoutEdge[]
@@ -15,7 +21,7 @@ function successorsOf(
     const from = index.get(edge.source)
     const to = index.get(edge.target)
     if (from !== undefined && to !== undefined && from !== to) {
-      out[from].push(to)
+      entry(out, from).push(to)
     }
   }
   return out
@@ -30,21 +36,21 @@ function withoutCycles(out: Adjacency): Adjacency {
     if (state[root] !== 0) continue
     state[root] = active
     const stack: [node: number, next: number][] = [[root, 0]]
-    while (stack.length > 0) {
-      const top = stack[stack.length - 1]
+    for (let top = stack.at(-1); top !== undefined; top = stack.at(-1)) {
       const [node, next] = top
-      if (next === out[node].length) {
+      const targets = entry(out, node)
+      if (next === targets.length) {
         state[node] = done
         stack.pop()
         continue
       }
       top[1]++
-      const to = out[node][next]
+      const to = entry(targets, next)
       if (state[to] === active) {
-        acyclic[to].add(node)
+        entry(acyclic, to).add(node)
         continue
       }
-      acyclic[node].add(to)
+      entry(acyclic, node).add(to)
       if (state[to] === 0) {
         state[to] = active
         stack.push([to, 0])
@@ -56,14 +62,18 @@ function withoutCycles(out: Adjacency): Adjacency {
 
 function longestPathLayers(out: Adjacency): number[] {
   const waiting = new Array<number>(out.length).fill(0)
-  for (const targets of out) for (const to of targets) waiting[to]++
+  for (const targets of out) {
+    for (const to of targets) waiting[to] = entry(waiting, to) + 1
+  }
   const layers = new Array<number>(out.length).fill(0)
   const queue = waiting.flatMap((count, at) => (count === 0 ? [at] : []))
   for (let head = 0; head < queue.length; head++) {
-    const from = queue[head]
-    for (const to of out[from]) {
-      layers[to] = Math.max(layers[to], layers[from] + 1)
-      if (--waiting[to] === 0) queue.push(to)
+    const from = entry(queue, head)
+    for (const to of entry(out, from)) {
+      layers[to] = Math.max(entry(layers, to), entry(layers, from) + 1)
+      const left = entry(waiting, to) - 1
+      waiting[to] = left
+      if (left === 0) queue.push(to)
     }
   }
   return layers
@@ -72,7 +82,7 @@ function longestPathLayers(out: Adjacency): number[] {
 function reversed(out: Adjacency): Adjacency {
   const back: Adjacency = out.map(() => [])
   out.forEach((targets, from) => {
-    for (const to of targets) back[to].push(from)
+    for (const to of targets) entry(back, to).push(from)
   })
   return back
 }
@@ -84,7 +94,7 @@ function orderWithinLayers(
   const rows: number[][] = []
   layers.forEach((layer, node) => {
     while (rows.length <= layer) rows.push([])
-    rows[layer].push(node)
+    entry(rows, layer).push(node)
   })
   const height = new Float64Array(layers.length)
   const center = (row: number[]) => {
@@ -97,11 +107,12 @@ function orderWithinLayers(
   const reorder = (row: number[], neighbours: Adjacency) => {
     const keys = new Map(
       row.map((node) => {
-        const near = neighbours[node]
+        const near = entry(neighbours, node)
         const key =
           near.length === 0
-            ? height[node]
-            : near.reduce((sum, other) => sum + height[other], 0) / near.length
+            ? entry(height, node)
+            : near.reduce((sum, other) => sum + entry(height, other), 0) /
+              near.length
         return [node, key]
       })
     )
@@ -111,9 +122,9 @@ function orderWithinLayers(
 
   const incoming = reversed(out)
   for (let layer = 1; layer < rows.length; layer++)
-    reorder(rows[layer], incoming)
+    reorder(entry(rows, layer), incoming)
   for (let layer = rows.length - 2; layer >= 0; layer--) {
-    reorder(rows[layer], out)
+    reorder(entry(rows, layer), out)
   }
   return rows
 }
@@ -128,7 +139,10 @@ export function layeredLayout(
   const positions: Layout = new Map()
   rows.forEach((row, layer) => {
     row.forEach((node, at) => {
-      positions.set(nodes[node].id, { x: layer, y: at - (row.length - 1) / 2 })
+      positions.set(entry(nodes, node).id, {
+        x: layer,
+        y: at - (row.length - 1) / 2,
+      })
     })
   })
   return positions

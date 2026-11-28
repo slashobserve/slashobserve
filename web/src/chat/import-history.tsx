@@ -2,18 +2,16 @@ import { useEffect, useId, useMemo, useRef, type RefObject } from "react"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
-import type { components } from "@/api/schema.gen"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { myImportsQuery } from "@/import/record-queries"
 import { importStatus } from "@/import/record-summary"
+import { uniqueById } from "@/lib/unique-by-id"
 import { dashboardLink } from "@/lib/links"
 
 import { ImportLink } from "./import-link"
-
-type ImportMeta = components["schemas"]["ImportMeta"]
 
 export function ImportHistory({
   panelId,
@@ -23,18 +21,10 @@ export function ImportHistory({
   heading: RefObject<HTMLHeadingElement | null>
 }) {
   const query = useInfiniteQuery(myImportsQuery())
-  const imports = useMemo(() => {
-    const seen = new Set<string>()
-    const unique: ImportMeta[] = []
-    for (const page of query.data?.pages ?? []) {
-      for (const item of page.imports) {
-        if (seen.has(item.id)) continue
-        seen.add(item.id)
-        unique.push(item)
-      }
-    }
-    return unique
-  }, [query.data])
+  const imports = useMemo(
+    () => uniqueById(query.data?.pages, (page) => page.imports),
+    [query.data]
+  )
   const loadMoreFailed = query.isFetchNextPageError
   const loadMoreErrorId = useId()
   const rows = useRef<HTMLUListElement>(null)

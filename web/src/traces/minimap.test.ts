@@ -39,8 +39,8 @@ describe("minimapRows", () => {
     )
     const rows = minimapRows(spans, 34)
     expect(rows).toHaveLength(1000)
-    expect(rows[1].top - rows[0].top).toBe(1)
-    expect(rows[999].top).toBe(999)
+    expect(rows[1]!.top - rows[0]!.top).toBe(1)
+    expect(rows[999]?.top).toBe(999)
   })
 
   it("spreads a few spans over the strip and keeps colour and error", () => {

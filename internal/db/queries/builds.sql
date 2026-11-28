@@ -85,3 +85,10 @@ SET agent_request_id = @to_id::uuid
 FROM agent_requests r
 WHERE b.agent_request_id = @from_id::uuid
   AND r.id = b.agent_request_id AND r.state = ANY(@from_states::text[]) AND r.build_saved_at IS NULL;
+
+-- name: MarkAgentRequestCommitted :execrows
+UPDATE agent_requests
+SET committed_kind = CASE WHEN committed_kind = 'finding' THEN committed_kind ELSE @kind::text END,
+  committed_version = sqlc.narg('version')::integer,
+  committed_dashboard_id = sqlc.narg('dashboard_id')::uuid
+WHERE id = @id AND status = 'running' AND claim_epoch = @claim_epoch;

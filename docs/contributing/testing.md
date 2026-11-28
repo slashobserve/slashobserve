@@ -9,8 +9,8 @@ Start with [Check your change before you push](#check-your-change-before-you-pus
 
 ## Check your change before you push
 
-1. Run `make agent` once, so a server built from source can find `observe-agent`.
-   When a model provider is configured, the server starts `observe-agent` and fails to start if it is not on the path.
+1. Run `make harness` once, so a server built from source can find `slashobserve-harness`.
+   When a model provider is configured, the server starts `slashobserve-harness` and fails to start if it is not on the path.
 2. Run `make test`.
    It runs every unit suite in [Run the unit tests](#run-the-unit-tests).
 3. Run `make lint`.
@@ -26,11 +26,11 @@ The browser and API suites are not part of `make ci`; see [Run the API suite](#r
 
 - `go test -race ./...`, with a 20 minute timeout
 - the web Vitest suite
-- `bun test` for `observe-agent`
+- `bun test` for `slashobserve-harness`
 - the Python unit tests of the benchmark adapter, which need `uv`; see [Running benchmarks](benchmarks.md)
 - the tests of the release, install, docs lint, CI change, Astronomy Shop and replicas scripts
 
-Run one part with `make test-go`, `make test-web`, `make test-agent`, `make test-benchmarks` or `make test-scripts`.
+Run one part with `make test-go`, `make test-web`, `make test-harness`, `make test-benchmarks` or `make test-scripts`.
 `make test-go GO_TEST_PKGS=./internal/db/...` narrows the Go packages.
 From the repository root you can also run `go test -race ./...`, and from `web/` you can run `bun run test`.
 
@@ -88,6 +88,7 @@ The fault checks read only the last two minutes of data, so an error from an ear
 ## Run the browser suite
 
 The browser suite runs the Playwright specs in `web/e2e` against the e2e stack.
+It holds only the journeys a unit test cannot see break, each walked through the real stack: sign-in, dashboards and their data, live updates, layout and versions, the panel editor, comments with the agent, the Observe chat, the review, Claude Code and Grafana import journeys, and a sweep of the shell pages.
 
 1. Run `make e2e-browser`.
    It reuses the running, healthy e2e stack, or boots one, installs Chromium, and runs the specs.
@@ -104,8 +105,8 @@ The `setup` project signs in through Dex once and saves `web/e2e/.auth/user.json
 
 ## Run part of the browser suite
 
-Set `PW_SHARD` to the part you want, for example `PW_SHARD=2/4 make e2e-browser` for the second of four.
-List what a shard holds without a stack by running `PW_SHARD=2/4 bunx playwright test --list` from `web/`.
+Set `PW_SHARD` to the part you want, for example `PW_SHARD=2/2 make e2e-browser` for the second of two.
+List what a shard holds without a stack by running `PW_SHARD=2/2 bunx playwright test --list` from `web/`.
 Every shard runs the sign-in setup first.
 
 ## Start the stack early
@@ -118,8 +119,8 @@ The warm step needs the shop's images, never the server image.
 
 ## Read a CI failure
 
-CI runs the browser suite as four shards, each on its own stack, with two workers and one retry.
-A test that passes only on the retry still fails the run.
+CI runs the browser suite as two shards, each on its own stack, with two workers and one retry.
+A test that passes only on the retry is reported as flaky and does not fail the run.
 Playwright records a trace on the retry, a screenshot on a failure and a video it keeps on a failure.
 Locally the suite runs with one worker, no retries and the list reporter.
 
@@ -213,7 +214,7 @@ Set `DOCS_DIR` to lint another folder, for example a copy of a page you are draf
 | `make test` | Every unit suite. |
 | `make test-go` | `go test -race`, with `GO_TEST_PKGS` to narrow the packages. |
 | `make test-web` | The web Vitest suite. |
-| `make test-agent` | `bun test` for `observe-agent`. |
+| `make test-harness` | `bun test` for `slashobserve-harness`. |
 | `make test-benchmarks` | The benchmark adapter's tests; needs `uv`. |
 | `make test-scripts` | The tests of the shell scripts. |
 | `make lint` | Go, web and agent linters, the docs lint and the Helm chart checks. |
@@ -237,6 +238,7 @@ Details of `make test-scripts`:
 - `scripts/ci-changes-test.sh` tests which CI jobs a set of changed files needs.
 - `scripts/astronomy-test.sh` tests the Astronomy Shop's flag target against a fixture flag file.
 - `scripts/replicas-test.sh` tests the replicas stack's wait for a request rate in Prometheus, against a stubbed `curl`.
+- `scripts/redact-test.sh` tests `scripts/redact.sh`, the one rule that keeps every token the server mints and other secrets out of the e2e and replicas stacks' failure output.
 
 ### E2E stack settings
 
@@ -325,34 +327,34 @@ A gate fails the run when any of these happens:
 | Job | Runs when | What it runs |
 | --- | --- | --- |
 | `changes` | Always. | `scripts/ci-changes.sh`, which decides which of the other jobs run. |
-| `go-lint` | A file outside `web/` and `observe-agent/` changed. | `make lint-go lint-deploy tidy-check`: golangci-lint, `sqlc diff`, the docs lint, the Helm chart checks and the tidy check. |
-| `go-test` | A file outside `web/` and `observe-agent/` changed. | `make test-go` in six shards: `grafana`, `db`, `datasource`, `agent`, `rest-1` and `rest-2`, split by `scripts/go-test-shard.sh`, which deals the packages outside the four named shards to the two rest shards by a fixed weight per slow package. Each shard saves its own Go build cache. |
-| `web-lint` | A file other than Go or prose changed. | `make lint-web lint-agent test-agent test-scripts test-benchmarks`. |
+| `go-lint` | A file outside `web/` and `harness/` changed. | `make lint-go lint-deploy tidy-check`: golangci-lint, `sqlc diff`, the docs lint, the Helm chart checks and the tidy check. |
+| `go-test` | A file outside `web/` and `harness/` changed. | `make test-go` in eight shards: `grafana`, `db`, `datasource`, `agent` and `rest-1` to `rest-4`, split by `scripts/go-test-shard.sh`, which deals the packages outside the four named shards to the four rest shards by their measured test seconds. A pull request runs without the race detector; the merge queue, `main` and manual runs keep it. Each shard saves its own Go build cache. |
+| `web-lint` | A file other than Go or prose changed. | `make lint-web lint-harness test-harness test-scripts test-benchmarks`. |
 | `web-test` | A file other than Go or prose changed. | The web Vitest suite in two shards. |
 | `build` | Non-prose files changed. | `make build`, then `make generate`, which must leave every file unchanged. |
 | `image` | `Dockerfile` or `.dockerignore` changed. | A build of the `Dockerfile` from its own stages. |
-| `e2e-api` | Non-test, non-prose files changed. | `make e2e`, with a 30 minute limit. |
-| `e2e-browser` | Non-test, non-prose files changed. | `make e2e-browser` in four shards, each on its own stack, with a 30 minute limit. |
+| `e2e-api` | Only in the merge queue for `main`, when non-test, non-prose files changed. | `make e2e`, with a 30 minute limit. |
+| `e2e-browser` | Only in the merge queue for `main`, when non-test, non-prose files changed. | `make e2e-browser` in two shards, each on its own stack, with a 30 minute limit; a test that passes on its retry is reported as flaky and does not fail the shard. |
 | `audit` | A lockfile, `package.json`, `go.mod` or `tools/` changed, on `main` and daily. | `make audit`. |
-| `check` | Always. | Passes when every lint, test, build and image job that ran has passed; `audit` and the two end-to-end jobs are separate. |
+| `check` | Always. | Passes when every job that ran has passed, the end-to-end jobs included; `audit` is separate. It is the one required check. |
 
 Details of how CI picks jobs:
 
-- A pull request runs only the jobs its changed files need, and a skipped job counts as passed.
-- `main` and a manual run start every job.
+- A pull request runs only the fast jobs its changed files need, never the end-to-end ones, and a skipped job counts as passed.
+- `main` merges through GitHub's merge queue, which runs every job, the end-to-end ones included, on the change as it will land, so `main` stays green while a pull request waits only for the fast jobs.
+- A push to `main` and a manual run start every job but the end-to-end ones, which already ran in the queue; to run them before queueing, run `make e2e-all` locally.
 - The daily run starts only `audit`.
-- A web-only change skips the Go jobs, except when it changes `web/src/spec/defaults.gen.ts` or `observe-agent/src/protocol.ts`, which Go tests read.
+- A web-only change skips the Go jobs, except when it changes `web/src/spec/defaults.gen.ts`, `harness/src/protocol.ts` or `harness/test/fixtures/prompts/guide-prometheus.md`, which Go tests read.
 - A Go-only change skips the web jobs.
 - A change to documentation skips every job but the Go ones, whose lint runs the docs check.
 - A change to unit tests skips the two end-to-end jobs.
 - A change under `.github/`, to `Makefile`, `scripts/ci-changes.sh` or `scripts/go-test-shard.sh` runs every job.
-- A draft pull request runs neither end-to-end job; marking it ready for review runs them.
 
 Details of how the end-to-end jobs start:
 
 - Each job compiles the server and the agent on the runner and builds the server image `slashobserve-e2e:ci` from those binaries.
 - Each job runs `make e2e-warm` in the background first, so the shop starts while the image builds.
-- Each browser shard starts the stack with `make e2e-up` while Chromium installs, then runs `make e2e-browser` with `PW_SHARD=N/4`.
+- Each browser shard starts the stack with `make e2e-up` while Chromium installs, then runs `make e2e-browser` with `PW_SHARD=N/2`.
 
 ### Docs lint rules
 

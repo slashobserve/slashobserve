@@ -27,6 +27,7 @@ import (
 const (
 	claimRunTool = "claim_run"
 	turnMetaKey  = "slashobserve.com/turn"
+	callMetaKey  = "slashobserve.com/call"
 	runMetaKey   = "slashobserve.com/run"
 )
 
@@ -118,14 +119,18 @@ func (h *handler) callInRun(ctx context.Context, name string, input json.RawMess
 	if !ok || h.runs == nil {
 		return runsession.Answer{}, errNoRunSessions
 	}
-	return h.runs.Call(ctx, run, runsession.Call{Name: name, Input: input, Turn: turnOf(req)}, dispatch)
+	call := runsession.Call{Name: name, Input: input, Turn: metaOf[runsession.Turn](req, turnMetaKey)}
+	if run.Assignee == revisions.AssignBuiltin {
+		call.Hints = metaOf[runsession.Hints](req, callMetaKey)
+	}
+	return h.runs.Call(ctx, run, call, dispatch)
 }
 
-func turnOf(req mcplib.CallToolRequest) *runsession.Turn {
+func metaOf[T any](req mcplib.CallToolRequest, key string) *T {
 	if req.Params.Meta == nil {
 		return nil
 	}
-	raw, ok := req.Params.Meta.AdditionalFields[turnMetaKey]
+	raw, ok := req.Params.Meta.AdditionalFields[key]
 	if !ok {
 		return nil
 	}
@@ -133,11 +138,11 @@ func turnOf(req mcplib.CallToolRequest) *runsession.Turn {
 	if err != nil {
 		return nil
 	}
-	var turn runsession.Turn
-	if err := json.Unmarshal(encoded, &turn); err != nil {
+	var v T
+	if err := json.Unmarshal(encoded, &v); err != nil {
 		return nil
 	}
-	return &turn
+	return &v
 }
 
 func isClaimPoll(body []byte) bool {

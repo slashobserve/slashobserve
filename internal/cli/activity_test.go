@@ -123,14 +123,6 @@ func TestActivityPrintsTheNewestEventsOldestFirst(t *testing.T) {
 	}
 }
 
-func TestActivityAsksForTwentyEventsByDefault(t *testing.T) {
-	f := newActivityFake(t, `{"activity":[],"next_cursor":null}`)
-	f.run("activity")
-	if len(f.list) != 1 || f.list[0].query != "limit=20" {
-		t.Fatalf("requests %+v", f.list)
-	}
-}
-
 func TestActivityJSONPrintsTheServerBody(t *testing.T) {
 	f := newActivityFake(t, twoEventPage())
 	stdout, _, code := f.run("activity", "--json")
@@ -139,11 +131,14 @@ func TestActivityJSONPrintsTheServerBody(t *testing.T) {
 	}
 }
 
-func TestActivityNamesAnEmptyLog(t *testing.T) {
+func TestActivityAsksForTwentyEventsAndNamesAnEmptyLog(t *testing.T) {
 	f := newActivityFake(t, `{"activity":[],"next_cursor":null}`)
 	stdout, stderr, code := f.run("activity")
 	if code != 0 || stdout != "" || stderr != "No activity yet\n" {
 		t.Fatalf("exit %d, stdout %q, stderr %q", code, stdout, stderr)
+	}
+	if len(f.list) != 1 || f.list[0].query != "limit=20" {
+		t.Fatalf("requests %+v", f.list)
 	}
 }
 

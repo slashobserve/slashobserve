@@ -53,7 +53,7 @@ func (d *traceLogsDatasource) requests() []datasource.TraceLogsRequest {
 	return slices.Clone(d.asked)
 }
 
-func newTraceLogsHarness(t *testing.T) (hn *harness, lokiDS, clickhouseDS *traceLogsDatasource) {
+func newTraceLogsHarness(t *testing.T, opts ...queryproxy.RunnerOption) (hn *harness, lokiDS, clickhouseDS *traceLogsDatasource) {
 	t.Helper()
 	hn = newHarness(t)
 	lokiDS = &traceLogsDatasource{fakeDatasource: &fakeDatasource{}, kind: spec.Loki}
@@ -66,7 +66,7 @@ func newTraceLogsHarness(t *testing.T) (hn *harness, lokiDS, clickhouseDS *trace
 	if err != nil {
 		t.Fatalf("NewRegistry: %v", err)
 	}
-	hn.runner = queryproxy.NewRunner(registry, hn.h.logger)
+	hn.runner = queryproxy.NewRunner(registry, hn.h.logger, opts...)
 	hn.h.runner, hn.h.registry = hn.runner, registry
 	return hn, lokiDS, clickhouseDS
 }
@@ -232,9 +232,28 @@ func TestTraceLogsMapDatasourceErrorsLikeExplore(t *testing.T) {
 		})
 	}
 	lokiDS.answer, lokiDS.panicky = nil, true
-	expectError(t, hn.traceLogs("logs", traceLogsBody()), http.StatusInternalServerError, "internal")
+	func() {
+		defer func() {
+			if recover() == nil {
+				t.Fatal("a panic in the datasource did not reach the server's recover middleware")
+			}
+		}()
+		hn.traceLogs("logs", traceLogsBody())
+	}()
 	if held := hn.heldSlots(); held != 0 {
 		t.Fatalf("%d slots still held", held)
+	}
+}
+
+func TestTraceLogsRefuseAnOversizedResponse(t *testing.T) {
+	hn, lokiDS, _ := newTraceLogsHarness(t)
+	lokiDS.answer = func(datasource.TraceLogsRequest) ([]datasource.Frame, error) {
+		return bigFrames(maxResponseBytes + 1), nil
+	}
+	rec := hn.traceLogs("logs", traceLogsBody())
+	expectError(t, rec, http.StatusUnprocessableEntity, "limit_exceeded")
+	if msg := decodeError(t, rec).Error; msg != "response too large" {
+		t.Fatalf("message = %q", msg)
 	}
 }
 
@@ -250,8 +269,7 @@ func TestTraceLogsAnswerTooManyRequestsWhenEverySlotIsHeld(t *testing.T) {
 		t.Fatalf("%d upstream calls while every slot is held", len(asked))
 	}
 
-	hn, lokiDS, _ = newTraceLogsHarness(t)
-	hn.h.lintTimeout = 20 * time.Millisecond
+	hn, lokiDS, _ = newTraceLogsHarness(t, queryproxy.WithUpstreamWait(20*time.Millisecond))
 	holdUpstreamSlots(t, hn)
 	rec = hn.traceLogs("logs", traceLogsBody())
 	expectError(t, rec, http.StatusTooManyRequests, "too_many_requests")

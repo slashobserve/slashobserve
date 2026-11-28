@@ -14,8 +14,8 @@ export const maxTiles = 64
 const maxTileZoom = 18
 
 export type TileOptions = {
-  minLevel?: number
-  maxLevel?: number
+  minLevel?: number | undefined
+  maxLevel?: number | undefined
   repeat?: boolean
 }
 

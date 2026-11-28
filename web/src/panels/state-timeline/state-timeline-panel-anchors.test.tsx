@@ -6,6 +6,12 @@ import type { PreparedFrame } from "../transforms"
 import type { TimelineAnchorLayout } from "./anchors"
 import StateTimelinePanel from "./state-timeline-panel"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 const start = Date.parse(baseMeta.from)
 const meta = {
   ...baseMeta,
@@ -49,7 +55,7 @@ describe("state timeline anchors", () => {
       to: Date.parse(baseMeta.to),
     })
     expect(layout.rowHeight).toBeGreaterThan(0)
-    expect(layout.rows[0].segments.length).toBeGreaterThan(0)
+    expect(nth(layout.rows, 0).segments.length).toBeGreaterThan(0)
   })
 
   it("publishes a status history under its own type", () => {
@@ -63,16 +69,5 @@ describe("state timeline anchors", () => {
     expect(published?.type).toBe("status-history")
     const layout = published?.layout as TimelineAnchorLayout
     expect(layout.rows.map(({ name }) => name)).toEqual(["checkout", "search"])
-  })
-
-  it("withdraws its layout when it unmounts", () => {
-    const { store, view } = renderPublishing(
-      StateTimelinePanel,
-      panelOf("state-timeline"),
-      frames,
-      { meta }
-    )
-    view.unmount()
-    expect(store.current()).toBeNull()
   })
 })

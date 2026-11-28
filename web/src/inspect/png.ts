@@ -9,7 +9,7 @@ async function panelToPng(element: HTMLElement): Promise<Blob> {
     .trim()
   const blob = await toBlob(element, {
     pixelRatio: 2,
-    backgroundColor: backgroundColor === "" ? undefined : backgroundColor,
+    ...(backgroundColor === "" ? {} : { backgroundColor }),
   })
   if (blob === null) throw new Error("The panel could not be drawn as an image")
   return blob

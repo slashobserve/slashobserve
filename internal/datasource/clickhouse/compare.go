@@ -35,8 +35,8 @@ func (d *Datasource) TraceAttributes(ctx context.Context, req datasource.TraceAt
 	lim.MaxRows = len(req.IDs)
 	params := ch.Parameters{
 		"ids":   arrayLiteral(req.IDs),
-		"from":  req.Range.From.UTC().Format(parameterTimeFmt),
-		"to":    req.Range.To.UTC().Format(parameterTimeFmt),
+		"from":  parameterTime(req.Range.From),
+		"to":    parameterTime(req.Range.To),
 		"spans": strconv.Itoa(req.MaxSpans),
 	}
 	var rs *resultSet

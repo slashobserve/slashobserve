@@ -6,75 +6,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
-const maxUpstreamTextBytes = 512
-
 var limitWords = []string{"limit", "too many", "maximum", "exceed", "search depth"}
 
-type timeoutKey struct{}
-
-func bound(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
-	reported := timeout
-	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) <= timeout {
-		reported = 0
-	}
-	ctx = context.WithValue(ctx, timeoutKey{}, reported)
-	return context.WithTimeout(ctx, timeout)
-}
-
-func transportError(ctx context.Context, err error) error {
-	reported, _ := ctx.Value(timeoutKey{}).(time.Duration)
-	if cerr := datasource.ContextError(ctx, err, reported); cerr != nil {
-		return cerr
-	}
-	return datasource.Errorf(datasource.ErrUnavailable, "connection failed")
-}
-
-func (d *Datasource) fetch(ctx context.Context, path string, params url.Values) (int, []byte, error) {
-	target := d.prefix + path
-	if len(params) > 0 {
-		target += "?" + params.Encode()
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
-	if err != nil {
-		return 0, nil, datasource.Errorf(datasource.ErrUnavailable, "connection failed")
-	}
-	req.Header.Set("Accept", "application/json")
-	for name, value := range d.opts.Headers {
-		req.Header.Set(name, value)
-	}
-	switch {
-	case d.opts.BasicAuthUser != "":
-		req.SetBasicAuth(d.opts.BasicAuthUser, d.opts.BasicAuthPassword.Reveal())
-	case !d.opts.BearerToken.IsZero():
-		req.Header.Set("Authorization", "Bearer "+d.opts.BearerToken.Reveal())
-	}
-	resp, err := d.client.Do(req)
-	if err != nil {
-		return 0, nil, transportError(ctx, err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, d.opts.MaxResponseBytes+1))
-	if err != nil {
-		return 0, nil, transportError(ctx, err)
-	}
-	if int64(len(raw)) > d.opts.MaxResponseBytes {
-		return 0, nil, datasource.Errorf(datasource.ErrLimitExceeded, "response larger than %d bytes", d.opts.MaxResponseBytes)
-	}
-	return resp.StatusCode, raw, nil
-}
-
 func (d *Datasource) get(ctx context.Context, path string, params url.Values) ([]byte, error) {
-	status, raw, err := d.fetch(ctx, path, params)
+	status, raw, err := d.http.Fetch(ctx, path, params)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +33,7 @@ func (d *Datasource) getJSON(ctx context.Context, path string, params url.Values
 		return err
 	}
 	if json.Unmarshal(raw, into) != nil {
-		return unreadable()
+		return datasource.Unreadable()
 	}
 	return nil
 }
@@ -138,16 +81,5 @@ func upstreamText(raw []byte) string {
 	if json.Unmarshal(raw, &body) == nil {
 		text = cmp.Or(body.Error.Message, body.Message)
 	}
-	return truncateText(text)
-}
-
-func truncateText(s string) string {
-	if len(s) > maxUpstreamTextBytes {
-		s = s[:maxUpstreamTextBytes]
-	}
-	return strings.ToValidUTF8(s, "")
-}
-
-func unreadable() error {
-	return datasource.Errorf(datasource.ErrUnavailable, "upstream returned an unreadable result")
+	return datasource.TruncateText(text)
 }

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined } from "@/panels/must"
+
 import type { PreparedFrame } from "./names"
 import { configProps, rowsToFields } from "./rows-to-fields"
 
@@ -18,6 +20,7 @@ const rows: PreparedFrame = {
 describe("rowsToFields", () => {
   it("turns each row into a field of its own", () => {
     const [out] = rowsToFields([rows], { type: "rowsToFields" })
+    defined(out)
     expect(out.labels).toBeUndefined()
     expect(out.fields).toEqual([
       { name: "cpu", type: "number", values: [10] },
@@ -35,6 +38,7 @@ describe("rowsToFields", () => {
         { field: "Max", to: "max" },
       ],
     })
+    defined(out)
     expect(out.fields.map((field) => field.config)).toEqual([
       { unit: "percent", max: 100 },
       { unit: "bytes", max: 64 },

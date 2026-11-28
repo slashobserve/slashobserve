@@ -2,7 +2,9 @@ package runsession
 
 import (
 	"math"
+	"slices"
 
+	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -13,7 +15,11 @@ const (
 	maxMessageRunes   = 500
 	maxCostUSD        = 10000.0
 	silentFailure     = "the agent did not say why"
+
+	maxReportedCallLimit = 1000
 )
+
+var reportedStages = []string{"orient", "hypothesize", "test", "conclude"}
 
 func cleanUsage(u revisions.Usage) revisions.Usage {
 	clean := revisions.Usage{
@@ -30,6 +36,16 @@ func cleanUsage(u revisions.Usage) revisions.Usage {
 		Renewals:            max(u.Renewals, 0),
 		ModelMS:             max(u.ModelMS, 0),
 		MaxSaveOutputTokens: max(u.MaxSaveOutputTokens, 0),
+		Nudges:              max(u.Nudges, 0),
+		SaveNowRefusals:     max(u.SaveNowRefusals, 0),
+		StalledTurns:        max(u.StalledTurns, 0),
+		OnePanelRefusals:    max(u.OnePanelRefusals, 0),
+		RepairRounds:        max(u.RepairRounds, 0),
+		CallLimit:           min(max(u.CallLimit, 0), maxReportedCallLimit),
+		Hypotheses:          keptLedger(u.Hypotheses),
+	}
+	if slices.Contains(reportedStages, u.StageAtSave) {
+		clean.StageAtSave = u.StageAtSave
 	}
 	if cost := u.CostUSD; cost != nil && !math.IsNaN(*cost) && *cost >= 0 && *cost <= maxCostUSD {
 		kept := *cost
@@ -58,6 +74,18 @@ func (s *State) noteModel(u revisions.Usage) {
 	have.Renewals = max(have.Renewals, u.Renewals)
 	have.ModelMS = max(have.ModelMS, u.ModelMS)
 	have.MaxSaveOutputTokens = max(have.MaxSaveOutputTokens, u.MaxSaveOutputTokens)
+	have.Nudges = max(have.Nudges, u.Nudges)
+	have.SaveNowRefusals = max(have.SaveNowRefusals, u.SaveNowRefusals)
+	have.StalledTurns = max(have.StalledTurns, u.StalledTurns)
+	have.OnePanelRefusals = max(have.OnePanelRefusals, u.OnePanelRefusals)
+	have.RepairRounds = max(have.RepairRounds, u.RepairRounds)
+	have.CallLimit = max(have.CallLimit, u.CallLimit)
+	if len(u.Hypotheses) > 0 {
+		have.Hypotheses = u.Hypotheses
+	}
+	if u.StageAtSave != "" {
+		have.StageAtSave = u.StageAtSave
+	}
 	if u.CostUSD != nil && (have.CostUSD == nil || *u.CostUSD > *have.CostUSD) {
 		have.CostUSD = u.CostUSD
 	}
@@ -65,19 +93,29 @@ func (s *State) noteModel(u revisions.Usage) {
 
 func (s *State) usage() revisions.Usage {
 	u := s.Usage
-	counts := s.Guard.Counts
+	counts := s.Counts
 	u.ToolCalls = counts.ToolCalls
-	u.RepairRounds = counts.Repairs
+	u.RepairRounds = max(counts.Repairs, s.Usage.RepairRounds)
 	u.BuildSaves = counts.BuildSaves
-	u.Nudges = counts.Nudges
-	u.SaveNowRefusals = counts.SaveNowRefusals
-	u.StalledTurns = counts.StalledTurns
-	u.OnePanelRefusals = counts.OnePanelRefusals
-	u.Hypotheses = s.Ledger
-	if loop := s.Guard.Loop; loop != nil {
-		u.CallLimit, u.StageAtSave = loop.Limit, loop.SavedStage
+	u.OnePanelRefusals = max(counts.OnePanelRefusals, s.Usage.OnePanelRefusals)
+	if len(s.Ledger) > 0 {
+		u.Hypotheses = s.Ledger
 	}
 	return u
+}
+
+func keptLedger(ledger []revisions.Hypothesis) []revisions.Hypothesis {
+	if len(ledger) == 0 || len(ledger) > tools.MaxHypotheses {
+		return nil
+	}
+	size := 0
+	for _, h := range ledger {
+		size += h.Size()
+	}
+	if size > tools.MaxLedgerBytes {
+		return nil
+	}
+	return slices.Clone(ledger)
 }
 
 func (s *State) storedUsage(prices pricing.Table) *revisions.Usage {

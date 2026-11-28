@@ -28,8 +28,10 @@ const esriTemplate =
   "https://services.arcgisonline.com/ArcGIS/rest/services/{service}/MapServer/tile/{z}/{y}/{x}"
 const osmTemplate = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 
+const defaultEsriService = "World_Street_Map"
+
 const esriServices: Record<string, string> = {
-  streets: "World_Street_Map",
+  streets: defaultEsriService,
   "world-imagery": "World_Imagery",
   "world-physical": "World_Physical_Map",
   topo: "World_Topo_Map",
@@ -66,7 +68,7 @@ function cartoSource(
 
 function esriSource(config: Record<string, unknown>): TileSource {
   const service =
-    esriServices[text(config.server) ?? "streets"] ?? esriServices.streets
+    esriServices[text(config.server) ?? "streets"] ?? defaultEsriService
   return {
     template: esriTemplate.replace("{service}", service),
     subdomains: "a",
@@ -86,12 +88,14 @@ function xyzSource(config: Record<string, unknown>): TileSource | null {
   if (!["{z}", "{x}", "{y}"].every((part) => url.includes(part))) return null
   const host = remoteHost(url.replaceAll("{s}", "a"), placeholderOrigin)
   if (host === null) return null
+  const minZoom = zoomLevel(config.minZoom)
+  const maxZoom = zoomLevel(config.maxZoom)
   return {
     template: url,
     subdomains: "a",
     attribution: text(config.attribution) ?? host,
-    minZoom: zoomLevel(config.minZoom),
-    maxZoom: zoomLevel(config.maxZoom),
+    ...(minZoom === undefined ? {} : { minZoom }),
+    ...(maxZoom === undefined ? {} : { maxZoom }),
   }
 }
 
@@ -145,8 +149,9 @@ export function basemapOf(
 }
 
 export function tileUrl(source: TileSource, tile: TileCoordinate): string {
-  const subdomain =
-    source.subdomains[(tile.x + tile.y) % source.subdomains.length]
+  const subdomain = source.subdomains.charAt(
+    (tile.x + tile.y) % source.subdomains.length
+  )
   return source.template
     .replaceAll("{s}", subdomain)
     .replaceAll("{z}", String(tile.z))

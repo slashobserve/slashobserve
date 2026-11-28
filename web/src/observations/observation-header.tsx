@@ -10,6 +10,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { LinkIcon, MoreHorizontalIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 
+import { problemText } from "@/api/errors"
 import { AuthorMark } from "@/components/author-mark"
 import { DockToggle } from "@/components/dock/dock-toggle"
 import { Button } from "@/components/ui/button"
@@ -23,7 +24,6 @@ import { Input } from "@/components/ui/input"
 import { markOf } from "@/lib/author"
 import { dashboardLink, observationPath } from "@/lib/links"
 import { cn } from "@/lib/utils"
-import { sentence } from "@/observe/queries"
 import { TopRowActions } from "@/shell/top-row-actions"
 
 import { DeleteObservationsDialog } from "./delete-dialog"
@@ -237,7 +237,7 @@ export function ObservationHeader({
                   onClick={() =>
                     pin.mutate(undefined, {
                       onSuccess: () => toast.success("Pinned to the dashboard"),
-                      onError: (error) => toast.error(sentence(error.message)),
+                      onError: (error) => toast.error(problemText(error)),
                     })
                   }
                 >
@@ -256,7 +256,7 @@ export function ObservationHeader({
                             saved.dashboard.title
                           )
                         ),
-                      onError: (error) => toast.error(sentence(error.message)),
+                      onError: (error) => toast.error(problemText(error)),
                     })
                   }
                 >

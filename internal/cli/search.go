@@ -96,33 +96,27 @@ func (a *app) runSearch(cmd *cobra.Command, words []string) error {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(page searchBody) error {
+		if len(page.Results) == 0 {
+			out.line("No results.")
+			return nil
+		}
+		for _, r := range page.Results {
+			folder, address := "no folder", "no page"
+			if r.Folder != nil {
+				folder = text(r.Folder.Title)
+			}
+			if r.URL != nil {
+				address = text(*r.URL)
+			}
+			out.line("%s  %s  %s  %s", text(r.Kind), text(r.Title), folder, address)
+			if snippet := snippetText(r.Snippet); snippet != "" {
+				out.line("    %s", snippet)
+			}
+		}
+		pageFooter(out, len(page.Results), nil, page.NextCursor)
 		return nil
-	}
-	page, err := decode[searchBody](data)
-	if err != nil {
-		return err
-	}
-	if len(page.Results) == 0 {
-		out.line("No results.")
-		return nil
-	}
-	for _, r := range page.Results {
-		folder, address := "no folder", "no page"
-		if r.Folder != nil {
-			folder = text(r.Folder.Title)
-		}
-		if r.URL != nil {
-			address = text(*r.URL)
-		}
-		out.line("%s  %s  %s  %s", text(r.Kind), text(r.Title), folder, address)
-		if snippet := snippetText(r.Snippet); snippet != "" {
-			out.line("    %s", snippet)
-		}
-	}
-	pageFooter(out, len(page.Results), nil, page.NextCursor)
-	return nil
+	})
 }
 
 func snippetText(segments []searchSegment) string {

@@ -32,8 +32,9 @@ function sameLabels(
 
 function orderedExemplarLabels(labels: [string, string][]): [string, string][] {
   const traceId = labels.findIndex(([key]) => traceIdKeys.includes(key))
-  if (traceId <= 0) return labels
-  return [labels[traceId], ...labels.filter((_, index) => index !== traceId)]
+  const traced = labels[traceId]
+  if (traceId <= 0 || traced === undefined) return labels
+  return [traced, ...labels.filter((_, index) => index !== traceId)]
 }
 
 export function exemplarPoints(

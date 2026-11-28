@@ -72,7 +72,7 @@ export function OpenObservations({
   more: boolean
   pending?: boolean
   currentId: string | null
-  onNavigate?: () => void
+  onNavigate?: (() => void) | undefined
 }) {
   const unread = useUnreadIds()
   const reserved = useReservedRows(

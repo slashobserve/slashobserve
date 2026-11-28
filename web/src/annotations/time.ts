@@ -23,7 +23,8 @@ export function timeWithZone(
 }
 
 function inZone(fields: number[], zone: string | undefined): number | null {
-  const [year, month, day, hour, minute, second] = fields
+  const [year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0] =
+    fields
   const text = (ms: number) => zonedDateTime(ms, zone)
   const wanted = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")} ${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}`
   let ms: number

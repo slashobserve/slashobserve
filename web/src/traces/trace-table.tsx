@@ -265,11 +265,11 @@ function ColumnsMenu({
 }
 
 type TraceP95 = {
-  p95Ms?: number | null
-  p95Label?: string
-  footerNote?: string
-  fitWindow?: boolean
-  headerActions?: ReactNode
+  p95Ms?: number | null | undefined
+  p95Label?: string | undefined
+  footerNote?: string | undefined
+  fitWindow?: boolean | undefined
+  headerActions?: ReactNode | undefined
 }
 
 export type TraceSortControl = {
@@ -280,8 +280,8 @@ export type TraceSortControl = {
 type TraceSelection = {
   selection: Selection | null
   onSelectionChange: (next: Selection | null) => void
-  selectionActions?: ReactNode
-  selectionPanel?: ReactNode
+  selectionActions?: ReactNode | undefined
+  selectionPanel?: ReactNode | undefined
 }
 
 function SortedTraceTable({
@@ -306,7 +306,7 @@ function SortedTraceTable({
   range: TraceRange
   hidden: ReadonlySet<TraceSortKey>
   onToggleColumn: (key: TraceSortKey, visible: boolean) => void
-  sortControl?: TraceSortControl
+  sortControl?: TraceSortControl | undefined
 } & TraceP95 &
   TraceSelection) {
   const [pageSort, setPageSort] = useState<TraceSort | null>(defaultTraceSort)
@@ -448,7 +448,7 @@ export function TraceTable({
   rows: TraceRow[]
   datasourceUid: string
   range: TraceRange
-  sortControl?: TraceSortControl
+  sortControl?: TraceSortControl | undefined
 } & TraceP95 &
   TraceSelection) {
   const [hidden, setHidden] = useState<ReadonlySet<TraceSortKey>>(

@@ -29,7 +29,6 @@ export function foldersQuery() {
 export function useCreateFolder() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (title: string) =>
       api.POST("/folders", { body: { title } }).then(unwrap),
     onSettled: () =>
@@ -60,7 +59,6 @@ export function folderPermissionsQuery(id: string) {
 export function useRenameFolder(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (title: string) =>
       api
         .PATCH("/folders/{id}", { params: { path: { id } }, body: { title } })
@@ -76,7 +74,6 @@ export function useRenameFolder(id: string) {
 export function useDeleteFolder(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: () =>
       api.DELETE("/folders/{id}", { params: { path: { id } } }).then(unwrap),
     onSuccess: () =>
@@ -92,7 +89,6 @@ export function useDeleteFolder(id: string) {
 export function useSetFolderPermissions(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (body: { entries: PutEntry[]; admins_only?: boolean }) =>
       api
         .PUT("/folders/{id}/permissions", {

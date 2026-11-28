@@ -381,7 +381,7 @@ func (s *Service) Mine(ctx context.Context, by auth.Principal) ([]Request, error
 			RequestedBy: Requester{Kind: r.RequesterKind, ID: r.RequesterID.String(), Name: r.RequesterName},
 			Note:        r.Note,
 			CreatedAt:   r.CreatedAt.Time,
-			State:       stateOf(standing{granted: r.Granted, dismissed: r.Dismissed, age: r.ReadAt.Time.Sub(r.CreatedAt.Time)}),
+			State:       stateOf(standing{granted: r.Granted, dismissed: r.Dismissed, superseded: r.Superseded, age: r.ReadAt.Time.Sub(r.CreatedAt.Time)}),
 		})
 	}
 	return out, nil

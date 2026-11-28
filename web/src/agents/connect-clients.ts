@@ -6,7 +6,7 @@ export type ConnectClient = {
   snippet: (mcpUrl: string) => string
 }
 
-export const connectClients: readonly ConnectClient[] = [
+export const connectClients: readonly [ConnectClient, ...ConnectClient[]] = [
   { value: "claude-code", label: "Claude Code", snippet: claudeOAuthSnippet },
 ]
 

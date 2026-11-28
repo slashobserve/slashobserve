@@ -1,0 +1,61 @@
+{
+  "name": "thread-ask-page",
+  "brief": {
+    "request": {
+      "mode": "investigate",
+      "source": "comment",
+      "prompt": "summarize this",
+      "panel_id": null,
+      "from": null,
+      "to": null,
+      "time_zone": null,
+      "zone": null,
+      "as_of": null,
+      "continue_note": null,
+      "thread_context": null,
+      "continues": false,
+      "attempt": 1,
+      "investigation": false,
+      "pointer": {
+        "anchor": null,
+        "block_id": null,
+        "observation_id": "obs3",
+        "thread_ask": true
+      }
+    },
+    "current": null,
+    "build": null,
+    "datasources": [
+      {
+        "uid": "prom",
+        "type": "prometheus",
+        "name": "Prometheus",
+        "source": "",
+        "healthy": true,
+        "checked_at": "0001-01-01T00:00:00Z",
+        "health_state": "",
+        "everyone": false
+      }
+    ],
+    "withheld": false,
+    "guide": {
+      "text": "",
+      "schema": null
+    },
+    "draft": null
+  },
+  "reason": "",
+  "now": "2026-11-25T05:29:00Z",
+  "state": {
+    "task": "explain",
+    "loop": false,
+    "facts": false,
+    "ledger": null,
+    "triage": "",
+    "digest": null
+  },
+  "want": {
+    "context": "Configured datasources:\n- prom (prometheus): healthy\n\nInvestigate the question and save one finding.\nWindow: the last hour (a default the question may need to exceed)\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nThe request was asked on observation obs3; 'this' means that page.",
+    "user": "Configured datasources:\n- prom (prometheus): healthy\n\nInvestigate the question and save one finding.\nWindow: the last hour (a default the question may need to exceed)\n\nIt is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried.\n\nThe request was asked on observation obs3; 'this' means that page.\n\n<request>\nsummarize this\n</request>"
+  }
+}

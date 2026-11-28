@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { must } from "@/panels/must"
+
 import type { PreparedFrame } from "./names"
 import { regression } from "./regression"
 
@@ -24,19 +26,23 @@ describe("regression", () => {
     const out = regression([frame], { type: "regression" })
     expect(out).toHaveLength(2)
     expect(out[0]).toBe(frame)
-    expect(out[1].name).toBe("load")
-    expect(out[1].fields.map((field) => field.name)).toEqual([
+    expect(must(out[1]).name).toBe("load")
+    expect(must(out[1]).fields.map((field) => field.name)).toEqual([
       "x",
       "y regression",
     ])
-    expect(rounded(out[1].fields[0].values)).toEqual([1, 2, 3, 4, 5])
-    expect(rounded(out[1].fields[1].values)).toEqual([3, 5, 7, 9, 11])
+    expect(rounded(must(must(out[1]).fields[0]).values)).toEqual([
+      1, 2, 3, 4, 5,
+    ])
+    expect(rounded(must(must(out[1]).fields[1]).values)).toEqual([
+      3, 5, 7, 9, 11,
+    ])
   })
 
   it("evaluates a line at evenly spaced points when asked for a count", () => {
     const out = regression([line()], { type: "regression", predictions: 3 })
-    expect(rounded(out[1].fields[0].values)).toEqual([1, 3, 5])
-    expect(rounded(out[1].fields[1].values)).toEqual([3, 7, 11])
+    expect(rounded(must(must(out[1]).fields[0]).values)).toEqual([1, 3, 5])
+    expect(rounded(must(must(out[1]).fields[1]).values)).toEqual([3, 7, 11])
   })
 
   it("fits a polynomial by least squares", () => {
@@ -52,7 +58,7 @@ describe("regression", () => {
       model: "polynomial",
       predictions: 3,
     })
-    expect(rounded(out[1].fields[1].values)).toEqual([1, 9, 25])
+    expect(rounded(must(must(out[1]).fields[1]).values)).toEqual([1, 9, 25])
     const cubic: PreparedFrame = {
       ref: "A",
       fields: [
@@ -65,7 +71,9 @@ describe("regression", () => {
       model: "polynomial",
       degree: 3,
     })
-    expect(rounded(fitted[1].fields[1].values)).toEqual([0, 1, 8, 27, 64, 125])
+    expect(rounded(must(must(fitted[1]).fields[1]).values)).toEqual([
+      0, 1, 8, 27, 64, 125,
+    ])
   })
 
   it("fits a straight line through the least squares of noisy points", () => {
@@ -77,7 +85,9 @@ describe("regression", () => {
       ],
     }
     const out = regression([noisy], { type: "regression" })
-    expect(rounded(out[1].fields[1].values)).toEqual([0.9, 2.3, 3.7, 5.1])
+    expect(rounded(must(must(out[1]).fields[1]).values)).toEqual([
+      0.9, 2.3, 3.7, 5.1,
+    ])
   })
 
   it("uses the time field and the first number field by default, and rounds predicted times", () => {
@@ -93,12 +103,12 @@ describe("regression", () => {
       ],
     }
     const out = regression([series], { type: "regression", predictions: 4 })
-    expect(out[1].fields[0].type).toBe("time")
-    expect(out[1].fields[0].values).toEqual([
+    expect(must(must(out[1]).fields[0]).type).toBe("time")
+    expect(must(must(out[1]).fields[0]).values).toEqual([
       1_700_000_000_000, 1_700_000_040_000, 1_700_000_080_000,
       1_700_000_120_000,
     ])
-    expect(rounded(out[1].fields[1].values)).toEqual([
+    expect(rounded(must(must(out[1]).fields[1]).values)).toEqual([
       10, 16.666667, 23.333333, 30,
     ])
   })
@@ -113,11 +123,11 @@ describe("regression", () => {
       ],
     }
     const out = regression([wide], { type: "regression", x: "a", y: "c" })
-    expect(out[1].fields.map((field) => field.name)).toEqual([
+    expect(must(out[1]).fields.map((field) => field.name)).toEqual([
       "a",
       "c regression",
     ])
-    expect(rounded(out[1].fields[1].values)).toEqual([2, 4, 6])
+    expect(rounded(must(must(out[1]).fields[1]).values)).toEqual([2, 4, 6])
   })
 
   it("skips points that are not numbers and frames it cannot fit", () => {
@@ -129,8 +139,8 @@ describe("regression", () => {
       ],
     }
     const out = regression([gaps], { type: "regression" })
-    expect(rounded(out[1].fields[0].values)).toEqual([1, 2, 4])
-    expect(rounded(out[1].fields[1].values)).toEqual([2, 4, 8])
+    expect(rounded(must(must(out[1]).fields[0]).values)).toEqual([1, 2, 4])
+    expect(rounded(must(must(out[1]).fields[1]).values)).toEqual([2, 4, 8])
 
     const one: PreparedFrame = {
       ref: "A",

@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
 import { isRetryable, unwrap } from "@/api/errors"
+import { exploreKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import { panelRequestLimiter } from "@/dashboards/limiter"
 import type { LogLevelKind } from "@/panels/logs/logs-model"
@@ -47,7 +48,7 @@ function logVolumeRequest(
         .POST("/datasources/{uid}/log-volume", {
           params: { path: { uid } },
           body: { query, from, to, buckets: volumeBuckets },
-          signal,
+          ...(signal === undefined ? {} : { signal }),
         })
         .then(unwrap),
     signal
@@ -56,7 +57,7 @@ function logVolumeRequest(
 
 export function logVolumeQuery(uid: string, params: VolumeParams) {
   return queryOptions({
-    queryKey: ["explore", uid, "volume", params],
+    queryKey: exploreKeys.volume(uid, params),
     queryFn: ({ signal }) => logVolumeRequest(uid, params, signal),
     staleTime: 0,
     gcTime: 60_000,
@@ -107,8 +108,13 @@ export function selectionEdges(
   toIndex: number,
   zone: string | undefined
 ): { start: string; end: string } {
-  const startMs = Date.parse(volume.buckets[fromIndex].start)
-  const endMs = Date.parse(volume.buckets[toIndex].start) + volume.step_ms
+  const first = volume.buckets[fromIndex]
+  const last = volume.buckets[toIndex]
+  if (first === undefined || last === undefined) {
+    throw new RangeError(`no volume bucket at ${fromIndex} or ${toIndex}`)
+  }
+  const startMs = Date.parse(first.start)
+  const endMs = Date.parse(last.start) + volume.step_ms
   const start = zonedDateTime(startMs, zone)
   const end = zonedDateTime(endMs, zone)
   const cut = volume.step_ms % 60_000 === 0 ? 16 : 19

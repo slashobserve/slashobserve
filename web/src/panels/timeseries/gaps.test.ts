@@ -12,6 +12,11 @@ import {
   spanShortGaps,
 } from "./gaps"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 const times = [0, 10, 20, 30, 40, 50]
 
 describe("spanShortGaps", () => {
@@ -173,8 +178,8 @@ describe("shapeNulls", () => {
       meta
     )
     expect(shaped.xs).toEqual([0, 30, 60, 70])
-    expect(shaped.series[0].values).toEqual([1, 0, 2, 0])
-    expect(shaped.series[1].values).toEqual([4, undefined, 5, 6])
+    expect(must(shaped.series[0]).values).toEqual([1, 0, 2, 0])
+    expect(must(shaped.series[1]).values).toEqual([4, undefined, 5, 6])
     expect(shaped.ghosts).toEqual([[7, undefined, 8, 9]])
   })
 })
@@ -237,8 +242,8 @@ describe("shapeNulls with insertNulls: true", () => {
       meta
     )
     expect(shaped.xs).toEqual([0, 10, 20, 35, 50])
-    expect(shaped.series[0].values).toEqual([1, 2, 3, null, 4])
-    expect(shaped.series[1].values).toEqual([5, 6, 7, undefined, 8])
+    expect(must(shaped.series[0]).values).toEqual([1, 2, 3, null, 4])
+    expect(must(shaped.series[1]).values).toEqual([5, 6, 7, undefined, 8])
   })
 })
 
@@ -288,8 +293,8 @@ describe("breakingGaps", () => {
       step_ms: 10_000,
       queries: [],
     })
-    expect(shaped.series[0].values).toEqual([1, null, undefined, 4])
-    expect(shaped.series[1].values).toEqual([1, 2, 3, 4])
+    expect(must(shaped.series[0]).values).toEqual([1, null, undefined, 4])
+    expect(must(shaped.series[1]).values).toEqual([1, 2, 3, 4])
   })
 })
 
@@ -327,7 +332,7 @@ describe("a series that stops for 35 minutes", () => {
   }
 
   it("is broken with a null after its last sample by default", () => {
-    const values = shape(false).series[0].values
+    const values = must(shape(false).series[0]).values
     expect(values[2]).toBe(3)
     expect(values[3]).toBeNull()
     expect(values.slice(4, 37).every((value) => value === undefined)).toBe(true)
@@ -335,7 +340,7 @@ describe("a series that stops for 35 minutes", () => {
   })
 
   it("keeps the ramp when the panel connects nulls", () => {
-    expect(shape(true).series[0].values).toEqual(stopped)
+    expect(must(shape(true).series[0]).values).toEqual(stopped)
   })
 
   it("breaks a lone series with a null point between the two samples", () => {
@@ -357,6 +362,6 @@ describe("a series that stops for 35 minutes", () => {
       meta
     )
     expect(shaped.xs).toEqual([0, 19 * minute, 38 * minute])
-    expect(shaped.series[0].values).toEqual([1, null, 5])
+    expect(must(shaped.series[0]).values).toEqual([1, null, 5])
   })
 })

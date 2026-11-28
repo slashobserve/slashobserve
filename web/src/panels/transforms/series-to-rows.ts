@@ -17,17 +17,19 @@ type Series = {
 function asSeries(frame: PreparedFrame): Series[] | null {
   const times = frame.fields.filter((field) => field.type === "time")
   const numbers = frame.fields.filter((field) => field.type === "number")
-  if (times.length === 0 || numbers.length !== 1) return null
-  const metric = seriesName(frame, numbers[0])
+  const [timeField] = times
+  const [numberField] = numbers
+  if (!timeField || !numberField || numbers.length !== 1) return null
+  const metric = seriesName(frame, numberField)
   const rows: Series[] = []
   const count = rowCount(frame)
   for (let i = 0; i < count; i++) {
-    const time = cell(times[0], i)
+    const time = cell(timeField, i)
     rows.push({
       frame,
       time: isNumber(time) ? time : null,
       metric,
-      value: cell(numbers[0], i),
+      value: cell(numberField, i),
     })
   }
   return rows

@@ -251,9 +251,9 @@ export type GeoContext = {
   gazetteers?: Gazetteers
   atlases?: Partial<Record<AtlasName, Feature[]>>
   remote?: Record<string, RemoteGeojson>
-  time?: number
-  from?: number
-  zone?: string
+  time?: number | undefined
+  from?: number | undefined
+  zone?: string | undefined
 }
 
 export type ViewOptions = {
@@ -268,7 +268,7 @@ export type ViewTuning = {
   paddingPercent?: number
 }
 
-export type FitChoice = { layer?: string; lastOnly: boolean }
+export type FitChoice = { layer?: string | undefined; lastOnly: boolean }
 
 type Layer = Record<string, unknown>
 
@@ -699,12 +699,12 @@ function markersLegend(
   const colored = items.filter(
     (item): item is Colored => item.colorField !== undefined
   )
-  if (colored.length === 0) return { name, entries: [only] }
+  const [first] = colored
+  if (first === undefined) return { name, entries: [only] }
   return {
     name,
     entries:
-      thresholdEntries(colored[0], fields) ??
-      extremeEntries(colored, fields, only),
+      thresholdEntries(first, fields) ?? extremeEntries(colored, fields, only),
   }
 }
 

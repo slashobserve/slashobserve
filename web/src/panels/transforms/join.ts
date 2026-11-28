@@ -13,6 +13,7 @@ type JoinMode = "outer" | "inner" | "outerTabular"
 export type JoinOptions = { field?: string; mode?: JoinMode }
 
 type Member = { frame: PreparedFrame; key: PreparedField }
+type Members = [Member, ...Member[]]
 type Joined = { key: unknown; rowOf: number[] }
 
 function firstTime(frame: PreparedFrame): PreparedField | undefined {
@@ -89,7 +90,7 @@ function keyFirst(
 
 type Column = { member: number; source: PreparedField; out: PreparedField }
 
-function outputColumns(members: Member[]): Column[] {
+function outputColumns(members: Members): Column[] {
   const [head] = members
   const taken = new Map<string, number>()
   for (const { frame, key } of members) {
@@ -158,7 +159,7 @@ function keyedRows(members: Member[], mode: "outer" | "inner"): Joined[] {
   return mode === "outer" ? [...kept, ...unkeyed] : kept
 }
 
-function tabularRows(members: Member[]): Joined[] {
+function tabularRows(members: Members): Joined[] {
   const width = members.length
   const blank = () => Array<number>(width).fill(-1)
   const [head, ...rest] = members
@@ -209,7 +210,7 @@ function tabularRows(members: Member[]): Joined[] {
   return rows
 }
 
-function joinMembers(members: Member[], mode: JoinMode): PreparedFrame {
+function joinMembers(members: Members, mode: JoinMode): PreparedFrame {
   const [head] = members
   const columns = outputColumns(members)
   const rows =
@@ -224,9 +225,10 @@ function joinMembers(members: Member[], mode: JoinMode): PreparedFrame {
       },
       ...columns.map(({ member, source, out }) => ({
         ...out,
-        values: rows.map((row) =>
-          row.rowOf[member] < 0 ? null : cell(source, row.rowOf[member])
-        ),
+        values: rows.map((row) => {
+          const at = row.rowOf[member]
+          return at === undefined || at < 0 ? null : cell(source, at)
+        }),
       })),
     ],
   }
@@ -244,10 +246,11 @@ export function joinByField(
     if (key) members.push({ frame, key })
     else others.push(frame)
   }
-  if (members.length === 0) return frames.map(copyFrame)
+  const [first, ...more] = members
+  if (first === undefined) return frames.map(copyFrame)
   const joined =
-    members.length === 1
-      ? keyFirst(members[0].frame, members[0].key, mode !== "outerTabular")
-      : joinMembers(members, mode)
+    more.length === 0
+      ? keyFirst(first.frame, first.key, mode !== "outerTabular")
+      : joinMembers([first, ...more], mode)
   return [joined, ...others.map(copyFrame)]
 }

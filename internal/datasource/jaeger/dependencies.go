@@ -22,7 +22,7 @@ func (d *Datasource) Dependencies(ctx context.Context, r datasource.TimeRange) (
 	if err := r.Validate(); err != nil {
 		return nil, err
 	}
-	ctx, cancel := bound(ctx, d.opts.Limits.Timeout)
+	ctx, cancel := datasource.Bound(ctx, d.opts.Limits.Timeout)
 	defer cancel()
 	params := url.Values{
 		"endTs":    {strconv.FormatInt(r.To.UnixMilli(), 10)},

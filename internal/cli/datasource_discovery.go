@@ -70,25 +70,19 @@ func (a *app) datasourceSchemaCommand() *cobra.Command {
 				return err
 			}
 			out := a.output()
-			if a.json {
-				out.body(data)
-				return nil
-			}
-			body, err := decode[schemaBody](data)
-			if err != nil {
-				return err
-			}
-			if err := printSchema(out, body); err != nil {
-				return err
-			}
-			if body.Truncated {
-				if body.NextOffset != nil {
-					out.notice("More exist. Read the next page with --offset %d.", *body.NextOffset)
-				} else {
-					out.notice("The list was cut to fit.")
+			return render(out, data, func(body schemaBody) error {
+				if err := printSchema(out, body); err != nil {
+					return err
 				}
-			}
-			return nil
+				if body.Truncated {
+					if body.NextOffset != nil {
+						out.notice("More exist. Read the next page with --offset %d.", *body.NextOffset)
+					} else {
+						out.notice("The list was cut to fit.")
+					}
+				}
+				return nil
+			})
 		},
 	}
 	cmd.Flags().StringVar(&table, "table", "", "the table whose columns to list")
@@ -174,19 +168,13 @@ func (a *app) datasourceSampleCommand() *cobra.Command {
 				return err
 			}
 			out := a.output()
-			if a.json {
-				out.body(data)
+			return render(out, data, func(body sampleBody) error {
+				printCells(out, body.Columns, body.Rows)
+				if body.Truncated {
+					out.notice("Columns, cells or rows were cut to fit; ask for fewer rows with --limit.")
+				}
 				return nil
-			}
-			body, err := decode[sampleBody](data)
-			if err != nil {
-				return err
-			}
-			printCells(out, body.Columns, body.Rows)
-			if body.Truncated {
-				out.notice("Columns, cells or rows were cut to fit; ask for fewer rows with --limit.")
-			}
-			return nil
+			})
 		},
 	}
 	cmd.Flags().StringVar(&table, "table", "", "ClickHouse table, or a Loki stream selector")

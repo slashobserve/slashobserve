@@ -21,7 +21,6 @@ export SLASHOBSERVE_DEX_HOST_PORT="$DEX_PORT"
 export SLASHOBSERVE_PROMETHEUS_HOST_PORT="${SLASHOBSERVE_REPLICAS_PROMETHEUS_PORT:-49090}"
 export SLASHOBSERVE_LOKI_HOST_PORT="${SLASHOBSERVE_REPLICAS_LOKI_PORT:-43100}"
 export SLASHOBSERVE_TEMPO_HOST_PORT="${SLASHOBSERVE_REPLICAS_TEMPO_PORT:-43200}"
-export SLASHOBSERVE_DATASOURCES_HOST_FILE=./datasources.replicas.yaml
 export SLASHOBSERVE_IMAGE="slashobserve-replicas:local"
 export SLASHOBSERVE_REPLICAS_BOOT_DIR="$RUNTIME/boot"
 
@@ -35,22 +34,8 @@ REQUEST_RATE_QUERY="sum(rate(slashobserve_http_request_duration_seconds_count[1m
 
 curl() { command curl --max-time 10 "$@"; }
 
-read -r -d '' REDACT_PERL <<'PERL' || true
-my $key = qr/(?!\w*tokens["']?\s*[:=]\s*\d+(?![\w.~+\/=-]))\w*(?:password|passwd|token|secret|api[_-]?key|private[_-]?key|access[_-]?key)\w*/i;
-s{(://)[^/\s:\@]+:[^/\s\@]+\@}{${1}\[redacted]\@}g;
-s/sok_[A-Za-z0-9_-]+/sok_\[redacted]/gi;
-s/so[ar]_[A-Za-z0-9_-]+/so_\[redacted]/gi;
-s/(Bearer\s+)[A-Za-z0-9._~+\/=-]+/${1}\[redacted]/gi;
-s/\b((?:authorization|cookie|set-cookie|x-api-key|so_session)["']?\s*[:=]\s*)(?:(["'])(?:(?:\\.|(?!\2)[^\\])*\2|(?:(?!\2).)*\2)|.*)/defined $2 ? "${1}${2}\[redacted]${2}" : "${1}\[redacted]"/gie;
-s/(so_session\s+)\S+/${1}\[redacted]/gi;
-s/($key)(["']?\s*[:=]\s*)(["'])(?:(?:\\.|(?!\3)[^\\])*\3|(?:(?!\3).)*\3)/${1}${2}${3}\[redacted]${3}/g;
-s/($key)(["']?\s*[:=]\s*)(?!\[redacted\])[^\s,;&"'}\])]+/${1}${2}\[redacted]/g;
-s/([?&]code=)[^&\s#"']+/${1}\[redacted]/gi;
-PERL
-
-redact() {
-  perl -pe "$REDACT_PERL"
-}
+# shellcheck source=scripts/redact.sh
+. "$ROOT/scripts/redact.sh"
 
 usage() {
   cat <<EOF
@@ -604,7 +589,7 @@ provisioned_clean() {
 
 check_c2() {
   local want n
-  want="$(find "$ROOT/deploy/compose/dashboards/SlashObserve" -name '*.json' | wc -l | tr -d ' ')"
+  want="$(find "$ROOT/deploy/helm/slashobserve/dashboards/SlashObserve" -name '*.json' | wc -l | tr -d ' ')"
   eventually 300 "provisioned_dashboards to hold $want rows without an error" provisioned_clean "$want"
   [[ "$(psql_app "SELECT count(*) FROM dashboards")" == "$want" ]] ||
     fail "dashboards holds $(psql_app "SELECT count(*) FROM dashboards") rows, not $want"

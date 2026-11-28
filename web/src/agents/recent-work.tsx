@@ -3,7 +3,7 @@ import { useInfiniteQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
 import { api } from "@/api/client"
-import { unwrap } from "@/api/errors"
+import { unwrap, loadProblemText } from "@/api/errors"
 import { agentKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import { LoadProblem } from "@/components/load-problem"
@@ -11,7 +11,6 @@ import { RelativeTime } from "@/components/relative-time"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { dashboardLink, observationLink } from "@/lib/links"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import type { AgentRef } from "./agent-ref"
 import { costText } from "./stats"
@@ -51,7 +50,14 @@ function runsQuery(agentRef: AgentRef) {
     }) =>
       api
         .GET("/agents/runs", {
-          params: { query: { kind, id, limit: pageSize, cursor: pageParam } },
+          params: {
+            query: {
+              kind,
+              ...(id === undefined ? {} : { id }),
+              limit: pageSize,
+              ...(pageParam === undefined ? {} : { cursor: pageParam }),
+            },
+          },
           signal,
         })
         .then(unwrap),

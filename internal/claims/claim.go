@@ -23,6 +23,7 @@ type Offer struct {
 	LeaseSeconds      int            `json:"lease_seconds,omitempty"`
 	SystemPrompt      *PromptRef     `json:"system_prompt,omitempty"`
 	Model             *ModelSettings `json:"model,omitempty"`
+	Agent             *AgentSettings `json:"agent,omitempty"`
 	RetryAfterSeconds int            `json:"retry_after_seconds,omitempty"`
 }
 
@@ -131,6 +132,7 @@ func (s *Service) offer(ctx context.Context, c Claimer, claimed revisions.Claime
 		LeaseSeconds: int(revisions.LeaseTTL / time.Second),
 		SystemPrompt: &PromptRef{Name: observePrompt, Arguments: map[string]string{"kind": run.Kind}},
 		Model:        s.modelFor(c, claimed.Request),
+		Agent:        s.agentFor(c),
 	}, nil
 }
 

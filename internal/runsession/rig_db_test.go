@@ -238,14 +238,6 @@ func withMaxCost(limit float64, prices pricing.Table) rigOption {
 	return func(c *Config) { c.MaxRunCostUSD, c.Prices = limit, prices }
 }
 
-func withInvestigationLoop() rigOption {
-	return func(c *Config) { c.InvestigationLoop = true }
-}
-
-func withInvestigationCalls(n int) rigOption {
-	return func(c *Config) { c.InvestigationCalls = n }
-}
-
 func newRig(t *testing.T, options ...rigOption) *rig {
 	t.Helper()
 	d := dbtest.New(t)
@@ -256,7 +248,7 @@ func newRigOn(t *testing.T, d *dbtest.Database, handle *db.DB, options ...rigOpt
 	t.Helper()
 	logger := slog.New(slog.DiscardHandler)
 	runs := revisions.NewService(handle, logger, revisions.WithBuiltInAgent(),
-		revisions.WithPrincipals(people{}), revisions.WithPanels(panels{}), revisions.WithAccess(folders.NewAccess(handle)), revisions.WithThreads(threads.NewRuns(handle)))
+		revisions.WithPrincipals(people{}), revisions.WithPanels(panels{}), revisions.WithAccess(folders.NewAccess(handle)), revisions.WithThreads(threads.NewRuns()))
 	claimsService := claims.New(claims.Config{DB: handle, Runs: runs, Listen: d.Listen, PublicURL: &url.URL{Scheme: "https", Host: "so.example.com"}, RunTimeout: time.Hour, Logger: logger})
 	r := &rig{t: t, d: d, runs: runs, claims: claimsService, steps: &stepLog{}}
 	r.dash = seedDashboard(t, d)

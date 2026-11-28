@@ -44,14 +44,14 @@ function TextField({
   problem,
   disabled,
 }: {
-  ref?: Ref<HTMLInputElement>
+  ref?: Ref<HTMLInputElement> | undefined
   id: string
   label: string
   value: string
   onChange: (value: string) => void
-  placeholder?: string
-  problem?: string | null
-  disabled?: boolean
+  placeholder?: string | undefined
+  problem?: string | null | undefined
+  disabled?: boolean | undefined
 }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -89,7 +89,7 @@ function ServiceCombobox({
   type,
   disabled,
 }: {
-  ref?: Ref<HTMLInputElement>
+  ref?: Ref<HTMLInputElement> | undefined
   id: string
   value: string
   onChange: (value: string) => void

@@ -34,7 +34,7 @@ describe("printItems", () => {
 
   it("gives a panel the height it has when the page is stacked", () => {
     const [item] = printItems([panel("a", 0, 0, 8)])
-    expect(item.height).toBeGreaterThanOrEqual(pixelHeight(8))
+    expect(item?.height).toBeGreaterThanOrEqual(pixelHeight(8))
   })
 
   it("gives a row header and a note one grid row", () => {

@@ -30,14 +30,15 @@ export function heatmap(
   )
   const kept = options.keepOriginalData === true
   const copies = frames.map(copyFrame)
-  if (model.rows.length === 0) return copies
+  const first = frames[0]
+  if (first === undefined || model.rows.length === 0) return copies
   const xMin: number[] = []
   const yMin: number[] = []
   const yMax: number[] = []
   const count: number[] = []
   model.rows.forEach((row, at) => {
     model.xs.forEach((x, column) => {
-      const cells = model.cells[at][column]
+      const cells = model.cells[at]?.[column]
       if (!cells || row.from === undefined || row.to === undefined) return
       xMin.push(x)
       yMin.push(row.from)
@@ -46,7 +47,7 @@ export function heatmap(
     })
   })
   const counted: PreparedFrame = {
-    ref: frames[0].ref,
+    ref: first.ref,
     fields: [
       { name: "xMin", type: "time", values: xMin },
       { name: "yMin", type: "number", values: yMin },

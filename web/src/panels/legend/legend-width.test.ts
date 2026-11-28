@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import {
   inlineValuesWidth,
   legendListWidth,
@@ -102,6 +104,7 @@ describe("legendNameRoom", () => {
     const cells = [["1.20"], ["300.50"]]
     const width = legendTableWidth(labels, headers, cells, tenPerCharacter, 16)
     const values = legendValueWidths(headers, cells, tenPerCharacter, 16)[0]
+    defined(values)
     expect(legendNameRoom(width, 16, values)).toBe(100)
   })
 })
@@ -113,7 +116,7 @@ describe("inlineValuesWidth", () => {
     "62,103  98.1%": 71.72,
     UNSET: 38.89,
   }
-  const measured = (text: string) => liveDonut[text]
+  const measured = (text: string) => liveDonut[text] ?? Number.NaN
 
   it("leaves a right list legend row exactly the room its button has for the name", () => {
     const values = inlineValuesWidth(
@@ -125,7 +128,7 @@ describe("inlineValuesWidth", () => {
     const rowContent = 160 - 2 * 4 - 2 * 6
     const swatchAndGaps = 16 + 6 + 6
     expect(room).toBeCloseTo(rowContent - swatchAndGaps - 71.72, 5)
-    expect(room).toBeGreaterThanOrEqual(measured("UNSET"))
+    expect(room).toBeGreaterThanOrEqual(must(measured("UNSET")))
   })
 })
 
@@ -141,7 +144,7 @@ describe("legendListWidth", () => {
     "1,218  1.7%": 54.28,
     "68,538  98.0%": 79.25,
   }
-  const measured = (text: string) => geist[text]
+  const measured = (text: string) => geist[text] ?? Number.NaN
   const labels = ["STATUS_CODE_ERROR", "STATUS_CODE_OK", "STATUS_CODE_UNSET"]
   const values = ["155  0.2%", "1,218  1.7%", "68,538  98.0%"]
   const fixed = 8 + 12 + 16 + 6
@@ -170,7 +173,7 @@ describe("legendListWidth", () => {
       expect(width).toBe(legend)
       expect(panel - width).toBeGreaterThanOrEqual(120)
       expect(legendNameRoom(width, 16, valueColumn)).toBeGreaterThanOrEqual(
-        measured(name)
+        must(measured(name))
       )
     }
   )

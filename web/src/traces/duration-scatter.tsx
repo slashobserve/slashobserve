@@ -278,12 +278,12 @@ export function DurationScatter({
   onHighlight: (traceId: string | null) => void
   p95Ms: number | null
   p95Label: string
-  ariaLabel?: string
-  overlay?: ReactNode
+  ariaLabel?: string | undefined
+  overlay?: ReactNode | undefined
   selection: Selection | null
   onSelectionChange: (next: Selection | null) => void
   selectedCount: number
-  selectionActions?: ReactNode
+  selectionActions?: ReactNode | undefined
 }) {
   const navigate = useNavigate()
   const observation = useObservationOrigin()

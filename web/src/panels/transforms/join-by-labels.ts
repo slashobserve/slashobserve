@@ -36,7 +36,8 @@ export function joinByLabels(
       frame.labels?.[value] !== undefined &&
       frame.fields.some((field) => field.type === "number")
   )
-  if (members.length === 0) return frames.map(copyFrame)
+  const [first] = members
+  if (first === undefined) return frames.map(copyFrame)
   const keys = on ?? joinKeys(members, value)
   const rows = new Map<string, Row>()
   const columns = new Map<string, PreparedField["type"]>()
@@ -89,5 +90,5 @@ export function joinByLabels(
     })),
   ]
   const rest = frames.filter((frame) => !members.includes(frame))
-  return [{ ref: members[0].ref, fields }, ...rest.map(copyFrame)]
+  return [{ ref: first.ref, fields }, ...rest.map(copyFrame)]
 }

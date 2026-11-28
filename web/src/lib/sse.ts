@@ -90,10 +90,8 @@ export type SseRead = {
 const minRetryMs = 1_000
 
 function mediaType(response: Response): string {
-  return (response.headers.get("content-type") ?? "")
-    .split(";")[0]
-    .trim()
-    .toLowerCase()
+  const [type = ""] = (response.headers.get("content-type") ?? "").split(";")
+  return type.trim().toLowerCase()
 }
 
 type ReadOptions = {

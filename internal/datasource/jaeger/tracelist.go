@@ -19,7 +19,7 @@ func (d *Datasource) ListTraces(ctx context.Context, req datasource.TraceListReq
 		return datasource.TraceList{}, datasource.Errorf(datasource.ErrInvalidQuery, "%s", listNeedsService)
 	}
 	lim := d.opts.Limits.Tighten(req.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	s := search{service: req.Filter.Service, operation: req.Filter.Operation, tags: map[string]string{}}
 	if req.Errors {

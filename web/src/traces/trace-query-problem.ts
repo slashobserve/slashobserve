@@ -21,16 +21,16 @@ function before(query: string, line: number, column: number): string {
 }
 
 export function traceQLProblem(message: string, query: string): string {
-  const cleaned = cleanedByServer.exec(message)
-  if (cleaned !== null) return cleaned[1]
-  const match = parseError.exec(message)
-  if (match === null) return message.replace(doubledPrefix, "$1")
-  const line = Number(match[1])
-  const column = Number(match[2])
+  const cleaned = cleanedByServer.exec(message)?.[1]
+  if (cleaned !== undefined) return cleaned
+  const [, lineText, columnText, problem] = parseError.exec(message) ?? []
+  if (problem === undefined) return message.replace(doubledPrefix, "$1")
+  const line = Number(lineText)
+  const column = Number(columnText)
   const text = before(query, line, column)
   const where = `line ${line}, column ${column}`
   const after = text === "" ? "" : ` after "${text}"`
-  return `Invalid TraceQL at ${where}${after}: ${readable(match[3])}.`
+  return `Invalid TraceQL at ${where}${after}: ${readable(problem)}.`
 }
 
 const searchLimit = /Tempo searches at most (\d+) (day|hour|minute)s? at a time/
@@ -38,12 +38,11 @@ const searchLimit = /Tempo searches at most (\d+) (day|hour|minute)s? at a time/
 export function shorterRange(
   message: string
 ): { from: string; label: string } | null {
-  const match = searchLimit.exec(message)
-  if (match === null) return null
-  const count = Number(match[1])
-  const unit = match[2]
+  const [, countText, unit] = searchLimit.exec(message) ?? []
+  if (countText === undefined || unit === undefined) return null
+  const count = Number(countText)
   return {
-    from: `now-${count}${unit === "minute" ? "m" : unit[0]}`,
+    from: `now-${count}${unit === "minute" ? "m" : unit.charAt(0)}`,
     label: `Last ${count} ${unit}${count === 1 ? "" : "s"}`,
   }
 }

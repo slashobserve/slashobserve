@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import resolveCasesText from "../../../spec/examples/time/resolve-cases.json?raw"
 import {
+  exploreRange,
   browserZoneName,
   describeInstant,
   describeRange,
@@ -689,5 +690,18 @@ describe("timeFormatHint", () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe("exploreRange", () => {
+  it("defaults to the last hour", () => {
+    expect(exploreRange({})).toEqual({ from: "now-1h", to: "now" })
+  })
+
+  it("uses the range in the search", () => {
+    expect(exploreRange({ from: "now-2d", to: "now-1d" })).toEqual({
+      from: "now-2d",
+      to: "now-1d",
+    })
   })
 })

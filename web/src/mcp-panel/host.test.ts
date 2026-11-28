@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 
 import { connect, protocolVersion, type HostHandlers } from "./host"
+import { must } from "@/test/must"
 
 function fakeParent() {
   const sent: Record<string, unknown>[] = []
@@ -28,7 +29,7 @@ function handlers(): HostHandlers {
 async function connected(h = handlers()) {
   const fake = fakeParent()
   const pending = connect(fake.parent, window, h)
-  const init = fake.sent[0]
+  const init = must(fake.sent[0])
   fake.deliver({
     id: init.id as number,
     result: {
@@ -104,7 +105,7 @@ describe("connect", () => {
   it("asks the host to open a link and to take a new size", async () => {
     const { deliver, sent, host } = await connected()
     const opened = host.openLink("https://observe.test/d/1")
-    const request = sent[sent.length - 1]
+    const request = must(sent[sent.length - 1])
     expect(request).toMatchObject({
       method: "ui/open-link",
       params: { url: "https://observe.test/d/1" },
@@ -123,7 +124,7 @@ describe("connect", () => {
     const { deliver, sent, host } = await connected()
     const opened = host.openLink("https://observe.test/d/1")
     deliver({
-      id: sent[sent.length - 1].id as number,
+      id: must(sent[sent.length - 1]).id as number,
       error: { code: -32000, message: "denied" },
     })
     await expect(opened).rejects.toThrow("denied")

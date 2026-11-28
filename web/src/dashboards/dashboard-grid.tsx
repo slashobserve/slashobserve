@@ -54,11 +54,11 @@ type Props = {
   selections: Selections
   values: Record<string, string[] | undefined>
   renderPanel: (item: PanelItem, size: Size) => ReactNode
-  editable?: boolean
-  layout?: Layout
-  onLayoutChange?: (layout: Layout) => void
-  selectedId?: string | null
-  newPanelIds?: ReadonlySet<string>
+  editable?: boolean | undefined
+  layout?: Layout | undefined
+  onLayoutChange?: ((layout: Layout) => void) | undefined
+  selectedId?: string | null | undefined
+  newPanelIds?: ReadonlySet<string> | undefined
 }
 
 const noRows: Record<string, boolean> = {}
@@ -256,57 +256,62 @@ export function DashboardGrid({
             enabled: editable && !stacked,
             handles: resizeHandles,
           }}
-          onLayoutChange={stacked ? undefined : reportLayout}
+          {...(stacked ? {} : { onLayoutChange: reportLayout })}
         >
-          {ordered.map(({ entry }, index) => (
-            <div
-              key={entry.key}
-              className={
-                entry.kind === "panel" &&
-                entry.first &&
-                entry.panel.id === selectedId
-                  ? "z-10"
-                  : undefined
-              }
-            >
-              {entry.kind === "row" ? (
-                <RowHeader
-                  rowId={entry.row.id}
-                  title={entry.title}
-                  collapsed={entry.collapsed}
-                  childCount={entry.childCount}
-                  onToggle={
-                    editing
-                      ? undefined
-                      : () =>
-                          toggleRow(
-                            dashboardId,
-                            entry.row.id,
-                            entry.row.collapsed ?? false
-                          )
-                  }
-                />
-              ) : null}
-              {entry.kind === "note" ? (
-                <p className="flex size-full items-center text-xs text-muted-foreground">
-                  {entry.text}
-                </p>
-              ) : null}
-              {entry.kind === "panel" ? (
-                <div
-                  className={cn(
-                    "size-full",
-                    newPanelIds?.has(entry.panel.id) && fadeIn
-                  )}
-                >
-                  {renderPanel(entry, {
-                    width: pixelWidth(width, gridItems[index].w),
-                    height: pixelHeight(gridItems[index].h),
-                  })}
-                </div>
-              ) : null}
-            </div>
-          ))}
+          {ordered.map(({ entry }, index) => {
+            const size = gridItems[index]
+            if (size === undefined)
+              throw new Error(`no grid item for ${entry.key}`)
+            return (
+              <div
+                key={entry.key}
+                className={
+                  entry.kind === "panel" &&
+                  entry.first &&
+                  entry.panel.id === selectedId
+                    ? "z-10"
+                    : undefined
+                }
+              >
+                {entry.kind === "row" ? (
+                  <RowHeader
+                    rowId={entry.row.id}
+                    title={entry.title}
+                    collapsed={entry.collapsed}
+                    childCount={entry.childCount}
+                    onToggle={
+                      editing
+                        ? undefined
+                        : () =>
+                            toggleRow(
+                              dashboardId,
+                              entry.row.id,
+                              entry.row.collapsed ?? false
+                            )
+                    }
+                  />
+                ) : null}
+                {entry.kind === "note" ? (
+                  <p className="flex size-full items-center text-xs text-muted-foreground">
+                    {entry.text}
+                  </p>
+                ) : null}
+                {entry.kind === "panel" ? (
+                  <div
+                    className={cn(
+                      "size-full",
+                      newPanelIds?.has(entry.panel.id) && fadeIn
+                    )}
+                  >
+                    {renderPanel(entry, {
+                      width: pixelWidth(width, size.w),
+                      height: pixelHeight(size.h),
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            )
+          })}
         </GridLayout>
       ) : null}
     </div>

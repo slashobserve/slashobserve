@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import { configFromData } from "./config-from-data"
 import type { PreparedFrame } from "./names"
 
@@ -30,7 +32,7 @@ describe("configFromData", () => {
       ],
     })
     expect(out).toHaveLength(1)
-    expect(out[0].fields.map((field) => field.config)).toEqual([
+    expect(must(out[0]).fields.map((field) => field.config)).toEqual([
       undefined,
       { max: 80, unit: "percent" },
       undefined,
@@ -44,6 +46,7 @@ describe("configFromData", () => {
       mappings: [{ field: "limit", to: "min", reducer: "first" }],
       applyTo: { field: "host" },
     })
+    defined(out)
     expect(out.fields.map((field) => field.config)).toEqual([
       undefined,
       undefined,
@@ -67,6 +70,6 @@ describe("configFromData", () => {
       configQuery: "B",
       mappings: [{ field: "limit", to: "max" }],
     })
-    expect(data.fields[1].config).toBeUndefined()
+    expect(must(data.fields[1]).config).toBeUndefined()
   })
 })

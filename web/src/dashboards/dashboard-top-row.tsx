@@ -1,13 +1,8 @@
-import {
-  Fragment,
-  useCallback,
-  useState,
-  useSyncExternalStore,
-  type ReactNode,
-} from "react"
+import { Fragment, useCallback, useState, type ReactNode } from "react"
 import { Link } from "@tanstack/react-router"
 import { SlidersHorizontalIcon } from "lucide-react"
 
+import { useNarrow } from "@/lib/use-narrow"
 import { pendingPaneHeading } from "@/components/dock/dock-focus"
 import { Button } from "@/components/ui/button"
 import {
@@ -37,22 +32,6 @@ type Props = {
 
 function Items({ nodes }: { nodes: ReactNode[] }) {
   return nodes.map((node, index) => <Fragment key={index}>{node}</Fragment>)
-}
-
-const narrowQuery = "(max-width: 899px)"
-
-function subscribeNarrow(onChange: () => void) {
-  const media = window.matchMedia(narrowQuery)
-  media.addEventListener("change", onChange)
-  return () => media.removeEventListener("change", onChange)
-}
-
-function useNarrow(): boolean {
-  return useSyncExternalStore(
-    subscribeNarrow,
-    () => window.matchMedia(narrowQuery).matches,
-    () => false
-  )
 }
 
 function Separator() {

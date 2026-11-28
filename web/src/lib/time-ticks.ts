@@ -5,6 +5,7 @@ const minute = 60 * second
 const hour = 60 * minute
 const day = 24 * hour
 
+const longestInterval = 30 * day
 const niceIntervals = [
   second,
   5 * second,
@@ -26,7 +27,7 @@ const niceIntervals = [
   2 * day,
   7 * day,
   14 * day,
-  30 * day,
+  longestInterval,
 ]
 
 export type TimeTick = { index: number; label: string }
@@ -47,11 +48,13 @@ export function timeTicks(
   maxTicks: number,
   zone: string | undefined
 ): TimeTick[] {
-  if (xs.length === 0 || maxTicks < 1) return []
-  const spanMs = xs[xs.length - 1] - xs[0]
+  const first = xs[0]
+  const last = xs.at(-1)
+  if (first === undefined || last === undefined || maxTicks < 1) return []
+  const spanMs = last - first
   const interval =
     niceIntervals.find((candidate) => spanMs / candidate <= maxTicks) ??
-    niceIntervals[niceIntervals.length - 1]
+    longestInterval
   const localMs = (ms: number) =>
     ms +
     (zone === undefined

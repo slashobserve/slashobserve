@@ -201,18 +201,6 @@ func TestWriteScopeTravelsInTheContext(t *testing.T) {
 	}
 }
 
-func TestEveryWriteToolOfferedToARunDeclaresItsScope(t *testing.T) {
-	r := New(Deps{})
-	for _, tool := range r.List() {
-		if Phase(tool.Name) != PhaseWrite || tool.MCPOnly {
-			continue
-		}
-		if writeTargets[tool.Name] == nil {
-			t.Errorf("%s is offered in a run and has no write target", tool.Name)
-		}
-	}
-}
-
 func TestWriteTargetsNameRegisteredWriteToolsWithAWebAction(t *testing.T) {
 	r := New(Deps{})
 	registered := map[string]Tool{}

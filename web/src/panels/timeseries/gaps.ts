@@ -2,6 +2,7 @@ import type { PanelDataMeta } from "@/dashboards/queries"
 
 import type { FieldConfig } from "../field-config"
 import type { AlignedFrames } from "./align"
+import { pairedAt } from "./paired"
 import type { Cell } from "./stack"
 
 export function spanShortGaps(
@@ -19,7 +20,9 @@ export function spanShortGaps(
       sawNull = true
     } else if (typeof value === "number") {
       const joinable =
-        before >= 0 && sawNull && (times[at] - times[before]) * 1000 <= maxGapMs
+        before >= 0 &&
+        sawNull &&
+        (pairedAt(times, at) - pairedAt(times, before)) * 1000 <= maxGapMs
       if (joinable) {
         out ??= [...values]
         for (let fill = runStart; fill < at; fill++) out[fill] = undefined
@@ -65,34 +68,39 @@ export function insertGaps(
   thresholdMs: number
 ): Grid {
   const { xs, columns } = grid
-  const values = columns[target]
+  const values = pairedAt(columns, target)
   const nulled = new Set<number>()
   const midpoints = new Map<number, number>()
   let before = -1
   values.forEach((value, at) => {
     if (typeof value !== "number") return
-    if (before >= 0 && (xs[at] - xs[before]) * 1000 > thresholdMs) {
+    if (before < 0) {
+      before = at
+      return
+    }
+    const from = pairedAt(xs, before)
+    const to = pairedAt(xs, at)
+    if ((to - from) * 1000 > thresholdMs) {
       if (at - before > 1) nulled.add(before + 1)
-      else midpoints.set(at, (xs[before] + xs[at]) / 2)
+      else midpoints.set(at, (from + to) / 2)
     }
     before = at
   })
   if (nulled.size === 0 && midpoints.size === 0) return grid
 
   const outXs: number[] = []
-  const out: Cell[][] = columns.map(() => [])
   xs.forEach((x, at) => {
     const midpoint = midpoints.get(at)
-    if (midpoint !== undefined) {
-      outXs.push(midpoint)
-      columns.forEach((_column, index) =>
-        out[index].push(index === target ? null : undefined)
-      )
-    }
+    if (midpoint !== undefined) outXs.push(midpoint)
     outXs.push(x)
-    columns.forEach((column, index) =>
-      out[index].push(index === target && nulled.has(at) ? null : column[at])
-    )
+  })
+  const out = columns.map((column, index) => {
+    const cells: Cell[] = []
+    xs.forEach((_x, at) => {
+      if (midpoints.has(at)) cells.push(index === target ? null : undefined)
+      cells.push(index === target && nulled.has(at) ? null : column[at])
+    })
+    return cells
   })
   return { xs: outXs, columns: out }
 }
@@ -117,7 +125,7 @@ export function shapeNulls(
   configs.forEach(({ insertNulls }, index) => {
     const threshold = insertNullsThresholdMs(
       insertNulls,
-      queryIntervalMs(meta, aligned.series[index].frame.ref)
+      queryIntervalMs(meta, pairedAt(aligned.series, index).frame.ref)
     )
     if (threshold !== undefined) grid = insertGaps(grid, index, threshold)
   })
@@ -128,7 +136,7 @@ export function shapeNulls(
     xs: grid.xs,
     series: aligned.series.map((entry, index) => ({
       ...entry,
-      values: columns[index],
+      values: pairedAt(columns, index),
     })),
     ghosts: columns.slice(aligned.series.length),
   }

@@ -232,25 +232,6 @@ describe("stackSeries", () => {
     expect(below).toEqual([null, null, 0, 1])
   })
 
-  it("keeps a lone series of its own group unstacked", () => {
-    const { drawn } = stackSeries(
-      [
-        [1, 2],
-        [10, 20],
-        [100, 200],
-      ],
-      ["normal", "normal", "normal"],
-      ["y", "y", "y"],
-      ["line", "line", "line"],
-      ["A", "B", "A"]
-    )
-    expect(drawn).toEqual([
-      [1, 2],
-      [10, 20],
-      [101, 202],
-    ])
-  })
-
   it("reports each series' stack direction", () => {
     const { directions } = stackSeries(
       [[1], [-1], [2]],

@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest"
 
 import { dayNightModel, subsolarPoint, terminator } from "./day-night"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 const equinox = new Date("2024-03-20T12:00:00Z")
 const juneSolstice = new Date("2025-06-21T12:00:00Z")
 const decemberSolstice = new Date("2025-12-21T12:00:00Z")
@@ -11,8 +16,8 @@ type Ring = { lon: number; lat: number }[]
 function contains(ring: Ring, lon: number, lat: number): boolean {
   let inside = false
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const a = ring[i]
-    const b = ring[j]
+    const a = must(ring[i])
+    const b = must(ring[j])
     const crosses =
       a.lat > lat !== b.lat > lat &&
       lon < ((b.lon - a.lon) * (lat - a.lat)) / (b.lat - a.lat) + a.lon
@@ -49,8 +54,8 @@ describe("terminator", () => {
   it("samples 360 longitudes between the two poles' edges", () => {
     const ring = terminator(equinox)
     expect(ring).toHaveLength(361 + 2)
-    expect(ring[0].lon).toBe(-180)
-    expect(ring[ring.length - 1].lon).toBe(180)
+    expect(must(ring[0]).lon).toBe(-180)
+    expect(must(ring[ring.length - 1]).lon).toBe(180)
   })
 
   it("covers the point opposite the sun and not the point under it", () => {

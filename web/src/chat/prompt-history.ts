@@ -43,15 +43,16 @@ export function stepHistory(
   if (direction === "older") {
     const index = cursor.index + 1
     if (index >= history.length) return null
+    const entry = history[index]
+    if (entry === undefined) return null
     const draft = cursor.index === -1 ? text : cursor.draft
-    return { cursor: { index, draft }, text: history[index] }
+    return { cursor: { index, draft }, text: entry }
   }
   if (cursor.index === -1) return null
   const index = cursor.index - 1
-  return {
-    cursor: { index, draft: cursor.draft },
-    text: index === -1 ? cursor.draft : history[index],
-  }
+  const entry = index === -1 ? cursor.draft : history[index]
+  if (entry === undefined) return null
+  return { cursor: { index, draft: cursor.draft }, text: entry }
 }
 
 function readHistory(storageKey: string): string[] {

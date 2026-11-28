@@ -1,0 +1,347 @@
+{
+  "name": "revise-build-restart",
+  "brief": {
+    "request": {
+      "mode": "revise",
+      "source": "comment",
+      "prompt": "make p2 red",
+      "panel_id": "p2",
+      "from": null,
+      "to": null,
+      "time_zone": "UTC",
+      "zone": {
+        "label": "UTC",
+        "offset_seconds": 0
+      },
+      "as_of": null,
+      "continue_note": null,
+      "thread_context": null,
+      "continues": false,
+      "attempt": 2,
+      "investigation": false,
+      "pointer": {
+        "anchor": null,
+        "block_id": null,
+        "observation_id": null,
+        "thread_ask": false
+      }
+    },
+    "current": {
+      "dashboard_id": "d1",
+      "number": 4,
+      "spec": {
+        "specVersion": "0",
+        "title": "Checkout <live> & co",
+        "tags": [
+          "shop",
+          "p-l"
+        ],
+        "time": {
+          "from": "now-6h",
+          "to": "now"
+        },
+        "refresh": "30s",
+        "variables": [
+          {
+            "name": "service",
+            "type": "query",
+            "datasource": "prom",
+            "query": "label_values(up, service)"
+          },
+          {
+            "name": "env",
+            "type": "custom",
+            "options": [
+              "prod",
+              "staging"
+            ],
+            "multi": true,
+            "default": [
+              "prod"
+            ]
+          }
+        ],
+        "panels": [
+          {
+            "id": "p1",
+            "type": "stat",
+            "title": "Requests \"now\" été",
+            "gridPos": {
+              "x": 0,
+              "y": 0,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"$service\"}[5m]))"
+              }
+            ],
+            "unit": "reqps",
+            "decimals": 2,
+            "min": 2.5e-7
+          },
+          {
+            "id": "p2",
+            "type": "timeseries",
+            "title": "Latency p99",
+            "gridPos": {
+              "x": 6,
+              "y": 0,
+              "w": 18,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "A",
+                "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))",
+                "legend": "p99"
+              }
+            ],
+            "unit": "s",
+            "min": 0.000001
+          },
+          {
+            "id": "r1",
+            "type": "row",
+            "title": "Details",
+            "gridPos": {
+              "x": 0,
+              "y": 8,
+              "w": 24,
+              "h": 1
+            },
+            "panels": [
+              {
+                "id": "p3",
+                "type": "table",
+                "title": "Errors by route",
+                "gridPos": {
+                  "x": 0,
+                  "y": 9,
+                  "w": 12,
+                  "h": 6
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "topk(5, sum by (route) (rate(errors_total[5m])))",
+                    "instant": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "unverified": {
+        "panels": [
+          {
+            "panel_id": "p2",
+            "issues": [
+              {
+                "path": "/panels/1/queries",
+                "code": "query_empty",
+                "message": "query returned\nno data"
+              }
+            ]
+          }
+        ],
+        "variables": [
+          {
+            "name": "service",
+            "issues": [
+              {
+                "path": "",
+                "code": "variable_failed",
+                "message": "boom"
+              }
+            ]
+          }
+        ]
+      },
+      "conversion": [
+        {
+          "panel_id": "p3",
+          "title": "Errors by route",
+          "status": "partial",
+          "reason": "Some overrides use matchers\nor properties that are not supported yet."
+        }
+      ]
+    },
+    "build": {
+      "base_version": 4,
+      "spec": {
+        "specVersion": "0",
+        "title": "Checkout <live> & co",
+        "tags": [
+          "shop",
+          "p-l"
+        ],
+        "time": {
+          "from": "now-6h",
+          "to": "now"
+        },
+        "refresh": "30s",
+        "variables": [
+          {
+            "name": "service",
+            "type": "query",
+            "datasource": "prom",
+            "query": "label_values(up, service)"
+          },
+          {
+            "name": "env",
+            "type": "custom",
+            "options": [
+              "prod",
+              "staging"
+            ],
+            "multi": true,
+            "default": [
+              "prod"
+            ]
+          }
+        ],
+        "panels": [
+          {
+            "id": "p1",
+            "type": "stat",
+            "title": "Requests \"now\" été",
+            "gridPos": {
+              "x": 0,
+              "y": 0,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=\"$service\"}[5m]))"
+              }
+            ],
+            "unit": "reqps",
+            "decimals": 2,
+            "min": 2.5e-7
+          },
+          {
+            "id": "p2",
+            "type": "timeseries",
+            "title": "Latency p99",
+            "gridPos": {
+              "x": 6,
+              "y": 0,
+              "w": 18,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "A",
+                "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))",
+                "legend": "p99"
+              }
+            ],
+            "unit": "s",
+            "min": 0.000001
+          },
+          {
+            "id": "r1",
+            "type": "row",
+            "title": "Details",
+            "gridPos": {
+              "x": 0,
+              "y": 8,
+              "w": 24,
+              "h": 1
+            },
+            "panels": [
+              {
+                "id": "p3",
+                "type": "table",
+                "title": "Errors by route",
+                "gridPos": {
+                  "x": 0,
+                  "y": 9,
+                  "w": 12,
+                  "h": 6
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "topk(5, sum by (route) (rate(errors_total[5m])))",
+                    "instant": true
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "p9",
+            "type": "stat",
+            "title": "New",
+            "gridPos": {
+              "x": 0,
+              "y": 20,
+              "w": 6,
+              "h": 4
+            }
+          }
+        ]
+      },
+      "unverified": {
+        "panels": null,
+        "variables": null
+      },
+      "progress": {
+        "saves": 2,
+        "panels": 4,
+        "planned_panels": 5
+      }
+    },
+    "datasources": [
+      {
+        "uid": "loki",
+        "type": "loki",
+        "name": "",
+        "source": "",
+        "healthy": true,
+        "checked_at": "0001-01-01T00:00:00Z",
+        "health_state": "",
+        "everyone": true
+      },
+      {
+        "uid": "slashobserve-audit",
+        "type": "tempo",
+        "name": "",
+        "source": "builtin",
+        "healthy": true,
+        "checked_at": "0001-01-01T00:00:00Z",
+        "health_state": "",
+        "everyone": false
+      }
+    ],
+    "withheld": true,
+    "guide": {
+      "text": "",
+      "schema": null
+    },
+    "draft": null
+  },
+  "reason": "restart",
+  "now": "2026-11-25T05:29:00Z",
+  "state": {
+    "task": "",
+    "loop": false,
+    "facts": false,
+    "ledger": null,
+    "triage": "",
+    "digest": null
+  },
+  "want": {
+    "context": "Configured datasources:\n- loki (loki): healthy\n- slashobserve-audit (tempo): healthy\n\nYou are revising dashboard d1, currently version 4. This is your build of the revision, not saved as a version yet.\n```json\n{\"specVersion\":\"0\",\"title\":\"Checkout \\u003clive\\u003e \\u0026 co\",\"tags\":[\"shop\",\"p-l\"],\"time\":{\"from\":\"now-6h\",\"to\":\"now\"},\"refresh\":\"30s\",\"variables\":[{\"name\":\"service\",\"type\":\"query\",\"datasource\":\"prom\",\"query\":\"label_values(up, service)\"},{\"name\":\"env\",\"type\":\"custom\",\"options\":[\"prod\",\"staging\"],\"multi\":true,\"default\":[\"prod\"]}],\"panels\":[{\"id\":\"p1\",\"type\":\"stat\",\"title\":\"Requests \\\"now\\\" été\",\"gridPos\":{\"x\":0,\"y\":0,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"$service\\\"}[5m]))\"}],\"unit\":\"reqps\",\"decimals\":2,\"min\":2.5e-7},{\"id\":\"p2\",\"type\":\"timeseries\",\"title\":\"Latency p99\",\"gridPos\":{\"x\":6,\"y\":0,\"w\":18,\"h\":8},\"datasource\":\"prom\",\"queries\":[{\"ref\":\"A\",\"query\":\"histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))\",\"legend\":\"p99\"}],\"unit\":\"s\",\"min\":0.000001},{\"id\":\"r1\",\"type\":\"row\",\"title\":\"Details\",\"gridPos\":{\"x\":0,\"y\":8,\"w\":24,\"h\":1},\"panels\":[{\"id\":\"p3\",\"type\":\"table\",\"title\":\"Errors by route\",\"gridPos\":{\"x\":0,\"y\":9,\"w\":12,\"h\":6},\"datasource\":\"prom\",\"queries\":[{\"query\":\"topk(5, sum by (route) (rate(errors_total[5m])))\",\"instant\":true}]}]},{\"id\":\"p9\",\"type\":\"stat\",\"title\":\"New\",\"gridPos\":{\"x\":0,\"y\":20,\"w\":6,\"h\":4}}]}\n```\nVersion 4 is a Grafana import. The importer converted these panels only partly or kept them as placeholders:\n- partial p3 \"Errors by route\": Some overrides use matchers or properties that are not supported yet.\nThe request is a comment on panel p2 titled \"Latency p99\".\n<build>\nYou are building this dashboard. Your saves so far are in the build above; do not redo them.\nPanels built: 4 of 5.\nWhy this is a new session: The server restarted while you worked.\nContinue with the next panel, one panel per save, and set finish: true on the last one. If nothing is missing, answer with one short sentence and no tool call.\n</build>\n\nTime zone: the person reads times in UTC, labelled UTC. Tool results give UTC; write every time in the answer in UTC with its label, such as 14:05 UTC, not in UTC. It is now 05:29 UTC on 2026-11-25; take your window from that time and state the window you queried.\n\nAudit data, other datasources only Admins can query and what is stored in folders only Admins can read are available in a private chat, or in a folder only Admins can read. What this run writes is read by people who are not Admins, so they are not available to it. When the request needs them, say so in your answer and do not guess their contents.",
+    "user": "Configured datasources:\n- loki (loki): healthy\n- slashobserve-audit (tempo): healthy\n\nYou are revising dashboard d1, currently version 4. This is your build of the revision, not saved as a version yet.\n```json\n{\"specVersion\":\"0\",\"title\":\"Checkout \\u003clive\\u003e \\u0026 co\",\"tags\":[\"shop\",\"p-l\"],\"time\":{\"from\":\"now-6h\",\"to\":\"now\"},\"refresh\":\"30s\",\"variables\":[{\"name\":\"service\",\"type\":\"query\",\"datasource\":\"prom\",\"query\":\"label_values(up, service)\"},{\"name\":\"env\",\"type\":\"custom\",\"options\":[\"prod\",\"staging\"],\"multi\":true,\"default\":[\"prod\"]}],\"panels\":[{\"id\":\"p1\",\"type\":\"stat\",\"title\":\"Requests \\\"now\\\" été\",\"gridPos\":{\"x\":0,\"y\":0,\"w\":6,\"h\":4},\"datasource\":\"prom\",\"queries\":[{\"query\":\"sum(rate(http_requests_total{service=\\\"$service\\\"}[5m]))\"}],\"unit\":\"reqps\",\"decimals\":2,\"min\":2.5e-7},{\"id\":\"p2\",\"type\":\"timeseries\",\"title\":\"Latency p99\",\"gridPos\":{\"x\":6,\"y\":0,\"w\":18,\"h\":8},\"datasource\":\"prom\",\"queries\":[{\"ref\":\"A\",\"query\":\"histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))\",\"legend\":\"p99\"}],\"unit\":\"s\",\"min\":0.000001},{\"id\":\"r1\",\"type\":\"row\",\"title\":\"Details\",\"gridPos\":{\"x\":0,\"y\":8,\"w\":24,\"h\":1},\"panels\":[{\"id\":\"p3\",\"type\":\"table\",\"title\":\"Errors by route\",\"gridPos\":{\"x\":0,\"y\":9,\"w\":12,\"h\":6},\"datasource\":\"prom\",\"queries\":[{\"query\":\"topk(5, sum by (route) (rate(errors_total[5m])))\",\"instant\":true}]}]},{\"id\":\"p9\",\"type\":\"stat\",\"title\":\"New\",\"gridPos\":{\"x\":0,\"y\":20,\"w\":6,\"h\":4}}]}\n```\nVersion 4 is a Grafana import. The importer converted these panels only partly or kept them as placeholders:\n- partial p3 \"Errors by route\": Some overrides use matchers or properties that are not supported yet.\nThe request is a comment on panel p2 titled \"Latency p99\".\n<build>\nYou are building this dashboard. Your saves so far are in the build above; do not redo them.\nPanels built: 4 of 5.\nWhy this is a new session: The server restarted while you worked.\nContinue with the next panel, one panel per save, and set finish: true on the last one. If nothing is missing, answer with one short sentence and no tool call.\n</build>\n\nTime zone: the person reads times in UTC, labelled UTC. Tool results give UTC; write every time in the answer in UTC with its label, such as 14:05 UTC, not in UTC. It is now 05:29 UTC on 2026-11-25; take your window from that time and state the window you queried.\n\nAudit data, other datasources only Admins can query and what is stored in folders only Admins can read are available in a private chat, or in a folder only Admins can read. What this run writes is read by people who are not Admins, so they are not available to it. When the request needs them, say so in your answer and do not guess their contents.\n\n<request>\nmake p2 red\n</request>"
+  }
+}

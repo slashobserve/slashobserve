@@ -156,7 +156,7 @@ This state is computed from stored fields on every read; nothing stores it.
 | `building` | The run has not finished and the agent may still change the build. |
 | `stopped` | The run failed or was canceled and left a build with at least one panel; its requester can keep or continue it until `build.expires_at`. |
 | `stopped_empty` | The run failed or was canceled and left a build with no panels, which cannot be kept. |
-| `stale` | A stopped build whose dashboard has a newer version than the one it started from, so keeping it answers `version_conflict`. |
+| `stale` | A stopped build whose dashboard has a newer version than the one it started from: it can no longer be kept, and Continue moves it onto the newer version. |
 | `kept` | The requester saved the stopped build as a version (`build_saved_at` is set). |
 | `moved` | Another run continues this one and took the build (`continued_by` names it). |
 | `committed` | The run finished and its build became the version in `result_version`. |
@@ -220,8 +220,9 @@ This state is computed from stored fields on every read; nothing stores it.
 | --- | --- |
 | `queued` | The repair run waits for a worker. |
 | `running` | The repair run is running or stopping. |
-| `repaired` | The run saved a version that the health check has not checked yet. |
-| `still_failing` | The run saved a version and the check that ran on it still lists the dashboard. |
+| `repaired` | The run saved a version that the health check has not checked yet, or that the check found without a `no_data`, `query_failed` or `variable_failed` problem. |
+| `still_failing` | The run saved a version and the check that ran on it, or on a later version, still finds a `no_data`, `query_failed` or `variable_failed` problem. |
+| `proposed` | The run succeeded with a proposal, which waits for an Editor to merge it. |
 | `failed` | The run failed or was canceled. |
 
 ## Webhook
@@ -385,22 +386,22 @@ This state is computed from stored fields on every read; nothing stores it.
 
 ## Built-in agent supervisor
 
-The server starts the built-in agent as the `observe-agent` process and restarts it when it exits; each move writes a server log line with the state under the key `agent_state`, not an activity event.
+The server starts the built-in agent as the `slashobserve-harness` process and restarts it when it exits; each move writes a server log line with the state under the key `agent_state`, not an activity event.
 
 | State | Meaning | Actions |
 | --- | --- | --- |
-| `starting` | The server is starting the `observe-agent` process. | - |
+| `starting` | The server is starting the `slashobserve-harness` process. | - |
 | `running` | The process runs and can claim runs. | - |
 | `backoff` | The process exited or could not be started, and the server waits 1 to 30 seconds before it starts it again. | - |
 | `stopping` | The server is shutting down and stops the process. Final. | - |
 
 | Action | From | To | Event | By |
 | --- | --- | --- | --- | --- |
-| `start` | - | `starting` | `observe-agent starting` | server |
-| `run` | `starting` | `running` | `observe-agent running` | server |
-| `back_off` | `starting`, `running` | `backoff` | `observe-agent waiting to restart` | server |
-| `restart` | `backoff` | `starting` | `observe-agent starting` | server |
-| `stop` | `starting`, `running`, `backoff` | `stopping` | `observe-agent supervisor stopping` | server |
+| `start` | - | `starting` | `harness starting` | server |
+| `run` | `starting` | `running` | `harness running` | server |
+| `back_off` | `starting`, `running` | `backoff` | `harness waiting to restart` | server |
+| `restart` | `backoff` | `starting` | `harness starting` | server |
+| `stop` | `starting`, `running`, `backoff` | `stopping` | `harness supervisor stopping` | server |
 
 ## Panel and variable verification
 
@@ -466,9 +467,9 @@ This state is computed from stored fields on every read; nothing stores it.
 
 | State | When |
 | --- | --- |
-| `open` | Asked in the last 30 days, not granted, and nobody who can grant it marked it done in their inbox. |
+| `open` | Asked in the last 30 days, not granted, nobody who can grant it marked it done in their inbox, and the requester has not asked again for the same object since. |
 | `granted` | The requester got Comment access after asking. |
-| `dismissed` | Someone who can grant it marked it done in their inbox without granting it; the requester may ask again. |
+| `dismissed` | Someone who can grant it marked it done in their inbox without granting it, or it was marked done and the requester has asked again since; the requester may ask again. |
 | `expired` | Nobody granted or dismissed it within 30 days; the requester may ask again. |
 
 ## Datasource health

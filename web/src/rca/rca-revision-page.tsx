@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { ArrowLeftIcon } from "lucide-react"
 
+import { loadProblemText } from "@/api/errors"
 import { LoadProblem } from "@/components/load-problem"
 import { Skeleton } from "@/components/ui/skeleton"
 import { buttonVariants } from "@/components/ui/button"
@@ -9,7 +10,6 @@ import { useDocumentTitle } from "@/lib/document-title"
 import { cn } from "@/lib/utils"
 import { snapshotQuery } from "@/observations/blocks/block-data"
 import { observationIsMissing } from "@/observations/errors"
-import { sentence } from "@/observe/queries"
 
 import { rcaQuery, rcasQuery } from "./queries"
 import { RcaDocument, type UseSnapshot } from "./rca-document"
@@ -100,7 +100,7 @@ export function RcaRevisionPage({
     return (
       <LoadProblem
         title="Could not load this revision"
-        detail={sentence(query.error.message)}
+        detail={loadProblemText(query.error)}
         retrying={query.isFetching}
         onRetry={() => void query.refetch()}
       />

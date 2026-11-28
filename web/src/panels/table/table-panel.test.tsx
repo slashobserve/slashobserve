@@ -9,6 +9,12 @@ import type { PreparedFrame } from "../transforms"
 import type { TableAnchorLayout } from "./anchors"
 import TablePanel from "./table-panel"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 type Field = PreparedFrame["fields"][number]
 
 const text = (name: string, values: (string | null)[]): Field => ({
@@ -231,9 +237,11 @@ describe("table panel", () => {
       merged
     )
     await waitFor(() => expect(cellsOf("route")).toHaveLength(2))
-    const [first, second] = Array.from(
+    const routes = Array.from(
       document.querySelectorAll<HTMLElement>('[data-column="route"]')
     )
+    const first = nth(routes, 0)
+    const second = nth(routes, 1)
     expect(first).not.toHaveClass("h-full")
     expect(second).not.toHaveClass("h-full")
     expect(second.firstElementChild).toHaveClass("whitespace-normal")
@@ -289,9 +297,11 @@ describe("table panel", () => {
       } as Partial<DataPanel>)
     )
     await waitFor(() => expect(cellsOf("requests")).toHaveLength(3))
-    const [low, high] = Array.from(
+    const requests = Array.from(
       document.querySelectorAll<HTMLElement>('[data-column="requests"]')
     )
+    const low = nth(requests, 0)
+    const high = nth(requests, 1)
     expect(gridCellOf(low).style.backgroundColor).toBe("var(--threshold-ok)")
     expect(gridCellOf(high).style.backgroundColor).toBe(
       "var(--threshold-warning)"
@@ -315,10 +325,10 @@ describe("table panel", () => {
     )
     await waitFor(() => expect(cellsOf("route")).toHaveLength(3))
     const route = document.querySelectorAll('[data-column="route"]')
-    expect(gridCellOf(route[0]).style.backgroundColor).toBe(
+    expect(gridCellOf(nth(route, 0)).style.backgroundColor).toBe(
       "var(--threshold-ok)"
     )
-    expect(gridCellOf(route[1]).style.backgroundColor).toBe(
+    expect(gridCellOf(nth(route, 1)).style.backgroundColor).toBe(
       "var(--threshold-warning)"
     )
   })

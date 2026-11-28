@@ -1,7 +1,7 @@
 import { QueryClient, QueryObserver } from "@tanstack/react-query"
 import { describe, expect, it, vi } from "vitest"
 
-import { ApiError, NetworkError } from "@/api/errors"
+import { ApiError, NetworkError, unreachableText } from "@/api/errors"
 import { observeKeys } from "@/api/keys"
 
 import {
@@ -21,6 +21,7 @@ import {
 } from "./build"
 import type { ObserveRequest } from "./queries"
 import type { OriginFields } from "./request-origin"
+import { must } from "@/test/must"
 
 function progress(overrides: Partial<BuildProgress> = {}): BuildProgress {
   return {
@@ -197,11 +198,21 @@ describe("saveBuildErrorText", () => {
     ["build_running", "The agent is still working."],
     ["internal", "The agent is still working."],
   ])("explains %s", (code, text) => {
-    expect(saveBuildErrorText(code, "the agent is still working")).toBe(text)
+    expect(
+      saveBuildErrorText(new ApiError(409, code, "the agent is still working"))
+    ).toBe(text)
   })
 
-  it("falls back when there is no message", () => {
-    expect(saveBuildErrorText("internal")).toBe("The build could not be saved.")
+  it("falls back when the failure is not from the server", () => {
+    expect(saveBuildErrorText(new Error("boom"))).toBe(
+      "The build could not be saved."
+    )
+  })
+
+  it("says the server is unreachable on a network failure", () => {
+    expect(saveBuildErrorText(new NetworkError("Failed to fetch"))).toBe(
+      unreachableText
+    )
   })
 })
 
@@ -225,31 +236,29 @@ describe("cancelErrorText", () => {
     ["request_finished", "The run already finished."],
     ["internal", "The server broke."],
   ])("explains %s", (code, text) => {
-    expect(cancelErrorText(code, "the server broke")).toBe(text)
+    expect(cancelErrorText(new ApiError(409, code, "the server broke"))).toBe(
+      text
+    )
   })
 
-  it("falls back when there is no message", () => {
-    expect(cancelErrorText("internal")).toBe("The run could not be canceled.")
+  it("falls back when the failure is not from the server", () => {
+    expect(cancelErrorText(null)).toBe("The run could not be canceled.")
   })
 })
 
 describe("continueErrorText", () => {
   it.each([
-    [
-      "version_conflict",
-      "Someone saved a newer version after this build started, so it can't be continued. Open the dashboard and ask again.",
-    ],
     ["forbidden", "Only the person who asked can do this."],
     ["not_continuable", "This build can no longer be continued."],
     ["invalid_request", "Note must be short."],
   ])("explains %s", (code, text) => {
-    expect(continueErrorText(code, "note must be short")).toBe(text)
+    expect(
+      continueErrorText(new ApiError(409, code, "note must be short"))
+    ).toBe(text)
   })
 
-  it("falls back when there is no message", () => {
-    expect(continueErrorText("internal")).toBe(
-      "The build could not be continued."
-    )
+  it("falls back when the failure is not from the server", () => {
+    expect(continueErrorText(null)).toBe("The build could not be continued.")
   })
 })
 
@@ -370,7 +379,7 @@ async function clientWithRequest(answers: (() => Promise<RequestState>)[]) {
     defaultOptions: { queries: { retry: false } },
   })
   let calls = 0
-  const queryFn = () => answers[Math.min(calls++, answers.length - 1)]()
+  const queryFn = () => must(answers[Math.min(calls++, answers.length - 1)])()
   await client.fetchQuery({ queryKey: observeKeys.request("r1"), queryFn })
   return { client, requestCalls: () => calls }
 }

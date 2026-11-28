@@ -360,7 +360,7 @@ func TestRegisterRefusesBadJobs(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			s := New(nil, nil, NopMetrics{}, "server-a")
+			s := New(nil, nil, nopMetrics{}, "server-a")
 			defer func() {
 				if recover() == nil {
 					t.Error("Register accepted the job")
@@ -555,3 +555,11 @@ func TestALostLeaseRecordsNoEvent(t *testing.T) {
 		t.Errorf("events = %d, want 0", n)
 	}
 }
+
+type nopMetrics struct{}
+
+func (nopMetrics) JobRegistered(string, []string) {}
+
+func (nopMetrics) JobStarted(string) {}
+
+func (nopMetrics) JobFinished(string, string) {}

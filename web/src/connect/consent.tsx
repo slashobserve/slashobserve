@@ -1,14 +1,12 @@
 import { useState } from "react"
 import { Link } from "@tanstack/react-router"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, sentence, loadProblemText } from "@/api/errors"
 import { LoadProblem } from "@/components/load-problem"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { roleLabels } from "@/lib/roles"
-import { sentence } from "@/observe/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import {
   clientText,

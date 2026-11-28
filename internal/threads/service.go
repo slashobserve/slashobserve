@@ -667,6 +667,11 @@ func (s *Service) pageDataOf(ctx context.Context, by auth.Principal, sc scope, r
 	return pd, nil
 }
 
+type CommentRevision struct {
+	ID     string
+	Status string
+}
+
 func (s *Service) latestRevisions(ctx context.Context, commentIDs []string) (map[string]*CommentRevision, error) {
 	if len(commentIDs) == 0 {
 		return nil, nil

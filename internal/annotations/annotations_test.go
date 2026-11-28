@@ -230,37 +230,22 @@ func TestCreateRefusals(t *testing.T) {
 		by   auth.Principal
 		in   CreateInput
 		want error
+		body forbidden.Body
 	}{
-		{"viewer creates a global annotation", viewer, CreateInput{Text: "x"}, ErrForbidden},
-		{"viewer annotates a dashboard they only view", viewer, CreateInput{DashboardID: r.open, Text: "x"}, ErrForbidden},
-		{"group viewer annotates a dashboard they only view", payroll, CreateInput{DashboardID: r.hidden, Text: "x"}, ErrForbidden},
-		{"editor annotates a hidden dashboard", editor, CreateInput{DashboardID: r.hidden, Text: "x"}, ErrNotFound},
-		{"editor annotates a missing dashboard", editor, CreateInput{DashboardID: missing, Text: "x"}, ErrNotFound},
+		{"viewer creates a global annotation", viewer, CreateInput{Text: "x"}, ErrForbidden, forbidden.NeedsRole("editor")},
+		{"viewer annotates a dashboard they only view", viewer, CreateInput{DashboardID: r.open, Text: "x"}, ErrForbidden, forbidden.NeedsAccess("edit", "General")},
+		{"group viewer annotates a dashboard they only view", payroll, CreateInput{DashboardID: r.hidden, Text: "x"}, ErrForbidden, forbidden.Body{}},
+		{"editor annotates a hidden dashboard", editor, CreateInput{DashboardID: r.hidden, Text: "x"}, ErrNotFound, forbidden.Body{}},
+		{"editor annotates a missing dashboard", editor, CreateInput{DashboardID: missing, Text: "x"}, ErrNotFound, forbidden.Body{}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := r.service.Create(t.Context(), tc.by, tc.in); !errors.Is(err, tc.want) {
-				t.Errorf("error %v, want %v", err, tc.want)
+			_, err := r.service.Create(t.Context(), tc.by, tc.in)
+			if !errors.Is(err, tc.want) {
+				t.Fatalf("error %v, want %v", err, tc.want)
 			}
-		})
-	}
-}
-
-func TestCreateRefusalNamesWhatWouldLetItThrough(t *testing.T) {
-	r := newRig(t)
-	cases := []struct {
-		name string
-		in   CreateInput
-		want forbidden.Body
-	}{
-		{"a dashboard the caller only views", CreateInput{DashboardID: r.open, Text: "x"}, forbidden.NeedsAccess("edit", "General")},
-		{"a global annotation", CreateInput{Text: "x"}, forbidden.NeedsRole("editor")},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := r.service.Create(t.Context(), viewer, tc.in)
-			if !errors.Is(err, ErrForbidden) || forbidden.BodyOf(err) != tc.want {
-				t.Fatalf("error %v answers %+v, want %+v", err, forbidden.BodyOf(err), tc.want)
+			if tc.body != (forbidden.Body{}) && forbidden.BodyOf(err) != tc.body {
+				t.Errorf("refusal answers %+v, want %+v", forbidden.BodyOf(err), tc.body)
 			}
 		})
 	}

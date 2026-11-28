@@ -1,0 +1,510 @@
+{
+  "about": "The model-call window of each mode: when reads are refused, the nudge before, the refused-read counts and the stalled stop.",
+  "traces": [
+    {
+      "name": "first call",
+      "source": "TestReadRefusal",
+      "start": {"mode":"create","window_calls":0},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a question reads past the sixth call",
+      "source": "TestReadRefusal",
+      "start": {"mode":"create","window_calls":10},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a question is refused from the twelfth call",
+      "source": "TestReadRefusal",
+      "start": {"mode":"create","window_calls":11},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse","step":"Refused get_panels: 12 model calls passed without a save"}}
+      ]
+    },
+    {
+      "name": "sixth call of a revision",
+      "source": "TestReadRefusal",
+      "start": {"mode":"revise","window_calls":5},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse","step":"Refused get_panels: 6 model calls passed without a save"}}
+      ]
+    },
+    {
+      "name": "fifth call of a revision",
+      "source": "TestReadRefusal",
+      "start": {"mode":"revise","window_calls":4},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a save beside the reads lets them run",
+      "source": "TestReadRefusal",
+      "start": {"mode":"create","window_calls":12},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "suggest runs reads up to the twelfth call",
+      "source": "TestReadRefusal",
+      "start": {"mode":"suggest","window_calls":10},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "suggest refuses from the twelfth call",
+      "source": "TestReadRefusal",
+      "start": {"mode":"suggest","window_calls":11},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse","step":"Refused get_panels: 12 model calls passed without a proposal"}}
+      ]
+    },
+    {
+      "name": "suggest lets a proposal beside reads run",
+      "source": "TestReadRefusal",
+      "start": {"mode":"suggest","window_calls":12},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "the turn after a rejected save reads past the window",
+      "source": "TestReadRefusal",
+      "start": {"mode":"revise","window_calls":5},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"n":1}},"result":{"is_error":true,"content":{"code":"invalid_spec"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{"a":1}},"expect":{"verdict":"refuse","step":"Refused get_panels: 6 model calls passed without a save"}}
+      ]
+    },
+    {
+      "name": "an investigation: unset runs the twenty-ninth",
+      "source": "TestAnInvestigationReadsUpToItsConfiguredCalls",
+      "start": {"mode":"investigate","agent":{"investigation_calls":0},"window_calls":28},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_metrics","input":{}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "an investigation: unset refuses the thirtieth",
+      "source": "TestAnInvestigationReadsUpToItsConfiguredCalls",
+      "start": {"mode":"investigate","agent":{"investigation_calls":0},"window_calls":29},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_metrics","input":{}},"expect":{"verdict":"refuse","step":"Refused list_metrics: 30 model calls passed without a finding"}}
+      ]
+    },
+    {
+      "name": "an investigation: raised runs the twelfth",
+      "source": "TestAnInvestigationReadsUpToItsConfiguredCalls",
+      "start": {"mode":"investigate","agent":{"investigation_calls":20},"window_calls":11},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_metrics","input":{}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "an investigation: raised runs the nineteenth",
+      "source": "TestAnInvestigationReadsUpToItsConfiguredCalls",
+      "start": {"mode":"investigate","agent":{"investigation_calls":20},"window_calls":18},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_metrics","input":{}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "an investigation: raised refuses the twentieth",
+      "source": "TestAnInvestigationReadsUpToItsConfiguredCalls",
+      "start": {"mode":"investigate","agent":{"investigation_calls":20},"window_calls":19},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_metrics","input":{}},"expect":{"verdict":"refuse","step":"Refused list_metrics: 20 model calls passed without a finding"}}
+      ]
+    },
+    {
+      "name": "an investigation: lowest refuses the sixth",
+      "source": "TestAnInvestigationReadsUpToItsConfiguredCalls",
+      "start": {"mode":"investigate","agent":{"investigation_calls":6},"window_calls":5},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_metrics","input":{}},"expect":{"verdict":"refuse","step":"Refused list_metrics: 6 model calls passed without a finding"}}
+      ]
+    },
+    {
+      "name": "a suggest run keeps twelve calls whatever the investigation setting",
+      "source": "TestASuggestRunKeepsTwelveCallsWhateverTheInvestigationSetting",
+      "start": {"mode":"suggest","agent":{"investigation_calls":40},"window_calls":11},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse","step":"Refused get_panels: 12 model calls passed without a proposal"}}
+      ]
+    },
+    {
+      "name": "a revision keeps six calls whatever the investigation setting",
+      "source": "TestASuggestRunKeepsTwelveCallsWhateverTheInvestigationSetting",
+      "start": {"mode":"revise","agent":{"investigation_calls":40},"window_calls":5},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse","step":"Refused get_panels: 6 model calls passed without a save"}}
+      ]
+    },
+    {
+      "name": "raised question run runs the nineteenth",
+      "source": "TestAQuestionRunReadsUpToTheConfiguredCallsAndABuildingRunUpToSix",
+      "start": {"mode":"create","agent":{"chat_calls":20},"building":false,"window_calls":18},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "raised question run refuses the twentieth",
+      "source": "TestAQuestionRunReadsUpToTheConfiguredCallsAndABuildingRunUpToSix",
+      "start": {"mode":"create","agent":{"chat_calls":20},"building":false,"window_calls":19},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse","step":"Refused get_panels: 20 model calls passed without a save"}}
+      ]
+    },
+    {
+      "name": "a run that started building refuses the sixth",
+      "source": "TestAQuestionRunReadsUpToTheConfiguredCallsAndABuildingRunUpToSix",
+      "start": {"mode":"create","agent":{"chat_calls":20},"building":true,"window_calls":5},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse","step":"Refused get_panels: 6 model calls passed without a save"}}
+      ]
+    },
+    {
+      "name": "a run that started building runs the fifth",
+      "source": "TestAQuestionRunReadsUpToTheConfiguredCallsAndABuildingRunUpToSix",
+      "start": {"mode":"create","agent":{"chat_calls":20},"building":true,"window_calls":4},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a question run's budget becomes six once it saves a panel",
+      "source": "TestAQuestionRunBudgetBecomesSixOnceItSavesAPanel",
+      "start": {"mode":"create","window_calls":7},
+      "steps": [
+        {"check":{"limit":12}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"n":1}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["a"],"added":[],"deleted":[],"settings":false}}}},
+        {"check":{"limit":6}}
+      ]
+    },
+    {
+      "name": "an investigation with twenty calls is limited at the twentieth and nudged at the nineteenth",
+      "source": "TestAnInvestigationWithTwentyCallsIsLimitedAtTheTwentiethAndNotBefore",
+      "start": {"mode":"investigate","agent":{"investigation_calls":20}},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":1}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":""}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":2}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":""}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":3}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":""}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":4}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":""}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":5}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":""}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":6}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":""}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":7}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":""}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":8}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":""}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":9}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":""}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":10}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":""}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":11}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":""}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":12}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":""}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":13}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":""}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":14}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":""}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":15}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":""}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":16}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":""}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":17}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":""}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":18}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":""}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":19}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":"One more read at most, then call save_finding."}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":20}},"expect":{"verdict":"refuse","step":"Refused query_range: 20 model calls passed without a finding","message":"20 model calls without a finding; only save_finding can run now. Save what you found and the evidence you checked, and say in it what you did not read."}}
+      ]
+    },
+    {
+      "name": "the stopped reason names the configured investigation calls",
+      "source": "TestTheStoppedReasonNamesTheConfiguredInvestigationCalls",
+      "start": {"mode":"investigate","agent":{"investigation_calls":20},"window_calls":19},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse"}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{"a":1}},"expect":{"verdict":"refuse"}},
+        {"end_turn":{"stop":{"failure":"no_progress","step":"Stopped: the model kept reading after 20 calls without a finding","message":""}}}
+      ]
+    },
+    {
+      "name": "the nudge at the fourth call",
+      "source": "TestNudgeFor",
+      "start": {"mode":"revise","window_calls":3},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"end_turn":{"nudge":"","stop":null}},
+        {"check":{"usage":{"nudges":0}}}
+      ]
+    },
+    {
+      "name": "the nudge at the fifth call of a question",
+      "source": "TestNudgeFor",
+      "start": {"mode":"create","window_calls":4},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"end_turn":{"nudge":"","stop":null}},
+        {"check":{"usage":{"nudges":0}}}
+      ]
+    },
+    {
+      "name": "the nudge at the eleventh call of a question",
+      "source": "TestNudgeFor",
+      "start": {"mode":"create","window_calls":10},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"end_turn":{"nudge":"Save the first panel if the request asks for a dashboard, otherwise call save_finding with what you found, in your next call. From then on, reads run only in the same call as a save.","stop":null}},
+        {"check":{"usage":{"nudges":1}}}
+      ]
+    },
+    {
+      "name": "the nudge at the fifth call of a revision",
+      "source": "TestNudgeFor",
+      "start": {"mode":"revise","window_calls":4},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"end_turn":{"nudge":"Save the next panel, or call save_finding if the request only asks a question, in your next call. From then on, reads run only in the same call as a save.","stop":null}},
+        {"check":{"usage":{"nudges":1}}}
+      ]
+    },
+    {
+      "name": "the nudge at the sixth call",
+      "source": "TestNudgeFor",
+      "start": {"mode":"revise","window_calls":5},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"end_turn":{"nudge":"","stop":null}},
+        {"check":{"usage":{"nudges":0}}}
+      ]
+    },
+    {
+      "name": "the nudge at the suggest fifth call",
+      "source": "TestNudgeFor",
+      "start": {"mode":"suggest","window_calls":4},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"end_turn":{"nudge":"","stop":null}},
+        {"check":{"usage":{"nudges":0}}}
+      ]
+    },
+    {
+      "name": "the nudge at the suggest eleventh call",
+      "source": "TestNudgeFor",
+      "start": {"mode":"suggest","window_calls":10},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"end_turn":{"nudge":"Propose the panel in your next call. From then on, reads run only in the same call as a proposal.","stop":null}},
+        {"check":{"usage":{"nudges":1}}}
+      ]
+    },
+    {
+      "name": "the nudge at the suggest twelfth call",
+      "source": "TestNudgeFor",
+      "start": {"mode":"suggest","window_calls":11},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"end_turn":{"nudge":"","stop":null}},
+        {"check":{"usage":{"nudges":0}}}
+      ]
+    },
+    {
+      "name": "the nudge at the investigation eleventh call",
+      "source": "TestNudgeFor",
+      "start": {"mode":"investigate","window_calls":10},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"end_turn":{"nudge":"","stop":null}},
+        {"check":{"usage":{"nudges":0}}}
+      ]
+    },
+    {
+      "name": "the nudge at the investigation twenty-ninth call",
+      "source": "TestNudgeFor",
+      "start": {"mode":"investigate","window_calls":28},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"end_turn":{"nudge":"One more read at most, then call save_finding.","stop":null}},
+        {"check":{"usage":{"nudges":1}}}
+      ]
+    },
+    {
+      "name": "the save-now message names the call budget of a revision",
+      "source": "TestTheSaveNowMessageNamesTheCallBudgetAndLeadsWithThePanelForAQuestionRun",
+      "start": {"mode":"revise","window_calls":5},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse","code":"invalid_request","message":"6 model calls without a save; only a save can run now. Save the panel you have checked, or call save_finding if the request only asks a question, and say in it what you did not read; reads in the same call as a save still run."}}
+      ]
+    },
+    {
+      "name": "the save-now message leads with the panel for a question run",
+      "source": "TestTheSaveNowMessageNamesTheCallBudgetAndLeadsWithThePanelForAQuestionRun",
+      "start": {"mode":"create","agent":{"chat_calls":20},"window_calls":19},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse","message":"20 model calls without a save; only a save can run now. Save the first panel if the request asks for a dashboard, otherwise call save_finding with what you found, and say in it what you did not read; reads in the same call as a save still run."}}
+      ]
+    },
+    {
+      "name": "reads refused by the window are counted",
+      "source": "TestAdmitCountsReadsRefusedByTheWindow",
+      "start": {"mode":"revise","window_calls":5},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse","step":"Refused get_panels: 6 model calls passed without a save"}},
+        {"check":{"usage":{"save_now_refusals":1}}}
+      ]
+    },
+    {
+      "name": "a finding saved after refused reads carries their count",
+      "source": "TestAFindingSavedAfterRefusedReadsCarriesTheirCount",
+      "start": {"mode":"create","window_calls":29},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":1}},"expect":{"verdict":"refuse"}},
+        {"call":{"name":"log_patterns","input":{"q":2}},"expect":{"verdict":"refuse"}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"x"}},"expect":{"verdict":"dispatch","reads_refused":2}}
+      ]
+    },
+    {
+      "name": "a finding after a new session counts only the reads refused since",
+      "source": "TestAFindingAfterANewSessionCountsOnlyTheReadsRefusedSince",
+      "start": {"mode":"investigate","window_calls":29},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"q":1}},"expect":{"verdict":"refuse"}},
+        {"call":{"name":"log_patterns","input":{"q":2}},"expect":{"verdict":"refuse"}},
+        {"end_turn":{}},
+        {"session":{"building":false}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"x"}},"expect":{"verdict":"dispatch","reads_refused":0}},
+        {"check":{"usage":{"save_now_refusals":2}}}
+      ]
+    },
+    {
+      "name": "two turns with every call refused stop the run",
+      "source": "TestEndTurnStopsAfterTwoTurnsInARowWithEveryCallRefused",
+      "start": {"mode":"revise","window_calls":5},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse"}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse"}},
+        {"end_turn":{"stop":{"failure":"no_progress","step":"Stopped: the model kept reading after 6 calls without a save","message":""}}},
+        {"check":{"usage":{"stalled_turns":2}}}
+      ]
+    },
+    {
+      "name": "the nudge comes one call before the window closes and is counted",
+      "source": "TestEndTurnNudgesOneCallBeforeTheWindowClosesAndCountsIt",
+      "start": {"mode":"revise","window_calls":4},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"nudge":"Save the next panel, or call save_finding if the request only asks a question, in your next call. From then on, reads run only in the same call as a save.","stop":null}},
+        {"check":{"usage":{"nudges":1}}}
+      ]
+    },
+    {
+      "name": "an imported dashboard ends the question budget",
+      "source": "TestAnImportedDashboardEndsTheQuestionBudget",
+      "start": {"mode":"create","window_calls":7},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"import_grafana_dashboard","input":{"json":"{}"}},"result":{"content":{"dashboard_id":"d1","version":1},"settled":"saved"}},
+        {"check":{"limit":6}},
+        {"set":{"window_calls":4}},
+        {"turn":{"saves":0}},
+        {"end_turn":{"nudge":"Save the next panel, or call save_finding if the request only asks a question, in your next call. From then on, reads run only in the same call as a save."}},
+        {"set":{"window_calls":5}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse","message":"6 model calls without a save; only a save can run now. Save the panel you have checked, or call save_finding if the request only asks a question, and say in it what you did not read; reads in the same call as a save still run."}}
+      ]
+    },
+    {
+      "name": "the stopped reason names the limit that was hit",
+      "source": "TestTheStoppedReasonNamesTheLimitThatWasHit",
+      "start": {"mode":"create","agent":{"chat_calls":20},"window_calls":19},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse"}},
+        {"end_turn":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{"a":1}},"expect":{"verdict":"refuse"}},
+        {"set":{"saved":true}},
+        {"end_turn":{"stop":{"failure":"no_progress","step":"Stopped: the model kept reading after 20 calls without a save","message":""}}}
+      ]
+    }
+  ]
+}

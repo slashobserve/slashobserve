@@ -185,7 +185,7 @@ export function HeatmapCanvas({
       )
     )
     onHover({ row, col, x, y })
-    onCursorMove(model.xs[col])
+    onCursorMove(model.xs[col] ?? null)
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLCanvasElement>) {

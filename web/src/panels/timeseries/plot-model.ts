@@ -5,6 +5,7 @@ import type { FieldConfig } from "../field-config"
 import { reduceAny, reducerKind } from "../reducers"
 import type { AlignedSeries } from "./align"
 import { spanShortGaps } from "./gaps"
+import { pairedAt } from "./paired"
 import {
   fillPercent,
   formatTogether,
@@ -57,7 +58,7 @@ export function configuredKeys(
   configs: readonly FieldConfig[]
 ): string[] {
   return aligned.flatMap(({ key }, index) =>
-    configs[index].hidden ? [] : [key]
+    pairedAt(configs, index).hidden ? [] : [key]
   )
 }
 
@@ -71,18 +72,18 @@ export function chartSeries(
     configs,
     assignSlots(slots, configuredKeys(aligned, configs))
   )
-  return styles.flatMap((style, index) =>
-    style.hidden
-      ? []
-      : [
-          {
-            ...style,
-            values: aligned[index].values,
-            fieldValues: aligned[index].field.values,
-            config: configs[index],
-          },
-        ]
-  )
+  return styles.flatMap((style, index) => {
+    if (style.hidden) return []
+    const entry = pairedAt(aligned, index)
+    return [
+      {
+        ...style,
+        values: entry.values,
+        fieldValues: entry.field.values,
+        config: pairedAt(configs, index),
+      },
+    ]
+  })
 }
 
 function drawnValues(
@@ -184,7 +185,9 @@ export function legendCells(
   reducers: readonly AnyReducer[]
 ): string[][] {
   const columns = reducers.map((reducer) => legendColumn(series, reducer))
-  return series.map((_entry, row) => columns.map((column) => column[row]))
+  return series.map((_entry, row) =>
+    columns.map((column) => pairedAt(column, row))
+  )
 }
 
 export function ghostsDrawn(

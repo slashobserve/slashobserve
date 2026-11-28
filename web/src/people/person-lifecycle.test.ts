@@ -1,12 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, problemText } from "@/api/errors"
 
-import {
-  actionsFor,
-  lifecycleProblemText,
-  removalText,
-} from "./person-lifecycle"
+import { actionsFor, lifecycleProblems, removalText } from "./person-lifecycle"
 import type { User } from "./queries"
 
 function person(id: string, deactivated: string | null): User {
@@ -52,24 +48,28 @@ describe("removalText", () => {
 describe("lifecycleProblemText", () => {
   it("says a missing person is gone", () => {
     expect(
-      lifecycleProblemText(new ApiError(404, "not_found", "user not found"))
+      problemText(
+        new ApiError(404, "not_found", "user not found"),
+        lifecycleProblems
+      )
     ).toBe("This person no longer exists.")
   })
 
   it("says to deactivate again when someone reactivated the person", () => {
     expect(
-      lifecycleProblemText(new ApiError(409, "not_deactivated", "x"))
+      problemText(new ApiError(409, "not_deactivated", "x"), lifecycleProblems)
     ).toMatch(/Deactivate them before removing them/)
   })
 
   it("passes on what the server says to change", () => {
     expect(
-      lifecycleProblemText(
+      problemText(
         new ApiError(
           409,
           "last_admin",
           "this is the last active Admin; make someone else an Admin first"
-        )
+        ),
+        lifecycleProblems
       )
     ).toBe("This is the last active Admin; make someone else an Admin first.")
   })

@@ -8,10 +8,9 @@ import {
 import { toast } from "sonner"
 
 import { api } from "@/api/client"
-import { ApiError, unwrap } from "@/api/errors"
+import { unwrap, problemText } from "@/api/errors"
 import { grantKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
-import { sentence } from "@/observe/queries"
 
 import type { ConnectedAgent, GrantMode, GrantScope } from "./rows"
 
@@ -21,7 +20,12 @@ function grantsQuery(scope: GrantScope) {
   return infiniteQueryOptions({
     queryKey: grantKeys.list(scope),
     queryFn: ({ pageParam, signal }) => {
-      const request = { params: { query: { cursor: pageParam } }, signal }
+      const request = {
+        params: {
+          query: pageParam === undefined ? {} : { cursor: pageParam },
+        },
+        signal,
+      }
       return (
         scope === "mine"
           ? api.GET("/me/grants", request)
@@ -45,7 +49,6 @@ export function useAllGrants() {
 export function useDisconnect(scope: GrantScope) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (id: string) => {
       const params = { params: { path: { id } } }
       return (
@@ -61,7 +64,6 @@ export function useDisconnect(scope: GrantScope) {
 export function useSetGrantMode() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (input: { id: string; mode: GrantMode }) =>
       api
         .PATCH("/me/grants/{id}", {
@@ -87,9 +89,7 @@ export function useSetGrantMode() {
       ),
     onError: (error) =>
       toast.error(
-        error instanceof ApiError
-          ? sentence(error.message)
-          : "Could not change the mode"
+        problemText(error, { fallback: "Could not change the mode" })
       ),
     onSettled: () => queryClient.invalidateQueries({ queryKey: grantKeys.all }),
   })

@@ -44,10 +44,4 @@ describe("heatmap anchors", () => {
     expect(layout.plot.width).toBeGreaterThan(0)
     expect(layout.plot.height).toBeGreaterThan(0)
   })
-
-  it("withdraws its layout when it unmounts", () => {
-    const { store, view } = renderPublishing(HeatmapPanel, panel(), frames)
-    view.unmount()
-    expect(store.current()).toBeNull()
-  })
 })

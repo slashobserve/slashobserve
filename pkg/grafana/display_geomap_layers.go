@@ -127,7 +127,7 @@ func (b *panelBuild) geomapBasemap(d *spec.Display) {
 	d.EsriServer = tile.server
 	d.BasemapURL = tile.address
 	d.BasemapAttribution = tile.attribution
-	d.BasemapOpacity = b.boundedOption(base+".opacity", 0, 1)
+	d.BasemapOpacity = b.numberOption(base+".opacity", 0, 1, rangeReason)
 	if tile.kind == "xyz" {
 		b.basemapZoomLimits(d, base+".config")
 	}
@@ -317,7 +317,7 @@ func (b *panelBuild) layerCommon(layer *spec.GeomapLayer, at string) {
 		layer.Name = name
 	}
 	b.consume(at + ".name")
-	layer.Opacity = b.boundedOption(at+".opacity", 0, 1)
+	layer.Opacity = b.numberOption(at+".opacity", 0, 1, rangeReason)
 	if shown, ok := b.boolOption(at + ".tooltip"); ok && !*shown {
 		layer.Tooltip = shown
 	}
@@ -431,7 +431,7 @@ func (b *panelBuild) markerLegend(layer *spec.GeomapLayer, at string) {
 
 func (b *panelBuild) markerFill(layer *spec.GeomapLayer, at string) {
 	if _, has := b.value(at); has {
-		layer.FillOpacity = b.boundedOption(at, 0, 1)
+		layer.FillOpacity = b.numberOption(at, 0, 1, rangeReason)
 		return
 	}
 	fill := grafanaMarkerFillOpacity
@@ -475,7 +475,7 @@ func (b *panelBuild) markerRotation(layer *spec.GeomapLayer, at string) {
 		}
 		return
 	}
-	if degrees := b.boundedOption(at+".fixed", -maxRotation, maxRotation); degrees != nil {
+	if degrees := b.numberOption(at+".fixed", -maxRotation, maxRotation, rangeReason); degrees != nil {
 		layer.Rotation = *degrees
 	}
 }
@@ -538,8 +538,8 @@ func (b *panelBuild) heatmapConfig(layer *spec.GeomapLayer, config string) {
 func (b *panelBuild) heatmapWeights(layer *spec.GeomapLayer, at string) {
 	if layer.WeightField != "" {
 		b.consume(at + ".fixed")
-		layer.WeightMin = b.boundedOption(at+".min", 0, maxHeatmapWeight)
-		layer.WeightMax = b.boundedOption(at+".max", 0, maxHeatmapWeight)
+		layer.WeightMin = b.numberOption(at+".min", 0, maxHeatmapWeight, rangeReason)
+		layer.WeightMax = b.numberOption(at+".max", 0, maxHeatmapWeight, rangeReason)
 		return
 	}
 	b.consume(at+".min", at+".max")
@@ -677,7 +677,7 @@ func (b *panelBuild) geojsonRule(at string, item any) (spec.GeomapRule, bool) {
 	}
 	b.consume(at+".property", at+".operation", at+".value")
 	rule.Color = b.layerColor(at + ".style.color.fixed")
-	rule.Opacity = b.boundedOption(at+".style.opacity", 0, 1)
+	rule.Opacity = b.numberOption(at+".style.opacity", 0, 1, rangeReason)
 	return rule, true
 }
 

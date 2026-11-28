@@ -48,32 +48,6 @@ func parseIssues(t *testing.T, data []byte) []spec.Issue {
 	return ve.Issues
 }
 
-func TestValidExamples(t *testing.T) {
-	files, err := filepath.Glob(filepath.Join(examplesDir, "*.json"))
-	if err != nil || len(files) == 0 {
-		t.Fatalf("glob examples: %v (%d files)", err, len(files))
-	}
-	for _, f := range files {
-		t.Run(filepath.Base(f), func(t *testing.T) {
-			first, err := spec.Parse(readExample(t, filepath.Base(f)))
-			if err != nil {
-				t.Fatal(err)
-			}
-			out, err := json.Marshal(first)
-			if err != nil {
-				t.Fatal(err)
-			}
-			second, err := spec.Parse(out)
-			if err != nil {
-				t.Fatalf("reparse marshaled result: %v", err)
-			}
-			if !reflect.DeepEqual(first, second) {
-				t.Fatal("round trip changed the dashboard")
-			}
-		})
-	}
-}
-
 func roundTripSources(t *testing.T) map[string][]byte {
 	t.Helper()
 	root, err := os.OpenRoot("../..")
@@ -98,7 +72,6 @@ func roundTripSources(t *testing.T) map[string][]byte {
 	sources := map[string][]byte{}
 	for _, pattern := range []string{
 		"spec/examples/*.json",
-		"pkg/spec/testdata/upgrade/evolved/*.json",
 		"web/e2e/data/*.json",
 	} {
 		for _, f := range glob(pattern) {
@@ -133,6 +106,9 @@ func TestRoundTripFixtures(t *testing.T) {
 			second, err := spec.Parse(stored)
 			if err != nil {
 				t.Fatalf("reparse stored form: %v", err)
+			}
+			if !reflect.DeepEqual(first, second) {
+				t.Fatal("round trip changed the dashboard")
 			}
 			again, err := json.Marshal(second)
 			if err != nil {
@@ -417,15 +393,12 @@ func TestVariableSchemaIssues(t *testing.T) {
 }
 
 func TestLegacyShapeRejected(t *testing.T) {
-	for _, name := range upgradeGoldenNames(t) {
-		t.Run(name, func(t *testing.T) {
-			issues := parseIssues(t, readUpgradeFile(t, filepath.Join("legacy", name)))
-			if !slices.ContainsFunc(issues, func(i spec.Issue) bool {
-				return i.Code == spec.CodeSchema && i.Path == "" && strings.Contains(i.Message, "timeRange")
-			}) {
-				t.Fatalf("issues = %+v, want a root schema issue naming timeRange", issues)
-			}
-		})
+	legacy := []byte(`{"specVersion": "0", "title": "Legacy", "timeRange": {"from": "now-1h", "to": "now"}, "panels": []}`)
+	issues := parseIssues(t, legacy)
+	if !slices.ContainsFunc(issues, func(i spec.Issue) bool {
+		return i.Code == spec.CodeSchema && i.Path == "" && strings.Contains(i.Message, "timeRange")
+	}) {
+		t.Fatalf("issues = %+v, want a root schema issue naming timeRange", issues)
 	}
 }
 

@@ -63,7 +63,7 @@ type Props = {
   placeholder: string
   textareaRef?: Ref<HTMLTextAreaElement>
   notice?: ReactNode
-  runningRequestId?: string
+  runningRequestId?: string | undefined
 }
 
 function TargetSelect({

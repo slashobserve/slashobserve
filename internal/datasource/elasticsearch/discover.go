@@ -29,9 +29,9 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 		return &datasource.Catalog{}, nil
 	case datasource.DiscoverLabels, datasource.DiscoverLabelValues, datasource.DiscoverTables, datasource.DiscoverColumns, datasource.DiscoverSampleRows:
 	default:
-		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "discover kind %q is not supported by %s", truncateText(string(req.Kind)), d.opts.Flavor)
+		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "discover kind %q is not supported by %s", datasource.TruncateText(string(req.Kind)), d.opts.Flavor)
 	}
-	ctx, cancel := bound(ctx, discoverTimeout)
+	ctx, cancel := datasource.Bound(ctx, discoverTimeout)
 	defer cancel()
 	switch req.Kind {
 	case datasource.DiscoverTables:
@@ -51,9 +51,10 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 				names = append(names, name)
 			}
 		}
-		return &datasource.Catalog{Labels: filterSortLimit(names, req.Search, req.EffectiveLimit())}, nil
+		kept, _ := datasource.FilterSortLimit(names, req.Search, req.EffectiveLimit())
+		return &datasource.Catalog{Labels: kept}, nil
 	case datasource.DiscoverColumns:
-		names := filterSortLimit(m.Names(), req.Search, req.EffectiveLimit())
+		names, _ := datasource.FilterSortLimit(m.Names(), req.Search, req.EffectiveLimit())
 		columns := make([]datasource.Column, len(names))
 		for i, name := range names {
 			columns[i] = datasource.Column{Name: name, Type: string(m.Fields[name].Kind)}
@@ -82,7 +83,8 @@ func (d *Datasource) discoverLabelValues(ctx context.Context, req datasource.Dis
 	if err != nil {
 		return nil, err
 	}
-	return &datasource.Catalog{Values: filterSortLimit(values, req.Search, limit)}, nil
+	kept, _ := datasource.FilterSortLimit(values, req.Search, limit)
+	return &datasource.Catalog{Values: kept}, nil
 }
 
 func (d *Datasource) discoverTables(ctx context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
@@ -149,7 +151,7 @@ func (d *Datasource) termsValues(ctx context.Context, field string, r datasource
 		} `json:"aggregations"`
 	}
 	if err := json.Unmarshal(raw, &resp); err != nil {
-		return nil, false, unreadable()
+		return nil, false, datasource.Unreadable()
 	}
 	values := make([]string, 0, len(resp.Aggregations.Values.Buckets))
 	for _, b := range resp.Aggregations.Values.Buckets {
@@ -174,9 +176,9 @@ func (d *Datasource) VariableValues(ctx context.Context, q datasource.Query, r d
 		return nil, err
 	}
 	lim := d.opts.Limits.Tighten(q.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
-	text, err := d.expand(q, r, instantInterval(r, q.MinInterval))
+	text, err := d.expand(q, r, datasource.InstantInterval(r, q.MinInterval))
 	if err != nil {
 		return nil, err
 	}
@@ -233,17 +235,4 @@ func (d *Datasource) variableFilters(queryText string, adhoc []datasource.AdhocF
 		return nil, err
 	}
 	return append([]any{user.clause}, clauses...), nil
-}
-
-func filterSortLimit(values []string, search string, limit int) []string {
-	search = strings.ToLower(search)
-	out := make([]string, 0, len(values))
-	for _, v := range values {
-		if search == "" || strings.Contains(strings.ToLower(v), search) {
-			out = append(out, v)
-		}
-	}
-	slices.Sort(out)
-	out = slices.Compact(out)
-	return out[:min(len(out), limit)]
 }

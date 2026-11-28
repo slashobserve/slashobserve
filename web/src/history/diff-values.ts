@@ -1,9 +1,10 @@
+import { withoutKeys } from "@/lib/without-keys"
 import { queryRef, type PanelQuery } from "@/spec"
 
 import type { TitleMaps } from "./diff-groups"
 
 export type ValueBlock = {
-  label?: string
+  label?: string | undefined
   text: string
   options: string
   json?: true
@@ -35,7 +36,10 @@ const queryFieldPattern = /^queries\.([A-Za-z][A-Za-z0-9_]*)(?:\.(.+))?$/
 
 function queryTarget(field: string): { ref: string; key?: string } | null {
   const match = queryFieldPattern.exec(field)
-  return match === null ? null : { ref: match[1], key: match[2] }
+  if (match === null) return null
+  const [, ref, key] = match
+  if (ref === undefined) return null
+  return key === undefined ? { ref } : { ref, key }
 }
 
 function queryChangeBlocks(field: string, value: unknown): ValueBlock[] | null {
@@ -88,7 +92,7 @@ function hasExplicitRef(entry: PanelQuery): boolean {
 function queryBlocks(entries: PanelQuery[], label: boolean): ValueBlock[] {
   return entries.map((entry, index) => ({
     label: label
-      ? `Query ${queryRef(hasExplicitRef(entry) ? entry : { ...entry, ref: undefined }, index)}`
+      ? `Query ${queryRef(hasExplicitRef(entry) ? entry : withoutKeys(entry, ["ref"]), index)}`
       : undefined,
     text: entry.query,
     options: queryOptions(entry),

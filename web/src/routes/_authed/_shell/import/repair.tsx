@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router"
 
 import { importedFilter } from "@/health/health-labels"
 
-type RepairSearch = { folder?: string }
+type RepairSearch = { folder?: string | undefined }
 
 export const Route = createFileRoute("/_authed/_shell/import/repair")({
   validateSearch: (search: Record<string, unknown>): RepairSearch => ({

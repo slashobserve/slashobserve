@@ -141,22 +141,6 @@ func TestCompileKnowingAsksTheCallerWhichFieldsExist(t *testing.T) {
 	}
 }
 
-func TestFieldsInListsEachFieldOnceInOrder(t *testing.T) {
-	for _, tc := range []struct {
-		text string
-		want []string
-	}{
-		{"service.name:checkout and log.level:(error or warn) and service.name:x and latency > 1 and trace.id:*", []string{"service.name", "log.level", "latency", "trace.id"}},
-		{"timeout", nil},
-		{"", nil},
-		{"a:", nil},
-	} {
-		if got := kql.FieldsIn(tc.text); !slices.Equal(got, tc.want) {
-			t.Fatalf("%q: got %v, want %v", tc.text, got, tc.want)
-		}
-	}
-}
-
 func roundTrip(t *testing.T, query map[string]any) map[string]any {
 	t.Helper()
 	raw, err := json.Marshal(query)

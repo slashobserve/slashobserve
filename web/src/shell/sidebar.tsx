@@ -57,7 +57,7 @@ import { useFoldedByWidth } from "./use-folded"
 
 const focusRing = "outline-none focus-visible:ring-2 focus-visible:ring-ring"
 
-function HomeLink({ onNavigate }: { onNavigate?: () => void }) {
+function HomeLink({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
   const linkProps = useLinkProps({ to: "/" })
   return (
     <a
@@ -85,7 +85,7 @@ function NavLink({
 }: {
   item: NavItem
   state: ParentState
-  onNavigate?: () => void
+  onNavigate?: (() => void) | undefined
 }) {
   const Icon = navIcons[item.to]
   const linkProps = useLinkProps({

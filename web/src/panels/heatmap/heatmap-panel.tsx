@@ -6,6 +6,7 @@ import { useTheme } from "@/lib/theme"
 import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
 import { CursorLine, useCursorLine } from "../cursor-line"
 import { exemplarPoints } from "../timeseries/exemplars"
+import { pairedAt } from "../timeseries/paired"
 import type { PanelRenderer } from "../types"
 import { timeTicks } from "@/lib/time-ticks"
 import { HeatmapCanvas, type Hover } from "./heatmap-canvas"
@@ -296,7 +297,7 @@ function Tooltip({
   format: (value: number) => string
   zone: string | undefined
 }) {
-  const value = model.cells[hover.row][hover.col]
+  const value = pairedAt(pairedAt(model.cells, hover.row), hover.col)
   const onRight = hover.x > width / 2
   const listed =
     tooltip.mode === "all"
@@ -316,12 +317,12 @@ function Tooltip({
       }}
     >
       <div className="mb-1 text-muted-foreground tabular-nums">
-        {zonedDateTime(model.xs[hover.col], zone)}
+        {zonedDateTime(pairedAt(model.xs, hover.col), zone)}
       </div>
       {listed === null ? (
         <div className="flex justify-between gap-3">
           <span className="min-w-0 truncate">
-            {model.rows[hover.row].range}
+            {pairedAt(model.rows, hover.row).range}
           </span>
           <span className="font-medium tabular-nums">
             {value === null ? "-" : format(value)}

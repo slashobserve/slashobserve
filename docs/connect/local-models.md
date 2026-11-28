@@ -32,7 +32,7 @@ The project does not vouch for any of them or for any model.
    Without a model it fails with "no model is configured; prompts cannot run".
 4. In the web app, open Home and use **Ask Observe Agent**, and name the metric, service or table you want so the model has less to find.
 
-The model calls come from the `observe-agent` process the server starts, so the server's host must be able to reach the model server's address.
+The model calls come from the `slashobserve-harness` process the server starts, so the server's host must be able to reach the model server's address.
 The [outbound allowlist](../operate/outbound-access.md) does not cover these calls, so the server needs a network path to the model server and nothing else.
 
 ## Run it with the demo
@@ -122,7 +122,7 @@ Details of these settings:
 - It calls the Chat Completions endpoint with streaming on and asks the server to include usage in the stream.
 - It sends the output cap as `max_completion_tokens`, not `max_tokens`.
 - It sends the tool definitions with every call and reads tool calls from the stream.
-- The model server needs to be reachable from the host that runs `observe-agent`; the server gives that process the model settings, including the key, when it claims a run.
+- The model server needs to be reachable from the host that runs `slashobserve-harness`; the server gives that process the model settings, including the key, when it claims a run.
 
 ### Effort
 

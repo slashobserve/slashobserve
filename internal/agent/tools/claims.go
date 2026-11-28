@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"slices"
+	"strings"
 	"time"
 	"unicode/utf8"
 
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -29,6 +32,7 @@ const (
 	maxClaimWait     = 30
 	maxRunTextRunes  = 500
 	maxLiveTextRunes = 4000
+	maxStepToolRunes = 64
 
 	failureLiveTextAppend = "live_text_append_failed"
 	failureUsageNotNoted  = "usage_not_noted"
@@ -43,7 +47,7 @@ const (
 
 	descFinishRun = "End a run you claimed. Send outcome succeeded after you saved its result with the run session's tools; a run that saved a version, a proposal or a finding ends succeeded whatever you send, and one that saved nothing ends failed. Send outcome failed with a message when you could not. usage is your model use, shown on the run. Optional: commit saves the finished dashboard first; restarted is true when the dashboard changed meanwhile and the run restarted from its latest version, so call get_run_brief and go on."
 
-	descGetRunBrief = "Optional. The first message the server's own agent starts each model session with: the system text, the user message and the run's saved progress. Starting a session with it resets the read guard and pins the parent version; an agent that does not call it keeps working from claim_run's prompt."
+	descGetRunBrief = "Optional. What the server's own agent starts each model session from: the run's saved progress and, in brief, the request, the dashboard version, the unsaved work, the datasources and the authoring guide as fields. Calling it pins the parent version the run's saves are checked against; an agent that does not call it keeps working from claim_run's prompt."
 
 	descReleaseRun = "Hand a run you claimed back to the queue when you cannot work it, for example because you are stopping. The run is queued again with its saved progress and steps, and it does not count as failed; the next claim_run of an agent it is assigned to takes it. The answer has the run's state: queued, canceled when its requester had canceled it, or the state it had already ended in. Call finish_run instead when the run is done or cannot be done."
 
@@ -58,7 +62,11 @@ const (
 		`"model_calls":{"type":"integer","minimum":0},"failed_calls":{"type":"integer","minimum":0},"retries":{"type":"integer","minimum":0},` +
 		`"compactions":{"type":"integer","minimum":0},"renewals":{"type":"integer","minimum":0},` +
 		`"model_ms":{"type":"integer","minimum":0},` +
-		`"max_save_output_tokens":{"type":"integer","minimum":0}},"additionalProperties":false}`
+		`"max_save_output_tokens":{"type":"integer","minimum":0},` +
+		`"nudges":{"type":"integer","minimum":0},"save_now_refusals":{"type":"integer","minimum":0},"stalled_turns":{"type":"integer","minimum":0},` +
+		`"one_panel_refusals":{"type":"integer","minimum":0},"repair_rounds":{"type":"integer","minimum":0},` +
+		`"hypotheses":{"type":"array","maxItems":6,"items":{"type":"object"},"description":"Your hypothesis ledger, as note_hypotheses takes it."},` +
+		`"call_limit":{"type":"integer","minimum":0},"stage_at_save":{"type":"string","enum":["orient","hypothesize","test","conclude"]}},"additionalProperties":false}`
 
 	schemaGetRunBrief = `{"type":"object","properties":{` +
 		`"run_id":{"type":"string","format":"uuid","description":"The run id from claim_run."},` +
@@ -73,7 +81,14 @@ const (
 		`"claim_epoch":{"type":"integer","minimum":1,"description":"The claim_epoch from claim_run."},` +
 		`"note":{"type":"string","maxLength":500,"description":"One line on what you are doing, shown in the run's steps."},` +
 		`"text":{"type":"string","maxLength":4000,"description":"The end of what your model is writing, shown as live text while the run is running and never stored."},` +
-		`"usage":` + schemaRunUsage + `},` +
+		`"usage":` + schemaRunUsage + `,` +
+		`"agent_state":{"type":"object","properties":{"session":{"description":"For this attempt."},"carry":{"description":"Also for the next attempt."}},"additionalProperties":false,"description":"Your own state, at most 256 KiB, replacing the last; get_run_brief returns it."},` +
+		`"steps":{"type":"array","maxItems":20,"items":{"type":"object","properties":{` +
+		`"phase":{"type":"string","enum":["discover","lint","query","save","write","ledger","repair","stage"]},` +
+		`"tool":{"type":"string","maxLength":64},"status":{"type":"string","enum":["ok","error"]},` +
+		`"message":{"type":"string","maxLength":500}},"required":["phase","status","message"],"additionalProperties":false},` +
+		`"description":"Steps of your own for the run's steps."},` +
+		`"task":{"type":"string","description":"Server's own agent only: the investigation's task type."}},` +
 		`"required":["run_id","attempt"],"additionalProperties":false}`
 
 	schemaReleaseRun = `{"type":"object","properties":{` +
@@ -88,7 +103,7 @@ const (
 		`"claim_epoch":{"type":"integer","minimum":1,"description":"The claim_epoch from claim_run."},` +
 		`"outcome":{"type":"string","enum":["succeeded","failed"],"description":"succeeded once saved, failed when you could not."},` +
 		`"message":{"type":"string","maxLength":500,"description":"Why the run failed, shown on the run."},` +
-		`"failure_code":{"type":"string","description":"Model-side failure: call_timeout, rate_limited, provider_error, output_limit, no_tool_call, no_finding, refused, no_fixture or internal."},` +
+		`"failure_code":{"type":"string","description":"Model-side failure: call_timeout, rate_limited, provider_error, output_limit, no_tool_call, no_finding, refused, no_fixture or internal; or a guard of your own: validation_exhausted, no_progress or restricted_answer, with message."},` +
 		`"commit":{"type":"boolean","description":"Save the finished dashboard first."},` +
 		`"usage":` + schemaRunUsage + `},` +
 		`"required":["run_id","attempt","outcome"],"additionalProperties":false}`
@@ -143,19 +158,42 @@ type runUsage struct {
 	Renewals            int      `json:"renewals"`
 	ModelMS             int64    `json:"model_ms"`
 	MaxSaveOutputTokens int64    `json:"max_save_output_tokens"`
+
+	Nudges           int               `json:"nudges"`
+	SaveNowRefusals  int               `json:"save_now_refusals"`
+	StalledTurns     int               `json:"stalled_turns"`
+	OnePanelRefusals int               `json:"one_panel_refusals"`
+	RepairRounds     int               `json:"repair_rounds"`
+	Hypotheses       []hypothesisInput `json:"hypotheses"`
+	CallLimit        int               `json:"call_limit"`
+	StageAtSave      string            `json:"stage_at_save"`
 }
 
-func (u *runUsage) reported() *revisions.Usage {
+func (u *runUsage) reported() (*revisions.Usage, Result, bool) {
 	if u == nil {
-		return nil
+		return nil, Result{}, true
+	}
+	var ledger []revisions.Hypothesis
+	if len(u.Hypotheses) > 0 {
+		var problem string
+		if ledger, problem = checkLedger(u.Hypotheses); problem != "" {
+			return nil, invalid("usage.%s", problem), false
+		}
+	}
+	if !slices.Contains(reportedStages, u.StageAtSave) {
+		return nil, invalid("usage.stage_at_save must be one of %s", strings.Join(reportedStages[1:], ", ")), false
 	}
 	return &revisions.Usage{
 		Provider: u.Provider, Model: u.Model, InputTokens: u.InputTokens, OutputTokens: u.OutputTokens,
 		CacheReadTokens: u.CacheReadTokens, CacheWriteTokens: u.CacheWriteTokens, CostUSD: u.CostUSD,
 		ModelCalls: u.ModelCalls, FailedCalls: u.FailedCalls, Retries: u.Retries, Compactions: u.Compactions, Renewals: u.Renewals,
 		ModelMS: u.ModelMS, MaxSaveOutputTokens: u.MaxSaveOutputTokens,
-	}
+		Nudges: u.Nudges, SaveNowRefusals: u.SaveNowRefusals, StalledTurns: u.StalledTurns, OnePanelRefusals: u.OnePanelRefusals,
+		RepairRounds: u.RepairRounds, Hypotheses: ledger, CallLimit: u.CallLimit, StageAtSave: u.StageAtSave,
+	}, Result{}, true
 }
+
+var reportedStages = []string{"", "orient", "hypothesize", "test", "conclude"}
 
 type runRefInput struct {
 	RunID      string `json:"run_id"`
@@ -165,9 +203,12 @@ type runRefInput struct {
 
 type reportRunInput struct {
 	runRefInput
-	Note  string    `json:"note"`
-	Text  string    `json:"text"`
-	Usage *runUsage `json:"usage"`
+	Note       string         `json:"note"`
+	Text       string         `json:"text"`
+	Usage      *runUsage      `json:"usage"`
+	AgentState *AgentState    `json:"agent_state"`
+	Steps      []ReportedStep `json:"steps"`
+	Task       *string        `json:"task"`
 }
 
 type reportRunOut struct {
@@ -241,8 +282,19 @@ func (r *Registry) reportRun(ctx context.Context, input json.RawMessage) (Result
 	if res, ok := checkRunText("text", in.Text, maxLiveTextRunes); !ok {
 		return res, nil
 	}
+	if res, ok := checkAgentReport(in.AgentState, in.Steps); !ok {
+		return res, nil
+	}
+	task, res, ok := reportedTask(in.Task)
+	if !ok {
+		return res, nil
+	}
+	usage, res, ok := in.Usage.reported()
+	if !ok {
+		return res, nil
+	}
 	return r.asClaimedRun(ctx, in.runRefInput, func(claimer claims.Claimer, req revisions.Request) (Result, error) {
-		answer, err := r.report(ctx, claimer, req, in)
+		answer, err := r.report(ctx, claimer, req, in, usage, task)
 		if err != nil {
 			return claimFailure(ctx, err)
 		}
@@ -250,13 +302,22 @@ func (r *Registry) reportRun(ctx context.Context, input json.RawMessage) (Result
 	})
 }
 
-func (r *Registry) report(ctx context.Context, claimer claims.Claimer, req revisions.Request, in reportRunInput) (reportRunOut, error) {
+func (r *Registry) report(ctx context.Context, claimer claims.Claimer, req revisions.Request, in reportRunInput, usage *revisions.Usage, task *route.Task) (reportRunOut, error) {
 	ref := claims.ReportInput{RunID: in.RunID, Attempt: in.Attempt, ClaimEpoch: in.ClaimEpoch, Note: in.Note}
 	answer, err := r.deps.Claims.Report(ctx, claimer, ref)
 	if err != nil || answer.Stop {
 		return reportRunOut{ReportAnswer: answer}, err
 	}
-	if usage := in.Usage.reported(); usage != nil {
+	if task != nil && claimer.Kind != revisions.AssignBuiltin {
+		task = nil
+	}
+	if in.AgentState != nil || len(in.Steps) > 0 || task != nil {
+		err := r.deps.RunSessions.NoteAgent(ctx, req, AgentReport{State: in.AgentState, Steps: in.Steps, Task: task})
+		if err != nil && !errors.Is(err, ErrRunEnded) {
+			return reportRunOut{}, err
+		}
+	}
+	if usage != nil {
 		stop, err := r.noteUsage(ctx, req, *usage)
 		if err != nil {
 			return reportRunOut{}, err
@@ -306,9 +367,13 @@ func (r *Registry) finishRun(ctx context.Context, input json.RawMessage) (Result
 	if res, ok := checkRunText("message", in.Message, maxRunTextRunes); !ok {
 		return res, nil
 	}
+	usage, res, ok := in.Usage.reported()
+	if !ok {
+		return res, nil
+	}
 	return r.asClaimedRun(ctx, in.runRefInput, func(claimer claims.Claimer, req revisions.Request) (Result, error) {
 		answer, err := r.deps.RunSessions.Finish(ctx, req, RunFinish{
-			Outcome: in.Outcome, FailureCode: in.FailureCode, Message: in.Message, Commit: in.Commit, Usage: in.Usage.reported(),
+			Outcome: in.Outcome, FailureCode: in.FailureCode, Message: in.Message, Commit: in.Commit, Usage: usage,
 		})
 		if err != nil {
 			return claimFailure(ctx, err)
@@ -369,6 +434,49 @@ func checkRunRef(in runRefInput) (Result, bool) {
 		return invalid("claim_epoch must be at least 1"), false
 	}
 	return Result{}, true
+}
+
+var reportedPhases = []string{PhaseDiscover, PhaseLint, PhaseQuery, PhaseSave, PhaseWrite, PhaseLedger, "repair", "stage"}
+
+func checkAgentReport(state *AgentState, steps []ReportedStep) (Result, bool) {
+	if state != nil && len(state.Session)+len(state.Carry) > MaxAgentStateBytes {
+		return invalid("agent_state must be at most %d bytes", MaxAgentStateBytes), false
+	}
+	if len(steps) > MaxReportedSteps {
+		return invalid("steps takes at most %d steps", MaxReportedSteps), false
+	}
+	for i, step := range steps {
+		switch {
+		case !slices.Contains(reportedPhases, step.Phase):
+			return invalid("steps[%d].phase must be one of %s", i, strings.Join(reportedPhases, ", ")), false
+		case step.Status != "ok" && step.Status != "error":
+			return invalid("steps[%d].status must be ok or error", i), false
+		case utf8.RuneCountInString(step.Tool) > maxStepToolRunes:
+			return invalid("steps[%d].tool must be at most %d characters", i, maxStepToolRunes), false
+		case utf8.RuneCountInString(step.Message) > maxRunTextRunes:
+			return invalid("steps[%d].message must be at most %d characters", i, maxRunTextRunes), false
+		}
+	}
+	return Result{}, true
+}
+
+func reportedTask(raw *string) (*route.Task, Result, bool) {
+	if raw == nil {
+		return nil, Result{}, true
+	}
+	task, ok := route.Parse(*raw)
+	if !ok || task == route.Full {
+		return nil, invalid("task must be one of %s", strings.Join(taskNames(), ", ")), false
+	}
+	return &task, Result{}, true
+}
+
+func taskNames() []string {
+	names := make([]string, len(route.Tasks))
+	for i, t := range route.Tasks {
+		names[i] = string(t)
+	}
+	return names
 }
 
 func checkRunText(field, value string, maxRunes int) (Result, bool) {

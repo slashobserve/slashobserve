@@ -18,6 +18,7 @@ const (
 	OutcomeRunning      = "running"
 	OutcomeRepaired     = "repaired"
 	OutcomeStillFailing = "still_failing"
+	OutcomeProposed     = "proposed"
 	OutcomeFailed       = "failed"
 )
 
@@ -32,8 +33,9 @@ var ItemStates = lifecycle.Derived{Name: "dashboard health", States: []lifecycle
 var RepairOutcomes = lifecycle.Derived{Name: "health repair", States: []lifecycle.DerivedState{
 	{Name: OutcomeQueued, When: "The repair run waits for a worker."},
 	{Name: OutcomeRunning, When: "The repair run is running or stopping."},
-	{Name: OutcomeRepaired, When: "The run saved a version that the health check has not checked yet."},
-	{Name: OutcomeStillFailing, When: "The run saved a version and the check that ran on it still lists the dashboard."},
+	{Name: OutcomeRepaired, When: "The run saved a version that the health check has not checked yet, or that the check found without a `no_data`, `query_failed` or `variable_failed` problem."},
+	{Name: OutcomeStillFailing, When: "The run saved a version and the check that ran on it, or on a later version, still finds a `no_data`, `query_failed` or `variable_failed` problem."},
+	{Name: OutcomeProposed, When: "The run succeeded with a proposal, which waits for an Editor to merge it."},
 	{Name: OutcomeFailed, When: "The run failed or was canceled."},
 }}
 
@@ -51,17 +53,26 @@ func itemState(checkedVersion *int, latestVersion int, skipped string, checked [
 	return StateHealthy
 }
 
-func repairOutcome(runState string, version, checkedVersion *int) string {
+func repairOutcome(runState string, resultKind revisions.ResultKind, version, checkedVersion *int, checked []Problem) string {
 	switch revisions.State(runState) {
 	case revisions.StateQueued:
 		return OutcomeQueued
 	case revisions.StateRunning, revisions.StateCanceling:
 		return OutcomeRunning
 	case revisions.StateSucceeded:
-		if version != nil && (checkedVersion == nil || *checkedVersion < *version) {
+		switch {
+		case resultKind == revisions.ResultProposal:
+			return OutcomeProposed
+		case version == nil:
+			return OutcomeStillFailing
+		case checkedVersion == nil || *checkedVersion < *version, !slices.ContainsFunc(checked, repairable):
 			return OutcomeRepaired
 		}
 		return OutcomeStillFailing
 	}
 	return OutcomeFailed
+}
+
+func repairable(p Problem) bool {
+	return p.Kind == KindNoData || p.Kind == KindQueryFailed || p.Kind == KindVariableFailed
 }

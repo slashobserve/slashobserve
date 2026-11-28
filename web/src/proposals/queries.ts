@@ -72,7 +72,6 @@ export function runProposalQuery(dashboardId: string, runId: string) {
 export function useMergeProposal(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (input: { revision: number; choices: MergeChoice[] }) =>
       api
         .POST("/proposals/{id}/merge", {
@@ -100,7 +99,6 @@ export function useMergeProposal(id: string) {
 export function useDiscardProposal(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (reason: string) =>
       api
         .POST("/proposals/{id}/discard", {

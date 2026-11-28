@@ -155,6 +155,24 @@ func TestGrafanaImportFollowsTheStateTheServerSends(t *testing.T) {
 	}
 }
 
+func TestGrafanaImportPollsOnlyARunningImport(t *testing.T) {
+	withState := func(state, status string) string {
+		return strings.Replace(importJSON(status, 1, 0, ""), `"status"`, `"state":"`+state+`","status"`, 1)
+	}
+	f := newGrafanaFake(t)
+	f.polls = []string{withState("paused", "running"), withState("paused", "finished")}
+	if _, stderr, code := f.run("", "import", testConnection, "--all"); code != 0 || f.pollAt != 2 {
+		t.Fatalf("an unknown state with a legacy status: exit %d after %d reads, stderr %q", code, f.pollAt, stderr)
+	}
+	stuck := importJSON("paused", 1, 0, "")
+	f = newGrafanaFake(t)
+	f.polls = []string{stuck}
+	stdout, stderr, code := f.run("", "--json", "import", testConnection, "--all")
+	if code != 1 || f.pollAt != 1 || strings.TrimSpace(stdout) != stuck || !strings.Contains(stderr, "the import stopped in a state this CLI does not know: paused") {
+		t.Fatalf("an unknown status: exit %d after %d reads, stdout %q, stderr %q", code, f.pollAt, stdout, stderr)
+	}
+}
+
 func TestGrafanaImportGoneWhilePollingExitsOne(t *testing.T) {
 	f := newGrafanaFake(t)
 	f.polls = nil

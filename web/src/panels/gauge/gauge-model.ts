@@ -1,16 +1,15 @@
 import { decimalsByUnit, formatValue, ownDecimals } from "@/lib/units"
 import {
+  dataRange,
   displayValue,
   fieldRange,
-  isDataLink,
-  resolveLink,
+  gaugeFraction,
+  gaugeRange,
   type FieldConfig,
   type FieldResolver,
   type LinkScope,
-  type ResolvedLink,
 } from "../field-config"
-import { fieldActions, type FieldAction } from "../actions/field-actions"
-import { reduceItems, reduceOptionsOf, type ReduceItem } from "../reduce-items"
+import { reduceItems, reduceOptionsOf } from "../reduce-items"
 import {
   thresholdColor,
   thresholdFor,
@@ -22,9 +21,15 @@ type GaugeMarker = { from: number; to: number; color: string }
 
 type ThresholdLabel = { fraction: number; text: string }
 
-export type GaugeLimits = { minWidth?: number; minHeight?: number }
+export type GaugeLimits = {
+  minWidth?: number | undefined
+  minHeight?: number | undefined
+}
 
-export type GaugeSizes = { titleSize?: number; valueSize?: number }
+export type GaugeSizes = {
+  titleSize?: number | undefined
+  valueSize?: number | undefined
+}
 
 type GaugeArc = { from: number; to: number }
 
@@ -46,10 +51,8 @@ export type Gauge = {
   config: FieldConfig
   frame: PreparedFrame
   field: PreparedField
-  row?: number
+  row?: number | undefined
 }
-
-type Source = ReduceItem
 
 const center = 50
 const startAngle = 150
@@ -58,11 +61,6 @@ const valueCharWidth = 0.62
 const valueFit = 43
 const moreLinksWidth = 1.75
 const labelRadius = 29
-
-const unitRanges = new Map([
-  ["percent", { min: 0, max: 100 }],
-  ["percentunit", { min: 0, max: 1 }],
-])
 
 function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value))
@@ -136,31 +134,6 @@ function compactValueText(
     }
   }
   return shortest
-}
-
-function dataRange(sources: Source[]): { min?: number; max?: number } {
-  let min: number | undefined
-  let max: number | undefined
-  for (const field of new Set(sources.map((source) => source.field))) {
-    const range = fieldRange(field)
-    if (range.min !== undefined && (min === undefined || range.min < min)) {
-      min = range.min
-    }
-    if (range.max !== undefined && (max === undefined || range.max > max)) {
-      max = range.max
-    }
-  }
-  return { min, max }
-}
-
-function rangeFor(
-  config: FieldConfig,
-  data: { min?: number; max?: number }
-): { min: number; max: number } {
-  const unitRange = unitRanges.get(config.unit ?? "")
-  const min = config.min ?? unitRange?.min ?? Math.min(0, data.min ?? 0)
-  const max = config.max ?? unitRange?.max ?? data.max ?? min
-  return { min, max: max <= min ? min + 1 : max }
 }
 
 function arcFor(
@@ -258,28 +231,25 @@ export function gaugeModel(
   )
   const withMarkers = display.thresholdMarkers === true
   const withLabels = display.thresholdLabels === true
-  const data = dataRange(sources)
+  const data = dataRange(new Set(sources.map((source) => source.field)))
   const decimals = decimalsByUnit(
-    sources.map(({ config, value }) => ({
-      unit: config.unit,
-      decimals: config.decimals,
-      value,
-    }))
+    sources.map(({ config, value }) => ({ ...config, value }))
   )
   return sources.map(
     ({ key, label, raw, value, frame, field, config, row }) => {
-      const { min, max } = rangeFor(
+      const range = gaugeRange(
         config,
         config.fieldMinMax ? fieldRange(field) : data
       )
+      const { min, max } = range
+      const shared = decimals.get(config.unit)
       const shown = displayValue(raw, config, {
-        decimals: decimals.get(config.unit),
+        ...(shared === undefined ? {} : { decimals: shared }),
         fieldMin: min,
         fieldMax: max,
       })
       const thresholdColored = shown.threshold.color === shown.color
-      const fraction =
-        value === null ? 0 : clamp((value - min) / (max - min), 0, 1)
+      const fraction = gaugeFraction(value, range)
       return {
         key,
         name: label,
@@ -318,29 +288,10 @@ export function gaugeScope(
   return {
     ...scope,
     row: { frame, index: gauge.row ?? field.values.length - 1 },
-    labels: frame.labels,
+    ...(frame.labels === undefined ? {} : { labels: frame.labels }),
     seriesName: fields.seriesName(frame, field),
     fieldName: field.name,
     value: gauge.value,
     valueText: gauge.text,
   }
-}
-
-export function gaugeLinks(
-  gauge: Gauge,
-  fields: FieldResolver,
-  scope: BaseScope
-): ResolvedLink[] {
-  const full = gaugeScope(gauge, fields, scope)
-  return gauge.config.links
-    .filter(isDataLink)
-    .flatMap((link) => resolveLink(link, full) ?? [])
-}
-
-export function gaugeActions(
-  gauge: Gauge,
-  fields: FieldResolver,
-  scope: BaseScope
-): FieldAction[] {
-  return fieldActions(gauge.config, gaugeScope(gauge, fields, scope))
 }

@@ -6,6 +6,7 @@ import {
   shouldLabelQueries,
   type ValueBlock,
 } from "./diff-values"
+import { must } from "@/test/must"
 
 const titles = {
   from: new Map<string, string>(),
@@ -33,7 +34,7 @@ describe("formatValue for queries", () => {
   })
 
   test("an empty ref counts as missing", () => {
-    expect(format([{ ref: "", query: "a" }])[0].label).toBeUndefined()
+    expect(must(format([{ ref: "", query: "a" }])[0]).label).toBeUndefined()
     expect(
       format([{ ref: "", query: "a" }, { query: "b" }]).map((b) => b.label)
     ).toEqual(["Query A", "Query B"])
@@ -43,39 +44,43 @@ describe("formatValue for queries", () => {
   })
 
   test("an explicit ref labels a single query and wins over position", () => {
-    expect(format([{ ref: "Z", query: "a" }])[0].label).toBe("Query Z")
+    expect(must(format([{ ref: "Z", query: "a" }])[0]).label).toBe("Query Z")
     expect(
       format([{ query: "a" }, { ref: "X", query: "b" }]).map((b) => b.label)
     ).toEqual(["Query A", "Query X"])
   })
 
   test("a shared flag labels a single query on the other side", () => {
-    expect(format([{ query: "a" }], true)[0].label).toBe("Query A")
+    expect(must(format([{ query: "a" }], true)[0]).label).toBe("Query A")
   })
 
   test("options list the other keys, with hide as hidden", () => {
-    const [block] = format([
-      {
-        ref: "A",
-        query: "up",
-        legend: "{{pod}}",
-        instant: true,
-        hide: true,
-        interval: "30s",
-        format: "table",
-      },
-    ])
+    const block = must(
+      format([
+        {
+          ref: "A",
+          query: "up",
+          legend: "{{pod}}",
+          instant: true,
+          hide: true,
+          interval: "30s",
+          format: "table",
+        },
+      ])[0]
+    )
     expect(block.options).toBe(
       "legend: {{pod}}, instant, hidden, interval: 30s, format: table"
     )
     expect(
-      format([{ query: "up", hide: false, legend: undefined }])[0].options
+      must(format([{ query: "up", hide: false, legend: undefined }])[0]).options
     ).toBe("")
-    expect(format([{ query: "up", hide: true }])[0].options).toBe("hidden")
+    expect(must(format([{ query: "up", hide: true }])[0]).options).toBe(
+      "hidden"
+    )
   })
 
   test("an empty query keeps an empty text", () => {
-    expect(format([{ query: "" }])[0].text).toBe("")
+    expect(must(format([{ query: "" }])[0]).text).toBe("")
   })
 
   test.each([
@@ -89,18 +94,18 @@ describe("formatValue for queries", () => {
   ])("falls back to JSON for %s", (_, value) => {
     const blocks = format(value)
     expect(blocks).toHaveLength(1)
-    expect(blocks[0].label).toBeUndefined()
-    expect(blocks[0].text).toBe(JSON.stringify(value, null, 2))
+    expect(must(blocks[0]).label).toBeUndefined()
+    expect(must(blocks[0]).text).toBe(JSON.stringify(value, null, 2))
   })
 
   test("other fields are plain text or JSON", () => {
     expect(formatValue("title", "Hello", titles, false, false)).toEqual([
       { text: "Hello", options: "" },
     ])
-    expect(formatValue("title", undefined, titles, false, false)[0].text).toBe(
-      ""
-    )
-    expect(formatValue("tags", ["a"], titles, false, false)[0].text).toBe(
+    expect(
+      must(formatValue("title", undefined, titles, false, false)[0]).text
+    ).toBe("")
+    expect(must(formatValue("tags", ["a"], titles, false, false)[0]).text).toBe(
       '[\n  "a"\n]'
     )
   })
@@ -133,7 +138,7 @@ describe("formatValue for one query", () => {
     ["a malformed query entry", "queries.B", { legend: "x" }],
     ["another query field", "queries.B.legend", "per pod"],
   ])("falls back to plain text for %s", (_, field, value) => {
-    const [block] = format(field, value)
+    const block = must(format(field, value)[0])
     expect(block.label).toBeUndefined()
     expect(block.text).toBe(
       typeof value === "string" ? value : JSON.stringify(value, null, 2)
@@ -191,20 +196,16 @@ describe("formatValue for reorders", () => {
   })
 
   test("does not read inherited keys as titles", () => {
-    const [block] = formatValue(
-      "panel order",
-      ["constructor"],
-      titles,
-      true,
-      false
+    const block = must(
+      formatValue("panel order", ["constructor"], titles, true, false)[0]
     )
     expect(block.text).toBe("1. constructor")
   })
 
   test("a non-array reorder value is plain text", () => {
-    expect(formatValue("panel order", "x", titles, true, false)[0].text).toBe(
-      "x"
-    )
+    expect(
+      must(formatValue("panel order", "x", titles, true, false)[0]).text
+    ).toBe("x")
   })
 
   test("numbers query refs even when a panel id is the same", () => {

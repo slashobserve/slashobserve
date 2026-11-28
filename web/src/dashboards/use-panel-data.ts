@@ -22,11 +22,11 @@ import { sortSelections } from "./variables"
 type Args = {
   source: PanelSource
   panel: Panel
-  from?: string
-  to?: string
-  timezone?: string
+  from?: string | undefined
+  to?: string | undefined
+  timezone?: string | undefined
   vars: Selections
-  maxDataPoints?: number
+  maxDataPoints?: number | undefined
   refreshMs: number | null
   enabled: boolean
   inView: boolean

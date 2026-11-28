@@ -172,8 +172,6 @@ var dataLinkTypes = map[spec.PanelType]bool{spec.Stat: true, spec.Gauge: true, s
 
 var plotPanelTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true, spec.Candlestick: true}
 
-var seriesDrawingTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true, spec.Candlestick: true}
-
 var legendTooltipHidingTypes = map[spec.PanelType]bool{
 	spec.Timeseries: true, spec.Trend: true, spec.Candlestick: true, spec.PieChart: true, spec.BarChart: true, spec.Histogram: true, spec.XYChart: true,
 }
@@ -266,7 +264,7 @@ var propGates = []propGate{
 	{ids: propIDs("actions"), types: dataLinkTypes, outside: true, skip: true},
 	{ids: propIDs("filterable"), types: tablePanelTypes, outside: true, handler: propNotDrawn},
 	{ids: tableColumnProps, types: tablePanelTypes, outside: true, skip: true},
-	{ids: seriesDrawingPropIDs, types: seriesDrawingTypes, outside: true, skip: true},
+	{ids: seriesDrawingPropIDs, types: plotPanelTypes, outside: true, skip: true},
 	{ids: seriesStylePropIDs, types: plotPanelTypes, outside: true, skip: true},
 	{ids: xyPointPropIDs, types: xyPanelTypes, outside: true, skip: true},
 	{ids: propIDs("custom.lineWidth"), types: xyPanelTypes, handler: propXYLineWidth},
@@ -1053,7 +1051,7 @@ func propStacking(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	case "normal", "percent", "none":
 		p.Stack = mode
 	}
-	if seriesDrawingTypes[b.typ] {
+	if plotPanelTypes[b.typ] {
 		b.stackGroup(p, cfg["group"], asString(cfg["mode"]), s)
 	}
 }

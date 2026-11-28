@@ -51,7 +51,8 @@ export function InputModeToggle({
     event.preventDefault()
     const step = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1
     const index = modes.indexOf(from)
-    choose(modes[(index + step + modes.length) % modes.length])
+    const next = modes[(index + step + modes.length) % modes.length]
+    if (next !== undefined) choose(next)
   }
 
   function option(value: InputMode) {

@@ -36,7 +36,7 @@ import type { MCPSource } from "./queries"
 type Props = {
   formId: string
   mode: "add" | "edit"
-  source?: MCPSource
+  source?: MCPSource | undefined
   serverError: unknown
   onSubmit: (input: SourceInput) => void
   firstInputRef: RefObject<HTMLInputElement | null>
@@ -69,7 +69,7 @@ function Field({
 }: {
   id: string
   label: string
-  error?: string
+  error?: string | undefined
   hint?: string
   children: ReactNode
 }) {

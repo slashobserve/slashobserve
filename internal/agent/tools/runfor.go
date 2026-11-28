@@ -2,11 +2,13 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -29,10 +31,34 @@ type BuildProgress struct {
 }
 
 type BriefAnswer struct {
-	System  string         `json:"system"`
-	Message string         `json:"message"`
-	Reason  string         `json:"reason"`
-	Build   *BuildProgress `json:"build"`
+	Reason string         `json:"reason"`
+	Build  *BuildProgress `json:"build"`
+	Brief  *RunBrief      `json:"brief"`
+
+	AgentState *AgentState `json:"agent_state"`
+}
+
+const (
+	MaxAgentStateBytes = 256 << 10
+	MaxReportedSteps   = 20
+)
+
+type AgentState struct {
+	Session json.RawMessage `json:"session,omitempty"`
+	Carry   json.RawMessage `json:"carry,omitempty"`
+}
+
+type ReportedStep struct {
+	Phase   string `json:"phase"`
+	Tool    string `json:"tool"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
+type AgentReport struct {
+	State *AgentState
+	Steps []ReportedStep
+	Task  *route.Task
 }
 
 type RunFinish struct {
@@ -56,6 +82,7 @@ type RunSessions interface {
 	NoteUsage(ctx context.Context, req revisions.Request, u revisions.Usage) (stop bool, err error)
 	Finish(ctx context.Context, req revisions.Request, in RunFinish) (RunFinished, error)
 	Progress(ctx context.Context, req revisions.Request) (*BuildProgress, error)
+	NoteAgent(ctx context.Context, req revisions.Request, in AgentReport) error
 }
 
 type RunWrites struct {
@@ -83,7 +110,7 @@ func Withheld(a datasource.Access) bool {
 }
 
 func RunFor(req revisions.Request) (Run, error) {
-	run := Run{RequestID: req.ID, ClaimEpoch: req.ClaimEpoch, Prompt: req.Prompt, TimeZone: req.TimeZone, Investigation: req.Investigation, ChatID: req.ChatID, ThreadAsk: req.ThreadAsk}
+	run := Run{RequestID: req.ID, ClaimEpoch: req.ClaimEpoch, Prompt: req.Prompt, TimeZone: req.TimeZone, Investigation: req.Investigation, ChatID: req.ChatID, ThreadAsk: req.ThreadAsk, BuiltIn: req.Assignee == revisions.AssignBuiltin}
 	switch {
 	case req.Intent == revisions.IntentSuggest:
 		run = Run{Mode: ModeSuggest, RequestID: req.ID, PanelID: req.PanelID}

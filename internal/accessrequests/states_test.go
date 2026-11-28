@@ -27,6 +27,8 @@ func TestStateOfTellsStillWaitingFromNotGranted(t *testing.T) {
 		{"past the open window", standing{age: OpenFor + time.Second}, StateExpired},
 		{"marked done by a granter", standing{dismissed: true}, StateDismissed},
 		{"dismissed long ago", standing{dismissed: true, age: 2 * OpenFor}, StateDismissed},
+		{"asked again after a dismissal was undone", standing{superseded: true}, StateDismissed},
+		{"asked again and expired since", standing{superseded: true, age: OpenFor + time.Second}, StateExpired},
 		{"granted", standing{granted: true}, StateGranted},
 		{"granted long ago", standing{granted: true, age: 2 * OpenFor}, StateGranted},
 	}

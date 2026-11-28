@@ -1,30 +1,22 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react"
 import type { QueryKey } from "@tanstack/react-query"
 
-import { ApiError } from "@/api/errors"
+import { problemText } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useCoarsePointer } from "@/lib/coarse-pointer"
 import { isModEnter, sendsOnEnter } from "@/lib/shortcuts"
 import { cleanText } from "@/lib/user-text"
-import { sentence } from "@/observe/queries"
 import { maxPromptLength } from "@/revisions/queries"
 
 import { MentionButton } from "./mention-button"
 import { toDisplay, type MentionAgent, type MentionPerson } from "./mentions"
-import { useEditMessage } from "./queries"
+import { useEditMessage } from "./thread-queries"
 import { SendHint } from "./send-hint"
 import { useInlineMention } from "./use-inline-mention"
 import { useMentionPicks } from "./use-mention-picks"
 
 const noAgents: readonly MentionAgent[] = []
-
-function describeEditError(error: unknown): string {
-  if (error instanceof ApiError && error.status < 500) {
-    return sentence(error.message)
-  }
-  return "The comment could not be saved. Try again."
-}
 
 export function EditMessageForm({
   message,
@@ -73,7 +65,12 @@ export function EditMessageForm({
       { messageId: message.id, body: wire },
       {
         onSuccess: onClose,
-        onError: (failure) => setError(describeEditError(failure)),
+        onError: (failure) =>
+          setError(
+            problemText(failure, {
+              fallback: "The comment could not be saved. Try again.",
+            })
+          ),
       }
     )
   }

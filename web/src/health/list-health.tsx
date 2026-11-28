@@ -2,8 +2,8 @@ import { createContext, useContext, useMemo, type ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { useAgentInfo } from "@/observe/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { repairOutcomeText, type HealthItem } from "./health-labels"
 import { dashboardsHealthQuery, useRequestHealthRepair } from "./queries"

@@ -51,7 +51,7 @@ function candidateSplits(expr: string): Split[] {
   const spaced: Split[] = []
   const tight: Split[] = []
   for (let i = 1; i < expr.length - 1; i++) {
-    const char = expr[i]
+    const char = expr.charAt(i)
     if (!isOperator(char)) continue
     const split = {
       left: expr.slice(0, i).trim(),
@@ -59,7 +59,8 @@ function candidateSplits(expr: string): Split[] {
       right: expr.slice(i + 1).trim(),
     }
     if (split.left === "" || split.right === "") continue
-    const isSpaced = /\s/.test(expr[i - 1]) && /\s/.test(expr[i + 1])
+    const isSpaced =
+      /\s/.test(expr.charAt(i - 1)) && /\s/.test(expr.charAt(i + 1))
     if (isSpaced) spaced.push(split)
     else tight.push(split)
   }
@@ -228,27 +229,30 @@ function fromWindow(
     numbers.length === 0
       ? 0
       : numbers.reduce((total, value) => total + value, 0) / numbers.length
-  const seen = [0]
-  const sums = [0]
-  const squares = [0]
+  const prefix = [{ seen: 0, sum: 0, square: 0 }]
+  let running = { seen: 0, sum: 0, square: 0 }
   for (const value of source.values) {
     const centered = isNumber(value) ? value - shift : 0
-    seen.push(seen[seen.length - 1] + (isNumber(value) ? 1 : 0))
-    sums.push(sums[sums.length - 1] + centered)
-    squares.push(squares[squares.length - 1] + centered * centered)
+    running = {
+      seen: running.seen + (isNumber(value) ? 1 : 0),
+      sum: running.sum + centered,
+      square: running.square + centered * centered,
+    }
+    prefix.push(running)
   }
   return source.values.map((value, row) => {
     if (!isNumber(value)) return null
     const first =
       align === "centered" ? row - Math.floor(width / 2) : row - width + 1
-    const start = Math.max(0, first)
-    const end = Math.min(count, first + width)
-    const members = seen[end] - seen[start]
+    const from = prefix[Math.max(0, first)]
+    const to = prefix[Math.min(count, first + width)]
+    if (from === undefined || to === undefined) return null
+    const members = to.seen - from.seen
     if (members === 0) return null
-    const mean = (sums[end] - sums[start]) / members
+    const mean = (to.sum - from.sum) / members
     const variance = Math.max(
       0,
-      (squares[end] - squares[start]) / members - mean * mean
+      (to.square - from.square) / members - mean * mean
     )
     switch (fn) {
       case "mean":

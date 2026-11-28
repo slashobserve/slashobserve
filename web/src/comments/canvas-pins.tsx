@@ -77,6 +77,7 @@ function goneTextOf(anchor: Anchor): string {
 
 export type PanelPin = {
   entry: ThreadWithMessages
+  root: ThreadWithMessages["messages"][number]
   anchor: Anchor
   placement: PinPlacement
 }
@@ -89,13 +90,14 @@ export function panelPins(
   return threads.flatMap((entry) => {
     const { anchor } = entry.thread
     if (anchor === null || !onSurface(entry.thread)) return []
-    if (entry.messages.length === 0) return []
+    const [root] = entry.messages
+    if (root === undefined) return []
     const placement = place(anchor)
-    return placement === null ? [] : [{ entry, anchor, placement }]
+    return placement === null ? [] : [{ entry, root, anchor, placement }]
   })
 }
 
-export type PinStack<T = PanelPin> = { at: Point; pins: T[] }
+export type PinStack<T = PanelPin> = { at: Point; pins: [T, ...T[]] }
 
 export function stackPins<T extends { placement: PinPlacement }>(
   pins: readonly T[],
@@ -120,7 +122,7 @@ export function stackLabel(stack: PinStack): string {
 }
 
 export function pinLabel(pin: PanelPin): string {
-  const root = pin.entry.messages[0]
+  const { root } = pin
   const excerpt = plainText(plainTitle(root.body)).slice(0, 80)
   const parts = [`Comment by ${root.actor.label}: ${excerpt}`]
   if (pin.entry.thread.status === "resolved") parts.push("resolved")
@@ -202,7 +204,7 @@ function Pin({
   const id = pin.entry.thread.id
   const open = useCanvasTool((state) => state.openThreadId === id)
   const arriving = useCanvasTool((state) => state.postedThreadId === id)
-  const root = pin.entry.messages[0]
+  const { root } = pin
   const resolved = pin.entry.thread.status === "resolved"
   const label = pinLabel(pin)
   const marker = useRef<HTMLButtonElement>(null)
@@ -368,7 +370,7 @@ function StackedPins({
                   }}
                 >
                   <AuthorMark
-                    mark={markOf(pin.entry.messages[0].actor)}
+                    mark={markOf(pin.root.actor)}
                     className="size-5 shrink-0"
                   />
                   <span className="min-w-0 flex-1 truncate">

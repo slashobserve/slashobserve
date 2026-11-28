@@ -62,10 +62,6 @@ func Build(base *url.URL, requestID string) string {
 	return join(base, "b", requestID)
 }
 
-func Finding(base *url.URL, id string) string {
-	return join(base, "findings", id)
-}
-
 func Logs(base *url.URL, datasourceUID string, query url.Values) string {
 	return withQuery(join(base, "logs", datasourceUID), query)
 }

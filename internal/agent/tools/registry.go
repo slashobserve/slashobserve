@@ -22,7 +22,6 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/accessrequests"
 	"github.com/slashobserve/slashobserve/internal/activity"
-	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/audit/trail"
@@ -35,7 +34,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/homedash"
 	"github.com/slashobserve/slashobserve/internal/imports"
-	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/proposals"
@@ -60,7 +58,8 @@ const (
 
 	MaxModelSpecBytes = 128 << 10
 	maxSuggestResult  = 64 << 10
-	maxBriefBytes     = 128 << 10
+	maxSpecGuideBytes = 96 << 10
+	maxBriefBytes     = 2*MaxModelSpecBytes + maxSpecGuideBytes + MaxAgentStateBytes + 32<<10
 )
 
 var (
@@ -86,7 +85,7 @@ func FailureCode(err error) string {
 	return FailureToolFailed
 }
 
-var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes, nameGetSpecGuide: 96 << 10, nameUpdateDashboard: maxSuggestResult, nameGetPanels: MaxModelSpecBytes, nameUpdatePanels: maxSuggestResult, nameGetRunBrief: maxBriefBytes, nameGetProposal: MaxModelSpecBytes}
+var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes, nameGetSpecGuide: maxSpecGuideBytes, nameUpdateDashboard: maxSuggestResult, nameGetPanels: MaxModelSpecBytes, nameUpdatePanels: maxSuggestResult, nameGetRunBrief: maxBriefBytes, nameGetProposal: MaxModelSpecBytes, nameReadSeries: maxReadSeriesBytes + 8<<10}
 
 const defaultNarrowing = "narrow the request"
 
@@ -184,7 +183,8 @@ type Deps struct {
 	AccessRequests *accessrequests.Service
 	Viewers        *viewers.Service
 	Home           *homedash.Service
-	Provider       llm.Provider
+	Drafts         DraftModel
+	DraftQueue     DraftQueue
 	DraftBudget    DraftBudget
 	MCPSources     MCPSources
 	PublicURL      *url.URL
@@ -253,6 +253,7 @@ type Run struct {
 	ThreadAsk     bool
 	Task          route.Task
 	AllTools      bool
+	BuiltIn       bool
 }
 
 func (run Run) asOf() *time.Time {
@@ -300,42 +301,6 @@ func WithUnchecked(ctx context.Context, unchecked []Unchecked) context.Context {
 func UncheckedReads(ctx context.Context) []Unchecked {
 	unchecked, _ := ctx.Value(uncheckedKey{}).([]Unchecked)
 	return unchecked
-}
-
-type unverifiedKey struct{}
-
-type factsKey struct{}
-
-func WithFacts(ctx context.Context, ledger *grounding.Ledger) context.Context {
-	if ledger == nil {
-		return ctx
-	}
-	return context.WithValue(ctx, factsKey{}, ledger)
-}
-
-func factsOf(ctx context.Context) (*grounding.Ledger, bool) {
-	ledger, ok := ctx.Value(factsKey{}).(*grounding.Ledger)
-	return ledger, ok && ledger != nil
-}
-
-type causeSignalsKey struct{}
-
-func WithCauseSignals(ctx context.Context, signals []findings.Signals) context.Context {
-	return context.WithValue(ctx, causeSignalsKey{}, signals)
-}
-
-func causeSignalsOf(ctx context.Context) ([]findings.Signals, bool) {
-	signals, ok := ctx.Value(causeSignalsKey{}).([]findings.Signals)
-	return signals, ok
-}
-
-func WithUnverified(ctx context.Context, items []findings.Unverified) context.Context {
-	return context.WithValue(ctx, unverifiedKey{}, items)
-}
-
-func unverifiedOf(ctx context.Context) []findings.Unverified {
-	items, _ := ctx.Value(unverifiedKey{}).([]findings.Unverified)
-	return items
 }
 
 type rangeNotes struct {
@@ -650,6 +615,7 @@ var runEnding = []error{
 	context.Canceled,
 	context.DeadlineExceeded,
 	dashboards.ErrBuildLost,
+	findings.ErrRunLost,
 	ErrPanicked,
 	ErrInvariant,
 	errInvalidRun,

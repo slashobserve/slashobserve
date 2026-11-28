@@ -1,0 +1,178 @@
+{
+  "about": "Reads, saves and their identity: replays, reuse, repeated calls and the one save per turn.",
+  "traces": [
+    {
+      "name": "a repeated save is refused, and a restart forgets the saves",
+      "source": "TestStateRefusesARepeatedSave",
+      "start": {"mode":"revise"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"n":1}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"n":2}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"n":1}},"expect":{"verdict":"refuse","step":"Refused update_panels: the same save was sent again","code":"invalid_request","message":"this save is identical to an earlier one and changes nothing; save the next panel, or set finish: true when every planned panel is built"}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"n":1}},"expect":{"verdict":"refuse"}},
+        {"restart":{}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"n":1}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a successful read is replayed once and the third is refused",
+      "source": "TestStateReplaysASuccessAndRefusesTheThird",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"dispatch"},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"replay","note":"This is the result of the same earlier call. A third identical call is refused.","step":"Reused the result of an identical call"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse","step":"Refused get_panels: the same read was asked 3 times","code":"invalid_request","message":"this exact call already ran 2 times; use its earlier result, change its input, or save"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse"}}
+      ]
+    },
+    {
+      "name": "an error is never replayed",
+      "source": "TestStateNeverReplaysAnError",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_metrics","input":{}},"expect":{"verdict":"dispatch"},"result":{"is_error":true}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_metrics","input":{}},"expect":{"verdict":"dispatch"},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_metrics","input":{}},"expect":{"verdict":"refuse"}}
+      ]
+    },
+    {
+      "name": "a query_range result is never replayed",
+      "source": "TestStateNeverReplaysAQueryResult",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{}},"expect":{"verdict":"dispatch"},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a query_instant result is never replayed",
+      "source": "TestStateNeverReplaysAQueryResult",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_instant","input":{}},"expect":{"verdict":"dispatch"},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_instant","input":{}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a new session forgets the reads",
+      "source": "TestStateForgetsReadsOnANewSession",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"result":{}},
+        {"session":{"building":false}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a turn reuses a duplicate read and refuses a second save",
+      "source": "TestAdmitOrdersAThreeReadTurnWithADuplicateAndTwoSaves",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":2}},
+        {"call":{"name":"get_panels","input":{"a":1}},"expect":{"verdict":"dispatch"}},
+        {"call":{"name":"list_metrics","input":{}},"expect":{"verdict":"dispatch"}},
+        {"call":{"name":"get_panels","raw":"{ \"a\": 1 }"},"expect":{"verdict":"reuse","reuse_of":0,"step":"Reused the result of an identical call"}},
+        {"call":{"name":"update_panels","input":{"n":1}},"expect":{"verdict":"dispatch"}},
+        {"call":{"name":"update_panels","input":{"n":2}},"expect":{"verdict":"refuse"}},
+        {"turn":{"saves":2}},
+        {"call":{"name":"update_panels","input":{"n":2}},"expect":{"verdict":"dispatch"}},
+        {"call":{"name":"update_dashboard","input":{}},"expect":{"verdict":"refuse","code":"invalid_request","message":"only one save per turn","step":"The update_dashboard call was sent back for a fix: it was a second save in the same turn"}}
+      ]
+    },
+    {
+      "name": "a read refused as repeated is reused, not answered, in the same turn",
+      "source": "TestAdmitRefusesAReadOfARefusedKeyAgainInTheSameTurn",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"result":{"is_error":true}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"result":{"is_error":true}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse","step":"Refused get_panels: the same read was asked 3 times"}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"reuse","reuse_of":0}},
+        {"end_turn":{"stop":null}},
+        {"check":{"usage":{"stalled_turns":1}}}
+      ]
+    },
+    {
+      "name": "save_finding is refused once the run builds",
+      "source": "TestAdmitRefusesSaveFindingOnceBuilding",
+      "start": {"mode":"create","building":true},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{}},"expect":{"verdict":"refuse","step":"The save_finding call was sent back for a fix: this run is building a dashboard, so it cannot save an answer","message":"this run already saved panels; finish the dashboard instead of saving a finding"}}
+      ]
+    },
+    {
+      "name": "a save after a rejection is a repair, and its repeat is refused",
+      "source": "TestAdmitRefusesARepeatedSaveAndMarksARepairPhase",
+      "start": {"mode":"revise","streak":{"kind":"generic","count":1}},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"n":1}},"expect":{"verdict":"dispatch","phase":"repair"}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","raw":"{\"n\": 1}"},"expect":{"verdict":"refuse","step":"Refused update_panels: the same save was sent again"}},
+        {"check":{"usage":{"repair_rounds":0}}}
+      ]
+    },
+    {
+      "name": "a forgotten save can be sent again unchanged",
+      "source": "TestAForgottenSaveCanBeSentAgainUnchanged",
+      "start": {"mode":"revise"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"update_panels","input":{"n":1}},"expect":{"verdict":"dispatch"}},
+        {"forget":{"name":"update_panels","input":{"n":1}}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"update_panels","input":{"n":1}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"update_panels","input":{"n":1}},"expect":{"verdict":"refuse"}},
+        {"forget":{"name":"update_panels","input":{"n":2}}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"update_panels","input":{"n":1}},"expect":{"verdict":"refuse"}}
+      ]
+    },
+    {
+      "name": "another save carries no refused read count",
+      "source": "TestAnotherSaveCarriesNoRefusedReadCount",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"n":1}},"expect":{"verdict":"dispatch","reads_refused":0}}
+      ]
+    },
+    {
+      "name": "reordered keys are one read",
+      "source": "one call key",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{"a":1,"b":2}},"expect":{"verdict":"dispatch"}},
+        {"call":{"name":"get_panels","raw":"{\"b\":2,\"a\":1}"},"expect":{"verdict":"reuse","reuse_of":0}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"a":1,"b":2}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","raw":"{\"b\": 2, \"a\": 1}"},"expect":{"verdict":"refuse","step":"Refused update_panels: the same save was sent again"}}
+      ]
+    }
+  ]
+}

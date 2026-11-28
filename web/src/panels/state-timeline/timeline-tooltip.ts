@@ -32,7 +32,10 @@ export function tooltipEntries(
     numeric,
     { sort, hideZeros, cumulative: false, stack: [] },
     numeric.length
-  ).rows.map(({ index }) => found[index])
+  ).rows.flatMap(({ index }) => {
+    const entry = found[index]
+    return entry === undefined ? [] : [entry]
+  })
   const textual = found.filter(({ segment }) => segment.value === null)
   const all = [...sorted, ...textual]
   return { entries: all.slice(0, maxTooltipEntries), total: all.length }

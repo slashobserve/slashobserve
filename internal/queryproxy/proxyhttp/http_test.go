@@ -1252,8 +1252,7 @@ func holdUpstreamSlots(t *testing.T, hn *harness) {
 }
 
 func TestLintTakesAProcessWideUpstreamSlot(t *testing.T) {
-	hn := newHarness(t)
-	hn.h.lintTimeout = 30 * time.Millisecond
+	hn := newHarness(t, queryproxy.WithUpstreamWait(30*time.Millisecond))
 
 	releases := make([]func(), upstreamSlot)
 	for i := range releases {
@@ -1403,7 +1402,9 @@ func multiQueryPanel(id string, queries ...spec.Query) spec.Panel {
 
 func frameRefs(t *testing.T, body dataResponse) []string {
 	t.Helper()
-	var frames []wireFrame
+	var frames []struct {
+		Ref string `json:"ref"`
+	}
 	if err := json.Unmarshal(body.Frames, &frames); err != nil {
 		t.Fatalf("frames: %v", err)
 	}

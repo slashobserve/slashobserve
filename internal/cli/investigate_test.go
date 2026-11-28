@@ -33,16 +33,6 @@ func TestInvestigatePayloadCarriesTheQuestionAndTarget(t *testing.T) {
 	}
 }
 
-func TestInvestigatePayloadNamesTheObservationOnlyWhenGiven(t *testing.T) {
-	got, err := investigatePayload([]string{"why"}, investigateOptions{observation: observationID, timeout: time.Hour})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if raw, _ := json.Marshal(got); string(raw) != `{"kind":"investigate","observation_id":"`+observationID+`","prompt":"why"}` {
-		t.Errorf("payload = %s", raw)
-	}
-}
-
 func TestInvestigatePrivateSendsKindAsk(t *testing.T) {
 	got, err := investigatePayload([]string{"why"}, investigateOptions{observation: observationID, private: true, timeout: time.Hour})
 	if err != nil {

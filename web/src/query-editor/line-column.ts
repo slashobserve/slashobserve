@@ -3,6 +3,6 @@ export function lineAndColumn(text: string, offset: number) {
   const lines = before.split("\n")
   return {
     line: lines.length,
-    column: [...lines[lines.length - 1]].length + 1,
+    column: [...(lines.at(-1) ?? "")].length + 1,
   }
 }

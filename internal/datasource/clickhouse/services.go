@@ -30,8 +30,8 @@ func (d *Datasource) Services(ctx context.Context, req datasource.ServiceRequest
 	sql := "SELECT DISTINCT toString(" + ServiceColumn + ") AS v FROM " + serviceTables[signal] +
 		" WHERE Timestamp >= {from:DateTime64(9, 'UTC')} AND Timestamp <= {to:DateTime64(9, 'UTC')} AND " + ServiceColumn + " != '' ORDER BY v LIMIT {limit:UInt32}"
 	rs, err := d.discoverQuery(ctx, sql, ch.Parameters{
-		"from":  clickHouseTime(req.Range.From),
-		"to":    clickHouseTime(req.Range.To),
+		"from":  parameterTime(req.Range.From),
+		"to":    parameterTime(req.Range.To),
 		"limit": strconv.Itoa(req.Limit),
 	})
 	if err != nil {

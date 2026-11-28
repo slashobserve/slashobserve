@@ -1,29 +1,29 @@
-import type { TimeRangeValue } from "@/dashboards/time-range-picker"
 import {
   defaultPageSize,
   validPage,
   validPageSize,
   type PageSize,
 } from "@/lib/paging"
+import { firstString } from "@/lib/search"
 import { isTimeValue } from "@/lib/time"
 
 import { levelsParam, parseLevels } from "./levels"
 
 export type LogsSearch = {
-  q?: string
-  ask?: string
-  from?: string
-  to?: string
-  f?: string
-  cols?: string
-  line?: string
-  view?: "patterns"
-  levels?: string
-  tail?: "1"
-  observation?: string
-  saved?: string
-  page?: number
-  size?: PageSize
+  q?: string | undefined
+  ask?: string | undefined
+  from?: string | undefined
+  to?: string | undefined
+  f?: string | undefined
+  cols?: string | undefined
+  line?: string | undefined
+  view?: "patterns" | undefined
+  levels?: string | undefined
+  tail?: "1" | undefined
+  observation?: string | undefined
+  saved?: string | undefined
+  page?: number | undefined
+  size?: PageSize | undefined
 }
 
 const pageResetKeys = ["q", "f", "from", "to", "size"] as const
@@ -85,11 +85,6 @@ export function queryModeLabel(type: string): string {
   if (type === "loki") return "LogQL"
   if (type === "clickhouse") return "SQL"
   return "Query"
-}
-
-export function firstString(value: unknown): string | undefined {
-  const item = Array.isArray(value) ? value[0] : value
-  return typeof item === "string" ? item : undefined
 }
 
 export function validDatasource(value: unknown): string | undefined {
@@ -182,14 +177,10 @@ export function validateLogsSearch(raw: Record<string, unknown>): LogsSearch {
   }
 }
 
-export type LogsEntrySearch = LogsSearch & { ds?: string }
+export type LogsEntrySearch = LogsSearch & { ds?: string | undefined }
 
 export function validateLogsEntrySearch(
   raw: Record<string, unknown>
 ): LogsEntrySearch {
   return { ...validateLogsSearch(raw), ds: validDatasource(raw.ds) }
-}
-
-export function logsTimeRange(search: LogsSearch): TimeRangeValue {
-  return { from: search.from ?? "now-1h", to: search.to ?? "now" }
 }

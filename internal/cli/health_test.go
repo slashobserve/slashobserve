@@ -68,6 +68,7 @@ func TestRepairStateSaysWhereTheLatestRepairIs(t *testing.T) {
 		{&healthRepair{Outcome: "running"}, "repair running"},
 		{&healthRepair{Outcome: "repaired", Version: &seven}, "repaired in version 7"},
 		{&healthRepair{Outcome: "still_failing", Version: &seven}, "repair saved version 7, still failing"},
+		{&healthRepair{Outcome: "proposed"}, "repair proposed, waiting for an editor to merge it"},
 		{&healthRepair{Outcome: "failed", Error: strPtr("the agent could not\x1b[31m fix it")}, "repair failed: the agent could not [31m fix it"},
 		{&healthRepair{Outcome: "failed"}, "repair failed"},
 	}

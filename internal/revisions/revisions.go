@@ -86,8 +86,6 @@ var (
 	ErrAgentBusy         = errors.New("the agent is busy; try again in a few minutes")
 	ErrRequestNotFound   = errors.New("agent request not found")
 	ErrUnknownPanel      = errors.New("panel does not exist in the latest version of the dashboard")
-	ErrCommentNotFound   = errors.New("comment not found")
-	errNoThreads         = errors.New("comment threads are not configured")
 	ErrRequestFinished   = errors.New("the request already finished")
 	ErrNotContinuable    = errors.New("the request has no stopped build to continue")
 
@@ -155,7 +153,6 @@ func (draftBodyTooLargeError) Error() string {
 func (draftBodyTooLargeError) Unwrap() error { return ErrDraftTooLarge }
 
 type Threads interface {
-	ForRun(ctx context.Context, dashboardID, commentID pgtype.UUID) (threadID pgtype.UUID, panelID string, err error)
 	RunEnded(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest) error
 }
 

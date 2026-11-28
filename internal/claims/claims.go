@@ -43,6 +43,7 @@ type Config struct {
 	InternalURL *url.URL
 	InstanceID  string
 	Model       func(question bool) *ModelSettings
+	Agent       *AgentSettings
 	RunTimeout  time.Duration
 	Logger      *slog.Logger
 }
@@ -55,6 +56,7 @@ type Service struct {
 	internalURL *url.URL
 	instanceID  string
 	model       func(question bool) *ModelSettings
+	agent       *AgentSettings
 	runTimeout  time.Duration
 	logger      *slog.Logger
 	steps       *revisions.Steps
@@ -74,6 +76,7 @@ func New(c Config) *Service {
 		internalURL: c.InternalURL,
 		instanceID:  c.InstanceID,
 		model:       c.Model,
+		agent:       c.Agent,
 		runTimeout:  c.RunTimeout,
 		logger:      c.Logger,
 		steps:       revisions.NewSteps(c.DB, c.Logger),

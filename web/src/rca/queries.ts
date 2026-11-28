@@ -1,5 +1,6 @@
 import {
   queryOptions,
+  type QueryClient,
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query"
@@ -62,7 +63,6 @@ export function rcaLinksQuery(observationId: string, revision: number) {
 export function usePublishRca(observationId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: () =>
       api
         .POST("/observations/{id}/rcas", {
@@ -85,7 +85,6 @@ export function usePublishRca(observationId: string) {
 export function useWithdrawRca(observationId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (revision: number) =>
       api
         .DELETE("/observations/{id}/rcas/{revision}", {
@@ -110,11 +109,26 @@ export function useWithdrawRca(observationId: string) {
   })
 }
 
+function refreshLinks(
+  queryClient: QueryClient,
+  observationId: string,
+  revision: number
+) {
+  return Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: observationKeys.rcaLinks(observationId, revision),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: observationKeys.rcas(observationId),
+      exact: true,
+    }),
+  ])
+}
+
 export function useCreateRcaLink(observationId: string, revision: number) {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: (body: components["schemas"]["CreateRCAPublicLinkRequest"]) =>
       api
         .POST("/observations/{id}/rcas/{revision}/public-links", {
@@ -122,27 +136,20 @@ export function useCreateRcaLink(observationId: string, revision: number) {
           body,
         })
         .then(unwrap),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: observationKeys.rcaLinks(observationId, revision),
-      }),
+    onSuccess: () => refreshLinks(queryClient, observationId, revision),
   })
 }
 
 export function useRevokeRcaLink(observationId: string, revision: number) {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (linkId: string) =>
       api
         .DELETE("/observations/{id}/public-links/{link_id}", {
           params: { path: { id: observationId, link_id: linkId } },
         })
         .then(unwrap),
-    onSettled: () =>
-      queryClient.invalidateQueries({
-        queryKey: observationKeys.rcaLinks(observationId, revision),
-      }),
+    onSettled: () => refreshLinks(queryClient, observationId, revision),
   })
 }
 

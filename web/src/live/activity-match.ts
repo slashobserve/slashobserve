@@ -31,7 +31,7 @@ function discussionTouch(event: ActivityEvent): Touch {
 export function touchesObservation(
   event: ActivityEvent,
   observation: Pick<Observation, "id" | "thread_id"> & {
-    blocks?: readonly Pick<Block, "run_id">[]
+    blocks?: readonly Pick<Block, "run_id">[] | undefined
   }
 ): Touch | null {
   const { kind, id } = event.target

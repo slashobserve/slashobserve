@@ -30,6 +30,12 @@ import {
   truncatedNote,
 } from "./barchart-model"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 const wide = { width: 600, height: 300 }
 
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
@@ -96,7 +102,7 @@ describe("barchartModel categories", () => {
       "/y",
     ])
     expect(model.series.map((series) => series.name)).toEqual(["a", "b"])
-    expect(model.bars[1].map((bar) => bar.value)).toEqual([2, 4])
+    expect(nth(model.bars, 1).map((bar) => bar.value)).toEqual([2, 4])
     expect(model.reason).toBeNull()
   })
 
@@ -126,8 +132,8 @@ describe("barchartModel categories", () => {
       ]),
     ])
     expect(model.categories).toHaveLength(2)
-    expect(model.categories[0].title).toMatch(/^\d{4}-\d{2}-\d{2} /)
-    expect(model.categories[0].label).toMatch(/^\d{2}:\d{2}:\d{2}$/)
+    expect(nth(model.categories, 0).title).toMatch(/^\d{4}-\d{2}-\d{2} /)
+    expect(nth(model.categories, 0).label).toMatch(/^\d{2}:\d{2}:\d{2}$/)
     expect(model.series.map((series) => series.name)).toEqual(["v"])
   })
 
@@ -272,9 +278,9 @@ describe("barchartModel categories", () => {
       displayWithDefaults("barchart", {}),
       undefined
     )
-    expect([...(source.columns[0].colors ?? new Map()).entries()]).toEqual([
-      [1, "var(--threshold-critical)"],
-    ])
+    expect([...(nth(source.columns, 0).colors ?? new Map()).entries()]).toEqual(
+      [[1, "var(--threshold-critical)"]]
+    )
   })
 
   it("labels time categories in the given zone", () => {
@@ -295,7 +301,7 @@ describe("barchartModel categories", () => {
       "1970-01-01 05:30:00",
       "1970-01-01 05:31:00",
     ])
-    expect(model.categories[0].label).toBe("05:30:00")
+    expect(nth(model.categories, 0).label).toBe("05:30:00")
   })
 
   it("prefers xField, matched by field name, over the text field", () => {
@@ -392,7 +398,7 @@ describe("barchartModel stacking", () => {
   it("draws unstacked bars from zero over a range that spans zero", () => {
     const model = build(frames)
     expect(model.slotCount).toBe(2)
-    expect(model.bars[0].map(({ start, end }) => [start, end])).toEqual([
+    expect(nth(model.bars, 0).map(({ start, end }) => [start, end])).toEqual([
       [0, 1],
       [0, 3],
     ])
@@ -402,7 +408,7 @@ describe("barchartModel stacking", () => {
   it("stacks fields of the same mode in one slot", () => {
     const model = build(frames, { stack: "normal" } as Partial<DataPanel>)
     expect(model.slotCount).toBe(1)
-    expect(model.bars[0].map(({ start, end }) => [start, end])).toEqual([
+    expect(nth(model.bars, 0).map(({ start, end }) => [start, end])).toEqual([
       [0, 1],
       [1, 4],
     ])
@@ -413,7 +419,7 @@ describe("barchartModel stacking", () => {
       [frame([text("r", ["/a"]), numbers("p", [2]), numbers("n", [-3])])],
       { stack: "normal" } as Partial<DataPanel>
     )
-    expect(model.bars[0].map(({ start, end }) => [start, end])).toEqual([
+    expect(nth(model.bars, 0).map(({ start, end }) => [start, end])).toEqual([
       [0, 2],
       [0, -3],
     ])
@@ -422,11 +428,11 @@ describe("barchartModel stacking", () => {
 
   it("normalises percent stacks to 100 per category", () => {
     const model = build(frames, { stack: "percent" } as Partial<DataPanel>)
-    expect(model.bars[0].map(({ start, end }) => [start, end])).toEqual([
+    expect(nth(model.bars, 0).map(({ start, end }) => [start, end])).toEqual([
       [0, 25],
       [25, 100],
     ])
-    expect(model.bars[1][1].shown.text).toBe("4")
+    expect(nth(nth(model.bars, 1), 1).shown.text).toBe("4")
     expect(model.axis.unit).toBe("percent")
     expect(model.max).toBe(100)
   })
@@ -445,9 +451,10 @@ describe("barchartModel stacking", () => {
 describe("barchartModel colors", () => {
   it("uses the palette, a fixed color or the threshold color", () => {
     const frames = [frame([text("r", ["/a", "/b"]), numbers("one", [1, 9])])]
-    expect(build(frames).bars[0][0].color).toBe("var(--series-1)")
+    expect(nth(nth(build(frames).bars, 0), 0).color).toBe("var(--series-1)")
     expect(
-      build(frames, { color: "#ff0000" } as Partial<DataPanel>).series[0].color
+      nth(build(frames, { color: "#ff0000" } as Partial<DataPanel>).series, 0)
+        .color
     ).toBe("#ff0000")
     const thresholds = build(frames, {
       thresholds: [
@@ -455,7 +462,9 @@ describe("barchartModel colors", () => {
         { value: 5, color: "red" },
       ],
     } as Partial<DataPanel>)
-    expect(thresholds.bars[0][0].color).not.toBe(thresholds.bars[1][0].color)
+    expect(nth(nth(thresholds.bars, 0), 0).color).not.toBe(
+      nth(nth(thresholds.bars, 1), 0).color
+    )
   })
 })
 
@@ -581,7 +590,7 @@ describe("barchartModel legend hiding", () => {
     const stacked = { stack: "normal" } as Partial<DataPanel>
     const model = build(frames, stacked, {}, wide, new Set(["A:{}#one"]))
     expect(model.series.map((series) => series.name)).toEqual(["two"])
-    expect(model.bars[0].map(({ start, end }) => [start, end])).toEqual([
+    expect(nth(model.bars, 0).map(({ start, end }) => [start, end])).toEqual([
       [0, 3],
     ])
   })
@@ -612,12 +621,15 @@ describe("barchartModel fill and border", () => {
   const frames = [frame([text("r", ["/a"]), numbers("v", [1])])]
 
   it("is opaque with no border unless fill and line width are written", () => {
-    const plain = build(frames).series[0]
+    const plain = nth(build(frames).series, 0)
     expect([plain.fillOpacity, plain.borderWidth]).toEqual([1, 0])
-    const written = build(frames, {
-      fill: 40,
-      lineWidth: 3,
-    } as Partial<DataPanel>).series[0]
+    const written = nth(
+      build(frames, {
+        fill: 40,
+        lineWidth: 3,
+      } as Partial<DataPanel>).series,
+      0
+    )
     expect([written.fillOpacity, written.borderWidth]).toEqual([0.4, 3])
   })
 })
@@ -641,8 +653,8 @@ describe("barchartModel colorByField", () => {
       } as Partial<DataPanel>,
       { colorByField: "level" }
     )
-    const first = model.bars[0][0].color
-    expect(first).not.toBe(model.bars[1][0].color)
+    const first = nth(nth(model.bars, 0), 0).color
+    expect(first).not.toBe(nth(nth(model.bars, 1), 0).color)
   })
 })
 
@@ -658,7 +670,7 @@ describe("tooltipIndexes", () => {
   const model = build(frames)
   const hit = { category: 0, bar: 0 }
   const names = (indexes: number[]) =>
-    indexes.map((index) => model.series[index].name)
+    indexes.map((index) => nth(model.series, index).name)
 
   it("lists only the hovered bar in single mode", () => {
     const options = barOptions({ tooltip: "single" })
@@ -794,7 +806,9 @@ describe("barchartModel threshold style", () => {
       thresholds: steps,
       thresholdsStyle: "series",
     } as Partial<DataPanel>)
-    expect(model.bars[0][0].color).not.toBe(model.bars[1][0].color)
+    expect(nth(nth(model.bars, 0), 0).color).not.toBe(
+      nth(nth(model.bars, 1), 0).color
+    )
   })
 
   it("reads the style of an override on the first series", () => {

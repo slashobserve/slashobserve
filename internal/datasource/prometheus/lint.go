@@ -34,7 +34,7 @@ func (d *Datasource) Lint(ctx context.Context, query string) ([]datasource.Diagn
 	diags := []datasource.Diagnostic{}
 	exp, err := macros.ExpandForLint(macros.PromQL, query)
 	if err != nil {
-		return append(diags, datasource.Diagnostic{Severity: datasource.SeverityError, Message: messageOf(err)}), nil
+		return append(diags, datasource.Diagnostic{Severity: datasource.SeverityError, Message: datasource.MessageOf(err)}), nil
 	}
 	expr, err := promParser.ParseExpr(exp.Text)
 	if err != nil {
@@ -57,11 +57,11 @@ func (d *Datasource) Lint(ctx context.Context, query string) ([]datasource.Diagn
 		} else if nameStart, nameEnd, ok := braceNameSpan(exp.Text, spanStart); ok {
 			spanStart, spanEnd = nameStart, nameEnd
 		}
-		start, end, inVariable := exp.Locate(clampOffset(spanStart, len(exp.Text)), clampOffset(spanEnd, len(exp.Text)))
+		start, end, inVariable := exp.Locate(datasource.Clamp(spanStart, len(exp.Text)), datasource.Clamp(spanEnd, len(exp.Text)))
 		if inVariable || slices.ContainsFunc(refs, func(r metricRef) bool { return r.name == name }) {
 			return nil
 		}
-		refs = append(refs, metricRef{name: name, start: clampOffset(start, len(query)), end: clampOffset(end, len(query))})
+		refs = append(refs, metricRef{name: name, start: datasource.Clamp(start, len(query)), end: datasource.Clamp(end, len(query))})
 		return nil
 	})
 	if len(refs) > maxLintMetrics {
@@ -173,26 +173,22 @@ func selectorName(vs *parser.VectorSelector) string {
 	return ""
 }
 
-func clampOffset(v, upper int) int {
-	return max(0, min(v, upper))
-}
-
 func parseDiagnostics(err error, exp macros.Expansion, queryLen int) []datasource.Diagnostic {
 	var errs parser.ParseErrors
 	if single := (*parser.ParseErr)(nil); errors.As(err, &single) {
 		errs = parser.ParseErrors{*single}
 	} else if !errors.As(err, &errs) || len(errs) == 0 {
-		return []datasource.Diagnostic{{Severity: datasource.SeverityError, Message: truncateText(err.Error())}}
+		return []datasource.Diagnostic{{Severity: datasource.SeverityError, Message: datasource.TruncateText(err.Error())}}
 	}
 	e := errs[0]
-	start := clampOffset(int(e.PositionRange.Start), len(exp.Text))
-	end := clampOffset(int(e.PositionRange.End), len(exp.Text))
+	start := datasource.Clamp(int(e.PositionRange.Start), len(exp.Text))
+	end := datasource.Clamp(int(e.PositionRange.End), len(exp.Text))
 	origStart, origEnd, inVariable := exp.Locate(start, end)
-	origStart = clampOffset(origStart, queryLen)
-	origEnd = clampOffset(origEnd, queryLen)
+	origStart = datasource.Clamp(origStart, queryLen)
+	origEnd = datasource.Clamp(origEnd, queryLen)
 	diag := datasource.Diagnostic{
 		Severity: datasource.SeverityError,
-		Message:  truncateText(e.Err.Error()),
+		Message:  datasource.TruncateText(e.Err.Error()),
 		Start:    origStart,
 		End:      max(origStart, origEnd),
 	}
@@ -207,7 +203,7 @@ func (d *Datasource) existenceDiagnostics(ctx context.Context, refs []metricRef)
 	if len(refs) == 0 {
 		return nil, nil
 	}
-	ctx, cancel := bound(ctx, lintExistenceLimit)
+	ctx, cancel := datasource.Bound(ctx, lintExistenceLimit)
 	defer cancel()
 	matchers := make([]string, len(refs))
 	for i, ref := range refs {
@@ -225,7 +221,7 @@ func (d *Datasource) existenceDiagnostics(ctx context.Context, refs []metricRef)
 		}
 		return []datasource.Diagnostic{{
 			Severity: datasource.SeverityWarning,
-			Message:  "could not check metric existence: " + messageOf(err),
+			Message:  "could not check metric existence: " + datasource.MessageOf(err),
 		}}, nil
 	}
 	var out []datasource.Diagnostic
@@ -246,14 +242,6 @@ func metricMatcher(name string) string {
 	return "{__name__=" + strconv.Quote(name) + "}"
 }
 
-func messageOf(err error) string {
-	var ue *datasource.UpstreamError
-	if errors.As(err, &ue) {
-		return ue.Message
-	}
-	return err.Error()
-}
-
 func (d *Datasource) getStrings(ctx context.Context, path string, form url.Values) ([]string, error) {
 	raw, err := d.do(ctx, http.MethodGet, path, form)
 	if err != nil {
@@ -261,7 +249,7 @@ func (d *Datasource) getStrings(ctx context.Context, path string, form url.Value
 	}
 	var values []string
 	if err := json.Unmarshal(raw, &values); err != nil {
-		return nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned an unreadable result")
+		return nil, datasource.Unreadable()
 	}
 	return values, nil
 }

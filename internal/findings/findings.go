@@ -17,7 +17,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
-	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/usertext"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -37,15 +36,14 @@ const (
 
 var (
 	ErrNotFound      = errors.New("finding not found")
-	ErrNoDashboard   = errors.New("the finding has no dashboard to pin to")
 	ErrNoEvidence    = errors.New("the finding has no evidence panels")
 	ErrInvalidCursor = errors.New("invalid cursor")
 
 	ErrFolderNotFound = errors.New("folder not found")
 	ErrPlacement      = errors.New("a finding is about a dashboard or filed in a folder, not both")
 	ErrRequesterOnly  = errors.New("only the one who asked can use the answer of a run that is not an observation")
-	ErrNotSaved       = errors.New("the answer is not an observation yet; save it as an observation first")
 	ErrAskPlacement   = errors.New("a finding about a dashboard has no other dashboard to ask on")
+	ErrRunLost        = errors.New("the run no longer belongs to this attempt")
 )
 
 type Conclusion struct {
@@ -127,10 +125,6 @@ func Words(markdown string) int {
 		}
 	}
 	return n
-}
-
-func PinText(f Finding) string {
-	return FirstLine(f.Markdown) + " " + links.Finding(nil, f.ID)
 }
 
 func firstNonBlankLine(text string) string {

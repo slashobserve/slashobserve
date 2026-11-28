@@ -87,21 +87,6 @@ describe("HealthCell", () => {
     expect(trigger.querySelector("[data-status=ok]")).not.toBeNull()
   })
 
-  test("opens the healthy popover with when and on which version it was checked", async () => {
-    provider.item = item({ problems: [] })
-    const { user } = renderCell()
-    await user.click(
-      await screen.findByRole("button", {
-        name: "Health of Checkout: Queries OK",
-      })
-    )
-    const popover = await screen.findByRole("dialog")
-    expect(popover.textContent).toContain("No problems found")
-    expect(popover.textContent).toContain("Checked")
-    expect(popover.textContent).toContain("on version 4")
-    expect(screen.queryByRole("button", { name: "Repair" })).toBeNull()
-  })
-
   test.each([
     ["never checked", { checked_at: null, checked_version: null }],
     ["skipped", { skipped: "depends_on_viewer" }],

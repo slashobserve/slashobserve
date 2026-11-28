@@ -1,6 +1,6 @@
+import { sentence } from "@/api/errors"
 import type { components } from "@/api/schema.gen"
 import type { StatusTone } from "@/components/status-label"
-import { sentence } from "@/observe/queries"
 
 export type HealthKind = components["schemas"]["HealthProblemKind"]
 export type HealthProblem = components["schemas"]["HealthProblem"]
@@ -231,6 +231,7 @@ export type RepairAction =
   | { kind: "queued" }
   | { kind: "running" }
   | { kind: "repaired"; version: number }
+  | { kind: "proposed" }
   | {
       kind: "failed"
       error: string | null
@@ -251,6 +252,8 @@ export function repairAction(
       return { kind: "queued" }
     case "running":
       return { kind: "running" }
+    case "proposed":
+      return { kind: "proposed" }
     case "failed":
       return {
         kind: "failed",
@@ -274,6 +277,8 @@ export function repairStatus(action: RepairAction): SummaryLabel | null {
       return { tone: "running", label: "Repairing" }
     case "repaired":
       return { tone: "ok", label: "Repaired" }
+    case "proposed":
+      return { tone: "none", label: "Repair proposed" }
     case "failed":
       return { tone: "critical", label: "Repair failed" }
     default:
@@ -309,8 +314,6 @@ const skipTexts: Record<RepairsQueued["skipped"][number]["reason"], string> = {
   forbidden_role: "You cannot edit this dashboard.",
   provisioned:
     "This is a starter dashboard that releases keep current. Duplicate it to repair a copy.",
-  queue_full:
-    "You already have 20 repairs queued or running. Try again when some finish.",
 }
 
 export function repairOutcomeText(outcome: RepairsQueued): string {

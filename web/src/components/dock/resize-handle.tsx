@@ -12,6 +12,7 @@ import {
   clampWidth,
   draggedWidth,
   maxWidthFor,
+  storeWidth,
   type HandleSide,
   type WidthBounds,
 } from "./card-width"
@@ -23,19 +24,28 @@ type Props = {
   width: number
   bounds: WidthBounds
   onChange: (width: number) => void
+  storageKey?: string
   side?: HandleSide
-  className?: string
+  label?: string
+  fitViewport?: boolean
+  className?: string | undefined
 }
 
 export function ResizeHandle({
   width,
   bounds,
   onChange,
+  storageKey,
   side = "left",
+  label = "Resize panel",
+  fitViewport = true,
   className,
 }: Props) {
   const [dragging, setDragging] = useState(false)
   const start = useRef({ x: 0, width: 0 })
+  const latest = useRef(width)
+  const viewport = () =>
+    fitViewport ? window.innerWidth : Number.POSITIVE_INFINITY
 
   useEffect(() => {
     if (!dragging) return
@@ -47,13 +57,24 @@ export function ResizeHandle({
   }, [dragging])
 
   function change(next: number) {
-    onChange(clampWidth(next, bounds, window.innerWidth))
+    latest.current = clampWidth(next, bounds, viewport())
+    onChange(latest.current)
+    return latest.current
+  }
+
+  function commit(next: number) {
+    if (storageKey !== undefined) storeWidth(storageKey, next)
+  }
+
+  function changeAndCommit(next: number) {
+    commit(change(next))
   }
 
   function onPointerDown(event: PointerEvent<HTMLDivElement>) {
     if (event.button !== 0) return
     event.currentTarget.setPointerCapture(event.pointerId)
     start.current = { x: event.clientX, width }
+    latest.current = width
     setDragging(true)
   }
 
@@ -68,7 +89,9 @@ export function ResizeHandle({
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
+    if (!dragging) return
     setDragging(false)
+    commit(latest.current)
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -77,19 +100,19 @@ export function ResizeHandle({
     const narrow = side === "left" ? "ArrowRight" : "ArrowLeft"
     switch (event.key) {
       case widen:
-        change(width + step)
+        changeAndCommit(width + step)
         break
       case narrow:
-        change(width - step)
+        changeAndCommit(width - step)
         break
       case "Home":
-        change(bounds.min)
+        changeAndCommit(bounds.min)
         break
       case "End":
-        change(bounds.max)
+        changeAndCommit(bounds.max)
         break
       case "Enter":
-        change(bounds.initial)
+        changeAndCommit(bounds.initial)
         break
       default:
         return
@@ -101,10 +124,10 @@ export function ResizeHandle({
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize panel"
+      aria-label={label}
       aria-valuenow={width}
       aria-valuemin={bounds.min}
-      aria-valuemax={maxWidthFor(bounds, window.innerWidth)}
+      aria-valuemax={maxWidthFor(bounds, viewport())}
       tabIndex={0}
       title="Drag to resize, double-click to reset"
       data-dragging={dragging ? "" : undefined}
@@ -117,7 +140,7 @@ export function ResizeHandle({
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
-      onDoubleClick={() => change(bounds.initial)}
+      onDoubleClick={() => changeAndCommit(bounds.initial)}
       onKeyDown={onKeyDown}
     >
       <span

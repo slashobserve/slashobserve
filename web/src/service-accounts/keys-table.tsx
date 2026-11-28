@@ -1,6 +1,7 @@
 import type { RefObject } from "react"
 import { useQuery } from "@tanstack/react-query"
 
+import { loadProblemText } from "@/api/errors"
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime, useNow } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
@@ -11,11 +12,7 @@ import { roleLabels } from "@/lib/roles"
 import { usersQuery } from "@/people/queries"
 
 import { canRevokeKey, expiryState } from "./key-status"
-import {
-  loadProblemText,
-  type ServiceAccount,
-  type ServiceAccountKey,
-} from "./queries"
+import { type ServiceAccount, type ServiceAccountKey } from "./queries"
 import { RevokeKeyButton } from "./revoke-key-button"
 import { useAllKeys } from "./use-all-keys"
 

@@ -51,22 +51,26 @@ const reorderLabels: Record<string, string> = {
 }
 
 function overrideField(rest: string[]): string | undefined {
-  const separator = rest[1]?.indexOf(":") ?? -1
-  if (rest[0] !== "overrides" || separator < 0) return undefined
-  const kind = rest[1].slice(0, separator)
-  const value = JSON.stringify(rest[1].slice(separator + 1))
+  const [area, override] = rest
+  const separator = override?.indexOf(":") ?? -1
+  if (area !== "overrides" || override === undefined || separator < 0)
+    return undefined
+  const kind = override.slice(0, separator)
+  const value = JSON.stringify(override.slice(separator + 1))
   const field = rest.slice(2).join(".")
   return `override ${kind} ${value}${field === "" ? "" : ` > ${field}`}`
 }
 
 function panelField(op: DiffChange["op"], rest: string[]): string {
-  if (
+  const [only] = rest
+  const reorder =
     op === "reorder" &&
     rest.length === 1 &&
-    Object.hasOwn(reorderLabels, rest[0])
-  ) {
-    return reorderLabels[rest[0]]
-  }
+    only !== undefined &&
+    Object.hasOwn(reorderLabels, only)
+      ? reorderLabels[only]
+      : undefined
+  if (reorder !== undefined) return reorder
   return overrideField(rest) ?? rest.join(".")
 }
 

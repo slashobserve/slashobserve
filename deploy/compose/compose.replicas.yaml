@@ -27,15 +27,15 @@ services:
       SLASHOBSERVE_LLM_PROVIDER: replay
       GOMEMLIMIT: 384MiB
       SLASHOBSERVE_SERVICE_ACCOUNTS_FILE: ${SLASHOBSERVE_SERVICE_ACCOUNTS_FILE-/etc/slashobserve/service-accounts.yaml}
-    volumes: !override
-      - ${SLASHOBSERVE_DATASOURCES_HOST_FILE:-./datasources.replicas.yaml}:/etc/slashobserve/datasources.yaml:ro
+    volumes:
+      - ./datasources.replicas.yaml:/etc/slashobserve/datasources.yaml:ro
       - ./replicas/llm:/etc/slashobserve/llm-fixtures:ro
-      - ./dashboards/SlashObserve:/provision/SlashObserve:ro
+      - ../helm/slashobserve/dashboards/SlashObserve:/provision/SlashObserve:ro
       - ./replicas/service-accounts.yaml:/etc/slashobserve/service-accounts.yaml:ro
       - ${SLASHOBSERVE_REPLICAS_BOOT_DIR:?}:/boot-keys:ro
     ports: !reset []
     stop_grace_period: 30s
-    depends_on: !override
+    depends_on:
       postgres:
         condition: service_healthy
       pgbouncer:

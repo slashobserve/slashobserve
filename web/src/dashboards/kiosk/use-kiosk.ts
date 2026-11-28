@@ -47,7 +47,7 @@ function useRowCycle(
         ) ?? []
       current = nextRowIndex(headers.length, current)
       if (current === null) return
-      headers[current].scrollIntoView({
+      headers[current]?.scrollIntoView({
         block: "start",
         behavior: scrollBehavior(),
       })

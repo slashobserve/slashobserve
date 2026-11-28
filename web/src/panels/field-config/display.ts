@@ -127,5 +127,8 @@ export function fieldRange(field: WireField): { min?: number; max?: number } {
     if (min === undefined || value < min) min = value
     if (max === undefined || value > max) max = value
   }
-  return { min, max }
+  return {
+    ...(min === undefined ? {} : { min }),
+    ...(max === undefined ? {} : { max }),
+  }
 }

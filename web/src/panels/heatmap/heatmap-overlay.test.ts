@@ -21,6 +21,11 @@ import {
   tooltipLook,
 } from "./heatmap-overlay"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 function model(
   cells: (number | null)[][],
   overrides: Partial<HeatmapModel> = {}
@@ -91,7 +96,7 @@ describe("columnEntries", () => {
       [2, 3],
       [0, 1],
     ])
-    expect(entries[0].range).toBe("40 - 50")
+    expect(must(entries[0]).range).toBe("40 - 50")
     expect(more).toBe(0)
   })
 
@@ -108,7 +113,7 @@ describe("columnEntries", () => {
     expect(entries.map(({ row }) => row)).toContain(3)
     expect(more).toBe(20)
     const top = columnEntries(m, lookOf(), 0, 29)
-    expect(top.entries[0].row).toBe(29)
+    expect(must(top.entries[0]).row).toBe(29)
   })
 })
 
@@ -174,7 +179,7 @@ describe("exemplarMarks", () => {
   })
 
   it("places a point by its time inside its column and its value inside its row", () => {
-    const [mark] = exemplarMarks(m, [point(1.5, 5)], 400, 100)
+    const mark = must(exemplarMarks(m, [point(1.5, 5)], 400, 100)[0])
     expect(mark.x).toBe(150)
     expect(mark.y).toBe(75)
     expect(mark.value).toBe(5)
@@ -196,7 +201,7 @@ describe("exemplarMarks", () => {
 
   it("puts a point of a single column at its left edge", () => {
     const single = model([[1]], { xs: [5000] })
-    const [mark] = exemplarMarks(single, [point(5, 5)], 100, 50)
+    const mark = must(exemplarMarks(single, [point(5, 5)], 100, 50)[0])
     expect(mark.x).toBe(0)
   })
 })

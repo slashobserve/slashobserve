@@ -35,21 +35,21 @@ runs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.bun/install/cache
-        key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock', 'observe-agent/bun.lock') }}
+        key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock', 'harness/bun.lock') }}
         restore-keys: bun-${{ runner.os }}-
 
-    - name: Compile the server and the agent
+    - name: Compile the server and the harness
       shell: bash
       env:
         VERSION: ${{ github.sha }}
         COMMIT: ${{ github.sha }}
       run: |
         make build VERSION="$VERSION" COMMIT="$COMMIT"
-        mkdir -p "$RUNNER_TEMP/prebuilt/server/out" "$RUNNER_TEMP/prebuilt/agent/out"
+        mkdir -p "$RUNNER_TEMP/prebuilt/server/out" "$RUNNER_TEMP/prebuilt/harness/out"
         cp bin/slashobserve-server "$RUNNER_TEMP/prebuilt/server/out/"
-        cp bin/observe-agent "$RUNNER_TEMP/prebuilt/agent/out/"
+        cp bin/slashobserve-harness "$RUNNER_TEMP/prebuilt/harness/out/"
 
-    # The named contexts replace the Dockerfile's server and agent stages, so only its last stage is built.
+    # The named contexts replace the Dockerfile's server and harness stages, so only its last stage is built.
     - name: Build the server image
       shell: bash
       env:
@@ -57,4 +57,4 @@ runs:
       run: |
         docker buildx build -t "$SERVER_TAG" \
           --build-context "server=$RUNNER_TEMP/prebuilt/server" \
-          --build-context "agent=$RUNNER_TEMP/prebuilt/agent" .
+          --build-context "harness=$RUNNER_TEMP/prebuilt/harness" .

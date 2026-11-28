@@ -9,6 +9,7 @@ import {
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -21,7 +22,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { roleAtLeast, type Role } from "@/lib/roles"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { AnnotationDialog, type Draft } from "./annotation-dialog"
 import { useDeleteAnnotation } from "./mutations"

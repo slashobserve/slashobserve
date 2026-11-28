@@ -55,6 +55,7 @@ function Tooltip({
   bounds: DOMRect
 }) {
   const node = profile.nodes[hover.index]
+  if (node === undefined) return null
   const x = hover.clientX - bounds.left
   const y = hover.clientY - bounds.top
   const onRight = x > bounds.width / 2

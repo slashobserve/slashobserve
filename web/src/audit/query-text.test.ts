@@ -6,14 +6,26 @@ import {
   requestQuery,
   runQuery,
   targetQuery,
+  suggestedNames,
   termState,
   toggleTermRemembering,
   toggleTerm,
 } from "./query-text"
 import type { AuditEvent } from "./stream"
 
-const actor = { name: "actor_name", alias: "actor" }
-const outcome = { name: "outcome", alias: null }
+const actor = { name: "actor_name", aliases: ["actor", "actor.name"] }
+const outcome = { name: "outcome", aliases: [] }
+
+describe("suggestedNames", () => {
+  test("suggests every field name and every alias, in order", () => {
+    expect(suggestedNames([actor, outcome])).toEqual([
+      "actor_name",
+      "actor",
+      "actor.name",
+      "outcome",
+    ])
+  })
+})
 
 describe("toggleTerm", () => {
   test("starts an empty query with the quoted term", () => {
@@ -67,8 +79,9 @@ describe("toggleTerm", () => {
     ).toBe('not outcome:"denied" and origin:mcp')
   })
 
-  test("finds a term written with the field's alias", () => {
+  test("finds a term written with any of the field's aliases", () => {
     expect(toggleTerm('actor:"Ada"', actor, "Ada", false)).toBe("")
+    expect(toggleTerm('actor.name:"Ada"', actor, "Ada", false)).toBe("")
   })
 
   test("flips an included term to excluded in place", () => {
@@ -108,12 +121,12 @@ describe("toggleTerm", () => {
 
   test("removes only the chip's clause from text typed with odd spacing", () => {
     const text = "actor:admin   and\n  not action:query.run  and origin:mcp"
-    const action = { name: "action", alias: null }
+    const action = { name: "action", aliases: [] }
     expect(toggleTerm(text, action, "query.run", true)).toBe(
       "actor:admin  and origin:mcp"
     )
     expect(
-      toggleTerm(text, { name: "actor", alias: null }, "admin", false)
+      toggleTerm(text, { name: "actor", aliases: [] }, "admin", false)
     ).toBe("not action:query.run  and origin:mcp")
   })
 

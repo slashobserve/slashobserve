@@ -69,7 +69,7 @@ func (l Loader) Base(ctx context.Context, id pgtype.UUID, version int, panelID s
 		if _, ok := rev.Spec.FindPanel(panelID); !ok {
 			return nil, fmt.Errorf("%w: the panel is not in that version of the dashboard", ErrInvalidTask)
 		}
-	} else if rev.Spec, err = spec.WithPanel(rev.Spec, panelID, draft); err != nil {
+	} else if rev.Spec, err = withDraft(rev.Spec, panelID, draft); err != nil {
 		return nil, l.draftInvalid(ctx, requestID, err)
 	}
 	entry, ok := rev.Spec.FindPanel(panelID)
@@ -101,17 +101,27 @@ func (l Loader) conversionNotes(ctx context.Context, id pgtype.UUID, number int,
 	return tools.ConversionAttention(record.Report)
 }
 
+func withDraft(base *spec.Dashboard, panelID string, draft json.RawMessage) (*spec.Dashboard, error) {
+	var head struct {
+		ID string `json:"id"`
+	}
+	if json.Unmarshal(draft, &head) == nil && head.ID != panelID {
+		return nil, ErrDraftInvalid
+	}
+	return spec.ApplyPanelPatch(base, spec.PanelPatch{Upsert: []json.RawMessage{draft}})
+}
+
 func (l Loader) draftInvalid(ctx context.Context, requestID string, err error) error {
 	attrs := logattrs.Failure("draft_invalid", err, slog.String("agent_request_id", requestID))
-	var invalid *spec.ValidationError
-	if errors.As(err, &invalid) {
-		issues := invalid.Issues[:min(len(invalid.Issues), maxLoggedIssues)]
+	var patchErr *spec.PatchError
+	if errors.As(err, &patchErr) {
+		issues := patchErr.Issues[:min(len(patchErr.Issues), maxLoggedIssues)]
 		codes := make([]string, len(issues))
 		paths := make([]string, len(issues))
 		for i, issue := range issues {
 			codes[i], paths[i] = string(issue.Code), issue.Path
 		}
-		attrs = append(attrs, slog.Int("issue_count", len(invalid.Issues)), slog.Any("issue_codes", codes), slog.Any("issue_paths", paths))
+		attrs = append(attrs, slog.Int("issue_count", len(patchErr.Issues)), slog.Any("issue_codes", codes), slog.Any("issue_paths", paths))
 	}
 	l.Logger.WarnContext(ctx, "agent draft panel is not valid", attrs...)
 	return ErrDraftInvalid

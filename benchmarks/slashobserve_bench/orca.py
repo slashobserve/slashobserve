@@ -11,10 +11,10 @@ from pathlib import Path
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
-from slashobserve_bench.loop_options import LoopOptions
-from slashobserve_bench.server import CONFIG_DIR, LABEL
+from slashobserve_bench.adapter import MCP_SOURCES_FILE, RunOptions, knock_on_of, mcp_source_settings, mcp_sources_yaml, read_causes
+from slashobserve_bench.server import LABEL
 
 DATASET = "orca-bench/orca-bench"
 REPORT_PATH = "/app/report.md"
@@ -72,41 +72,14 @@ class UnsupportedTask(Exception):
     pass
 
 
-@dataclass(frozen=True)
-class SourceNames:
-    option: str
-    setting: str
-    key: str
-    file: str
-    collection: str
-
-
-SOURCE_NAMES = {
-    "mcp": SourceNames("mcp", "SLASHOBSERVE_MCP_SOURCES_FILE", "mcpSources", "mcp-sources.yaml", "mcp-sources"),
-    "context": SourceNames("context", "SLASHOBSERVE_CONTEXT_SOURCES_FILE", "contextSources", "context-sources.yaml", "context-sources"),
-}
-
-
-class Options(LoopOptions):
+class Options(RunOptions):
     model_config = ConfigDict(extra="forbid")
 
     server_image: str = "ghcr.io/slashobserve/slashobserve:latest"
-    replay_dir: str | None = None
-    llm_effort: str | None = None
-    run_max_cost_usd: float | None = Field(default=None, gt=0)
-    spend_cap_usd: float | None = Field(default=None, gt=0)
-    ledger_path: str | None = None
     wall_timeout_sec: int = Field(default=3300, ge=60)
     code_context: str | None = None
     codeserver_image: str = CODESERVER_IMAGE
-    source_names: Literal["mcp", "context"] = "mcp"
     span_index: bool = True
-
-    @model_validator(mode="after")
-    def _cap_needs_ledger(self) -> "Options":
-        if (self.spend_cap_usd is None) != (self.ledger_path is None):
-            raise ValueError("spend_cap_usd and ledger_path go together")
-        return self
 
     @model_validator(mode="after")
     def _code_context_shape(self) -> "Options":
@@ -119,10 +92,6 @@ class Options(LoopOptions):
         if self.code_context is None:
             return "codeserver"
         return "off" if self.code_context == CODE_OFF else "hook"
-
-    @property
-    def names(self) -> SourceNames:
-        return SOURCE_NAMES[self.source_names]
 
 
 def include_flags(tasks: Iterable[Task] = SUBSET) -> list[str]:
@@ -303,28 +272,13 @@ def code_url() -> str:
     return f"http://{CODE_HOST}:{CODE_PORT}/mcp"
 
 
-def code_sources_yaml(names: SourceNames) -> str:
-    return "\n".join(
-        [
-            f"{names.key}:",
-            f"  - uid: {CODE_SOURCE}",
-            "    name: OpenTelemetry Demo source code",
-            "    description: The source code of the task's OpenTelemetry Demo, read-only, with its feature flag definitions. List a directory, read a file or search the text of every service.",
-            f"    url: {json.dumps(code_url())}",
-            "    audience: everyone",
-            "    allowPrivate: true",
-            "    approve: [" + ", ".join(json.dumps(tool) for tool in CODE_TOOLS) + "]",
-            "",
-        ]
-    )
+def code_files() -> dict[str, str]:
+    description = "The source code of the task's OpenTelemetry Demo, read-only, with its feature flag definitions. List a directory, read a file or search the text of every service."
+    return {MCP_SOURCES_FILE: mcp_sources_yaml(CODE_SOURCE, "OpenTelemetry Demo source code", description, code_url(), CODE_TOOLS)}
 
 
-def code_files(names: SourceNames) -> dict[str, str]:
-    return {names.file: code_sources_yaml(names)}
-
-
-def code_settings(names: SourceNames) -> tuple[tuple[str, str], ...]:
-    return ((names.setting, f"{CONFIG_DIR}/{names.file}"), ("SLASHOBSERVE_OUTBOUND_DOMAINS", CODE_HOST))
+def code_settings() -> tuple[tuple[str, str], ...]:
+    return mcp_source_settings(CODE_HOST)
 
 
 def codeserver_args(name: str, network: str, code_dir: Path, image: str) -> list[str]:
@@ -362,11 +316,10 @@ def code_tools_problem(tools: Iterable[dict[str, Any]]) -> str | None:
     return ", ".join(unapproved) or None
 
 
-def code_mismatch_hint(names: SourceNames) -> str:
-    other = SOURCE_NAMES["context" if names.option == "mcp" else "mcp"]
+def code_unavailable_hint(image: str) -> str:
     return (
-        f"the server was given {names.setting} with the key {names.key}; "
-        f"if the server image reads {other.setting} with the key {other.key}, pass --ak source_names={other.option}"
+        f"the server image {image} has no MCP sources, which v0.1.5 and older releases lack; "
+        f"pass --ak server_image=<an image built from this checkout> or --ak code_context={CODE_OFF}"
     )
 
 
@@ -376,11 +329,9 @@ def code_note_line(options: Options) -> str:
         return f"code context: off, the run had no source code (--ak code_context={CODE_OFF})"
     if mode == "hook":
         return f"code context: registered through {options.code_context}"
-    names = options.names
     return (
         f"code context: the code server {options.codeserver_image} over a read-only copy of {CODE_DIR}, "
-        f"provisioned as the MCP source {CODE_SOURCE} with {', '.join(CODE_TOOLS)} approved, "
-        f"through {names.setting} with the key {names.key}"
+        f"provisioned as the MCP source {CODE_SOURCE} with {', '.join(CODE_TOOLS)} approved"
     )
 
 
@@ -453,9 +404,6 @@ class Cause:
     def read(cls, index: int, entry: dict[str, Any]) -> "Cause":
         trigger = entry.get("trigger") if isinstance(entry.get("trigger"), dict) else {}
         evidence = entry.get("evidence") if isinstance(entry.get("evidence"), dict) else {}
-        knock_on = entry.get("knock_on_of")
-        if entry.get("relation") == "independent" or not isinstance(knock_on, int) or isinstance(knock_on, bool):
-            knock_on = None
         return cls(
             index=index,
             component=Component.read(entry.get("component")),
@@ -465,7 +413,7 @@ class Cause:
             trigger_value=_text(trigger.get("value")),
             onset=_text(entry.get("onset")),
             affected=tuple(item for item in (Component.read(value) for value in entry.get("affected") or ()) if item),
-            knock_on_of=knock_on,
+            knock_on_of=knock_on_of(entry),
             queries=_texts(evidence.get("queries")),
             trace_ids=_texts(evidence.get("trace_ids")),
             band=_text(entry.get("band")),
@@ -503,11 +451,10 @@ class Causes:
 
     @classmethod
     def read(cls, entries: list[Any]) -> "Causes":
-        causes = [Cause.read(index, entry) for index, entry in enumerate(entries) if isinstance(entry, dict)]
-        roots = {cause.index: cause for cause in causes if cause.stated and cause.knock_on_of is None}
-        knock_ons = tuple((cause, roots[cause.knock_on_of]) for cause in causes if cause.stated and cause.knock_on_of in roots)
-        followers = {cause.index for cause, _ in knock_ons}
-        unconfirmed = tuple(cause for cause in causes if cause.index not in roots and cause.index not in followers)
+        found = read_causes(entries)
+        roots = {index: Cause.read(index, entry) for index, entry in found.roots}
+        knock_ons = tuple((Cause.read(index, entry), roots[parent]) for index, entry, parent in found.knock_ons)
+        unconfirmed = tuple(Cause.read(index, entry) for index, entry in found.unconfirmed)
         return cls(tuple(roots.values()), knock_ons, unconfirmed)
 
     def name(self, root: Cause) -> str:

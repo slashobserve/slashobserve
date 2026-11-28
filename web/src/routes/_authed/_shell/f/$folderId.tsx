@@ -4,7 +4,10 @@ import { createFileRoute } from "@tanstack/react-router"
 import { validateListSearch, type ListSearch } from "@/dashboards/list-filters"
 import { FolderPage } from "@/folders/folder-page"
 
-type FolderSearch = ListSearch & { folder?: undefined; settings?: "1" }
+type FolderSearch = Omit<ListSearch, "folder"> & {
+  folder?: undefined
+  settings?: "1" | undefined
+}
 
 function validateFolderSearch(raw: Record<string, unknown>): FolderSearch {
   return {

@@ -10,11 +10,14 @@ import { testQueryClient } from "@/test/render"
 import {
   askedAgent,
   groupThreadPages,
+  openThreadCount,
+  openThreadsByPanel,
   useOpenThread,
   useReplyToThread,
   type Message,
   type Thread,
 } from "./thread-queries"
+import { must } from "@/test/must"
 
 const ada = {
   kind: "user" as const,
@@ -67,6 +70,43 @@ function message(id: string, threadId: string, createdAt: string): Message {
   }
 }
 
+function onPanel(
+  id: string,
+  panelId: string | null,
+  status: Thread["status"] = "open"
+) {
+  return {
+    thread: {
+      ...thread(id, "2026-11-06T10:00:00Z"),
+      panel_id: panelId,
+      status,
+    },
+    messages: [],
+  }
+}
+
+describe("open thread counts", () => {
+  it("counts every open thread, on a panel or the whole dashboard", () => {
+    expect(
+      openThreadCount([
+        onPanel("t1", null),
+        onPanel("t2", null, "resolved"),
+        onPanel("t3", "p1"),
+      ])
+    ).toBe(2)
+  })
+
+  it("counts open panel threads per panel", () => {
+    const counts = openThreadsByPanel([
+      onPanel("t1", "p1"),
+      onPanel("t2", "p1"),
+      onPanel("t3", "p2", "resolved"),
+      onPanel("t4", null),
+    ])
+    expect(counts).toEqual(new Map([["p1", 2]]))
+  })
+})
+
 describe("groupThreadPages", () => {
   it("returns nothing for no pages", () => {
     expect(groupThreadPages([])).toEqual([])
@@ -89,8 +129,11 @@ describe("groupThreadPages", () => {
     }
     const grouped = groupThreadPages([first, second])
     expect(grouped.map((entry) => entry.thread.id)).toEqual(["t1", "t2"])
-    expect(grouped[0].messages.map((item) => item.id)).toEqual(["t1", "m2"])
-    expect(grouped[1].messages.map((item) => item.id)).toEqual(["m3"])
+    expect(must(grouped[0]).messages.map((item) => item.id)).toEqual([
+      "t1",
+      "m2",
+    ])
+    expect(must(grouped[1]).messages.map((item) => item.id)).toEqual(["m3"])
   })
 
   it("keeps one copy of a message that two pages both carry", () => {
@@ -99,7 +142,7 @@ describe("groupThreadPages", () => {
       messages: [message("t1", "t1", "2026-11-06T10:00:00Z")],
     }
     const grouped = groupThreadPages([page, page])
-    expect(grouped[0].messages).toHaveLength(1)
+    expect(must(grouped[0]).messages).toHaveLength(1)
   })
 })
 
@@ -231,7 +274,6 @@ describe("useOpenThread", () => {
     const keys = invalidated.mock.calls.map((call) => call[0]?.queryKey)
     expect(keys).toEqual([
       threadKeys.list("dashboard:d1"),
-      dashboardKeys.comments("d1"),
       dashboardKeys.revisions("d1"),
       observeKeys.mineAll(),
     ])

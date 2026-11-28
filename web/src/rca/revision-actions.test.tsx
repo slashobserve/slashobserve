@@ -1,10 +1,12 @@
 import { screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, problemText } from "@/api/errors"
 import { renderWithProviders } from "@/test/render"
 
-import { RevisionActions, withdrawProblemText } from "./revision-actions"
+import type { RcaSummary } from "./queries"
+import { RevisionActions, withdrawProblems } from "./revision-actions"
+import { must } from "@/test/must"
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
 vi.mock("sonner", () => ({ toast: toasts }))
@@ -31,14 +33,22 @@ function respond(status: number, body?: unknown) {
   return requests
 }
 
+function revision(allowed: RcaSummary["allowed_actions"]): RcaSummary {
+  return {
+    revision: 2,
+    state: "published",
+    allowed_actions: allowed,
+  } as Partial<RcaSummary> as RcaSummary
+}
+
 function renderActions(canWithdraw: boolean, onWithdrawn = vi.fn()) {
   return {
     onWithdrawn,
     ...renderWithProviders(
       <RevisionActions
         observationId={observationId}
-        revision={2}
-        canWithdraw={canWithdraw}
+        rca={revision(canWithdraw ? ["withdraw"] : [])}
+        canPublish={canWithdraw}
         onWithdrawn={onWithdrawn}
       />,
       { route: { path: "/", url: "/" } }
@@ -89,7 +99,7 @@ describe("RevisionActions", () => {
     )
     await waitFor(() => expect(toasts.error).toHaveBeenCalledOnce())
     expect(onWithdrawn).not.toHaveBeenCalled()
-    expect(String(toasts.error.mock.calls[0][0])).toContain(
+    expect(String(must(toasts.error.mock.calls[0])[0])).toContain(
       "Revoke its public links"
     )
   })
@@ -97,14 +107,17 @@ describe("RevisionActions", () => {
 
 describe("withdrawProblemText", () => {
   it("falls back to a retry line for an error that is not the server's", () => {
-    expect(withdrawProblemText(new Error("network"))).toBe(
+    expect(problemText(new Error("network"), withdrawProblems)).toBe(
       "The revision could not be withdrawn. Try again."
     )
   })
 
   it("passes another server refusal through as a sentence", () => {
     expect(
-      withdrawProblemText(new ApiError(403, "forbidden_role", "needs edit"))
+      problemText(
+        new ApiError(403, "forbidden_role", "needs edit"),
+        withdrawProblems
+      )
     ).toBe("Needs edit.")
   })
 })

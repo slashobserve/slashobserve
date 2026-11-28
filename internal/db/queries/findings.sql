@@ -1,12 +1,13 @@
 -- name: InsertFinding :one
 INSERT INTO findings (id, agent_request_id, dashboard_id, ask_dashboard_id, observation_id, title, markdown, evidence, time_from, time_to,
   created_by_kind, created_by_id, created_by_name, origin, origin_client, suggested_change, observe_worthy, as_of,
-  root_cause_component, root_cause_kind, root_cause_summary, onset, impact, confidence, ruled_out, next_steps, no_incident, unverified, causes)
-VALUES (coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), sqlc.narg('agent_request_id')::uuid, sqlc.narg('dashboard_id')::uuid, sqlc.narg('ask_dashboard_id')::uuid, @observation_id,
+  root_cause_component, root_cause_kind, root_cause_summary, onset, impact, confidence, ruled_out, next_steps, no_incident, unverified, causes, kept_at)
+VALUES (coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), sqlc.narg('agent_request_id')::uuid, sqlc.narg('dashboard_id')::uuid, sqlc.narg('ask_dashboard_id')::uuid, sqlc.narg('observation_id')::uuid,
   @title, @markdown, @evidence::jsonb, @time_from, @time_to, @created_by_kind, @created_by_id, @created_by_name,
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, sqlc.narg('suggested_change')::text, @observe_worthy, sqlc.narg('as_of')::timestamptz,
   sqlc.narg('root_cause_component')::text, sqlc.narg('root_cause_kind')::text, sqlc.narg('root_cause_summary')::text, sqlc.narg('onset')::timestamptz,
-  sqlc.narg('impact')::text, sqlc.narg('confidence')::text, sqlc.narg('ruled_out')::text[], sqlc.narg('next_steps')::text[], sqlc.narg('no_incident')::boolean, sqlc.narg('unverified')::jsonb, sqlc.narg('causes')::jsonb)
+  sqlc.narg('impact')::text, sqlc.narg('confidence')::text, sqlc.narg('ruled_out')::text[], sqlc.narg('next_steps')::text[], sqlc.narg('no_incident')::boolean, sqlc.narg('unverified')::jsonb, sqlc.narg('causes')::jsonb,
+  CASE WHEN sqlc.narg('observation_id')::uuid IS NOT NULL THEN clock_timestamp() END)
 ON CONFLICT (agent_request_id) WHERE agent_request_id IS NOT NULL DO NOTHING
 RETURNING *;
 
@@ -66,14 +67,16 @@ WHERE o.folder_id = @folder_id AND f.dashboard_id IS NULL
 ORDER BY f.created_at DESC, f.id DESC
 LIMIT @row_limit;
 
--- name: SetFindingAnnotation :execrows
-UPDATE findings SET annotation_id = @annotation_id WHERE id = @id AND annotation_id IS NULL;
-
 -- name: LockFinding :one
-SELECT observation_id FROM findings WHERE id = @id FOR UPDATE;
+SELECT observation_id, kept_at FROM findings WHERE id = @id FOR UPDATE;
 
 -- name: UnsetFindingObservation :exec
-UPDATE findings SET observation_id = NULL WHERE agent_request_id = @agent_request_id AND observation_id = @observation_id;
+UPDATE findings SET observation_id = NULL
+WHERE agent_request_id = @agent_request_id AND observation_id = @observation_id AND kept_at IS NULL;
+
+-- name: KeepFindingInObservation :exec
+UPDATE findings SET observation_id = @observation_id, kept_at = clock_timestamp()
+WHERE id = @id AND (observation_id IS NULL OR observation_id = @observation_id) AND kept_at IS NULL;
 
 -- name: SetFindingObservation :execrows
 UPDATE findings SET observation_id = @observation_id WHERE id = @id AND observation_id IS NULL;
@@ -89,3 +92,7 @@ WHERE f.observation_id = @observation_id
   AND (root_cause_kind IS NOT NULL OR onset IS NOT NULL OR impact IS NOT NULL OR confidence IS NOT NULL
     OR ruled_out IS NOT NULL OR next_steps IS NOT NULL OR no_incident IS NOT NULL OR unverified IS NOT NULL OR causes IS NOT NULL)
 ORDER BY f.created_at, f.id;
+
+-- name: MarkAgentRequestFindingCommitted :execrows
+UPDATE agent_requests SET committed_kind = 'finding'
+WHERE id = @id AND status = 'running' AND claim_epoch = @claim_epoch;

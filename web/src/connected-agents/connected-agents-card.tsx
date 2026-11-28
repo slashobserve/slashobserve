@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
+import { loadProblemText } from "@/api/errors"
 import { instanceQuery } from "@/api/instance"
 import { RelativeTime } from "@/components/relative-time"
 import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CodeSnippet } from "@/service-accounts/code-snippet"
-import { loadProblemText } from "@/service-accounts/queries"
 import {
   SettingsCard,
   SettingsProblem,

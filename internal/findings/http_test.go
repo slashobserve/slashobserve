@@ -166,42 +166,6 @@ func TestFindingReadsMatchTheDocument(t *testing.T) {
 	}
 }
 
-func TestPinningAFindingMatchesTheDocument(t *testing.T) {
-	d := newDocumented(t)
-	shared := d.save(t, editor, findings.SaveInput{DashboardID: d.open})
-	private := d.save(t, editor, findings.SaveInput{})
-
-	refused := d.call(t, viewer, http.MethodPost, "/api/v1/findings/"+shared.ID+"/pin", http.StatusForbidden)
-	if code := errorCode(t, refused); code != "forbidden_role" {
-		t.Fatalf("a viewer pinning got %q", code)
-	}
-	if body := refused.Body.String(); !strings.Contains(body, `"needed_access":"edit"`) || !strings.Contains(body, `"folder_title":"General"`) {
-		t.Fatalf("a viewer pinning is not told what it needs: %s", body)
-	}
-	created := d.call(t, editor, http.MethodPost, "/api/v1/findings/"+shared.ID+"/pin", http.StatusCreated)
-	var a struct {
-		ID   string `json:"id"`
-		Text string `json:"text"`
-	}
-	if err := json.Unmarshal(created.Body.Bytes(), &a); err != nil {
-		t.Fatal(err)
-	}
-	if created.Header().Get("Location") != "/api/v1/annotations/"+a.ID {
-		t.Fatalf("Location %q for annotation %s", created.Header().Get("Location"), a.ID)
-	}
-	if want := "Checkout errors come from checkout-0 /findings/" + shared.ID; a.Text != want {
-		t.Fatalf("pin text %q, want %q", a.Text, want)
-	}
-	again := d.call(t, editor, http.MethodPost, "/api/v1/findings/"+shared.ID+"/pin", http.StatusOK)
-	if !strings.Contains(again.Body.String(), `"id":"`+a.ID+`"`) {
-		t.Fatalf("a second pin made another annotation: %s", again.Body)
-	}
-	if code := errorCode(t, d.call(t, editor, http.MethodPost, "/api/v1/findings/"+private.ID+"/pin", http.StatusConflict)); code != "finding_has_no_dashboard" {
-		t.Fatalf("pinning a finding without a dashboard got %q", code)
-	}
-	d.call(t, otherEditor, http.MethodPost, "/api/v1/findings/"+private.ID+"/pin", http.StatusNotFound)
-}
-
 func TestSavingAFindingAsADashboardMatchesTheDocument(t *testing.T) {
 	d := newDocumented(t)
 	notes := d.save(t, editor, findings.SaveInput{Evidence: []spec.Panel{panelOf(t, `{"id":"evidence-1","type":"text","title":"Notes","gridPos":{"x":0,"y":0,"w":12,"h":8},"content":"checkout-0"}`)}})
@@ -232,7 +196,6 @@ func TestEveryFindingRouteAnswersTheDeprecationHeader(t *testing.T) {
 		{"list", http.MethodGet, "/api/v1/findings", "", http.StatusOK},
 		{"get", http.MethodGet, "/api/v1/findings/" + id, "", http.StatusOK},
 		{"get of a missing finding", http.MethodGet, "/api/v1/findings/99999999-9999-4999-8999-999999999999", "", http.StatusNotFound},
-		{"pin", http.MethodPost, "/api/v1/findings/" + id + "/pin", "", http.StatusCreated},
 		{"save as a dashboard", http.MethodPost, "/api/v1/findings/" + id + "/dashboard", "", http.StatusConflict},
 	}
 	for _, c := range routes {

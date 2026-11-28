@@ -4,6 +4,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { MoreHorizontalIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { problemText } from "@/api/errors"
 import { CanvasHostProvider } from "@/comments/canvas-host"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,7 +16,6 @@ import {
 import { CanvasTools } from "@/dashboards/canvas-tools"
 import { HeldDraft } from "@/dashboards/held-draft"
 import { dashboardLink } from "@/lib/links"
-import { sentence } from "@/observe/queries"
 
 import { addBlockRowId, useFreezeBlock } from "./add-block-row"
 import {
@@ -210,7 +210,7 @@ function BlockMenu({
                     void navigate(
                       dashboardLink(saved.dashboard.id, saved.dashboard.title)
                     ),
-                  onError: (error) => toast.error(sentence(error.message)),
+                  onError: (error) => toast.error(problemText(error)),
                 })
               }
             >

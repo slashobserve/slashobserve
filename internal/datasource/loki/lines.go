@@ -23,9 +23,9 @@ func (d *Datasource) lines(ctx context.Context, req datasource.LinesRequest) (fr
 		return nil, 0, err
 	}
 	lim := d.opts.Limits.Tighten(req.Query.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
-	text, err := expand(req.Query, req.Range, instantInterval(req.Range, req.Query.MinInterval))
+	text, err := expand(req.Query, req.Range, datasource.InstantInterval(req.Range, req.Query.MinInterval))
 	if err != nil {
 		return nil, 0, err
 	}

@@ -3,7 +3,9 @@ set -euo pipefail
 
 named="grafana db datasource agent"
 
-weights="internal/cli=8 internal/runsession=4 internal/server/mcp=4 internal/activity=3 internal/audit=3 internal/auth=3 internal/findings=3 internal/mcpauth=2 internal/config=2 internal/folders=2 internal/llm/providers=2 internal/datasourceadmin=2 internal/public=2 internal/imports=2 internal/proposals=2"
+rest=4
+
+weights="internal/server/mcp=104 internal/revisions=80 internal/inboundmcp=79 internal/audit=58 internal/observations=58 internal/threads=49 internal/dashboards=38 internal/runsession=38 internal/findings=37 cmd/slashobserve-server=36 internal/datasourceadmin=35 internal/activity=30 internal/events/stream=27 internal/auth=23 internal/mcpauth=21 internal/grafanaconn=21 internal/public=20 internal/placement=20 internal/search=19 internal/webhooks=17 internal/auditfolder=16 internal/folders=16 internal/claims=15 internal/imports=15 internal/proposals=15 internal/agentsview=14 internal/health=13 internal/queryproxy/proxyhttp=12 internal/provision=12 internal/surface=12 internal/repairs=11 internal/savedsearches=11 internal/audit/trail=11 internal/users=11 internal/cli=8"
 
 packages() {
   case "$1" in
@@ -17,8 +19,8 @@ packages() {
 
 shard="${1:-}"
 if [[ "$shard" == shards ]]; then
-  echo "$named rest-1 rest-2"
-elif [[ "$shard" == rest-1 || "$shard" == rest-2 ]]; then
+  echo "$named $(seq -f 'rest-%g' -s ' ' 1 "$rest")"
+elif [[ "$shard" =~ ^rest-([1-9][0-9]*)$ ]] && ((BASH_REMATCH[1] <= rest)); then
   taken=()
   for name in $named; do
     read -r -a patterns <<<"$(packages "$name")"
@@ -38,10 +40,11 @@ elif [[ "$shard" == rest-1 || "$shard" == rest-2 ]]; then
       }
       { print ($0 in weight ? weight[$0] : 1), $0 }' |
     LC_ALL=C sort -k1,1nr -k2,2 |
-    awk -v want="${shard#rest-}" '
-      { target = (load[1] <= load[2]) ? 1 : 2; load[target] += $1; if (target == want) printf "%s ", $2 }
+    awk -v want="${shard#rest-}" -v n="$rest" '
+      { target = 1; for (i = 2; i <= n; i++) if (load[i] < load[target]) target = i
+        load[target] += $1; if (target == want) printf "%s ", $2 }
       END { printf "\n" }'
 elif ! packages "$shard"; then
-  echo "usage: $0 ${named// /|}|rest-1|rest-2|shards" >&2
+  echo "usage: $0 ${named// /|}|rest-1..rest-$rest|shards" >&2
   exit 2
 fi

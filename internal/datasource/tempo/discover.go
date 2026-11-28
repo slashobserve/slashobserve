@@ -45,9 +45,9 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 	switch req.Kind {
 	case datasource.DiscoverLabels, datasource.DiscoverLabelValues, datasource.DiscoverTables:
 	default:
-		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "discover kind %q is not supported by tempo", truncateText(string(req.Kind)))
+		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "discover kind %q is not supported by tempo", datasource.TruncateText(string(req.Kind)))
 	}
-	ctx, cancel := bound(ctx, discoverTimeout)
+	ctx, cancel := datasource.Bound(ctx, discoverTimeout)
 	defer cancel()
 	limit := req.EffectiveLimit()
 	rng, err := discoverRange(ctx, req.Range)
@@ -62,13 +62,15 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 		if err != nil {
 			return nil, err
 		}
-		return &datasource.Catalog{Labels: filterSortLimit(names, req.Search, limit)}, nil
+		kept, _ := datasource.FilterSortLimit(names, req.Search, limit)
+		return &datasource.Catalog{Labels: kept}, nil
 	}
 	values, err := d.tagValues(ctx, req.Label, req.Metric, rng)
 	if err != nil {
 		return nil, err
 	}
-	return &datasource.Catalog{Values: filterSortLimit(values, req.Search, limit)}, nil
+	kept, _ := datasource.FilterSortLimit(values, req.Search, limit)
+	return &datasource.Catalog{Values: kept}, nil
 }
 
 func discoverRange(ctx context.Context, r datasource.TimeRange) (datasource.TimeRange, error) {
@@ -195,20 +197,4 @@ func sortedUnique(values []string) []string {
 
 func (d *Datasource) VariableValues(context.Context, datasource.Query, datasource.TimeRange) ([]string, error) {
 	return nil, datasource.Errorf(datasource.ErrInvalidQuery, "query variables are not supported by tempo")
-}
-
-func filterSortLimit(values []string, search string, limit int) []string {
-	search = strings.ToLower(search)
-	out := make([]string, 0, len(values))
-	for _, v := range values {
-		if search == "" || strings.Contains(strings.ToLower(v), search) {
-			out = append(out, v)
-		}
-	}
-	slices.Sort(out)
-	out = slices.Compact(out)
-	if len(out) > limit {
-		out = out[:limit]
-	}
-	return out
 }

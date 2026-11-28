@@ -275,8 +275,7 @@ The comment is saved in every case, and a refusal never loses it.
 
 When the run ends, its answer arrives as a reply in the same thread.
 It comes from "Observe Agent for `<your name>`" or, for a connected agent, "`<your name>` (via `<client>`)".
-A run started from a mention never resolves or reopens the thread.
-Only a revision started over the API with `comment_id` resolves the thread when it saves a version.
+A run never resolves or reopens the thread.
 **Revise the dashboard** on an answer posts its result in the thread and leaves the thread as it was.
 
 A discussion entry reads "asked the agent" only when the message started a run.

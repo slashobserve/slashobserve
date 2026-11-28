@@ -19,8 +19,6 @@ import { useActivityLayout, useActivityStore } from "@/activity/activity-store"
 import { AnnotationActionsProvider } from "@/annotations/actions"
 import { AnnotationControls } from "@/annotations/annotation-controls"
 import { dashboardKeys } from "@/api/keys"
-import { useComments } from "@/comments/queries"
-import { openThreadCount, openThreadsByPanel } from "@/comments/threads"
 import { Button } from "@/components/ui/button"
 import { foldersQuery } from "@/folders/queries"
 import { panelTitles } from "@/history/diff-groups"
@@ -91,6 +89,11 @@ import { CanvasTools, useCanvasTool } from "./canvas-tools"
 import { useOpenChat } from "@/comments/ask-popover"
 import { useCanvasGate } from "@/comments/canvas-composer"
 import { CanvasHostProvider, type CanvasHost } from "@/comments/canvas-host"
+import {
+  openThreadCount,
+  openThreadsByPanel,
+  useThreads,
+} from "@/comments/thread-queries"
 import { askKeyAction } from "./ask-key"
 import { commentKeyAction, takesCanvasComments } from "./comment-key"
 import { DashboardGrid, type PanelItem } from "./dashboard-grid"
@@ -129,11 +132,7 @@ import { PanelContainer } from "./panel-container"
 import { ProposalsButton } from "./proposals-button"
 import { mixesDatasources } from "./panel-datasources"
 import type { VariableSource } from "./panel-source"
-import {
-  contentChange,
-  mayEditBesidesContent,
-  type DashboardAccess,
-} from "./permissions"
+import { contentChange, type DashboardAccess } from "./permissions"
 import {
   asDashboardSpec,
   dashboardVersionQuery,
@@ -237,12 +236,13 @@ function ViewedPanel({
   useLayoutEffect(() => {
     const element = box.current
     if (!element) return
-    const observer = new ResizeObserver(([entry]) =>
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry === undefined) return
       setSize({
         width: Math.floor(entry.contentRect.width),
         height: Math.floor(entry.contentRect.height),
       })
-    )
+    })
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
@@ -276,13 +276,17 @@ function DashboardView({
 }) {
   const search = useDashboardSearch()
   const setSearch = useSetDashboardSearch()
-  const { permissions, provisioned } = access
+  const {
+    permissions,
+    provisioned,
+    can_delete: canDelete,
+    can_annotate: canAnnotate,
+  } = access
   const { principal } = useRouteContext({ from: "/_authed" })
   const content = contentChange(permissions, provisioned)
-  const besidesContent = mayEditBesidesContent(permissions, provisioned)
-  const { comments } = useComments(dashboardId)
-  const openByPanel = useMemo(() => openThreadsByPanel(comments), [comments])
-  const openTotal = useMemo(() => openThreadCount(comments), [comments])
+  const { threads } = useThreads(`dashboard:${dashboardId}`)
+  const openByPanel = useMemo(() => openThreadsByPanel(threads), [threads])
+  const openTotal = useMemo(() => openThreadCount(threads), [threads])
   const envelopeVersion = envelope.version.version
   const envelopeSpec = useMemo(
     () => asDashboardSpec(envelope.version.spec),
@@ -322,7 +326,10 @@ function DashboardView({
   const ownZone = spec.timezone ?? preferredZone(preferences.timeZone)
   const viewZone = search.tz ?? ownZone
   const timeOptions = useMemo(
-    () => timeOptionsFor({ ...spec, timezone: viewZone }),
+    () =>
+      timeOptionsFor(
+        viewZone === undefined ? spec : { ...spec, timezone: viewZone }
+      ),
     [spec, viewZone]
   )
 
@@ -363,7 +370,10 @@ function DashboardView({
   const effectiveFrom = search.from ?? spec.time.from
   const effectiveTo = search.to ?? spec.time.to
   const timeRange = useMemo(
-    () => ({ from: search.from, to: search.to }),
+    () => ({
+      ...(search.from === undefined ? {} : { from: search.from }),
+      ...(search.to === undefined ? {} : { to: search.to }),
+    }),
     [search.from, search.to]
   )
   const rangeTooLong = useMemo(
@@ -640,15 +650,22 @@ function DashboardView({
   }
 
   const timeHidden = spec.timePicker?.hidden === true
-  const moveRange = (
-    move: (now: number) => { from: string; to: string } | null
-  ): (() => void) | undefined =>
-    timeHidden
-      ? undefined
-      : () => {
-          const next = move(Date.now())
-          if (next) setSearch((state) => ({ ...state, ...next }))
-        }
+  const moveRange =
+    (move: (now: number) => { from: string; to: string } | null) => () => {
+      const next = move(Date.now())
+      if (next) setSearch((state) => ({ ...state, ...next }))
+    }
+  const closeShortcut = inspecting
+    ? closeInspect
+    : viewed !== undefined
+      ? closeView
+      : kiosk
+        ? leaveKiosk
+        : tool !== "select"
+          ? () => useCanvasTool.getState().leave("select")
+          : selectedId !== null
+            ? () => useSelectionStore.getState().clear()
+            : undefined
   const agentAvailable = useAgentInfo().data?.available === true
   const shortcutPanel = () =>
     layoutPanelOf(spec, shortcutPanelId() ?? undefined)
@@ -672,15 +689,16 @@ function DashboardView({
         setSearch((state) => ({ ...state, viewPanel: panel.id }))
       }
     },
-    edit:
-      mayOpenEditor && !editing
-        ? () => {
+    ...(mayOpenEditor && !editing
+      ? {
+          edit: () => {
             const panel = shortcutPanel()
             if (!panel || !isEditablePanel(panel)) return
             setOpen(true)
             setSearch((state) => ({ ...state, panel: panel.id, edit: "query" }))
-          }
-        : undefined,
+          },
+        }
+      : {}),
     comment: () => {
       const { panel, onCanvas } = shortcutPlace()
       const action = commentKeyAction({
@@ -740,34 +758,28 @@ function DashboardView({
         inspectTab: undefined,
       }))
     },
-    close: inspecting
-      ? closeInspect
-      : viewed !== undefined
-        ? closeView
-        : kiosk
-          ? leaveKiosk
-          : tool !== "select"
-            ? () => useCanvasTool.getState().leave("select")
-            : selectedId !== null
-              ? () => useSelectionStore.getState().clear()
-              : undefined,
-    zoomOut: moveRange((now) =>
-      zoomOut(effectiveFrom, effectiveTo, now, timeOptions)
-    ),
-    shiftBack: moveRange((now) =>
-      shift(effectiveFrom, effectiveTo, now, -1, timeOptions)
-    ),
-    shiftForward: moveRange((now) =>
-      shift(effectiveFrom, effectiveTo, now, 1, timeOptions)
-    ),
+    ...(closeShortcut === undefined ? {} : { close: closeShortcut }),
+    ...(timeHidden
+      ? {}
+      : {
+          zoomOut: moveRange((now) =>
+            zoomOut(effectiveFrom, effectiveTo, now, timeOptions)
+          ),
+          shiftBack: moveRange((now) =>
+            shift(effectiveFrom, effectiveTo, now, -1, timeOptions)
+          ),
+          shiftForward: moveRange((now) =>
+            shift(effectiveFrom, effectiveTo, now, 1, timeOptions)
+          ),
+        }),
     refresh: () =>
       void queryClient.invalidateQueries({
         queryKey: dashboardKeys.panels(dashboardId, version),
       }),
-    tvMode: kiosk
-      ? undefined
-      : () => enterKiosk((state) => ({ ...state, kiosk: true })),
-    fullscreen: offerFullscreen ? requestFullscreen : undefined,
+    ...(kiosk
+      ? {}
+      : { tvMode: () => enterKiosk((state) => ({ ...state, kiosk: true })) }),
+    ...(offerFullscreen ? { fullscreen: requestFullscreen } : {}),
     help: () => setShortcutsOpen(true),
   })
 
@@ -884,7 +896,7 @@ function DashboardView({
       key="more"
       dashboardId={dashboardId}
       mayEdit={permissions.edit}
-      mayDelete={besidesContent}
+      mayDelete={canDelete}
       detailsBlockedBy={detailsBlockReason({
         pinned,
         editingLayout: editing,
@@ -1013,7 +1025,7 @@ function DashboardView({
     dashboardId,
     zone: displayZone(undefined, viewZone),
     panelTitle: annotationPanelTitle,
-    canEdit: besidesContent && !kiosk,
+    canEdit: canAnnotate && !kiosk,
     principal,
   }
 

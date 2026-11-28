@@ -166,7 +166,8 @@ export function MentionButton({
       else if (result.kind === "move")
         setMoved({ query: now.typed, index: result.index })
       else {
-        now.insert(now.options[result.index])
+        const option = now.options[result.index]
+        if (option !== undefined) now.insert(option)
         now.close()
       }
     }

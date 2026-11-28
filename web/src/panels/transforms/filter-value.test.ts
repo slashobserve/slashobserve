@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import { filterByValue } from "./filter-value"
 import type { PreparedFrame } from "./names"
 
@@ -23,7 +25,8 @@ function hosts(
     filters,
     ...extra,
   })
-  return { host: out.fields[0].values, load: out.fields[1].values }
+  defined(out)
+  return { host: must(out.fields[0]).values, load: must(out.fields[1]).values }
 }
 
 describe("filterByValue", () => {
@@ -90,7 +93,7 @@ describe("filterByValue", () => {
 
   it("ignores a filter on an unknown field", () => {
     expect(hosts([{ field: "nope", op: "eq", value: 1 }]).host).toEqual(
-      frame.fields[0].values
+      must(frame.fields[0]).values
     )
     expect(
       hosts([
@@ -102,6 +105,6 @@ describe("filterByValue", () => {
 
   it("keeps the input frame as it was", () => {
     hosts([{ field: "load", op: "gt", value: 5 }])
-    expect(frame.fields[1].values).toEqual([1, 5, 10, 7, null])
+    expect(must(frame.fields[1]).values).toEqual([1, 5, 10, 7, null])
   })
 })

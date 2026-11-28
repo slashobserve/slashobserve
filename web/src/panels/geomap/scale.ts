@@ -70,8 +70,10 @@ export function distanceMeters(a: LonLat, b: LonLat): number {
 
 export function pathMeters(points: readonly LonLat[]): number {
   let total = 0
-  for (let i = 1; i < points.length; i++) {
-    total += distanceMeters(points[i - 1], points[i])
+  let previous: LonLat | undefined
+  for (const point of points) {
+    if (previous !== undefined) total += distanceMeters(previous, point)
+    previous = point
   }
   return total
 }

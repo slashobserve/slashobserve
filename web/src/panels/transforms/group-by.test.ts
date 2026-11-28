@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import { groupBy } from "./group-by"
 import type { PreparedFrame } from "./names"
 
@@ -25,6 +27,7 @@ describe("groupBy", () => {
       by: ["host"],
       aggregate: [{ field: "lat", reducers: ["mean", "max", "count"] }],
     })
+    defined(out)
     expect(out.labels).toBeUndefined()
     expect(names(out)).toEqual([
       "host",
@@ -52,6 +55,7 @@ describe("groupBy", () => {
       by: ["host"],
       aggregate: [{ field: "env", reducers: ["uniqueValues", "count"] }],
     })
+    defined(out)
     expect(names(out)).toEqual(["host", "env (uniqueValues)", "env (count)"])
     expect(out.fields.map((field) => field.values)).toEqual([
       ["a", "b"],
@@ -71,6 +75,7 @@ describe("groupBy", () => {
       by: ["host", "env"],
       aggregate: [{ field: "lat", reducers: ["sum"] }],
     })
+    defined(out)
     expect(out.fields.map((field) => field.values)).toEqual([
       ["a", "b", "b"],
       ["p", "p", "q"],
@@ -80,6 +85,7 @@ describe("groupBy", () => {
 
   it("lists the distinct values when nothing is aggregated", () => {
     const [out] = groupBy([table], { type: "groupBy", by: ["host"] })
+    defined(out)
     expect(out.fields.map((field) => field.values)).toEqual([["a", "b"]])
   })
 
@@ -88,11 +94,13 @@ describe("groupBy", () => {
       type: "groupBy",
       aggregate: [{ field: "lat", reducers: ["sum"] }],
     })
+    defined(out)
     expect(out.fields.map((field) => field.values)).toEqual([[190]])
   })
 
   it("keeps only the fields it was asked for, so none when it was asked for none", () => {
     const [out] = groupBy([table], { type: "groupBy" })
+    defined(out)
     expect(out.fields).toEqual([])
   })
 
@@ -120,7 +128,10 @@ describe("groupBy", () => {
       aggregate: [{ field: "lat", reducers: ["sum"] }],
     })
     expect(out.map((frame) => frame.ref)).toEqual(["A", "B"])
-    expect(out[1].fields.map((field) => field.values)).toEqual([["x"], [3]])
+    expect(must(out[1]).fields.map((field) => field.values)).toEqual([
+      ["x"],
+      [3],
+    ])
   })
 
   it("does not change its input", () => {

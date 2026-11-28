@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest"
 
 import { hitTest, locate, type CanvasAnchorLayout } from "./anchors"
 
+function must<T>(value: T | undefined): T {
+  expect(value).toBeDefined()
+  return value as T
+}
+
 const layout: CanvasAnchorLayout = {
   body: { width: 200, height: 100 },
   elements: [
@@ -34,7 +39,7 @@ describe("canvas locate", () => {
   it("finds the element a hit test named", () => {
     const anchor = hitTest(layout, { x: 30, y: 30 })
     expect(anchor).not.toBeNull()
-    expect(locate(layout, anchor!)).toEqual(layout.elements[1].rect)
+    expect(locate(layout, anchor!)).toEqual(must(layout.elements[1]).rect)
   })
 
   it("takes the topmost of two drawings of one element", () => {

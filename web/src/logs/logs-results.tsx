@@ -1,14 +1,7 @@
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react"
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { Link } from "@tanstack/react-router"
 
+import { useNarrow } from "@/lib/use-narrow"
 import { CopyButton } from "@/components/copy-button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -45,7 +38,7 @@ import { usePrepared } from "./prepared"
 import { volumeKindNames, volumeKinds } from "./volume"
 import { spanIdOf, traceIdOf, traceRangeAround } from "./trace-link"
 import { useFirstRowShortcut } from "./row-shortcut"
-import { useElementSize } from "./use-element-size"
+import { useElementSize } from "@/lib/use-element-size"
 
 type ExploreLogsProps = {
   frames: WireFrame[]
@@ -53,17 +46,17 @@ type ExploreLogsProps = {
   title: string
   height: number
   display: Record<string, unknown>
-  detailActions?: (selection: LogSelection) => React.ReactNode
-  isMarked?: (entry: LogEntry) => boolean
-  isNew?: (entry: LogEntry) => boolean
-  newSince?: NewSince
-  selectedKey?: string | null
-  onSelectedChange?: (selection: LogSelection | null) => void
-  detailsId?: string
-  columns?: readonly string[]
-  columnSort?: ColumnSort | null
-  hiddenLevels?: ReadonlySet<LogLevelKind>
-  onModel?: (model: LogsViewModel) => void
+  detailActions?: ((selection: LogSelection) => React.ReactNode) | undefined
+  isMarked?: ((entry: LogEntry) => boolean) | undefined
+  isNew?: ((entry: LogEntry) => boolean) | undefined
+  newSince?: NewSince | undefined
+  selectedKey?: string | null | undefined
+  onSelectedChange?: ((selection: LogSelection | null) => void) | undefined
+  detailsId?: string | undefined
+  columns?: readonly string[] | undefined
+  columnSort?: ColumnSort | null | undefined
+  hiddenLevels?: ReadonlySet<LogLevelKind> | undefined
+  onModel?: ((model: LogsViewModel) => void) | undefined
 }
 
 export function ExploreLogs({
@@ -109,36 +102,20 @@ export function ExploreLogs({
           display={prepared.display as LogsDisplay}
           width={width}
           height={height}
-          detailActions={detailActions}
-          isMarked={isMarked}
-          isNew={isNew}
-          newSince={newSince}
-          selectedKey={selectedKey}
-          onSelectedChange={onSelectedChange}
-          detailsId={detailsId}
-          columns={columns}
-          columnSort={columnSort}
-          hiddenLevels={hiddenLevels}
-          onModel={onModel}
+          {...(detailActions === undefined ? {} : { detailActions })}
+          {...(isMarked === undefined ? {} : { isMarked })}
+          {...(isNew === undefined ? {} : { isNew })}
+          {...(newSince === undefined ? {} : { newSince })}
+          {...(selectedKey === undefined ? {} : { selectedKey })}
+          {...(onSelectedChange === undefined ? {} : { onSelectedChange })}
+          {...(detailsId === undefined ? {} : { detailsId })}
+          {...(columns === undefined ? {} : { columns })}
+          {...(columnSort === undefined ? {} : { columnSort })}
+          {...(hiddenLevels === undefined ? {} : { hiddenLevels })}
+          {...(onModel === undefined ? {} : { onModel })}
         />
       ) : null}
     </div>
-  )
-}
-
-const phoneQuery = "(max-width: 899px)"
-
-function subscribePhone(onChange: () => void) {
-  const media = window.matchMedia(phoneQuery)
-  media.addEventListener("change", onChange)
-  return () => media.removeEventListener("change", onChange)
-}
-
-export function usePhone(): boolean {
-  return useSyncExternalStore(
-    subscribePhone,
-    () => window.matchMedia(phoneQuery).matches,
-    () => false
   )
 }
 
@@ -287,15 +264,15 @@ export function LogsResults({
   onColumnsChange: (names: string[]) => void
   linkedId: string | undefined
   onLinkedChange: (id: string | undefined) => void
-  hiddenLevels?: ReadonlySet<LogLevelKind>
-  listTitle?: string
-  orderLocked?: boolean
-  onRendered?: () => void
-  isMarked?: (entry: LogEntry) => boolean
-  isNew?: (entry: LogEntry) => boolean
-  newSince?: NewSince
+  hiddenLevels?: ReadonlySet<LogLevelKind> | undefined
+  listTitle?: string | undefined
+  orderLocked?: boolean | undefined
+  onRendered?: (() => void) | undefined
+  isMarked?: ((entry: LogEntry) => boolean) | undefined
+  isNew?: ((entry: LogEntry) => boolean) | undefined
+  newSince?: NewSince | undefined
 }) {
-  const phone = usePhone()
+  const phone = useNarrow()
   useFirstRowShortcut()
   const sortId = useId()
   const { ref: rowsRef, height: rowsHeight } = useElementSize<HTMLDivElement>()
@@ -542,7 +519,7 @@ export function LogsResults({
             isMarked={isMarked}
             isNew={isNew}
             newSince={newSince}
-            detailActions={phone ? detailActions : undefined}
+            {...(phone ? { detailActions } : {})}
             selectedKey={selectedKey}
             onSelectedChange={phone ? undefined : onSelect}
             detailsId={detailsId}

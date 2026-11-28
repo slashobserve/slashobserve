@@ -13,30 +13,24 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  anchorProps,
-  NewTabMark,
-  oneClickProps,
-} from "@/dashboards/dashboard-links"
+import { anchorProps, NewTabMark } from "@/dashboards/dashboard-links"
 import { cn } from "@/lib/utils"
 import type { Reducer } from "@/spec"
 
 import { ActionMenuItems } from "../actions/action-menu-items"
 import {
-  runFieldAction,
   useStableActionRunner,
   type StableActionRunner,
 } from "../actions/action-runner"
-import { oneClickTarget, type FieldAction } from "../actions/field-actions"
+import type { FieldAction } from "../actions/field-actions"
+import { itemInteraction } from "../actions/item-interaction"
 import type { FieldResolver, LinkScope } from "../field-config"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
 import { useAnchorPublisher } from "../anchor-layout"
 import { valueAnchorLayout } from "../value-layout"
 import {
-  barActions,
   barLimits,
-  barLinks,
   barScope,
   barSizes,
   barStyleOf,
@@ -82,22 +76,14 @@ function textSize(size: number | undefined): CSSProperties | undefined {
   return size ? { fontSize: `${size}px` } : undefined
 }
 
-function runBarAction(
-  { bar, fields, reducer, scope, runner }: BarProps,
-  action: FieldAction
-) {
-  runFieldAction(runner, action, barScope(fields, bar, reducer, scope))
-}
-
-function oneClickOf(props: BarProps) {
+function interactionOf(props: BarProps) {
   const { bar, fields, reducer, scope, valueMode, runner } = props
-  if (valueMode === "hidden") return {}
-  const links = barLinks(fields, bar, reducer, scope)
-  const target = oneClickTarget(links, barActions(fields, bar, reducer, scope))
-  if (target === null) return {}
-  if (target.kind === "link") return oneClickProps(links)
-  if (runner.reason !== null) return {}
-  return oneClickProps([], () => runBarAction(props, target.action))
+  return itemInteraction(
+    bar,
+    barScope(fields, bar, reducer, scope),
+    runner,
+    valueMode !== "hidden"
+  )
 }
 
 function BarActions({
@@ -238,12 +224,14 @@ function Level({ bar, orientation }: Pick<BarProps, "bar" | "orientation">) {
 }
 
 function Value(props: BarProps) {
-  const { bar, orientation, fields, reducer, scope, valueMode, sizes, runner } =
-    props
+  const { bar, orientation, valueMode, sizes, runner } = props
   if (valueMode === "hidden")
     return <Level bar={bar} orientation={orientation} />
-  const [first] = barLinks(fields, bar, reducer, scope)
-  const actions = barActions(fields, bar, reducer, scope)
+  const {
+    links: [first],
+    actions,
+    run,
+  } = interactionOf(props)
   const text = <span className="truncate">{bar.text}</span>
   const group = cn(
     "flex min-w-0 items-center text-foreground tabular-nums",
@@ -271,7 +259,7 @@ function Value(props: BarProps) {
           bar={bar}
           actions={actions}
           reason={runner.reason}
-          onAction={(action) => runBarAction(props, action)}
+          onAction={run}
         />
       ) : null}
     </span>
@@ -308,7 +296,7 @@ const HorizontalRow = memo(function HorizontalRow(props: BarProps) {
     return (
       <div
         data-value-key={bar.key}
-        {...oneClickOf(props)}
+        {...interactionOf(props).oneClick}
         className={cn(rowClass, "flex-row items-center gap-2", oneClickClass)}
         style={style}
       >
@@ -325,7 +313,7 @@ const HorizontalRow = memo(function HorizontalRow(props: BarProps) {
   return (
     <div
       data-value-key={bar.key}
-      {...oneClickOf(props)}
+      {...interactionOf(props).oneClick}
       className={cn(rowClass, "flex-col gap-[5px]", oneClickClass)}
       style={style}
     >
@@ -353,7 +341,7 @@ const VerticalColumn = memo(function VerticalColumn(props: BarProps) {
   return (
     <div
       data-value-key={bar.key}
-      {...oneClickOf(props)}
+      {...interactionOf(props).oneClick}
       className={cn(
         "flex min-w-8 flex-1 basis-0 flex-col gap-1 text-[13px]",
         oneClickClass

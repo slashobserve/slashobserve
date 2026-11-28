@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -33,7 +34,6 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { moveChoices } from "@/folders/move-targets"
 import type { Folder } from "@/folders/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 import { cleanText } from "@/lib/user-text"
 import { dashboardKeys } from "@/api/keys"
 import { panelTitles } from "@/history/diff-groups"
@@ -61,7 +61,7 @@ type Edits = {
   title?: string
   description?: string
   tags?: string
-  folder?: string
+  folder?: string | undefined
 }
 
 type Props = {
@@ -429,7 +429,7 @@ function Field({
   id: string
   label: string
   error: string | null
-  hint?: string
+  hint?: string | undefined
   children: ReactNode
 }) {
   return (

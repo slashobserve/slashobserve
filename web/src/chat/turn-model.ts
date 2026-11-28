@@ -12,7 +12,7 @@ export function resultFinishedAt(
 }
 
 export function mayHaveFinding(
-  request: { kind?: ObserveRequest["kind"] } & Pick<
+  request: { kind?: ObserveRequest["kind"] | undefined } & Pick<
     ObserveRequest,
     "result_kind"
   >
@@ -25,7 +25,7 @@ export function mayHaveFinding(
 }
 
 export function noFindingText(
-  request: { kind?: ObserveRequest["kind"] } & Pick<
+  request: { kind?: ObserveRequest["kind"] | undefined } & Pick<
     ObserveRequest,
     "result_kind"
   >

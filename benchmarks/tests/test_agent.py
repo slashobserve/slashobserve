@@ -8,6 +8,7 @@ from harbor.models.trajectories import Trajectory
 
 from slashobserve_bench import agent as bench_agent
 from slashobserve_bench import o11y
+from slashobserve_bench.api import RunTimeout
 from slashobserve_bench.ledger import SpendCapReached, SpendLedger
 
 
@@ -41,13 +42,13 @@ def test_loop_settings_are_accepted_from_the_command_line(tmp_path):
         investigation_loop="true",
         investigation_calls="20",
         investigation_calls_max="40",
-        finding_grounding="report",
+        finding_grounding="off",
         investigation_brief="off",
     )
     assert instance._options.investigation_loop is True
     assert instance._options.investigation_brief == "off"
     assert instance._options.investigation_calls_max == 40
-    assert instance._options.finding_grounding == "report"
+    assert instance._options.finding_grounding == "off"
     unset = bench_agent.SlashObserveAgent(logs_dir=tmp_path, model_name="replay/replay")
     assert unset._options.investigation_loop is None
 
@@ -232,7 +233,7 @@ def test_spend_is_recorded_when_polling_fails_after_the_run_spent(tmp_path, monk
 def test_a_timed_out_run_is_canceled_saved_and_charged_its_final_cost(tmp_path, monkeypatch, finished_request):
     client = FakeClient([run_state(finished_request, "running", 0.25), run_state(finished_request, "canceled", 0.4)])
     instance, ledger_path, run = answer_with(tmp_path, monkeypatch, client, deadline=0.0)
-    with pytest.raises(bench_agent.RunTimeout):
+    with pytest.raises(RunTimeout):
         asyncio.run(run)
     assert client.canceled
     assert json.loads((instance.logs_dir / "detail" / "run.json").read_text())["state"] == "canceled"

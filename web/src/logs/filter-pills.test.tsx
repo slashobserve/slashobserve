@@ -15,7 +15,7 @@ vi.mock("sonner", () => ({ toast: vi.fn() }))
 
 const range = { from: "now-1h", to: "now" }
 
-const seeded: Pill[] = [
+const seeded: [Pill, Pill, Pill] = [
   {
     id: "0",
     kind: "is",
@@ -204,7 +204,7 @@ describe("FilterPills", () => {
       screen.getByRole("button", { name: "Filter NOT host.name: canary-*" })
     )
     await user.click(screen.getByRole("button", { name: "Include" }))
-    expect(lastFilters(update)[1].negate).toBe(false)
+    expect(lastFilters(update)[1]?.negate).toBe(false)
   })
 
   it("pauses a pill without dropping it", async () => {
@@ -215,7 +215,7 @@ describe("FilterPills", () => {
     await user.click(screen.getByRole("button", { name: "Pause" }))
     const written = lastFilters(update)
     expect(written).toHaveLength(3)
-    expect(written[0].paused).toBe(true)
+    expect(written[0]?.paused).toBe(true)
     expect(applyPills("timeout", "elasticsearch", written)).not.toContain(
       "service.name"
     )
@@ -227,7 +227,7 @@ describe("FilterPills", () => {
       screen.getByRole("button", { name: "Filter service.name: checkout" })
     )
     await user.click(screen.getByRole("button", { name: "Pin" }))
-    expect(lastFilters(update)[0].pinned).toBe(true)
+    expect(lastFilters(update)[0]?.pinned).toBe(true)
 
     await user.click(
       screen.getByRole("button", {
@@ -336,7 +336,7 @@ describe("FilterPills", () => {
     const { changeQuery, update, run } = setup()
     const before = vi.mocked(update).mock.calls.length
     changeQuery("payment failed")
-    const options = vi.mocked(toast).mock.calls[0][1] as unknown as {
+    const options = vi.mocked(toast).mock.calls[0]![1] as unknown as {
       action: { onClick: () => void }
     }
     options.action.onClick()

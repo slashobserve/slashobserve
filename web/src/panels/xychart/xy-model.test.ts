@@ -18,6 +18,12 @@ import {
   xyOptions,
 } from "./xy-model"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
   return {
     id: "p1",
@@ -69,7 +75,7 @@ describe("xyModel", () => {
     const model = build([frame({ size: [1, 2, 3], latency: [10, 20, 30] })])
     expect(model.reason).toBeNull()
     expect(model.series).toHaveLength(1)
-    expect(model.series[0].points.map(([x, y]) => [x, y])).toEqual([
+    expect(nth(model.series, 0).points.map(([x, y]) => [x, y])).toEqual([
       [1, 10],
       [2, 20],
       [3, 30],
@@ -83,7 +89,7 @@ describe("xyModel", () => {
       { xField: "b" }
     )
     expect(model.series.map((series) => series.name)).toEqual(["a", "c"])
-    expect(model.series[0].points.map(([x]) => x)).toEqual([5, 6])
+    expect(nth(model.series, 0).points.map(([x]) => x)).toEqual([5, 6])
   })
 
   it("draws nothing for a frame without the named x field", () => {
@@ -114,7 +120,7 @@ describe("xyModel", () => {
     const model = build([
       frame({ x: [1, null, 3, Infinity, 5], y: [1, 2, NaN, 4, 5] }),
     ])
-    expect(model.series[0].points.map(([x, y]) => [x, y])).toEqual([
+    expect(nth(model.series, 0).points.map(([x, y]) => [x, y])).toEqual([
       [1, 1],
       [5, 5],
     ])
@@ -135,7 +141,7 @@ describe("xyModel", () => {
         { value: 90, color: "critical" },
       ],
     } as Partial<DataPanel>)
-    const colors = model.series[0].points.map(([, , color]) => color)
+    const colors = nth(model.series, 0).points.map(([, , color]) => color)
     expect(colors).toEqual([
       "var(--threshold-ok)",
       "var(--threshold-warning)",
@@ -145,7 +151,7 @@ describe("xyModel", () => {
 
   it("colors points by the series color when nothing else applies", () => {
     const model = build([frame({ x: [1, 2], y: [1, 2] })])
-    const [series] = model.series
+    const series = nth(model.series, 0)
     expect(series.points.every(([, , color]) => color === series.color)).toBe(
       true
     )
@@ -154,11 +160,11 @@ describe("xyModel", () => {
   it("sorts points by x for lines and keeps the order for points", () => {
     const columns = { x: [3, 1, 2], y: [30, 10, 20] }
     const lines = build([frame(columns)], {}, { show: "lines" })
-    expect(lines.series[0].points.map(([x]) => x)).toEqual([1, 2, 3])
+    expect(nth(lines.series, 0).points.map(([x]) => x)).toEqual([1, 2, 3])
     const both = build([frame(columns)], {}, { show: "points+lines" })
-    expect(both.series[0].points.map(([x]) => x)).toEqual([1, 2, 3])
+    expect(nth(both.series, 0).points.map(([x]) => x)).toEqual([1, 2, 3])
     const points = build([frame(columns)])
-    expect(points.series[0].points.map(([x]) => x)).toEqual([3, 1, 2])
+    expect(nth(points.series, 0).points.map(([x]) => x)).toEqual([3, 1, 2])
   })
 
   it("pads ranges by 5 percent and widens them to field min and max", () => {
@@ -252,10 +258,10 @@ describe("nearestPoint", () => {
     expect(pointCount(big)).toBe(count)
     const target = 54_321
     const px = pixel(target, big.x.range, scale.width)
-    const py = scale.height - pixel(ys[target], big.y.range, scale.height)
+    const py = scale.height - pixel(nth(ys, target), big.y.range, scale.height)
     const hit = nearestPoint(big, px, py, { ...scale, radius: 4 })
     expect(hit).not.toBeNull()
-    const [x, y] = big.series[0].points[hit!.index]
+    const [x, y] = nth(nth(big.series, 0).points, hit!.index)
     const hx = pixel(x, big.x.range, scale.width)
     const hy = scale.height - pixel(y, big.y.range, scale.height)
     expect(Math.hypot(hx - px, hy - py)).toBeCloseTo(hit!.distance, 6)
@@ -271,9 +277,9 @@ describe("nearestPoint", () => {
       [200, 100],
       [399, 199],
       [123, 45],
-    ]) {
+    ] satisfies [number, number][]) {
       let best = Infinity
-      for (const [x, y] of sample.series[0].points) {
+      for (const [x, y] of nth(sample.series, 0).points) {
         const dx = pixel(x, sample.x.range, scale.width) - px
         const dy = scale.height - pixel(y, sample.y.range, scale.height) - py
         best = Math.min(best, Math.hypot(dx, dy))
@@ -307,7 +313,7 @@ describe("axisTicks", () => {
     expect(ticks.map(({ value }) => value)).toEqual([
       0, 200, 400, 600, 800, 1000,
     ])
-    expect(ticks[1].text).toBe("200 ms")
+    expect(nth(ticks, 1).text).toBe("200 ms")
   })
 
   it("widens decimals until neighbouring ticks differ", () => {
@@ -340,7 +346,7 @@ describe("series mapping", () => {
       }
     )
     expect(model.series.map((series) => series.name)).toEqual(["a", "Beta"])
-    expect(model.series[1].points.map(([, y]) => y)).toEqual([5, 6])
+    expect(nth(model.series, 1).points.map(([, y]) => y)).toEqual([5, 6])
   })
 
   it("prefixes the mapping name when it covers several y fields", () => {
@@ -394,7 +400,7 @@ describe("series mapping", () => {
       {},
       { xField: "a", series: [{ x: "b", y: "c" }] }
     )
-    expect(model.series[0].points[0].slice(0, 2)).toEqual([2, 3])
+    expect(nth(nth(model.series, 0).points, 0).slice(0, 2)).toEqual([2, 3])
   })
 
   it("explains an empty result when no mapping finds fields", () => {
@@ -417,8 +423,10 @@ describe("series mapping", () => {
         series: [{ x: "x", y: "y", size: "n" }],
       }
     )
-    expect(model.series[0].points.map((point) => point[3])).toEqual([4, 14, 24])
-    expect(model.series[0].points.map((point) => point[4])).toEqual([
+    expect(nth(model.series, 0).points.map((point) => point[3])).toEqual([
+      4, 14, 24,
+    ])
+    expect(nth(model.series, 0).points.map((point) => point[4])).toEqual([
       0, 50, 100,
     ])
   })
@@ -431,12 +439,14 @@ describe("series mapping", () => {
       } as Partial<DataPanel>,
       { pointSizeMin: 4, pointSizeMax: 24, series: [{ size: "n" }] }
     )
-    expect(model.series[0].points.map((point) => point[3])).toEqual([4, 14])
+    expect(nth(model.series, 0).points.map((point) => point[3])).toEqual([
+      4, 14,
+    ])
   })
 
   it("uses the fixed point size without a size field", () => {
     const model = build([frame({ x: [1], y: [2] })], {}, { pointSize: 9 })
-    expect(model.series[0].points[0][3]).toBe(9)
+    expect(nth(nth(model.series, 0).points, 0)[3]).toBe(9)
   })
 
   it("colors points by the color field instead of the y value", () => {
@@ -445,7 +455,7 @@ describe("series mapping", () => {
       { thresholds } as Partial<DataPanel>,
       { series: [{ color: "c" }] }
     )
-    expect(model.series[0].points.map((point) => point[2])).toEqual([
+    expect(nth(model.series, 0).points.map((point) => point[2])).toEqual([
       "var(--threshold-ok)",
       "var(--threshold-warning)",
       "var(--threshold-critical)",
@@ -455,7 +465,7 @@ describe("series mapping", () => {
   it("drops series the legend hides", () => {
     const frames = [frame({ x: [1, 2], a: [1, 2], b: [3, 4] })]
     const all = build(frames)
-    const hidden = build(frames, {}, {}, new Set([all.series[0].key]))
+    const hidden = build(frames, {}, {}, new Set([nth(all.series, 0).key]))
     expect(hidden.series.map((series) => series.yName)).toEqual(["b"])
     expect(hidden.y.name).toBe("b")
   })
@@ -465,9 +475,10 @@ describe("series drawing", () => {
   const frames = [frame({ x: [1, 2], y: [1, 2] })]
 
   it("draws lines 1.5 wide unless the field sets a width", () => {
-    expect(build(frames).series[0].lineWidth).toBe(1.5)
+    expect(nth(build(frames).series, 0).lineWidth).toBe(1.5)
     expect(
-      build(frames, { lineWidth: 3 } as Partial<DataPanel>).series[0].lineWidth
+      nth(build(frames, { lineWidth: 3 } as Partial<DataPanel>).series, 0)
+        .lineWidth
     ).toBe(3)
   })
 
@@ -479,12 +490,15 @@ describe("series drawing", () => {
       strokeWidth: 0,
       fillAlpha: 1,
     })
-    const [styled] = build(frames, {
-      lineStyle: "dashed",
-      pointShape: "square",
-      pointStrokeWidth: 2,
-      fill: 40,
-    } as Partial<DataPanel>).series
+    const styled = nth(
+      build(frames, {
+        lineStyle: "dashed",
+        pointShape: "square",
+        pointStrokeWidth: 2,
+        fill: 40,
+      } as Partial<DataPanel>).series,
+      0
+    )
     expect(styled.dash.length).toBeGreaterThan(0)
     expect(styled).toMatchObject({
       square: true,
@@ -495,29 +509,40 @@ describe("series drawing", () => {
 
   it("draws square dots as a dash as long as the line is wide", () => {
     expect(
-      build(frames, { lineStyle: "square" } as Partial<DataPanel>).series[0]
-        .dash
+      nth(
+        build(frames, { lineStyle: "square" } as Partial<DataPanel>).series,
+        0
+      ).dash
     ).toEqual([1.5, 1.5])
     expect(
-      build(frames, {
-        lineStyle: "square",
-        lineWidth: 3,
-      } as Partial<DataPanel>).series[0].dash
+      nth(
+        build(frames, {
+          lineStyle: "square",
+          lineWidth: 3,
+        } as Partial<DataPanel>).series,
+        0
+      ).dash
     ).toEqual([3, 3])
   })
 
   it("replaces the dashed pattern with a written lineDash", () => {
     expect(
-      build(frames, {
-        lineStyle: "dashed",
-        lineDash: [6, 3],
-      } as Partial<DataPanel>).series[0].dash
+      nth(
+        build(frames, {
+          lineStyle: "dashed",
+          lineDash: [6, 3],
+        } as Partial<DataPanel>).series,
+        0
+      ).dash
     ).toEqual([6, 3])
     expect(
-      build(frames, {
-        lineStyle: "dotted",
-        lineDash: [6, 3],
-      } as Partial<DataPanel>).series[0].dash
+      nth(
+        build(frames, {
+          lineStyle: "dotted",
+          lineDash: [6, 3],
+        } as Partial<DataPanel>).series,
+        0
+      ).dash
     ).not.toEqual([6, 3])
   })
 
@@ -538,7 +563,7 @@ describe("series drawing", () => {
     const model = build([frame({ x: [0, 1, 10, 100], y: [1, 2, 3, 4] })], {
       scale: "log",
     } as Partial<DataPanel>)
-    expect(model.series[0].points.map(([x]) => x)).toEqual([1, 10, 100])
+    expect(nth(model.series, 0).points.map(([x]) => x)).toEqual([1, 10, 100])
     expect(model.x.scale.kind).toBe("log")
     expect(model.x.range.min).toBeGreaterThan(0)
   })

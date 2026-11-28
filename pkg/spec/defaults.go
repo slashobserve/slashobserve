@@ -3,8 +3,6 @@ package spec
 import (
 	"bytes"
 	"encoding/json"
-	"maps"
-	"slices"
 	"sync"
 
 	"github.com/slashobserve/slashobserve/spec/schema"
@@ -117,7 +115,9 @@ type DefaultsTable struct {
 	InstantPanels    []PanelType              `json:"instantPanels"`
 }
 
-var defaults = sync.OnceValue(func() DefaultsTable {
+var defaults = sync.OnceValue(decodeDefaults)
+
+func decodeDefaults() DefaultsTable {
 	var table DefaultsTable
 	dec := json.NewDecoder(bytes.NewReader(schema.Defaults))
 	dec.DisallowUnknownFields()
@@ -128,81 +128,10 @@ var defaults = sync.OnceValue(func() DefaultsTable {
 		panic("spec: embedded defaults have no display table")
 	}
 	return table
-})
+}
 
 func Defaults() DefaultsTable {
-	table := defaults()
-	table.Display = maps.Clone(table.Display)
-	table.InstantPanels = slices.Clone(table.InstantPanels)
-	table.TimePicker.RefreshIntervals = slices.Clone(table.TimePicker.RefreshIntervals)
-	for panelType, display := range table.Display {
-		display.LegendValues = slices.Clone(display.LegendValues)
-		display.Footer = slices.Clone(display.Footer)
-		display.FooterFields = slices.Clone(display.FooterFields)
-		display.FooterCountRows = clonePointer(display.FooterCountRows)
-		display.Pagination = clonePointer(display.Pagination)
-		display.SortDesc = clonePointer(display.SortDesc)
-		display.TypeIcons = clonePointer(display.TypeIcons)
-		display.Graph = clonePointer(display.Graph)
-		display.ThresholdMarkers = clonePointer(display.ThresholdMarkers)
-		display.Header = clonePointer(display.Header)
-		display.Calculate = clonePointer(display.Calculate)
-		display.YReverse = clonePointer(display.YReverse)
-		display.TooltipHistogram = clonePointer(display.TooltipHistogram)
-		display.TooltipColorScale = clonePointer(display.TooltipColorScale)
-		display.Exemplars = clonePointer(display.Exemplars)
-		display.BucketSize = clonePointer(display.BucketSize)
-		display.MergeValues = clonePointer(display.MergeValues)
-		display.Wrap = clonePointer(display.Wrap)
-		display.ShowTime = clonePointer(display.ShowTime)
-		display.ShowLabels = clonePointer(display.ShowLabels)
-		display.ShowCommonLabels = clonePointer(display.ShowCommonLabels)
-		display.Details = clonePointer(display.Details)
-		display.Prettify = clonePointer(display.Prettify)
-		display.Controls = clonePointer(display.Controls)
-		display.Highlight = clonePointer(display.Highlight)
-		display.IncludeAllFields = clonePointer(display.IncludeAllFields)
-		display.BarWidth = clonePointer(display.BarWidth)
-		display.GroupWidth = clonePointer(display.GroupWidth)
-		display.Lat = clonePointer(display.Lat)
-		display.Lon = clonePointer(display.Lon)
-		display.Zoom = clonePointer(display.Zoom)
-		display.KeepTime = clonePointer(display.KeepTime)
-		display.IncludeVars = clonePointer(display.IncludeVars)
-		display.BasemapLabels = clonePointer(display.BasemapLabels)
-		display.BasemapOpacity = clonePointer(display.BasemapOpacity)
-		display.MinZoom = clonePointer(display.MinZoom)
-		display.MaxZoom = clonePointer(display.MaxZoom)
-		display.FitLastOnly = clonePointer(display.FitLastOnly)
-		display.FitPadding = clonePointer(display.FitPadding)
-		display.SharedView = clonePointer(display.SharedView)
-		display.ShowZoom = clonePointer(display.ShowZoom)
-		display.MouseWheelZoom = clonePointer(display.MouseWheelZoom)
-		display.WheelZoom = clonePointer(display.WheelZoom)
-		display.ServiceNames = slices.Clone(display.ServiceNames)
-		display.ExcludeServices = clonePointer(display.ExcludeServices)
-		display.SpanNames = slices.Clone(display.SpanNames)
-		display.ExcludeSpanNames = clonePointer(display.ExcludeSpanNames)
-		display.MinSpanDuration = clonePointer(display.MinSpanDuration)
-		display.MaxSpanDuration = clonePointer(display.MaxSpanDuration)
-		display.MatchesOnly = clonePointer(display.MatchesOnly)
-		display.CriticalPathOnly = clonePointer(display.CriticalPathOnly)
-		display.ShowAttribution = clonePointer(display.ShowAttribution)
-		display.ShowScale = clonePointer(display.ShowScale)
-		display.ShowMeasure = clonePointer(display.ShowMeasure)
-		display.ShowDebug = clonePointer(display.ShowDebug)
-		display.BorderWidth = clonePointer(display.BorderWidth)
-		display.BorderRadius = clonePointer(display.BorderRadius)
-		display.PanZoom = clonePointer(display.PanZoom)
-		display.InfinitePan = clonePointer(display.InfinitePan)
-		display.BackgroundImage = clonePointer(display.BackgroundImage)
-		display.Layers = slices.Clone(display.Layers)
-		display.Elements = slices.Clone(display.Elements)
-		display.Connections = slices.Clone(display.Connections)
-		display.Tags = slices.Clone(display.Tags)
-		table.Display[panelType] = display
-	}
-	return table
+	return decodeDefaults()
 }
 
 var instantPanels = sync.OnceValue(func() map[PanelType]bool {
@@ -215,12 +144,4 @@ var instantPanels = sync.OnceValue(func() map[PanelType]bool {
 
 func InstantByDefault(t PanelType) bool {
 	return instantPanels()[t]
-}
-
-func clonePointer[T any](p *T) *T {
-	if p == nil {
-		return nil
-	}
-	v := *p
-	return &v
 }

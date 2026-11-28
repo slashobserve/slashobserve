@@ -57,9 +57,9 @@ export function AuditFacets({
             label={facet.label}
             field={{
               name: facet.name,
-              alias:
+              aliases:
                 fields.data?.fields.find((field) => field.name === facet.name)
-                  ?.alias ?? null,
+                  ?.aliases ?? [],
             }}
             editable={editable}
             live={live}

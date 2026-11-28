@@ -121,9 +121,9 @@ export function locate(
     return { x: plot.x, y: top, width: plot.width, height: rowHeight }
   }
   const at = Date.parse(anchor.from ?? "")
-  const segment = Number.isNaN(at)
-    ? null
-    : segmentAt(layout.rows[index].segments, at)
+  const segments = layout.rows[index]?.segments
+  const segment =
+    Number.isNaN(at) || segments === undefined ? null : segmentAt(segments, at)
   if (segment === null) return null
   const left = Math.max(0, timeShare(layout, segment.from))
   const right = Math.min(plot.width, timeShare(layout, segment.to))

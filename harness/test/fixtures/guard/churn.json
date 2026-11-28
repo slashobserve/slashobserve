@@ -1,0 +1,124 @@
+{
+  "about": "Build saves that change nothing new.",
+  "traces": [
+    {
+      "name": "churn counts changes per panel",
+      "source": "TestChurnCountsChangesPerPanel",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":1}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["a"],"added":[],"deleted":[],"settings":false}}},"settled":{"note":"","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":2}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["b"],"added":[],"deleted":[],"settings":false}}},"settled":{"note":"","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":3}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["c"],"added":[],"deleted":[],"settings":false}}},"settled":{"note":"","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":4}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["a"],"added":[],"deleted":[],"settings":false}}},"settled":{"note":"","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":5}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["a"],"added":[],"deleted":[],"settings":false}}},"settled":{"note":"","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":6}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["a"],"added":[],"deleted":[],"settings":false}}},"settled":{"note":"","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":7}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["a"],"added":[],"deleted":[],"settings":false}}},"settled":{"note":"This save changed no panel that still needs work. Leave a as it is, save the next panel, or set finish: true when every planned panel is built.","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":8}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["d"],"added":[],"deleted":[],"settings":false}}},"settled":{"note":"","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":9}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":null}},"settled":{"note":"This save changed no panel that still needs work. Leave the build as it is, save the next panel, or set finish: true when every planned panel is built.","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":10}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":null}},"settled":{"note":"This save changed no panel that still needs work. Leave the build as it is, save the next panel, or set finish: true when every planned panel is built.","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":11}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":null}},"settled":{"note":"This save changed no panel that still needs work. Leave the build as it is, save the next panel, or set finish: true when every planned panel is built.","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":12}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":null}},"settled":{"stop":{"failure":"no_progress","step":"Stopped: 4 saves in a row changed nothing new","message":""}}}
+      ]
+    },
+    {
+      "name": "churn accepts one edit per panel across many panels",
+      "source": "TestChurnAcceptsOneEditPerPanelAcrossManyPanels",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":1}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["p0"],"added":[],"deleted":[],"settings":false}}},"settled":{"note":"","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":2}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["p1"],"added":[],"deleted":[],"settings":false}}},"settled":{"note":"","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":3}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["p2"],"added":[],"deleted":[],"settings":false}}},"settled":{"note":"","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":4}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["p3"],"added":[],"deleted":[],"settings":false}}},"settled":{"note":"","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":5}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["p4"],"added":[],"deleted":[],"settings":false}}},"settled":{"note":"","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":6}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["p5"],"added":[],"deleted":[],"settings":false}}},"settled":{"note":"","stop":null}}
+      ]
+    },
+    {
+      "name": "churn counts settings and variables as progress until the limit",
+      "source": "TestChurnCountsSettingsAndVariablesAsProgressUntilTheLimit",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":1}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":[],"added":[],"deleted":[],"settings":true}}},"settled":{"note":"","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":2}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":[],"added":[],"deleted":[],"settings":true}}},"settled":{"note":"","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":3}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":[],"added":[],"deleted":[],"settings":true}}},"settled":{"note":"","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":4}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":[],"added":[],"deleted":[],"settings":true}}},"settled":{"note":"","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":5}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":[],"added":[],"deleted":[],"settings":true}}},"settled":{"note":"This save changed no panel that still needs work. Leave the dashboard settings as it is, save the next panel, or set finish: true when every planned panel is built.","stop":null}}
+      ]
+    },
+    {
+      "name": "one replacement is noted and a plain new panel after it is progress",
+      "source": "TestChurnDoesNotCountAPanelAddedByASaveThatDeletesOneAsProgress",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":1}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["b"],"added":["b"],"deleted":["a"],"settings":false}}},"settled":{"note":"This save deleted a panel and added another, which is not progress. Keep the panels you have, save the next panel, or set finish: true when every planned panel is built.","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":2}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["c"],"added":["c"],"deleted":[],"settings":false}}},"settled":{"note":"","stop":null}}
+      ]
+    },
+    {
+      "name": "repeated replacements stop the run",
+      "source": "TestChurnDoesNotCountAPanelAddedByASaveThatDeletesOneAsProgress",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":1}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["n0"],"added":["n0"],"deleted":["o0"],"settings":false}}},"settled":{"note":"This save deleted a panel and added another, which is not progress. Keep the panels you have, save the next panel, or set finish: true when every planned panel is built.","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":2}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["n1"],"added":["n1"],"deleted":["o1"],"settings":false}}},"settled":{"note":"This save deleted a panel and added another, which is not progress. Keep the panels you have, save the next panel, or set finish: true when every planned panel is built.","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":3}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["n2"],"added":["n2"],"deleted":["o2"],"settings":false}}},"settled":{"note":"This save deleted a panel and added another, which is not progress. Keep the panels you have, save the next panel, or set finish: true when every planned panel is built.","stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":4}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["n9"],"added":["n9"],"deleted":["o9"],"settings":false}}},"settled":{"stop":{"failure":"no_progress","step":"Stopped: 4 saves in a row changed nothing new","message":""}}}
+      ]
+    },
+    {
+      "name": "a replacement still counts toward its panel's changes",
+      "source": "TestChurnDoesNotCountAPanelAddedByASaveThatDeletesOneAsProgress",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":1}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["n0"],"added":["n0"],"deleted":["o0"],"settings":false}}},"settled":{"note":"This save deleted a panel and added another, which is not progress. Keep the panels you have, save the next panel, or set finish: true when every planned panel is built."}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":2}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["n0"],"added":[],"deleted":[],"settings":false}}},"settled":{"note":""}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":3}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["n0"],"added":[],"deleted":[],"settings":false}}},"settled":{"note":""}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":4}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["n0"],"added":[],"deleted":[],"settings":false}}},"settled":{"note":""}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":5}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["n0"],"added":[],"deleted":[],"settings":false}}},"settled":{"note":"This save changed no panel that still needs work. Leave n0 as it is, save the next panel, or set finish: true when every planned panel is built."}}
+      ]
+    },
+    {
+      "name": "an edit of an existing panel in a save that deletes still counts",
+      "source": "TestChurnStillCountsAnEditOfAnExistingPanelInASaveThatDeletes",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"s":1}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":{"panels":["a"],"added":[],"deleted":["z"],"settings":false}}},"settled":{"note":"","stop":null}}
+      ]
+    }
+  ]
+}

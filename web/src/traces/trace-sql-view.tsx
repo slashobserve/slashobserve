@@ -23,7 +23,7 @@ import { CodeEditor, type CodeEditorHandle } from "@/query-editor/code-editor"
 import { AddToDashboardAction } from "./add-to-dashboard-action"
 import { AddToObservationAction } from "./add-to-observation-action"
 import { liveRefreshMs } from "./live-refresh"
-import { rangeInFuture, tracesTimeRange, type TraceSearch } from "./search"
+import { rangeInFuture, searchRange, type TraceSearch } from "./search"
 import { traceSqlPanelFor } from "./trace-panel"
 import {
   frameRows,
@@ -78,7 +78,9 @@ export function TraceSqlEditor({
             ariaLabel="SQL query"
             onLint={() => undefined}
             editorRef={editorRef}
-            completionNames={names.data?.labels}
+            {...(names.data === undefined
+              ? {}
+              : { completionNames: names.data.labels })}
           />
         </div>
         <p className="text-xs text-muted-foreground">
@@ -180,7 +182,7 @@ export function TraceSqlResults({
   onPageSize: (size: PageSize | undefined) => void
   live: boolean
 }) {
-  const range = tracesTimeRange(search)
+  const range = searchRange(search)
   const [openedAt] = useState(Date.now)
   const future = rangeInFuture(range, openedAt)
   const page = search.page ?? 1

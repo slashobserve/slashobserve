@@ -48,7 +48,9 @@ func TestReportOfAReleasedClaimIsNotYourRunOnceTheRunIsClaimedAgain(t *testing.T
 	f := newFixture(t)
 	ctx := context.Background()
 	queued, first := f.claimed(t)
-	f.runs.Release(ctx, f.stored(t, queued.ID))
+	if err := f.runs.Release(ctx, f.stored(t, queued.ID)); err != nil {
+		t.Fatalf("release: %v", err)
+	}
 	second := f.claim(t, grantClaimer)
 	if second.Run.Attempt != first.Run.Attempt || second.Run.ClaimEpoch <= first.Run.ClaimEpoch {
 		t.Fatalf("second claim = attempt %d epoch %d after attempt %d epoch %d, want the same attempt under a later epoch",

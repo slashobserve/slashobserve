@@ -13,9 +13,9 @@ describe("monthWeeks", () => {
   it("starts weeks on Monday and pads with the neighbouring months", () => {
     const weeks = monthWeeks(2026, 9)
     expect(weeks.map((week) => week.length)).toEqual([7, 7, 7, 7, 7])
-    expect(dayText(weeks[0][0])).toBe("2026-09-28")
-    expect(dayText(weeks[0][3])).toBe("2026-10-01")
-    expect(dayText(weeks[4][6])).toBe("2026-11-01")
+    expect(dayText(weeks[0]![0]!)).toBe("2026-09-28")
+    expect(dayText(weeks[0]![3]!)).toBe("2026-10-01")
+    expect(dayText(weeks[4]![6]!)).toBe("2026-11-01")
   })
 
   it("uses six rows when the month needs them", () => {

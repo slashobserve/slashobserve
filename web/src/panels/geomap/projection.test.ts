@@ -140,12 +140,13 @@ describe("zoom limits from the panel", () => {
 
 describe("unproject", () => {
   it("undoes project", () => {
-    for (const [lon, lat] of [
+    const places: [number, number][] = [
       [0, 0],
       [139.69, 35.68],
       [-74, 40.7],
       [151.2, -33.87],
-    ]) {
+    ]
+    for (const [lon, lat] of places) {
       const { x, y } = project(lon, lat)
       const back = unproject(x, y)
       expect(back.lon).toBeCloseTo(lon, 6)

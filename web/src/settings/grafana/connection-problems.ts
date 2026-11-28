@@ -1,5 +1,5 @@
-import { ApiError } from "@/api/errors"
-import { loadProblemText } from "@/service-accounts/queries"
+import { ApiError, loadProblemText } from "@/api/errors"
+import { addressProblem } from "@/lib/address-problem"
 
 export type ConnectionInput = { name: string; url: string; token: string }
 export type ConnectionProblems = Partial<Record<keyof ConnectionInput, string>>
@@ -14,23 +14,6 @@ export function trimConnection(input: ConnectionInput): ConnectionInput {
     url: input.url.trim(),
     token: input.token.trim(),
   }
-}
-
-function urlProblem(url: string): string | undefined {
-  if (url === "") return "Enter the Grafana URL."
-  if (new TextEncoder().encode(url).length > maxURLBytes) {
-    return `The URL can be at most ${maxURLBytes} characters.`
-  }
-  let protocol: string
-  try {
-    protocol = new URL(url).protocol
-  } catch {
-    return "Enter a full http or https URL, such as https://grafana.example.com."
-  }
-  if (protocol !== "http:" && protocol !== "https:") {
-    return "The URL must start with http:// or https://."
-  }
-  return undefined
 }
 
 export type StoredConnection = { name: string; url: string }
@@ -57,7 +40,12 @@ export function connectionProblems(
   else if ([...input.name].length > maxNameCharacters) {
     problems.name = `The name can be at most ${maxNameCharacters} characters.`
   }
-  const url = urlProblem(input.url)
+  const url = addressProblem(input.url, {
+    example: "https://grafana.example.com",
+    noun: "URL",
+    empty: "Enter the Grafana URL.",
+    maxBytes: maxURLBytes,
+  })
   if (url !== undefined) problems.url = url
   const tokenKept = stored !== undefined && input.url === stored.url
   if (input.token === "") {

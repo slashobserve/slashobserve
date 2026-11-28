@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useId, useState } from "react"
 import { Link } from "@tanstack/react-router"
 import { toast } from "sonner"
 
@@ -13,35 +13,41 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { ApiError } from "@/api/errors"
+import { type ProblemTexts, sentence, problemText } from "@/api/errors"
 import { cn } from "@/lib/utils"
-import { sentence } from "@/observe/queries"
 
-import { useWithdrawRca } from "./queries"
+import { useWithdrawRca, type RcaSummary } from "./queries"
 
 type Props = {
   observationId: string
-  revision: number
-  canWithdraw: boolean
+  rca: RcaSummary
+  canPublish: boolean
   onWithdrawn: () => void
 }
 
-export function withdrawProblemText(error: unknown): string {
-  if (error instanceof ApiError && error.code === "rca_shared") {
-    return `${sentence(error.message)} Revoke its public links below, then withdraw it.`
-  }
-  if (error instanceof ApiError) return sentence(error.message)
-  return "The revision could not be withdrawn. Try again."
+export const sharedWithdrawText =
+  "Revoke its public links below to withdraw it."
+
+export const withdrawProblems: ProblemTexts = {
+  codes: {
+    rca_shared: (error) =>
+      `${sentence(error.message)} Revoke its public links below, then withdraw it.`,
+  },
+  fallback: "The revision could not be withdrawn. Try again.",
 }
 
 export function RevisionActions({
   observationId,
-  revision,
-  canWithdraw,
+  rca,
+  canPublish,
   onWithdrawn,
 }: Props) {
+  const hintId = useId()
   const [confirming, setConfirming] = useState(false)
   const withdraw = useWithdrawRca(observationId)
+  const { revision } = rca
+  const canWithdraw = rca.allowed_actions.includes("withdraw")
+  const heldByLinks = !canWithdraw && canPublish && rca.state === "shared"
 
   function confirm() {
     withdraw.mutate(revision, {
@@ -49,28 +55,37 @@ export function RevisionActions({
         toast.success(`Withdrew revision ${revision}`)
         onWithdrawn()
       },
-      onError: (error) => toast.error(withdrawProblemText(error)),
+      onError: (error) => toast.error(problemText(error, withdrawProblems)),
     })
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <Link
-        to="/o/$observationId/rca/$revision"
-        params={{ observationId, revision: String(revision) }}
-        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-      >
-        Open revision {revision}
-      </Link>
-      {canWithdraw ? (
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={withdraw.isPending}
-          onClick={() => setConfirming(true)}
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap gap-2">
+        <Link
+          to="/o/$observationId/rca/$revision"
+          params={{ observationId, revision: String(revision) }}
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
         >
-          Withdraw
-        </Button>
+          Open revision {revision}
+        </Link>
+        {canWithdraw || heldByLinks ? (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={heldByLinks || withdraw.isPending}
+            focusableWhenDisabled
+            aria-describedby={heldByLinks ? hintId : undefined}
+            onClick={() => setConfirming(true)}
+          >
+            Withdraw
+          </Button>
+        ) : null}
+      </div>
+      {heldByLinks ? (
+        <p id={hintId} className="text-xs text-muted-foreground">
+          {sharedWithdrawText}
+        </p>
       ) : null}
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent>

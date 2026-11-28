@@ -27,7 +27,7 @@ export function repairsQuery(folderId: string | null) {
           params: {
             query: {
               limit: pageSize,
-              cursor: pageParam,
+              ...(pageParam === undefined ? {} : { cursor: pageParam }),
               ...(folderId === null ? {} : { folder_id: folderId }),
             },
           },
@@ -56,7 +56,6 @@ function bodyOf(target: RepairTarget) {
 export function useRequestRepairs() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (target: RepairTarget) =>
       api.POST("/repairs", { body: bodyOf(target) }).then(unwrap),
     onSuccess: () =>

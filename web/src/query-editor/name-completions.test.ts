@@ -8,19 +8,22 @@ import { EditorView } from "@codemirror/view"
 import { expect, it, vi } from "vitest"
 
 import { languageFor, nameCompletions } from "./extensions"
+import { must } from "@/test/must"
 
 function optionsAt(doc: string, explicit: boolean) {
   const state = EditorState.create({
     doc,
     extensions: [nameCompletions(["ServiceName", "SeverityText", "Body"])],
   })
-  const [source] = state.languageDataAt<
+  const source = state.languageDataAt<
     (context: CompletionContext) => {
       from: number
       options: { label: string }[]
     } | null
-  >("autocomplete", doc.length)
-  const result = source(new CompletionContext(state, doc.length, explicit))
+  >("autocomplete", doc.length)[0]
+  const result = must(source)(
+    new CompletionContext(state, doc.length, explicit)
+  )
   return result === null
     ? null
     : { from: result.from, labels: result.options.map((item) => item.label) }

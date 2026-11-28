@@ -49,6 +49,8 @@ export function RepairControl({
           </Link>
         </span>
       )
+    case "proposed":
+      return <StatusLabel tone="none">Repair proposed</StatusLabel>
     case "failed":
       return (
         <span className="flex flex-col items-end gap-1">

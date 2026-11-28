@@ -97,7 +97,11 @@ export function useSeriesLegend({
     [entries, mode, reducers, options.legendSortBy, options.legendSortDesc]
   )
   const listed = useMemo(
-    () => order.map((index) => entries[index]),
+    () =>
+      order.flatMap((index) => {
+        const entry = entries[index]
+        return entry ? [entry] : []
+      }),
     [order, entries]
   )
   const shown =

@@ -26,6 +26,7 @@ type inviteJSON struct {
 	CreatedAt string    `json:"created_at"`
 	UpdatedAt string    `json:"updated_at"`
 	SignInURL string    `json:"sign_in_url"`
+	Member    bool      `json:"member"`
 }
 
 type inviteListJSON struct {
@@ -40,7 +41,7 @@ func (h *Handler) registerInvites(api auth.Routes) {
 	g.DELETE("/:id", auth.RoleAdmin, h.deleteInvite)
 }
 
-func (h *Handler) newInviteJSON(id pgtype.UUID, email, role, by string, created, updated pgtype.Timestamptz) inviteJSON {
+func (h *Handler) newInviteJSON(id pgtype.UUID, email, role, by string, created, updated pgtype.Timestamptz, member bool) inviteJSON {
 	return inviteJSON{
 		ID:        id.String(),
 		Email:     email,
@@ -49,6 +50,7 @@ func (h *Handler) newInviteJSON(id pgtype.UUID, email, role, by string, created,
 		CreatedAt: httpapi.FormatTime(created.Time),
 		UpdatedAt: httpapi.FormatTime(updated.Time),
 		SignInURL: h.auth.SignInURL(),
+		Member:    member,
 	}
 }
 
@@ -80,7 +82,7 @@ func (h *Handler) listInvites(c *gin.Context) {
 		body.NextCursor = &next
 	}
 	for _, r := range rows {
-		body.Invites = append(body.Invites, h.newInviteJSON(r.ID, r.Email, r.Role, r.CreatedByName, r.CreatedAt, r.UpdatedAt))
+		body.Invites = append(body.Invites, h.newInviteJSON(r.ID, r.Email, r.Role, r.CreatedByName, r.CreatedAt, r.UpdatedAt, r.Member))
 	}
 	c.JSON(http.StatusOK, body)
 }
@@ -150,7 +152,7 @@ func (h *Handler) createInvite(c *gin.Context) {
 		status = http.StatusCreated
 	}
 	h.logger.InfoContext(ctx, "invite saved", slog.String("actor_id", caller.ID), slog.String("invite_id", row.ID.String()), slog.String("role", row.Role), slog.Bool("created", row.Inserted))
-	c.JSON(status, h.newInviteJSON(row.ID, row.Email, row.Role, row.CreatedByName, row.CreatedAt, row.UpdatedAt))
+	c.JSON(status, h.newInviteJSON(row.ID, row.Email, row.Role, row.CreatedByName, row.CreatedAt, row.UpdatedAt, false))
 }
 
 func (h *Handler) deleteInvite(c *gin.Context) {

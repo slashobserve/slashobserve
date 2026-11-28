@@ -60,6 +60,7 @@ export function candleOptions(display: Record<string, unknown>): CandleOptions {
     const name = display[role]
     if (typeof name === "string" && name !== "") names[role] = name
   }
+  const flatColor = textOf(display.flatColor, "") || undefined
   return {
     mode:
       display.mode === "candles" || display.mode === "volume"
@@ -70,7 +71,7 @@ export function candleOptions(display: Record<string, unknown>): CandleOptions {
       display.colorStrategy === "close-close" ? "close-close" : "open-close",
     upColor: textOf(display.upColor, "ok"),
     downColor: textOf(display.downColor, "critical"),
-    flatColor: textOf(display.flatColor, "") || undefined,
+    ...(flatColor === undefined ? {} : { flatColor }),
     legend:
       display.legend === "right" || display.legend === "hidden"
         ? display.legend
@@ -195,9 +196,13 @@ export function rowColors(
 
 export function minSpacing(positions: readonly number[]): number {
   let spacing = Infinity
-  for (let index = 1; index < positions.length; index++) {
-    const gap = positions[index] - positions[index - 1]
-    if (gap > 0 && gap < spacing) spacing = gap
+  let previous: number | undefined
+  for (const position of positions) {
+    if (previous !== undefined) {
+      const gap = position - previous
+      if (gap > 0 && gap < spacing) spacing = gap
+    }
+    previous = position
   }
   return spacing
 }
@@ -220,19 +225,20 @@ function candleColumnConfig(
   role: CandleRole,
   listed: boolean
 ): FieldConfig {
-  return {
+  const column: FieldConfig = {
     ...config,
     style: "line",
     fill: 0,
     stack: "none",
     hidden: false,
     hideInLegend: listed ? config.hideInLegend : true,
-    insertNulls: undefined,
     nullAsZero: false,
-    valueTransform: undefined,
-    fillBelowTo: undefined,
     axis: role === "volume" ? "hidden" : "left",
   }
+  delete column.insertNulls
+  delete column.valueTransform
+  delete column.fillBelowTo
+  return column
 }
 
 export function candleConfigs(

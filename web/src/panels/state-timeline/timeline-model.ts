@@ -72,8 +72,8 @@ function samplesOf(
       return
     }
     const shown = displayValue(value, config, {
-      fieldMin: range.min,
-      fieldMax: range.max,
+      ...(range.min === undefined ? {} : { fieldMin: range.min }),
+      ...(range.max === undefined ? {} : { fieldMax: range.max }),
     })
     samples.push({
       at,
@@ -241,6 +241,7 @@ export function segmentAt(segments: Segment[], at: number): Segment | null {
   while (low <= high) {
     const middle = (low + high) >> 1
     const segment = segments[middle]
+    if (segment === undefined) return null
     if (at < segment.from) high = middle - 1
     else if (at >= segment.to) low = middle + 1
     else return segment

@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/scheduler"
 )
 
@@ -101,11 +102,6 @@ type Page struct {
 	Summary    *Summary
 	Job        JobStatus
 }
-
-const (
-	repairSucceeded = "succeeded"
-	repairFailed    = "failed"
-)
 
 func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Page, error) {
 	levels, err := s.access.Levels(ctx, by)
@@ -217,30 +213,31 @@ func (s *Service) item(row dbsqlc.ListHealthRow, levels folders.Levels, kind Kin
 		LastViewedAt:   lastView,
 		Skipped:        row.Skipped,
 		Problems:       problems,
-		Repair:         repairShown(row, checkedVersion),
+		Repair:         repairShown(row, checkedVersion, checked),
 	}, nil
 }
 
-func repairShown(row dbsqlc.ListHealthRow, checkedVersion *int) *Repair {
+func repairShown(row dbsqlc.ListHealthRow, checkedVersion *int, checked []Problem) *Repair {
 	if row.Provisioned {
 		return nil
 	}
-	return repairOf(row, checkedVersion)
+	return repairOf(row, checkedVersion, checked)
 }
 
-func repairOf(row dbsqlc.ListHealthRow, checkedVersion *int) *Repair {
+func repairOf(row dbsqlc.ListHealthRow, checkedVersion *int, checked []Problem) *Repair {
 	if !row.RepairID.Valid {
 		return nil
 	}
+	run := revisions.State(row.RepairState)
 	r := &Repair{RequestID: row.RepairID.String(), State: row.RepairStatus, UpdatedAt: row.RepairUpdatedAt.Time}
-	if r.State == repairSucceeded && row.RepairVersion.Valid {
+	if run == revisions.StateSucceeded && row.RepairVersion.Valid {
 		v := int(row.RepairVersion.Int32)
 		r.Version = &v
 	}
-	if r.State == repairFailed && row.RepairError != "" {
+	if run.Terminal() && run != revisions.StateSucceeded && row.RepairError != "" {
 		r.Error = &row.RepairError
 	}
-	r.Outcome = repairOutcome(row.RepairState, r.Version, checkedVersion)
+	r.Outcome = repairOutcome(row.RepairState, revisions.ResultKind(row.RepairResultKind), r.Version, checkedVersion, checked)
 	return r
 }
 

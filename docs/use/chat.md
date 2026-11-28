@@ -145,9 +145,10 @@ Sharing an answer that is already shared, from another tab for example, adds not
 In a chat about an observation the same menu shares into that observation's threads.
 **Show to everyone** also writes the answer onto the page, **Shared in the thread** opens the observation, and a withdraw takes the answer out of the observation again, so it is no longer read or listed through it.
 The blocks the share already wrote stay on the page until the observation's editors remove them like any other block.
+Saving the shown answer keeps it in that observation: a later withdraw then removes only your question and the answer from the thread, and the answer stays saved there.
 
 Once the answer is in an observation, the web app no longer offers to share it to a thread from the chat, because the observation is where the team reads it.
-An answer you shared before saving it keeps **Shared in the thread** and **Withdraw**.
+An answer you shared before saving it keeps **Shared in the thread** and **Withdraw**, and the withdraw then takes back only the thread share.
 The exception is an answer to a question about an observation that you saved into another one: its menu still offers **Show to everyone** and **Share to thread** into the discussion of the observation it was about, and **Withdraw** after it.
 
 A saved answer to a question about a dashboard or an observation is read by the readers of the observation it was saved in, not by the readers of the dashboard or observation it was about.
@@ -165,6 +166,9 @@ Before that, when the agent answered a question instead of building, the box rea
 The follow-up continues the same chat, below the earlier turns.
 In a chat with no dashboard, while the latest turn still runs, the box is disabled and the note under it reads "Wait for the answer, or cancel the run, then ask a follow-up."
 An empty follow-up says "Describe the change you want first." on a dashboard and "Ask a question or describe a dashboard first." without one.
+A message that got no answer, because the connection dropped or the server failed, is safe to send again, edited or not: the box sends it with the same message id, so the server never starts a second run for it.
+When you edited it and the first message had in fact arrived, the box keeps your edit, shows the first message in the conversation and says "Your first message was sent. Send again to post this edit."
+The same holds for a comment in a thread.
 What a follow-up is about comes from the chat, so while the chat cannot be read the page shows "Could not load this request" with **Retry** and no box.
 
 A follow-up starts a fresh run that sees the datasources, your new message and the earlier turns of the conversation as context.
@@ -247,7 +251,8 @@ Choose **Save what was built** to keep it:
 - for a new dashboard it becomes version 1 in the folder the request named, or in your My Dashboards;
 - for a follow-up it becomes the next version of the dashboard when nobody has saved a version since the build started.
 
-When someone has, the build cannot be saved and the page says so; open the dashboard and ask again.
+When someone has, the build cannot be saved as it is.
+The card says "Someone saved a newer version after this build started, so it can't be saved as it is. Continue carries it onto the newer version." and offers only **Continue**.
 You need Edit access to the target, and the request stays marked as failed.
 Once the build is saved, the build page opens the dashboard.
 
@@ -276,8 +281,8 @@ The form shows "Use at most 4000 characters." when it is too long.
 Only the person who asked can continue a build, and it needs the same access as starting a run.
 A build can be continued once, and not after you saved it.
 **Save what was built** and **Continue** exclude each other: whichever you choose first wins, and the other says it can no longer be done.
-A follow-up whose dashboard got a newer version since the build started cannot be continued.
-The page says "Someone saved a newer version after this build started, so it can't be continued. Open the dashboard and ask again."
+A follow-up whose dashboard got a newer version since the build started is continued on that newer version.
+The new run first moves the build onto it, and when your build and the newer version changed the same panels, it starts again from the newer version with your note.
 A continued run counts toward the same limits as a new request.
 When the agent lowers the number of panels it planned after you continue, the finished turn says so, for example "Planned 6 panels, built 3."
 

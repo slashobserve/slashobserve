@@ -1016,7 +1016,7 @@ A range written like that stays relative, so the search opens on the latest hour
    To open it again, choose **Saved searches** next to it, or open it from the Logs, Traces or Metrics list or from a folder.
 
 A search opened that way shows its title and folder above the query, and the address carries its id as `saved`.
-On the logs page and the metrics page, opening a saved search from **Saved searches** while the query bar is on **Ask** switches it to the query, so the saved query shows, including when it is the search already open.
+On the logs, traces and metrics pages, opening a saved search from **Saved searches** while the query bar is on **Ask** switches it to the query, so the saved query shows, including when it is the search already open.
 **Close the saved search** removes it.
 The title shows only for a search among the 100 most recently changed that the list holds.
 

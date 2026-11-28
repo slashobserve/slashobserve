@@ -14,7 +14,7 @@ class LoopOptions(BaseModel):
     investigation_calls: int | None = Field(default=None, ge=6, le=60)
     investigation_loop: bool | None = None
     investigation_calls_max: int | None = Field(default=None, ge=6, le=60)
-    finding_grounding: Literal["off", "report", "enforce"] | None = None
+    finding_grounding: Literal["off", "enforce"] | None = None
     investigation_brief: Literal["on", "off"] | None = None
 
     @property

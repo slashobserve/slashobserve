@@ -83,8 +83,8 @@ export type HistogramOptions = {
   tooltip: HistogramTooltip
   tooltipSort: TooltipSort
   tooltipHideZeros: boolean
-  tooltipMaxWidth?: number
-  tooltipMaxHeight?: number
+  tooltipMaxWidth?: number | undefined
+  tooltipMaxHeight?: number | undefined
 }
 
 type Buckets = { start: number; size: number; count: number; end?: number }
@@ -102,6 +102,7 @@ export function histogramOptions(
 ): HistogramOptions {
   const merged = displayWithDefaults("histogram", display)
   const sortBy = merged.legendSortBy
+  const legendWidth = numberOf(merged.legendWidth)
   return {
     stack:
       merged.stack === "none" || merged.stack === "percent"
@@ -112,15 +113,15 @@ export function histogramOptions(
       merged.legend === "right" || merged.legend === "hidden"
         ? merged.legend
         : "bottom",
-    legendMode:
-      merged.legendMode === "list" || merged.legendMode === "table"
-        ? merged.legendMode
-        : undefined,
+    ...(merged.legendMode === "list" || merged.legendMode === "table"
+      ? { legendMode: merged.legendMode }
+      : {}),
     legendValues: (merged.legendValues ?? []) as Reducer[],
-    legendSortBy:
-      typeof sortBy === "string" ? (sortBy as "name" | Reducer) : undefined,
+    ...(typeof sortBy === "string"
+      ? { legendSortBy: sortBy as "name" | Reducer }
+      : {}),
     legendSortDesc: merged.legendSortDesc === true,
-    legendWidth: numberOf(merged.legendWidth),
+    ...(legendWidth === undefined ? {} : { legendWidth }),
     tooltip:
       merged.tooltip === "single" || merged.tooltip === "hidden"
         ? merged.tooltip
@@ -164,12 +165,13 @@ export function histogramEntries(
       })
     }
   }
-  if (!combine || entries.length === 0) return entries
+  const [first] = entries
+  if (!combine || first === undefined) return entries
   const values: number[] = []
   for (const entry of entries) {
     for (const value of entry.values) values.push(value)
   }
-  return [{ ...entries[0], key: combinedKey, name: combinedName, values }]
+  return [{ ...first, key: combinedKey, name: combinedName, values }]
 }
 
 export function legendEntries(
@@ -270,24 +272,24 @@ function barsOf(
   for (let bucket = 0; bucket < buckets; bucket++) {
     const totals = new Map<string, number>()
     for (const [series, row] of counts.entries()) {
-      totals.set(
-        groups[series],
-        (totals.get(groups[series]) ?? 0) + row[bucket]
-      )
+      const group = groups[series] ?? ""
+      totals.set(group, (totals.get(group) ?? 0) + (row[bucket] ?? 0))
     }
     const running = new Map<string, number>()
     counts.forEach((row, series) => {
-      const count = row[bucket]
+      const count = row[bucket] ?? 0
+      const target = bars[series]
+      if (target === undefined) return
       if (stack === "none") {
-        bars[series][bucket] = { start: 0, end: count }
+        target[bucket] = { start: 0, end: count }
         return
       }
-      const group = groups[series]
+      const group = groups[series] ?? ""
       const total = totals.get(group) ?? 0
       const scaled =
         stack === "percent" ? (total === 0 ? 0 : (count / total) * 100) : count
       const start = running.get(group) ?? 0
-      bars[series][bucket] = { start, end: start + scaled }
+      target[bucket] = { start, end: start + scaled }
       running.set(group, start + scaled)
     })
   }
@@ -303,6 +305,17 @@ const defaultAxisConfig = {
   axisCenteredZero: false,
 } as const
 
+function percentSettings(settings: ValueAxisSettings): ValueAxisSettings {
+  const out: ValueAxisSettings = {
+    ...settings,
+    scale: "linear",
+    centeredZero: false,
+  }
+  delete out.softMin
+  delete out.softMax
+  return out
+}
+
 function axisOf(
   first: HistogramEntry | undefined,
   stack: HistogramStack
@@ -312,16 +325,7 @@ function axisOf(
   }
   const settings = valueAxisSettings(first.config)
   return {
-    settings:
-      stack === "percent"
-        ? {
-            ...settings,
-            scale: "linear",
-            softMin: undefined,
-            softMax: undefined,
-            centeredZero: false,
-          }
-        : settings,
+    settings: stack === "percent" ? percentSettings(settings) : settings,
     color: settings.seriesColored ? first.color : null,
   }
 }
@@ -369,7 +373,10 @@ export function histogramModel(
   let total = 0
   const counts = entries.map(({ values }) => {
     const row = new Array<number>(buckets.count).fill(0)
-    for (const value of values) row[bucketIndex(value, buckets)]++
+    for (const value of values) {
+      const at = bucketIndex(value, buckets)
+      row[at] = (row[at] ?? 0) + 1
+    }
     total += values.length
     return row
   })
@@ -388,7 +395,7 @@ export function histogramModel(
     stack === "percent" ? [0, 100] : valueRange([0, top], 1, settings)
   return {
     edges,
-    series: entries.map((entry, index) => describe(entry, counts[index])),
+    series: entries.map((entry, index) => describe(entry, counts[index] ?? [])),
     bars,
     total,
     unit,
@@ -448,7 +455,7 @@ export function valueTicks(
       : []
   return {
     min: below[0] ?? 0,
-    max: ticks[ticks.length - 1],
+    max: ticks.at(-1) ?? model.max,
     ticks: [...below, ...ticks],
   }
 }
@@ -463,12 +470,14 @@ export function tooltipSeries(
     "tooltip" | "tooltipSort" | "tooltipHideZeros"
   >
 ): { rows: { index: number; value: number }[]; total: number } {
-  const candidates = model.series.flatMap((series, index) =>
-    series.hideInTooltip ||
-    (options.tooltip === "single" && series.key !== hover.series)
+  const candidates = model.series.flatMap((series, index) => {
+    const value = series.counts[hover.index]
+    return value === undefined ||
+      series.hideInTooltip ||
+      (options.tooltip === "single" && series.key !== hover.series)
       ? []
-      : [{ index, value: series.counts[hover.index] }]
-  )
+      : [{ index, value }]
+  })
   const { rows } = tooltipRows(
     candidates,
     {
@@ -480,7 +489,7 @@ export function tooltipSeries(
     Infinity
   )
   const total = model.series.reduce(
-    (sum, { counts }) => sum + counts[hover.index],
+    (sum, { counts }) => sum + (counts[hover.index] ?? 0),
     0
   )
   return { rows, total }

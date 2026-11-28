@@ -47,6 +47,7 @@ type RootCauseInput struct {
 	Component string `json:"component"`
 	Kind      string `json:"kind"`
 	Summary   string `json:"summary"`
+	CauseGiven
 }
 
 type StructuredInput struct {
@@ -58,8 +59,6 @@ type StructuredInput struct {
 	NextSteps  []string        `json:"next_steps"`
 	NoIncident bool            `json:"no_incident"`
 	Causes     []CauseInput    `json:"causes"`
-
-	LegacyFacts []string `json:"-"`
 }
 
 func (in StructuredInput) Provided() bool {

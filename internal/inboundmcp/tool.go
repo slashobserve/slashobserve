@@ -6,11 +6,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"maps"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/slashobserve/slashobserve/internal/config"
 )
 
 const (
@@ -23,8 +24,6 @@ const (
 	refusalDescription = "The description is longer than 4000 characters."
 	refusalSchema      = "The input schema is larger than 32 KiB."
 )
-
-var toolNamePattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
 
 type Found struct {
 	Name        string
@@ -111,11 +110,7 @@ func refusalOf(f Found, schema json.RawMessage) string {
 }
 
 func usableName(name string) bool {
-	return len(name) <= maxToolNameBytes && toolNamePattern.MatchString(name) && strings.ContainsFunc(name, isLetterOrDigit)
-}
-
-func isLetterOrDigit(r rune) bool {
-	return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9'
+	return config.ValidMCPToolName(name)
 }
 
 type listing struct {

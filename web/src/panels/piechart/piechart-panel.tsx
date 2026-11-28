@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react"
 
+import { useElementSize } from "@/lib/use-element-size"
 import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
@@ -73,23 +74,6 @@ function labelTextColors(
   )
 }
 
-function useBox() {
-  const [node, setNode] = useState<HTMLDivElement | null>(null)
-  const [box, setBox] = useState<Box | null>(null)
-  useLayoutEffect(() => {
-    if (!node) return
-    const observer = new ResizeObserver(([entry]) =>
-      setBox({
-        width: entry.contentRect.width,
-        height: entry.contentRect.height,
-      })
-    )
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [node])
-  return { node, box, ref: setNode }
-}
-
 function SliceLabels({
   slices,
   options,
@@ -120,7 +104,7 @@ function SliceLabels({
               <text
                 key={index}
                 x={center + placed.x * unit}
-                y={center + (placed.y + offsets[index]) * unit}
+                y={center + (placed.y + (offsets[index] ?? 0)) * unit}
                 fontSize={line.size * unit}
                 textAnchor="middle"
                 dominantBaseline="central"
@@ -229,8 +213,8 @@ function Tooltip({
   rows: TooltipRow[]
   pointer: Pointer
   box: Box
-  maxWidth?: number
-  maxHeight?: number
+  maxWidth?: number | undefined
+  maxHeight?: number | undefined
 }) {
   const left = pointer.x > box.width / 2
   const above = pointer.y > box.height / 2
@@ -314,7 +298,11 @@ const PiechartPanel: PanelRenderer = ({
     [entries, options]
   )
   const listed = useMemo(
-    () => order.map((index) => entries[index]),
+    () =>
+      order.flatMap((index) => {
+        const entry = entries[index]
+        return entry === undefined ? [] : [entry]
+      }),
     [order, entries]
   )
   const legendShown = options.legend !== "hidden" && listed.length > 0
@@ -342,7 +330,7 @@ const PiechartPanel: PanelRenderer = ({
 
   const [hovered, setHovered] = useState<string | null>(null)
   const [pointer, setPointer] = useState<Pointer | null>(null)
-  const { node, box, ref: boxRef } = useBox()
+  const { node, size: box, ref: boxRef } = useElementSize<HTMLDivElement>()
   const hover = useCallback((key: string | null) => {
     setHovered(key)
     if (key === null) setPointer(null)
@@ -488,7 +476,9 @@ const PiechartPanel: PanelRenderer = ({
       {legendShown && table ? (
         <LegendTable
           {...legendProps}
-          sortBy={options.legendSortBy}
+          {...(options.legendSortBy === undefined
+            ? {}
+            : { sortBy: options.legendSortBy })}
           sortDesc={options.legendSortDesc}
         />
       ) : null}

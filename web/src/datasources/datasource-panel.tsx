@@ -3,13 +3,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText, problemText } from "@/api/errors"
 import { datasourceKeys } from "@/api/keys"
 import { LoadProblem } from "@/components/load-problem"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SidePanel } from "@/shell/side-panel"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import {
   datasourceConfigQuery,
@@ -34,11 +34,12 @@ import {
 } from "./draft"
 import { failureAdvice, rowLabel } from "./format"
 import type { DatasourceStatus } from "./queries"
-import { saveProblemText } from "./problems"
+import { saveProblems } from "./problems"
 import { RestrictedHolders } from "./restricted-holders"
 
 type Target =
-  { mode: "create"; type?: DatasourceType } | { mode: "edit"; uid: string }
+  | { mode: "create"; type?: DatasourceType | undefined }
+  | { mode: "edit"; uid: string }
 
 type Props = {
   target: Target
@@ -246,7 +247,10 @@ function Editor({
           ),
         onError: (error) => {
           showServerProblem(error, values.type)
-          setOutcome({ kind: "failed", message: saveProblemText(error) })
+          setOutcome({
+            kind: "failed",
+            message: problemText(error, saveProblems),
+          })
         },
       }
     )
@@ -258,7 +262,9 @@ function Editor({
       ? save.error
       : null
   const saveError =
-    save.isError && refusal === null ? saveProblemText(save.error) : null
+    save.isError && refusal === null
+      ? problemText(save.error, saveProblems)
+      : null
   const hasFeedback =
     outcome !== null ||
     refusal !== null ||

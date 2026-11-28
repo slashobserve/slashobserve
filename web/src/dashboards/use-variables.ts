@@ -47,9 +47,9 @@ type UrlVarsUpdate = (
 type Args = {
   source: VariableSource
   variables: Variable[]
-  from?: string
-  to?: string
-  timezone?: string
+  from?: string | undefined
+  to?: string | undefined
+  timezone?: string | undefined
   urlVars: Record<string, string[]>
   setUrlVars?: (update: UrlVarsUpdate) => void
 }
@@ -86,7 +86,11 @@ export function useVariables({
   const requests = valuesRequests(variables, vars, knownOptions)
   const results = useQueries({
     queries: variables.map((variable, index) => {
-      const { parents: earlier, parentsReady } = requests[index]
+      const request = requests[index]
+      if (request === undefined) {
+        throw new Error(`no values request for ${variable.name}`)
+      }
+      const { parents: earlier, parentsReady } = request
       const asked = valuesRange(variable, { from, to }, atLoad)
       return {
         queryKey: variableValuesKey(
@@ -157,7 +161,14 @@ export function useVariables({
     }),
   })
 
-  const parentKeys = requests.map((request) => parentKeyOf(request.parents))
+  const loads = variables.map((variable, index) => {
+    const request = requests[index]
+    const result = results[index]
+    if (request === undefined || result === undefined) {
+      throw new Error(`no values query for ${variable.name}`)
+    }
+    return { variable, result, parentKey: parentKeyOf(request.parents) }
+  })
   const [lastLoaded, setLastLoaded] = useState<Record<string, LoadedValues>>({})
   const scopePrefix = `${scope}:`
   let nextLoaded = lastLoaded
@@ -166,34 +177,33 @@ export function useVariables({
       Object.entries(nextLoaded).filter(([key]) => key.startsWith(scopePrefix))
     )
   }
-  variables.forEach((variable, index) => {
-    const data = results[index].data
+  loads.forEach(({ variable, result, parentKey }) => {
+    const data = result.data
     const key = `${scopePrefix}${variable.name}`
     const loaded = nextLoaded[key]
-    if (
-      data &&
-      (loaded?.data !== data || loaded.parentKey !== parentKeys[index])
-    ) {
+    if (data && (loaded?.data !== data || loaded.parentKey !== parentKey)) {
       nextLoaded = {
         ...nextLoaded,
-        [key]: { data, parentKey: parentKeys[index] },
+        [key]: { data, parentKey },
       }
     }
   })
   if (nextLoaded !== lastLoaded) setLastLoaded(nextLoaded)
 
-  const displays = variables.map((variable, index) =>
-    variableDisplay(variable, {
-      data: results[index].data,
+  const displays = loads.map(({ variable, result, parentKey }) => ({
+    variable,
+    result,
+    display: variableDisplay(variable, {
+      data: result.data,
       last: lastLoaded[`${scopePrefix}${variable.name}`],
-      parentKey: parentKeys[index],
-      isError: results[index].isError,
-      isFetching: results[index].isFetching,
-    })
-  )
+      parentKey,
+      isError: result.isError,
+      isFetching: result.isFetching,
+    }),
+  }))
   const selectable: VariableOptions = {}
-  variables.forEach((variable, index) => {
-    selectable[variable.name] = displays[index].selectable
+  displays.forEach(({ variable, display }) => {
+    selectable[variable.name] = display.selectable
   })
   const selectableKey = JSON.stringify(selectable)
   if (selectableKey !== JSON.stringify(knownOptions)) {
@@ -211,8 +221,8 @@ export function useVariables({
   const selections = stable.selections
 
   const valueLists: Record<string, string[] | undefined> = {}
-  variables.forEach((variable, index) => {
-    valueLists[variable.name] = displays[index].selectable?.filter(
+  displays.forEach(({ variable, display }) => {
+    valueLists[variable.name] = display.selectable?.filter(
       (value) => value !== ""
     )
   })
@@ -225,15 +235,17 @@ export function useVariables({
     setStableValues({ key: valuesKey, lists: valueLists })
   }
 
-  const states: VariableState[] = variables.map((variable, index) => ({
-    variable,
-    options: displays[index].shown?.values,
-    texts: displays[index].shown?.texts,
-    truncated: displays[index].shown?.truncated ?? false,
-    status: displays[index].status,
-    selected: resolved.selections[variable.name] ?? [],
-    retry: () => void results[index].refetch(),
-  }))
+  const states: VariableState[] = displays.map(
+    ({ variable, result, display }) => ({
+      variable,
+      options: display.shown?.values,
+      texts: display.shown?.texts,
+      truncated: display.shown?.truncated ?? false,
+      status: display.status,
+      selected: resolved.selections[variable.name] ?? [],
+      retry: () => void result.refetch(),
+    })
+  )
 
   const select = (name: string, values: string[]) => {
     const next = changeVars(

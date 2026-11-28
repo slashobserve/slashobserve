@@ -321,7 +321,7 @@ Details of what stops a run:
 - A finding rejected for such evidence tells the model to send it again without those panels and to say that their data was not read.
 - A save that changes no panel, changes a panel for the fifth time, or deletes a panel and adds another, gets a note, and the fourth such save in a row ends the run with `no_progress`.
 
-The server enforces these guards at its MCP tool boundary on every run session, so an agent you connect that takes runs meets the same guards; see [MCP](../use/mcp.md#the-run-session-enforces-the-guards).
+The built-in agent keeps these guards in its own process; an agent you connect that takes runs works inside the run's lifecycle that the server keeps and brings guards of its own, see [MCP](../use/mcp.md#the-run-session-keeps-the-lifecycle).
 
 ### Tool results and failures
 
@@ -501,7 +501,7 @@ Details of a shared answer:
 While nobody else has written in that thread, you can withdraw the answer back to only you.
 Use `observe comments withdraw <thread-id>` or `DELETE /threads/{id}/share`.
 It deletes the shared question and its answer, or the whole thread when the share opened it, and makes the run a private ask again, which you can share later.
-On an observation the run and its answer leave the observation's lists.
+On an observation the run and its answer leave the observation's lists, unless the answer was saved after the share (`POST /observe/{id}/observation`, `save_run_answer` or `observe save-answer`, which answer `outcome` `kept`): a saved answer stays in that observation and only the thread share is taken back.
 The answer's text that was written onto the page stays there as page content until an editor removes it.
 No MCP tool withdraws, because none deletes.
 
@@ -518,9 +518,10 @@ When they can still comment on the dashboard but can no longer edit it, or the r
 
 ### Tools in a run
 
-The server has 120 tools: MCP clients get 118, every one except `save_finding` and `list_more_tools`, which only a run offers.
-A run offers 93 of them in a new-dashboard or revision request, 93 in an investigation and 62 in a suggestion.
-With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a third tool that only a run offers, in an investigation only: the server has 121 tools, MCP clients outside a run still get 118 and an investigation offers 94.
+The server has 123 tools: MCP clients get 118, every one except `save_finding`, `list_more_tools` and `read_series`, which only a run offers, and `claim_draft` and `finish_draft`, which only the server's own agent calls to take query drafts.
+A run offers 93 of them in a new-dashboard or revision request, 94 in an investigation and 62 in a suggestion.
+`read_series` is offered in an investigation only: it gives every point of a range query, up to 50 series, for the built-in agent's sweep before its first model call, where `query_range` gives only each series' minimum, maximum and last value.
+With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a fourth tool that only a run offers, in an investigation only: the server has 124 tools, MCP clients outside a run still get 118 and an investigation offers 95.
 Those are an Admin's counts: inside a run each tool needs the same role as over MCP, except `save_finding`, and a run session does not list a tool above the requester's role.
 
 - Reads are offered in every run.
@@ -547,9 +548,10 @@ Anything else is refused with `out_of_scope` and a message that names where the 
 Reads of private or Admin-only content, such as another chat or the audit trail, keep what the run writes afterwards visible only to the requester and Admins.
 Such a run cannot create, rename or move a folder, an observation, a dashboard or a saved search into a place others read; that is refused with `restricted_answer`.
 
-The other 23 tools are left out of every run, each for a reason:
+The other 25 tools are left out of every run, each for a reason:
 
 - `claim_run`, `report_run`, `finish_run`, `release_run` and `get_run_brief`: a run token works a run and never claims one.
+- `claim_draft` and `finish_draft`: only the server's own agent takes query drafts, over its claim connection.
 - `create_comment`, `reply_to_comment`, `edit_comment`, `resolve_comment` and `reopen_comment`: the server answers and resolves threads after a run.
 - `start_run`, `retry_run` and `cancel_run`: a new run would escape the cost and call limits of this one.
 - `restore_dashboard_version`, `make_dashboard` and `duplicate_dashboard`: only the finished build becomes a version, one per request.
@@ -587,11 +589,17 @@ See [LLM providers](../connect/llm-providers.md).
 
 ## The agent process
 
-The server starts `observe-agent` as a child process, which claims the built-in agent's runs and works them through the same MCP tools as a connected agent does.
-The server enforces the guards and the limits and stores the saved result.
+The server starts `slashobserve-harness` as a child process, which claims the built-in agent's runs and works them through the same MCP tools as a connected agent does.
+The process keeps the run's guards itself: it routes an investigation, sweeps the datasources, writes the run's text, refuses and sends back calls and checks the finding against what the run read, with the texts and limits described on this page.
+The server keeps the run's lifecycle, enforces the query limits, the cost limit and the write scope, and stores the saved result.
 The claim answer to the built-in agent carries the model settings, which no other claimer receives, so the sidecar needs no provider configuration of its own.
 A claim that reaches the sidecar without them is a setup fault: the sidecar hands the run back to the queue with `release_run` and waits before it claims again, 1 second at first and doubling to 30.
-A run that comes back without them after 3 releases is ended as failed with `observe-agent received the run without model settings`, so it does not stay queued with no reason shown.
+A run that comes back without them after 3 releases is ended as failed with `harness received the run without model settings`, so it does not stay queued with no reason shown.
+
+The process also makes the model calls of a query draft, the `draft_query` tool and **Ask** on the logs, traces and metrics pages.
+The server reads the datasource, writes the request and checks each answer; the process takes the draft with `claim_draft`, calls the model and sends each turn back with `finish_draft`.
+A draft waits in the memory of the server that received it and is answered by that server's process only.
+While that process is not running, a draft answers `agent_unavailable`, and a draft whose process stops before it answers ends with `agent_unavailable` too.
 
 The sidecar reaches the server only over the loopback address, with a token that is new for every start of the process.
 The server refuses that token on any request that carries a forwarding header (`Forwarded`, `X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Proto` or `X-Real-Ip`).
@@ -600,13 +608,14 @@ So configure it to send `X-Forwarded-For` or keep `/mcp` off it.
 
 When the server stops, it sends the sidecar `SIGTERM`.
 The sidecar stops each run it holds and asks the server to requeue it with `release_run`.
-It then logs `observe-agent stopped` with `shutdown` `drained` and exits with status 0.
+It then logs `harness stopped` with `shutdown` `drained` and exits with status 0.
 `drained` means every run loop stopped in time, not that every run was handed back.
 The same line counts the runs: `released` for the ones the server took back, and `not_released` for the ones whose `release_run` failed or whose loop had not stopped.
 A sidecar that has not finished 5 seconds after the signal logs `shutdown` `forced` and exits with status 124.
 The server then hands back whatever the sidecar still held, so a run returns to the queue either way.
+A run that already saved its dashboard version, proposal or answer is never requeued: once its lease expires, it ends succeeded with what it saved.
 
-When an LLM provider is configured, the server looks for `observe-agent` on `PATH`.
+When an LLM provider is configured, the server looks for `slashobserve-harness` on `PATH`.
 It does not start when the binary is missing or when `SLASHOBSERVE_HTTP_ADDR` names a host other than a loopback address or all addresses.
 Without a provider it makes neither check.
 
@@ -680,7 +689,7 @@ See [Run cost](../connect/llm-providers.md#run-cost) for the price table.
 | `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` | 256 | Conversation size after which it is shortened, from 32 to 4096. |
 | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | by task type, 12 to 30 | Model calls an investigation gets before only a save runs, from 6 to 60. |
 | `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` | true | Gives an investigation a hypothesis ledger that the server writes back into the brief when the conversation is shortened, stages, and a call limit that grows with progress. |
-| `SLASHOBSERVE_AGENT_FINDING_GROUNDING` | enforce | Numbers what reads return as facts and checks a run's finding against what the run read; `report` stores what did not pass and `enforce` also sends the finding back once. |
+| `SLASHOBSERVE_AGENT_FINDING_GROUNDING` | enforce | Numbers what reads return as facts and checks a run's finding against what the run read, stores what did not pass and sends the finding back once; `off` turns it off. |
 | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX` | 40, or the investigation calls when higher | Ceiling of the growing call limit, up to 60. |
 | `SLASHOBSERVE_LLM_IDLE_TIMEOUT` | 180 s | Time without output after which a call is retried, `0` for none. |
 | `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` | 10 minutes | Time limit of one model call, retries included, `0` for none. |

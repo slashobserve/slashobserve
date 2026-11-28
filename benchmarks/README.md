@@ -149,7 +149,7 @@ The results file records under `settings` exactly what was sent, and `server def
 | `investigation_calls` | server default, not sent | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`, 6 to 60. |
 | `investigation_loop` | `true` | `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`: `true` or `false`, always sent. |
 | `investigation_calls_max` | `40`, or `investigation_calls` when that is higher | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`, 6 to 60, always sent; the adapter refuses a value below `investigation_calls`, or below 12 when that is unset, because an older image starts at 12 and refuses a lower ceiling. |
-| `finding_grounding` | `enforce` | `SLASHOBSERVE_AGENT_FINDING_GROUNDING`: `off`, `report` or `enforce`, always sent. |
+| `finding_grounding` | `enforce` | `SLASHOBSERVE_AGENT_FINDING_GROUNDING`: `off` or `enforce`, always sent. |
 | `investigation_brief` | `on` | `SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF`: `on` or `off`, always sent; the preflight sweep of the datasources before an investigation's first model call, which `off` leaves out for a baseline. |
 | `run_max_cost_usd` | unset | `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD`: the server fails a run with `budget_exhausted` once its cost reaches it. The server refuses to start with it set when the model has no price, the replay model included. |
 | `spend_cap_usd`, `ledger_path` | unset | The job cap and its ledger file, which go together; see below. |
@@ -195,7 +195,7 @@ Finding grounding `off` also leaves a finding's causes unscored, so the ORCA-ben
 
 ### Finding grounding
 
-The server scores each cause of a finding and decides whether the finding states it only with `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`.
+The server scores each cause of a finding and decides whether the finding states it only with `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `enforce`.
 With `off` every cause counts as stated, so the ORCA-bench report and the SREGym diagnosis would name every guess as a cause, and both benchmarks take points for an extra cause.
 The server default is `off` on images before the change that makes it `enforce`, so the adapters do not rely on it: every adapter sends `enforce` unless `finding_grounding` is given, and a run behaves the same on any image that has the setting.
 `enforce` also sends a finding back once when an item in it does not match what the run read, which is what a person gets from the product's default.
@@ -375,7 +375,7 @@ It runs on Harbor 0.20.0 with a patched `Task.checksum`, while o11y-bench pins H
 | `codeserver.log` | The code server's log, when the trial started one. |
 | `notes.txt` | How traces were read, the finding grounding and loop settings that were sent, which code context applied, and the judge caveat. |
 
-The options are those of o11y-bench without `network`, plus `code_context`, `codeserver_image` (default `slashobserve-codeserver:local`), `source_names` (`mcp`, the default, or `context`) and `span_index` (`true`, the default, or `false`), and `wall_timeout_sec` defaults to 3300 under the task's 3600 second agent timeout.
+The options are those of o11y-bench without `network`, plus `code_context`, `codeserver_image` (default `slashobserve-codeserver:local`) and `span_index` (`true`, the default, or `false`), and `wall_timeout_sec` defaults to 3300 under the task's 3600 second agent timeout.
 Leaderboard rules forbid a timeout or resource override, so leave Harbor's at their defaults.
 
 ### Causes in the report
@@ -428,10 +428,8 @@ Build the code server image once from the repository root; `codeserver_image` na
 docker build -f tools/codeserver/Dockerfile -t slashobserve-codeserver:local .
 ```
 
-The server image under test decides how the sources file is named.
-An image built after MCP sources were renamed reads `SLASHOBSERVE_MCP_SOURCES_FILE` with the key `mcpSources`, which is the default.
-An image built before the rename, such as one built from `main` or the published image at the time of writing, reads `SLASHOBSERVE_CONTEXT_SOURCES_FILE` with the key `contextSources`; pass `--ak source_names=context` for it.
-With the wrong naming the server does not know `orca-code`, and the trial fails and names the other option.
+The code server needs a server image with MCP sources, which the published releases up to v0.1.5 lack, so the default `server_image` (`ghcr.io/slashobserve/slashobserve:latest`) cannot serve it while `latest` is v0.1.5.
+Pass `--ak server_image=<tag>` with an image built from this checkout, or `--ak code_context=off`; with an image that has no MCP sources the trial fails at once and says both.
 
 ### Disk and memory
 
@@ -472,7 +470,7 @@ benchmarks/run-orca-replay.sh /path/to/ORCA-bench
 
 The script downloads one task's package, writes a replay fixture for its question from `fixtures/orca-answer.json`, runs it with `--model replay/replay` and verification off, and prints the path of `agent/report.md`.
 No model is called, but the snapshot must already be staged, because the trial needs the demo's data.
-The trial starts the code server like any other, so build its image first; `SLASHOBSERVE_CODESERVER_IMAGE`, `SLASHOBSERVE_SOURCE_NAMES` and `SLASHOBSERVE_SPAN_INDEX` set `codeserver_image`, `source_names` and `span_index`, and the fixture's question carries the code and spans notes to match.
+The trial starts the code server like any other, so build its image first; `SLASHOBSERVE_CODESERVER_IMAGE` and `SLASHOBSERVE_SPAN_INDEX` set `codeserver_image` and `span_index`, and the fixture's question carries the code and spans notes to match.
 Run it by hand on a machine that has the snapshot; it is not part of any test.
 The fixture saves a finding with one cause, so it needs a server built from `agent-rca-accuracy` or later; an older one refuses `causes` and the trial ends without a finding.
 It saves twice, because with grounding enforced the server sends the first save back once, and the second is accepted.

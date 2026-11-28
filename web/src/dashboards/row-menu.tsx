@@ -4,6 +4,7 @@ import { useRouteContext } from "@tanstack/react-router"
 import { CopyIcon, EllipsisIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -20,14 +21,12 @@ import { NewFolderDialog } from "@/folders/new-folder-dialog"
 import { moveChoices, moveLabel } from "@/folders/move-targets"
 import { foldersQuery } from "@/folders/queries"
 import { roleAtLeast } from "@/lib/roles"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import type { DashboardSummary } from "./dashboard-columns"
 import { DeleteDashboardDialog } from "./delete-dashboard-dialog"
 import { neighbourAfterDelete } from "./delete-dashboard"
 import { duplicateTargets } from "./duplicate"
 import { DuplicateDashboardDialog } from "./duplicate-dashboard-dialog"
-import { mayEditBesidesContent } from "./permissions"
 import { useMoveDashboard } from "./queries"
 
 type Target = { id: string; title: string }
@@ -78,10 +77,7 @@ export function DashboardRowMenu({
   const [duplicating, setDuplicating] = useState(false)
   const current = dashboard.folder.id
   const canEdit = dashboard.permissions.edit
-  const canDelete = mayEditBesidesContent(
-    dashboard.permissions,
-    dashboard.provisioned
-  )
+  const canDelete = dashboard.can_delete
   const publishing = dashboard.folder.personal
   const movedVerb = publishing ? "Published" : "Moved"
   const targets = duplicateTargets(folders, current)

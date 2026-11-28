@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/otlphttp"
 )
 
 const pagingNeedsSearch = "paging needs a TraceQL search"
@@ -19,20 +20,20 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 		return nil, datasource.PageInfo{}, err
 	}
 	lim := d.opts.Limits.Tighten(req.Query.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	text, err := expandQuery(req.Query, req.Range)
 	if err != nil {
 		return nil, datasource.PageInfo{}, err
 	}
-	if _, ok := traceIDOf(text); ok {
+	if _, ok := otlphttp.TraceIDOf(text); ok {
 		return nil, datasource.PageInfo{}, datasource.Errorf(datasource.ErrInvalidQuery, "%s", pagingNeedsSearch)
 	}
 	page, limit, rng := max(req.Page, 1), req.PageSize+1, req.Range
-	shown := func(spanRow) bool { return false }
+	shown := func(otlphttp.Row) bool { return false }
 	if c := req.Cursor; c != nil {
 		page, limit, rng.To = c.Page, limit+len(c.Seen), time.Unix(0, c.EndNs)
-		shown = func(r spanRow) bool { return r.start.UnixNano() >= c.EndNs || slices.Contains(c.Seen, r.traceID) }
+		shown = func(r otlphttp.Row) bool { return r.Start.UnixNano() >= c.EndNs || slices.Contains(c.Seen, r.TraceID) }
 	}
 	rows, metrics, err := d.searchRows(ctx, text, rng, limit)
 	if err != nil {
@@ -54,7 +55,7 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 	return pageFrames(rows, metrics), info, nil
 }
 
-func pageFrames(rows []spanRow, metrics searchMetrics) []datasource.Frame {
+func pageFrames(rows []otlphttp.Row, metrics searchMetrics) []datasource.Frame {
 	if len(rows) == 0 && metrics.partial() {
 		return []datasource.Frame{{Fields: []datasource.Field{}, Meta: searchMeta(metrics, false)}}
 	}
@@ -68,12 +69,12 @@ func pageFrames(rows []spanRow, metrics searchMetrics) []datasource.Frame {
 	return []datasource.Frame{traceFrame(rows, meta)}
 }
 
-func nextCursor(rows []spanRow, page, pageSize int) (*datasource.PageCursor, error) {
-	oldest := rows[len(rows)-1].start
+func nextCursor(rows []otlphttp.Row, page, pageSize int) (*datasource.PageCursor, error) {
+	oldest := rows[len(rows)-1].Start
 	var boundary []string
 	for _, r := range rows {
-		if r.start.Truncate(time.Second).Equal(oldest.Truncate(time.Second)) {
-			boundary = append(boundary, r.traceID)
+		if r.Start.Truncate(time.Second).Equal(oldest.Truncate(time.Second)) {
+			boundary = append(boundary, r.TraceID)
 		}
 	}
 	if len(boundary) == pageSize {

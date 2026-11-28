@@ -2,6 +2,8 @@
 
 import { describe, expect, it } from "vitest"
 
+import { must } from "@/panels/must"
+
 import {
   contrastRatio,
   darkText,
@@ -40,7 +42,7 @@ function themeTokens(selector: string): Map<string, string> {
   const block = themeCss.slice(start, themeCss.indexOf("\n}", start))
   return new Map(
     [...block.matchAll(/--([\w-]+):\s*(#[0-9a-f]{6});/gi)].map(
-      ([, name, value]) => [name, value]
+      ([, name, value]): [string, string] => [must(name), must(value)]
     )
   )
 }

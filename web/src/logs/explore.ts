@@ -55,7 +55,7 @@ function exploreRequest(
               max_data_points: maxDataPoints,
             }),
           },
-          signal,
+          ...(signal === undefined ? {} : { signal }),
         })
         .then(unwrap),
     signal

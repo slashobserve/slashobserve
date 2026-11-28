@@ -6,6 +6,7 @@ import { renderWithProviders } from "@/test/render"
 
 import type { SavedSearch } from "./queries"
 import { SavedSearchTable } from "./saved-search-table"
+import { must } from "@/test/must"
 
 const shopId = "22222222-2222-4222-8222-222222222222"
 const opsId = "33333333-3333-4333-8333-333333333333"
@@ -94,8 +95,8 @@ afterEach(() => vi.unstubAllGlobals())
 describe("SavedSearchTable", () => {
   it("groups the saved searches under their folders and collapses a folder", async () => {
     serve([
-      saved("s1", "Checkout errors", folders[0]),
-      saved("s2", "Slow cache", folders[1]),
+      saved("s1", "Checkout errors", must(folders[0])),
+      saved("s2", "Slow cache", must(folders[1])),
     ])
     const { user } = renderWithProviders(
       <SavedSearchTable kind="logs" sources={[]} />,
@@ -123,7 +124,7 @@ describe("SavedSearchTable", () => {
   })
 
   it("names the source by its datasource name when it is known", async () => {
-    serve([saved("s1", "Checkout errors", folders[0])])
+    serve([saved("s1", "Checkout errors", must(folders[0]))])
     renderWithProviders(
       <SavedSearchTable
         kind="logs"

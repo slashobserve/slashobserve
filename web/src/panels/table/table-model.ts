@@ -7,6 +7,8 @@ import {
   displayValue,
   effectiveColorMode,
   fieldRange,
+  gaugeFraction,
+  gaugeRange,
   isDataLink,
   resolveLink,
   type DisplayOptions,
@@ -21,8 +23,6 @@ import type { ThresholdLevel } from "../thresholds"
 import type { PreparedField, PreparedFrame } from "../transforms"
 import {
   cellSpecOf,
-  gaugeFraction,
-  gaugeRange,
   lastNumber,
   numberSeries,
   usesFixedColor,
@@ -115,14 +115,16 @@ function lastValue(field: PreparedField): unknown {
 }
 
 function unlabeledTable(frames: PreparedFrame[]): Built {
-  const withRef = new Set(frames.map((frame) => frame.ref)).size > 1
+  const head = frames[0]
+  const withRef =
+    head !== undefined && new Set(frames.map((frame) => frame.ref)).size > 1
   const drafts: Draft[] = withRef
     ? [
         {
           key: refKey,
           name: "Query",
           type: "string",
-          source: { frame: frames[0], field: stringField("Query") },
+          source: { frame: head, field: stringField("Query") },
           headFromConfig: false,
           feeders: frames.map((frame) => ({
             frame,
@@ -164,7 +166,8 @@ function unlabeledTable(frames: PreparedFrame[]): Built {
         ? { [refKey]: frame.ref }
         : {}
       shown.forEach((field, at) => {
-        values[keys[at]] = field.values[index] ?? null
+        const key = keys[at]
+        if (key !== undefined) values[key] = field.values[index] ?? null
       })
       rows.push({
         key: `${frameIndex}:${index}`,
@@ -270,7 +273,10 @@ function rangeOf(
   values: unknown[]
 ): TableColumn["range"] {
   const { min, max } = fieldRange({ ...field, values })
-  return { fieldMin: min, fieldMax: max }
+  return {
+    ...(min === undefined ? {} : { fieldMin: min }),
+    ...(max === undefined ? {} : { fieldMax: max }),
+  }
 }
 
 function isShown(
@@ -291,7 +297,8 @@ function headerOf(draft: Draft, fields: FieldResolver): string {
           : fields.displayName(frame, field)
       )
   )
-  return names.size === 1 ? [...names][0] : draft.name
+  const [only] = names
+  return names.size === 1 && only !== undefined ? only : draft.name
 }
 
 function shownSource(
@@ -308,15 +315,16 @@ function columnDecimals(
 ): TableColumn["decimals"] {
   return decimalsByUnit(
     rows.map((row) => {
-      const { unit, decimals } = configAt(fields, column, row)
+      const config = configAt(fields, column, row)
       const value = row.values[column.key]
-      return { unit, decimals, value: typeof value === "number" ? value : null }
+      return { ...config, value: typeof value === "number" ? value : null }
     })
   )
 }
 
 function optionsAt(column: TableColumn, config: FieldConfig): DisplayOptions {
-  return { ...column.range, decimals: column.decimals.get(config.unit) }
+  const decimals = column.decimals.get(config.unit)
+  return { ...column.range, ...(decimals === undefined ? {} : { decimals }) }
 }
 
 function footerReducers(display: Record<string, unknown>): Reducer[] {
@@ -338,8 +346,9 @@ function footerText(
 ): string {
   const reduced = reduce(values, reducer)
   if (isCountReducer(reducer)) {
-    const counted = { ...column.config, unit: undefined, mappings: [] }
-    return displayValue(reduced, { ...counted, decimals: 0 }).text
+    const counted: FieldConfig = { ...column.config, mappings: [], decimals: 0 }
+    delete counted.unit
+    return displayValue(reduced, counted).text
   }
   return displayValue(reduced, column.config, optionsAt(column, column.config))
     .text
@@ -364,7 +373,7 @@ export function footerRows(
       column.type === "number" &&
       covered(column) &&
       (column.decimals.size <= 1 || isCountReducer(reducer))
-        ? footerText(column, values[index], reducer)
+        ? footerText(column, values[index] ?? [], reducer)
         : null
     ),
   }))
@@ -419,7 +428,8 @@ export function selectFrames(
 ): PreparedFrame[] {
   if (typeof frameIndex !== "number" || frames.length < 2) return frames
   const last = frames.length - 1
-  return [frames[Math.min(Math.max(0, Math.floor(frameIndex)), last)]]
+  const chosen = frames[Math.min(Math.max(0, Math.floor(frameIndex)), last)]
+  return chosen === undefined ? frames : [chosen]
 }
 
 function tooltipTextAt(
@@ -515,7 +525,11 @@ export function gaugeFractionAt(
   const config = configAt(fields, column, row)
   const raw = row.values[column.key]
   const value = typeof raw === "number" && Number.isFinite(raw) ? raw : null
-  const range = gaugeRange(config, column.range)
+  const { fieldMin, fieldMax } = column.range
+  const range = gaugeRange(config, {
+    ...(fieldMin === undefined ? {} : { min: fieldMin }),
+    ...(fieldMax === undefined ? {} : { max: fieldMax }),
+  })
   return { ...range, value, fraction: gaugeFraction(value, range) }
 }
 
@@ -568,15 +582,17 @@ export function cellScope(
 ): LinkScope {
   const { frame } = row.source
   const field = row.source.fields[column.key] ?? column.source.field
-  return {
+  const out: LinkScope = {
     ...scope,
     row: row.at,
-    labels: frame.labels,
     seriesName: fields.seriesName(frame, field),
     fieldName: field.name,
     value: row.values[column.key],
     valueText: cell.text,
   }
+  if (frame.labels === undefined) delete out.labels
+  else out.labels = frame.labels
+  return out
 }
 
 export function cellLinks(

@@ -83,7 +83,7 @@ dashboards-id-suggestions:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/ValidationError"
       "429":

@@ -152,25 +152,15 @@ func (a *app) observationShowCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			c, err := a.newClient()
-			if err != nil {
-				return err
-			}
-			data, err := c.get(cmd.Context(), "observations/"+id, nil)
+			data, err := a.fetch(cmd.Context(), "observations/"+id, nil)
 			if err != nil {
 				return err
 			}
 			out := a.output()
-			if a.json {
-				out.body(data)
+			return render(out, data, func(shown observationEnvelope) error {
+				printObservation(out, shown.Observation)
 				return nil
-			}
-			shown, err := decode[observationEnvelope](data)
-			if err != nil {
-				return err
-			}
-			printObservation(out, shown.Observation)
-			return nil
+			})
 		},
 	}
 }
@@ -518,21 +508,15 @@ func (a *app) observationList(cmd *cobra.Command, query url.Values, all bool) er
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(page observationListBody) error {
+		rows := make([][]string, 0, len(page.Observations))
+		for _, o := range page.Observations {
+			rows = append(rows, []string{text(o.ID), text(o.Title), text(o.State), when(o.UpdatedAt)})
+		}
+		out.table([]string{"ID", "TITLE", "STATE", "UPDATED"}, rows)
+		pageFooter(out, len(page.Observations), nil, page.NextCursor)
 		return nil
-	}
-	page, err := decode[observationListBody](data)
-	if err != nil {
-		return err
-	}
-	rows := make([][]string, 0, len(page.Observations))
-	for _, o := range page.Observations {
-		rows = append(rows, []string{text(o.ID), text(o.Title), text(o.State), when(o.UpdatedAt)})
-	}
-	out.table([]string{"ID", "TITLE", "STATE", "UPDATED"}, rows)
-	pageFooter(out, len(page.Observations), nil, page.NextCursor)
-	return nil
+	})
 }
 
 func (a *app) observationKeepCommand() *cobra.Command {

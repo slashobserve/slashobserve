@@ -39,7 +39,7 @@ export function AuditList({
   onNavigate,
 }: {
   currentId: string | null
-  onNavigate?: () => void
+  onNavigate?: (() => void) | undefined
 }) {
   return (
     <SubNavList label="Audit">

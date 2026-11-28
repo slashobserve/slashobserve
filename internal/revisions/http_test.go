@@ -76,109 +76,6 @@ func revisionsPath(dash pgtype.UUID) string {
 	return "/api/v1/dashboards/" + dash.String() + "/revisions"
 }
 
-func TestPostQueuesARevisionUntilTheDashboardIsFull(t *testing.T) {
-	svc, d := newService(t, succeedWith(2))
-	dash := seedDashboard(t, d, 2)
-	r := newRouter(svc)
-
-	var location, id string
-	for i := range revisions.MaxActive {
-		rec := call(r, http.MethodPost, revisionsPath(dash), fmt.Sprintf(`{"prompt":"  add panel %d  ","base_version":2}`, i))
-		if rec.Code != http.StatusAccepted {
-			t.Fatalf("post %d: %d %s", i, rec.Code, rec.Body)
-		}
-		var body struct {
-			Revision map[string]any `json:"revision"`
-		}
-		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-			t.Fatal(err)
-		}
-		rev := body.Revision
-		if rev["status"] != "queued" || rev["intent"] != "apply" || rev["base_version"] != float64(2) || rev["comment_id"] != nil ||
-			rev["panel_id"] != nil || rev["result_version"] != nil || rev["error"] != nil || rev["attempts"] != float64(0) {
-			t.Fatalf("revision = %v", rev)
-		}
-		if rev["prompt"] != fmt.Sprintf("add panel %d", i) {
-			t.Fatalf("the prompt must be trimmed: %v", rev["prompt"])
-		}
-		by, _ := rev["requested_by"].(map[string]any)
-		if by["kind"] != "user" || by["id"] != userID || by["name"] != "Ada" || by["email"] != "ada@example.com" {
-			t.Fatalf("requested_by = %v", by)
-		}
-		if i == 0 {
-			id, _ = rev["id"].(string)
-			location = rec.Header().Get("Location")
-		}
-	}
-	if want := revisionsPath(dash) + "/" + id; location != want {
-		t.Fatalf("Location = %q, want %q", location, want)
-	}
-
-	rec := call(r, http.MethodPost, revisionsPath(dash), `{"prompt":"one too many","base_version":2}`)
-	if rec.Code != http.StatusTooManyRequests || errorCode(t, rec) != "too_many_revisions" {
-		t.Fatalf("sixth post: %d %s", rec.Code, rec.Body)
-	}
-	items, _, err := svc.List(reading(t.Context()), user, dash, 100, "")
-	if err != nil || len(items) != revisions.MaxActive {
-		t.Fatalf("stored %d, err %v", len(items), err)
-	}
-
-	rec = call(r, http.MethodGet, revisionsPath(dash)+"/"+id, "")
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"id":"`+id+`"`) {
-		t.Fatalf("get: %d %s", rec.Code, rec.Body)
-	}
-}
-
-func TestPostRefusesInvalidRequests(t *testing.T) {
-	svc, d := newService(t, succeedWith(2))
-	dash := seedDashboard(t, d, 2)
-	r := newRouter(svc)
-	nilID := "00000000-0000-0000-0000-000000000000"
-
-	for name, c := range map[string]struct {
-		path, body string
-		status     int
-		code       string
-	}{
-		"missing prompt":       {revisionsPath(dash), `{"base_version":1}`, 400, "invalid_request"},
-		"missing base version": {revisionsPath(dash), `{"prompt":"x"}`, 400, "invalid_request"},
-		"blank prompt":         {revisionsPath(dash), `{"prompt":"  \n ","base_version":1}`, 400, "invalid_request"},
-		"NUL in prompt":        {revisionsPath(dash), `{"prompt":"a\u0000b","base_version":1}`, 400, "invalid_request"},
-		"bidi override":        {revisionsPath(dash), `{"prompt":"a\u202eb","base_version":1}`, 400, "invalid_request"},
-		"long prompt":          {revisionsPath(dash), `{"prompt":"` + strings.Repeat("a", 4001) + `","base_version":1}`, 400, "invalid_request"},
-		"zero base version":    {revisionsPath(dash), `{"prompt":"x","base_version":0}`, 400, "invalid_request"},
-		"huge base version":    {revisionsPath(dash), `{"prompt":"x","base_version":2147483648}`, 400, "invalid_request"},
-		"unknown field":        {revisionsPath(dash), `{"prompt":"x","base_version":1,"extra":1}`, 400, "invalid_request"},
-		"not json":             {revisionsPath(dash), `nope`, 400, "invalid_request"},
-		"base version unknown": {revisionsPath(dash), `{"prompt":"x","base_version":3}`, 404, "not_found"},
-		"unknown dashboard":    {"/api/v1/dashboards/" + nilID + "/revisions", `{"prompt":"x","base_version":1}`, 404, "not_found"},
-		"malformed dashboard":  {"/api/v1/dashboards/nope/revisions", `{"prompt":"x","base_version":1}`, 400, "invalid_request"},
-	} {
-		rec := call(r, http.MethodPost, c.path, c.body)
-		if rec.Code != c.status || errorCode(t, rec) != c.code {
-			t.Errorf("%s: %d %s", name, rec.Code, rec.Body)
-		}
-	}
-	items, _, err := svc.List(reading(t.Context()), user, dash, 100, "")
-	if err != nil || len(items) != 0 {
-		t.Fatalf("a refused request was stored: %v, %v", items, err)
-	}
-}
-
-func TestPostWithoutAnAgentAnswers503AndQueuesNothing(t *testing.T) {
-	svc, d := newService(t, nil)
-	dash := seedDashboard(t, d, 1)
-	r := newRouter(svc)
-	rec := call(r, http.MethodPost, revisionsPath(dash), `{"prompt":"x","base_version":1}`)
-	if rec.Code != http.StatusServiceUnavailable || errorCode(t, rec) != "agent_unavailable" {
-		t.Fatalf("post: %d %s", rec.Code, rec.Body)
-	}
-	rec = call(r, http.MethodGet, revisionsPath(dash), "")
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"revisions":[]`) {
-		t.Fatalf("list: %d %s", rec.Code, rec.Body)
-	}
-}
-
 func TestGetAndListRevisions(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash, other := seedDashboard(t, d, 1), seedDashboard(t, d, 1)
@@ -246,7 +143,6 @@ func TestAnObserveRequestOfAHiddenDashboardIsNotFound(t *testing.T) {
 func TestRevisionRoutesAnswerForbiddenRoleWithoutComment(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)
-	body := `{"prompt":"go","base_version":1}`
 
 	for name, tc := range map[string]struct {
 		role   auth.Role
@@ -256,9 +152,6 @@ func TestRevisionRoutesAnswerForbiddenRoleWithoutComment(t *testing.T) {
 		want   int
 	}{
 		"Viewer reads the list":                    {auth.RoleViewer, http.MethodGet, revisionsPath(dash), "", http.StatusOK},
-		"Viewer may not send a prompt":             {auth.RoleViewer, http.MethodPost, revisionsPath(dash), body, http.StatusForbidden},
-		"Commenter sends a prompt":                 {auth.RoleCommenter, http.MethodPost, revisionsPath(dash), body, http.StatusAccepted},
-		"Editor sends a prompt":                    {auth.RoleEditor, http.MethodPost, revisionsPath(dash), body, http.StatusAccepted},
 		"Viewer may not follow up through observe": {auth.RoleViewer, http.MethodPost, "/api/v1/observe", `{"prompt":"go","kind":"revise","dashboard_id":"` + dash.String() + `"}`, http.StatusForbidden},
 		"Commenter may not start a new dashboard":  {auth.RoleCommenter, http.MethodPost, "/api/v1/observe", `{"prompt":"go"}`, http.StatusForbidden},
 		"Viewer may not start a new dashboard":     {auth.RoleViewer, http.MethodPost, "/api/v1/observe", `{"prompt":"go"}`, http.StatusForbidden},
@@ -383,17 +276,17 @@ func TestAStoppedBuildOnAStarterDashboardIsNotOfferedKeepBuild(t *testing.T) {
 func TestAQueuedRevisionIsCreatedWithItsActions(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)
-	rec := call(newRouter(svc), http.MethodPost, revisionsPath(dash), `{"prompt":"add a panel","base_version":1}`)
+	rec := call(newObserveRouter(svc), http.MethodPost, "/api/v1/observe", `{"prompt":"add a panel","kind":"revise","dashboard_id":"`+dash.String()+`"}`)
 	var body struct {
-		Revision struct {
+		Request struct {
 			AllowedActions []string `json:"allowed_actions"`
-		} `json:"revision"`
+		} `json:"request"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || rec.Code != http.StatusAccepted {
 		t.Fatalf("create: %d %s", rec.Code, rec.Body)
 	}
-	if want := []string{"cancel", "pin", "archive"}; !slices.Equal(body.Revision.AllowedActions, want) {
-		t.Errorf("allowed_actions = %v, want %v", body.Revision.AllowedActions, want)
+	if want := []string{"cancel", "pin", "archive"}; !slices.Equal(body.Request.AllowedActions, want) {
+		t.Errorf("allowed_actions = %v, want %v", body.Request.AllowedActions, want)
 	}
 }
 
@@ -414,7 +307,6 @@ func TestEveryRouteThatStartsAChangeOfAStarterAnswersProvisioned(t *testing.T) {
 
 	for name, tc := range map[string]struct{ path, body string }{
 		"a change through observe": {"/api/v1/observe", `{"prompt":"go","kind":"revise","dashboard_id":"` + dash.String() + `"}`},
-		"a revision":               {revisionsPath(dash), `{"prompt":"go","base_version":1}`},
 		"a suggestion":             {"/api/v1/dashboards/" + dash.String() + "/suggestions", `{"version":1,"panel_id":"p1","prompt":"go"}`},
 		"a retry":                  {"/api/v1/observe/" + failed.ID + "/retry", ""},
 	} {

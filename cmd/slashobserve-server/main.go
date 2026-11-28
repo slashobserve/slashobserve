@@ -26,7 +26,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/actions"
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
-	"github.com/slashobserve/slashobserve/internal/agent/triage"
 	"github.com/slashobserve/slashobserve/internal/agentsview"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/assets"
@@ -62,8 +61,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/inboundmcp"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/livetext"
-	"github.com/slashobserve/slashobserve/internal/llm"
-	"github.com/slashobserve/slashobserve/internal/llm/providers"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/mcpauth"
 	"github.com/slashobserve/slashobserve/internal/metrics"
@@ -248,13 +245,12 @@ func mcpSourcesExit(err error) error {
 }
 
 func migrationExit(err error) error {
+	if errors.Is(err, db.ErrBeforeBaseline) {
+		return described("migration_failed", err)
+	}
 	exit := &exitError{code: "migration_failed", cause: err}
 	if version, ok := db.FailedMigrationVersion(err); ok {
 		exit.attrs = []any{slog.Int64("migration_version", version)}
-	}
-	var upgradeErr *db.SpecUpgradeError
-	if errors.As(err, &upgradeErr) {
-		exit.attrs = append(exit.attrs, slog.String("dashboard_id", upgradeErr.DashboardID), slog.Int("dashboard_version", upgradeErr.Version))
 	}
 	return exit
 }
@@ -352,12 +348,6 @@ func logDatasources(cfg config.Config, logger *slog.Logger) {
 	logger.Info("datasources configured", slog.Int("count", len(cfg.Datasources)))
 }
 
-func sweepBeforeInvestigations(on bool, runs *runsession.Service, reg *tools.Registry, datasources *datasource.Registry) {
-	if on {
-		runs.SweepWith(triage.Service{Tools: reg, Datasources: datasources, Limits: triage.DefaultLimits})
-	}
-}
-
 func run() error {
 	cfg, err := config.Load(os.LookupEnv)
 	if err != nil {
@@ -378,11 +368,11 @@ func run() error {
 	serverMetrics := metrics.New()
 	serverMetrics.ServerPhase(server.PhaseNames(), func() string { return string(phases.Current()) })
 
-	llmProvider, err := newLLMProvider(cfg, logger, serverMetrics)
+	modelConfigured, err := checkModel(cfg, logger)
 	if err != nil {
 		return err
 	}
-	sidecar, err := prepareAgentRuntime(cfg, llmProvider != nil, logger)
+	sidecar, err := prepareAgentRuntime(cfg, modelConfigured, serverMetrics.ModelCalls(), logger)
 	if err != nil {
 		return err
 	}
@@ -462,7 +452,7 @@ func run() error {
 	searchService := search.New(database, folderAccess, cfg.PublicURL)
 	savedSearchesService := savedsearches.New(database, folderAccess, registry, cfg.PublicURL, logger)
 	observationsService := observations.New(database, folderAccess, proxyHandler, cfg.PublicURL, logger, observations.WithOutputs(dashboardsService, annotationsService), observations.WithPlacement(dashboardsService.Placement()))
-	findingsService, err := findings.New(database, folderAccess, annotationsService, dashboardsService, observationsService, logger)
+	findingsService, err := findings.New(database, folderAccess, dashboardsService, observationsService, logger)
 	if err != nil {
 		return described("findings_setup_failed", err)
 	}
@@ -497,10 +487,10 @@ func run() error {
 		revisions.WithObservations(runObservations{observationsService}),
 		revisions.WithPrincipals(authService),
 		revisions.WithAccess(folderAccess),
-		revisions.WithThreads(threads.NewRuns(database)),
+		revisions.WithThreads(threads.NewRuns()),
 		revisions.WithMetrics(serverMetrics.AgentRequests()),
 	}
-	observeOpts, revisionOpts := withBuiltInAgent(llmProvider, cfg.LLM, baseObserveOpts, revisionOpts)
+	observeOpts, revisionOpts := withBuiltInAgent(cfg.LLM, baseObserveOpts, revisionOpts)
 	revisionsService := revisions.NewService(database, logger, revisionOpts...)
 	findingsService.RecordAnswerReadsWith(revisionsService.RecordAnswerRead)
 	threadsService.ReadAnswersWith(revisionsService, threadAnswers{findings: findingsService, url: findingURL})
@@ -508,16 +498,16 @@ func run() error {
 		_, err := threadsService.ReadMessage(ctx, by, messageID)
 		return err
 	})
-	asks := threads.NewAsks(threadsService, revisionsService, llmProvider != nil)
+	asks := threads.NewAsks(threadsService, revisionsService, modelConfigured)
 	claimsConfig := claims.Config{
 		DB: database, Runs: revisionsService, Listen: database.Listen, PublicURL: cfg.PublicURL, InternalURL: sidecar.internalURL(),
-		InstanceID: serverID, Model: sidecar.modelSettings(cfg), RunTimeout: cfg.Agent.RunTimeout, Logger: logger,
+		InstanceID: serverID, Model: sidecar.modelSettings(cfg), Agent: sidecar.agentSettings(cfg), RunTimeout: cfg.Agent.RunTimeout, Logger: logger,
 	}
 	claimsService := claims.New(claimsConfig)
 	runSessions := runsession.New(runsession.Config{
 		DB: database, Runs: revisionsService, Claims: claimsService, Builds: dashboardsService, Dashboards: dashboardsService,
 		Imports: importsService, Statuses: registry, Datasources: registry, Steps: claimsService,
-		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, InvestigationCalls: cfg.Agent.InvestigationCalls, InvestigationLoop: cfg.Agent.InvestigationLoop, InvestigationCallsMax: cfg.Agent.InvestigationCallsMax, FindingGrounding: cfg.Agent.FindingGrounding, Logger: logger,
+		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, Logger: logger,
 	})
 	outbound := allowlist.New(database, allowlist.Lock{Locked: cfg.OutboundDomainsLocked, Domains: cfg.OutboundDomains}, logger)
 	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
@@ -552,14 +542,14 @@ func run() error {
 		AccessRequests: accessRequests,
 		Viewers:        viewersService,
 		Home:           homedash.New(database, folderAccess),
-		Provider:       llmProvider,
+		Drafts:         sidecar.draftModel(),
+		DraftQueue:     sidecar.draftQueue(),
 		DraftBudget:    draftbudget.New(database),
 		PublicURL:      cfg.PublicURL,
 		MCPSources:     mcpSourcesService,
 		Logger:         logger,
 		LedgerTool:     cfg.Agent.InvestigationLoop,
 	})
-	sweepBeforeInvestigations(cfg.Agent.InvestigationBrief, runSessions, toolRegistry, registry)
 
 	broker := events.NewBroker(database.Listen, logger)
 	go broker.Run(ctx)
@@ -665,7 +655,6 @@ func run() error {
 			search.NewHandler(searchService, logger),
 			stream.NewActivityHandler(broker, activityStore, authService, logger),
 			stream.NewAuditHandler(broker, auditReader, authService, logger),
-			threads.NewComments(threadsService, revisionsService),
 			threads.NewThreads(threadsService, asks),
 			revisionsService,
 			revisions.NewObserveHandler(revisionsService, observeOpts),
@@ -777,11 +766,11 @@ func answerOf(run pgtype.UUID, f findings.Finding, by auth.Principal, url string
 
 func saveAnswerOf(service *findings.Service) revisions.AnswerSaver {
 	return func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (revisions.SavedAnswer, error) {
-		f, replayed, err := service.SaveAsObservation(ctx, by, requestID)
+		f, outcome, err := service.SaveAsObservation(ctx, by, requestID)
 		if err != nil {
 			return revisions.SavedAnswer{}, saveAnswerError(err)
 		}
-		return revisions.SavedAnswer{ObservationID: f.ObservationID, Replayed: replayed}, nil
+		return revisions.SavedAnswer{ObservationID: f.ObservationID, Outcome: string(outcome)}, nil
 	}
 }
 
@@ -931,29 +920,32 @@ func metricsMounts(enabled bool, registry *metrics.Registry) []server.Mount {
 	return []server.Mount{{Path: "/metrics", Handler: registry.Handler()}}
 }
 
-func newLLMProvider(cfg config.Config, logger *slog.Logger, serverMetrics *metrics.Registry) (llm.Provider, error) {
-	provider, err := providers.New(cfg.LLM, logger)
-	if err != nil {
-		return nil, described("llm_provider_failed", err)
+func configuredModel(llm config.LLM) (provider, model string, ok bool) {
+	if llm.Provider == "" {
+		return "", "", false
 	}
-	if provider == nil {
-		logger.Info("no llm provider configured; the agent is off")
-		return nil, nil
-	}
-	provider = llm.WithMetrics(provider, serverMetrics.ModelCalls())
-	logger.Info("llm provider configured", slog.String("provider", provider.Name()), slog.String("model", provider.Model()))
-	if err := requirePricedModel(cfg, provider); err != nil {
-		return nil, described("invalid_config", err)
-	}
-	return provider, nil
+	return llm.Provider, cmp.Or(llm.Model, llm.Provider), true
 }
 
-func requirePricedModel(cfg config.Config, provider llm.Provider) error {
-	if provider == nil || cfg.Agent.MaxRunCostUSD <= 0 {
+func checkModel(cfg config.Config, logger *slog.Logger) (bool, error) {
+	provider, model, ok := configuredModel(cfg.LLM)
+	if !ok {
+		logger.Info("no llm provider configured; the agent is off")
+		return false, nil
+	}
+	logger.Info("llm provider configured", slog.String("provider", provider), slog.String("model", model))
+	if err := requirePricedModel(cfg, model); err != nil {
+		return false, described("invalid_config", err)
+	}
+	return true, nil
+}
+
+func requirePricedModel(cfg config.Config, model string) error {
+	if model == "" || cfg.Agent.MaxRunCostUSD <= 0 {
 		return nil
 	}
-	if price, ok := cfg.LLM.Prices.Lookup(provider.Model()); !ok || !price.Complete() {
-		return fmt.Errorf("SLASHOBSERVE_AGENT_RUN_MAX_COST_USD is set but model %q has no price for every token class; add it to SLASHOBSERVE_LLM_PRICES_FILE", provider.Model())
+	if price, ok := cfg.LLM.Prices.Lookup(model); !ok || !price.Complete() {
+		return fmt.Errorf("SLASHOBSERVE_AGENT_RUN_MAX_COST_USD is set but model %q has no price for every token class; add it to SLASHOBSERVE_LLM_PRICES_FILE", model)
 	}
 	return nil
 }
@@ -964,11 +956,12 @@ func warnOptInLogging(logger *slog.Logger, cfg config.Config) {
 	}
 }
 
-func withBuiltInAgent(provider llm.Provider, cfg config.LLM, observe revisions.ObserveOptions, opts []revisions.Option) (revisions.ObserveOptions, []revisions.Option) {
-	if provider == nil {
+func withBuiltInAgent(cfg config.LLM, observe revisions.ObserveOptions, opts []revisions.Option) (revisions.ObserveOptions, []revisions.Option) {
+	provider, model, ok := configuredModel(cfg)
+	if !ok {
 		return observe, opts
 	}
-	observe.Provider, observe.Model = provider.Name(), provider.Model()
+	observe.Provider, observe.Model = provider, model
 	observe.Effort = reportedEffort(cfg)
 	return observe, append(opts, revisions.WithBuiltInAgent())
 }

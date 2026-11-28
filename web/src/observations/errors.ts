@@ -1,6 +1,11 @@
-import { ApiError, toApiError, unwrap } from "@/api/errors"
+import {
+  ApiError,
+  problemText,
+  sentence,
+  toApiError,
+  unwrap,
+} from "@/api/errors"
 import type { components } from "@/api/schema.gen"
-import { sentence } from "@/observe/queries"
 
 type Block = components["schemas"]["ObservationBlock"]
 
@@ -60,7 +65,13 @@ export function blockWriteProblem(error: unknown): BlockWriteProblem {
       return { kind: "invalid", text: sentence(error.message) }
     }
   }
-  return { kind: "other", text: otherText }
+  return {
+    kind: "other",
+    text:
+      error instanceof ApiError
+        ? otherText
+        : problemText(error, { fallback: otherText }),
+  }
 }
 
 export function observationIsMissing(error: unknown): boolean {

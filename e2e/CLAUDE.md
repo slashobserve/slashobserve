@@ -5,6 +5,7 @@ A change adds no new check unless the owner asks for one (see Workflow in the ro
 
 ## Playwright
 
+- The browser suite holds only critical journeys through the real stack; a rendering, focus or state detail belongs in a web unit test, not in a spec.
 - Specs import `test` and `expect` from `web/e2e/fixtures.ts`, which fails any test whose page logs a console error.
 - The `setup` project signs in through Dex once and saves `web/e2e/.auth/user.json`.
   A spec that signs out must opt out with an empty `storageState` and sign in itself.

@@ -1,4 +1,4 @@
-import { ApiError } from "@/api/errors"
+import { ApiError, NetworkError, unreachableText } from "@/api/errors"
 import { isTransient, issueLines } from "@/api/issues"
 import type { MergeConflict } from "@/proposals/queries"
 
@@ -39,6 +39,9 @@ export function saveProblemFrom(
       }
     }
     return { kind: "failed", message: error.message }
+  }
+  if (error instanceof NetworkError) {
+    return { kind: "failed", message: unreachableText }
   }
   return {
     kind: "failed",

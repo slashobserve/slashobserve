@@ -7,8 +7,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
-
-	"github.com/slashobserve/slashobserve/internal/llm"
 )
 
 const unmatchedRoute = "unmatched"
@@ -136,7 +134,14 @@ func (r *Registry) ModelCalls() ModelCalls {
 	return ModelCalls{calls: r.modelCalls, tokens: r.modelTokens}
 }
 
-func (m ModelCalls) ModelCall(provider, model, outcome string, took time.Duration, usage llm.Usage) {
+type Tokens struct {
+	InputTokens      int64
+	OutputTokens     int64
+	CacheReadTokens  int64
+	CacheWriteTokens int64
+}
+
+func (m ModelCalls) ModelCall(provider, model, outcome string, took time.Duration, usage Tokens) {
 	m.calls.WithLabelValues(provider, model, outcome).Observe(took.Seconds())
 	for direction, n := range map[string]int64{
 		"input":       usage.InputTokens,

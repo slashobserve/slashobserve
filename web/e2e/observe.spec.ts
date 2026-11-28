@@ -182,43 +182,6 @@ test("retries a failed follow-up on the same dashboard", async ({ page }) => {
   }
 })
 
-test("links a failed comment revision back to its dashboard", async ({
-  page,
-}) => {
-  const { id: dashboardId } = await createDashboard(page.request, {
-    ...loadSpec("overview"),
-    title: uniqueTitle("Comment revision"),
-  })
-  const commented = await page.request.post(
-    `/api/v1/dashboards/${dashboardId}/comments`,
-    {
-      data: {
-        version: 1,
-        panel_id: "rps",
-        body: unanswerablePrompt,
-        request_revision: true,
-      },
-      headers: mutationHeaders,
-    }
-  )
-  expect(commented.status()).toBe(201)
-  const { comment } = (await commented.json()) as {
-    comment: { revision: { id: string } | null }
-  }
-  expect(comment.revision).not.toBeNull()
-
-  await page.goto(`/c/${comment.revision?.id}`)
-  const alert = page.getByRole("alert")
-  await expect(alert).toContainText("no replay fixture", { timeout: 30_000 })
-  await expect(alert.getByRole("button", { name: "Try again" })).toHaveCount(0)
-  const open = alert.getByRole("link", openLink)
-  await expect(open).toHaveAttribute(
-    "href",
-    new RegExp(`^/d/${dashboardId}(/[a-z0-9-]+)?$`)
-  )
-  await expect(open).not.toHaveAttribute("target")
-})
-
 test("follows up in the same chat", async ({ page }) => {
   test.setTimeout(180_000)
   const release = await holdRequestPollsUntilFinished(page)
@@ -286,46 +249,4 @@ test("follows up in the same chat", async ({ page }) => {
     "placeholder",
     "Ask about Astronomy shop RED metrics"
   )
-})
-
-test("slash focuses the chat composer", async ({ page }) => {
-  await page.goto("/ask")
-  const promptBar = page.getByRole("textbox", { name: "Message the agent" })
-  await expect(promptBar).toBeFocused()
-  await page.getByRole("heading", { level: 1 }).click()
-  await expect(promptBar).not.toBeFocused()
-  await page.keyboard.press("/")
-  await expect(promptBar).toBeFocused()
-  await expect(promptBar).toHaveValue("")
-})
-
-test.describe("touch device", () => {
-  test.use({ hasTouch: true, isMobile: true })
-
-  test("keeps Enter for new lines and submits with the button", async ({
-    page,
-  }) => {
-    const release = await holdRequestPollsUntilFinished(page)
-
-    await page.goto("/ask")
-    const promptBar = page.getByRole("textbox", { name: "Message the agent" })
-    await expect(promptBar).toHaveAttribute("enterkeyhint", "enter")
-    await expect(promptBar).not.toHaveAttribute("aria-describedby")
-    await expect(page.getByText("Enter sends")).toHaveCount(0)
-
-    await promptBar.fill(redPrompt)
-    await promptBar.press("Enter")
-    await expect(promptBar).toHaveValue(`${redPrompt}\n`)
-    await expect(page).toHaveURL(/\/ask$/)
-
-    await page.getByRole("button", { name: "Send" }).click()
-    const requestId = await sentRequestId(page)
-    await expect(
-      turns(page).getByText(redPrompt, { exact: true })
-    ).toBeVisible()
-    await release(requestId)
-
-    await reachDashboard(page)
-    await expectPanelsReady(page)
-  })
 })

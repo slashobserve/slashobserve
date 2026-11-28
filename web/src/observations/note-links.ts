@@ -21,13 +21,19 @@ import { blockPanelFrom, blockRange, blockVariables } from "./panel-input"
 
 export type NoteLink =
   | { kind: "logs"; uid: string; query: string; search: LogsSearch }
-  | { kind: "trace"; uid: string; traceId: string; from?: string; to?: string }
+  | {
+      kind: "trace"
+      uid: string
+      traceId: string
+      from?: string | undefined
+      to?: string | undefined
+    }
   | {
       kind: "panel"
       dashboardId: string
       panelId: string
-      from?: string
-      to?: string
+      from?: string | undefined
+      to?: string | undefined
       vars?: Record<string, string[]>
     }
 

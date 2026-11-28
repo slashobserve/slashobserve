@@ -80,17 +80,16 @@ export function serviceSearch(
   name: string
 ): LogsSearch | TraceSearch {
   if (kind === "traces") return { service: name }
-  return {
-    f: encodePills([
-      {
-        id: "0",
-        kind: "is",
-        field,
-        value: name,
-        negate: false,
-        pinned: false,
-        paused: false,
-      },
-    ]),
-  }
+  const f = encodePills([
+    {
+      id: "0",
+      kind: "is",
+      field,
+      value: name,
+      negate: false,
+      pinned: false,
+      paused: false,
+    },
+  ])
+  return f === undefined ? {} : { f }
 }

@@ -16,18 +16,18 @@ const trailingGap = 1
 
 export type TimelineDisplay = {
   showValues: ShowValues
-  rowHeight?: number
-  columnWidth?: number
-  perPage?: number
+  rowHeight?: number | undefined
+  columnWidth?: number | undefined
+  perPage?: number | undefined
   alignValue: AlignValue
   legend: "bottom" | "right" | "hidden"
-  legendMode?: "list" | "table"
-  legendWidth?: number
+  legendMode?: "list" | "table" | undefined
+  legendWidth?: number | undefined
   tooltip: "single" | "all" | "hidden"
   tooltipSort: TooltipSort
   tooltipHideZeros: boolean
-  tooltipMaxWidth?: number
-  tooltipMaxHeight?: number
+  tooltipMaxWidth?: number | undefined
+  tooltipMaxHeight?: number | undefined
 }
 
 export function timelineDisplay(
@@ -117,10 +117,13 @@ export function borderWidth(lineWidth: number | undefined): number {
 }
 
 export function blendOver(color: Rgb, backdrop: Rgb, opacity: number): Rgb {
-  const mixed = color.map((channel, index) =>
-    Math.round(channel * opacity + backdrop[index] * (1 - opacity))
-  )
-  return [mixed[0], mixed[1], mixed[2]]
+  const mix = (channel: number, under: number) =>
+    Math.round(channel * opacity + under * (1 - opacity))
+  return [
+    mix(color[0], backdrop[0]),
+    mix(color[1], backdrop[1]),
+    mix(color[2], backdrop[2]),
+  ]
 }
 
 export type TextPlacement = {

@@ -274,7 +274,9 @@ describe("panelChanges", () => {
   })
 
   it("does not report an empty threshold list as a change", () => {
-    expect(labels(panel(), panel({ thresholds: undefined }))).toEqual([])
+    const cleared = panel()
+    Reflect.set(cleared, "thresholds", undefined)
+    expect(labels(panel(), cleared)).toEqual([])
   })
 
   it("labels each display key", () => {
@@ -427,12 +429,12 @@ describe("panelChanges against the JSON", () => {
     (p) => (p.type = "stat"),
     (p) => (p.datasource = "other"),
     (p) => (p.queries = p.queries.slice().reverse()),
-    (p) => (p.queries[0] = { ...p.queries[0], ref: "A" }),
+    (p) => (p.queries[0] = { ...p.queries[0]!, ref: "A" }),
     (p) => (p.queries[1] = { query: "b" }),
-    (p) => (p.queries[0] = { ...p.queries[0], legend: "x" }),
-    (p) => (p.queries[0] = { ...p.queries[0], legend: " x " }),
-    (p) => (p.queries[1] = { ...p.queries[1], legend: "  " }),
-    (p) => (p.queries[1] = { ...p.queries[1], legend: "" }),
+    (p) => (p.queries[0] = { ...p.queries[0]!, legend: "x" }),
+    (p) => (p.queries[0] = { ...p.queries[0]!, legend: " x " }),
+    (p) => (p.queries[1] = { ...p.queries[1]!, legend: "  " }),
+    (p) => (p.queries[1] = { ...p.queries[1]!, legend: "" }),
     (p) => p.queries.push({ ref: "C", query: "c" }),
     (p) => p.queries.length > 1 && p.queries.pop(),
     (p) => p.thresholds?.push({ color: "critical" }),
@@ -463,7 +465,7 @@ describe("panelChanges against the JSON", () => {
   function mutated(next: () => number, count: number): DataPanel {
     const result = start()
     for (let i = 0; i < count; i++) {
-      mutations[Math.floor(next() * mutations.length)](result)
+      mutations[Math.floor(next() * mutations.length)]!(result)
     }
     return result
   }
@@ -488,7 +490,7 @@ describe("panelChanges against the JSON", () => {
       const draft = structuredClone(base)
       const count = Math.floor(next() * 4)
       for (let i = 0; i < count; i++) {
-        mutations[Math.floor(next() * mutations.length)](draft)
+        mutations[Math.floor(next() * mutations.length)]!(draft)
       }
       const same = sameJson(normalized(base), normalized(draft))
       if (same && !sameJson(base, draft)) seen.sameDespiteRawDifference++
@@ -624,7 +626,7 @@ describe("overlappingChanges", () => {
     const draft = panel({ queries: [{ query: "up1" }] })
     const latest = panel({ queries: [{ query: "up2" }] })
     const [overlap] = overlappingChanges(base, draft, latest)
-    expect(overlap.key).toBe("queries.A.query")
-    expect(overlap.theirs).toBeUndefined()
+    expect(overlap?.key).toBe("queries.A.query")
+    expect(overlap?.theirs).toBeUndefined()
   })
 })

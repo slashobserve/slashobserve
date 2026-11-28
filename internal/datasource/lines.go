@@ -55,7 +55,3 @@ func TimeNsOf(f Frame, row int) (int64, bool) {
 }
 
 const DefaultTailLag = 5 * time.Second
-
-type LagSource interface {
-	TailLag() time.Duration
-}

@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/otlphttp"
 )
 
 const (
@@ -42,8 +43,8 @@ type metricsSeries struct {
 }
 
 type metricsLabel struct {
-	Key   string   `json:"key"`
-	Value anyValue `json:"value"`
+	Key   string            `json:"key"`
+	Value otlphttp.AnyValue `json:"value"`
 }
 
 type metricsSample struct {
@@ -108,7 +109,7 @@ func (d *Datasource) TraceStats(ctx context.Context, req datasource.TraceStatsRe
 		return datasource.TraceStats{}, err
 	}
 	lim := d.opts.Limits.Tighten(req.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	var r statsResponses
 	jobs := []statsJob{
@@ -304,7 +305,7 @@ func groupValue(labels []metricsLabel) (string, bool) {
 		if l.Key == quantileLabel {
 			continue
 		}
-		switch v := l.Value.plain().(type) {
+		switch v := l.Value.Plain().(type) {
 		case string:
 			return v, v != ""
 		case nil:
@@ -398,7 +399,7 @@ func labelFloat(labels []metricsLabel, key string) (float64, bool) {
 		if l.Key != key {
 			continue
 		}
-		switch v := l.Value.plain().(type) {
+		switch v := l.Value.Plain().(type) {
 		case json.Number:
 			f, err := v.Float64()
 			return f, err == nil

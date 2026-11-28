@@ -128,10 +128,6 @@ paths:
     $ref: "./paths/actions.yaml#/dashboards-id-actions"
   /dashboards/{id}/events:
     $ref: "./paths/events.yaml#/dashboards-id-events"
-  /dashboards/{id}/comments:
-    $ref: "./paths/comments.yaml#/dashboards-id-comments"
-  /dashboards/{id}/comments/{comment_id}:
-    $ref: "./paths/comments.yaml#/dashboards-id-comments-commentid"
   /threads:
     $ref: "./paths/threads.yaml#/threads"
   /threads/mentionable:
@@ -254,8 +250,6 @@ paths:
     $ref: "./paths/findings.yaml#/findings"
   /findings/{id}:
     $ref: "./paths/findings.yaml#/findings-id"
-  /findings/{id}/pin:
-    $ref: "./paths/findings.yaml#/findings-id-pin"
   /findings/{id}/dashboard:
     $ref: "./paths/findings.yaml#/findings-id-dashboard"
   /findings/{id}/panels/{panel_id}/data:
@@ -518,7 +512,7 @@ components:
     Invite:
       type: object
       additionalProperties: false
-      required: [id, email, role, invited_by, created_at, updated_at, sign_in_url]
+      required: [id, email, role, invited_by, created_at, updated_at, sign_in_url, member]
       properties:
         id:
           type: string
@@ -539,6 +533,12 @@ components:
         sign_in_url:
           type: string
           description: The address to share with the person; signing in there with the invited email uses the invite.
+        member:
+          type: boolean
+          description: >-
+            True when someone with this email, ignoring case, has signed in already, for example a person whose email changed to it after the invite was sent.
+            The invite is never applied to a person who has signed in before, so it will not apply; withdraw it.
+            Always false on the invite `POST /invites` returns.
     InviteList:
       type: object
       additionalProperties: false
@@ -1068,11 +1068,9 @@ components:
           type: string
           description: The requester's title, else the first line of the prompt without `@observe`, cut at a word to 60 characters, else the intent word.
         state:
-          type: string
-          enum: [queued, running, canceling, succeeded, failed, canceled]
+          $ref: "#/components/schemas/RunState"
         result_kind:
-          type: string
-          enum: [none, version, partial_version, proposal, suggestion, observation, answer]
+          $ref: "#/components/schemas/RunResultKind"
         failure_code:
           type: string
           nullable: true
@@ -2240,7 +2238,7 @@ components:
     MCPSourceDiscovery:
       type: object
       additionalProperties: false
-      required: [source, tally]
+      required: [source, tally, superseded]
       properties:
         source:
           $ref: "#/components/schemas/MCPSource"
@@ -2265,6 +2263,10 @@ components:
             ignored:
               type: integer
               description: Tools left out because their name is not 1 to 128 letters, digits, dots, hyphens or underscores, or is repeated.
+        superseded:
+          type: boolean
+          description: >-
+            True when another discovery of the same source was stored while this one fetched, so this one changed nothing: `source` is the stored state that discovery left and `tally` is all zero.
     ApproveMCPSourceToolRequest:
       type: object
       additionalProperties: false
@@ -2832,7 +2834,7 @@ components:
     DashboardSummary:
       type: object
       additionalProperties: false
-      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator, folder, permissions, provisioned, managed_by]
+      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator, folder, permissions, can_delete, can_annotate, provisioned, managed_by]
       properties:
         id:
           type: string
@@ -2860,6 +2862,12 @@ components:
           $ref: "#/components/schemas/DashboardFolder"
         permissions:
           $ref: "#/components/schemas/Permissions"
+        can_delete:
+          type: boolean
+          description: Whether the caller may delete the dashboard, which needs Edit on its folder; true for an Editor on a starter dashboard, whose `permissions.edit` is false.
+        can_annotate:
+          type: boolean
+          description: Whether the caller may add, change and remove annotations on the dashboard and pin to it, which needs Edit on its folder; true for an Editor on a starter dashboard, whose `permissions.edit` is false.
         provisioned:
           type: boolean
           description: True for a starter dashboard the server keeps current with each release, such as those in the Audit folder. Its `permissions.edit` is false, every change to its content answers 409 `provisioned`, and duplicating it makes an ordinary editable dashboard.
@@ -2906,7 +2914,7 @@ components:
     DashboardListItem:
       type: object
       additionalProperties: false
-      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, view_count, folder, permissions, provisioned, managed_by]
+      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, view_count, folder, permissions, can_delete, can_annotate, provisioned, managed_by]
       properties:
         id:
           type: string
@@ -2951,6 +2959,12 @@ components:
           $ref: "#/components/schemas/DashboardFolder"
         permissions:
           $ref: "#/components/schemas/Permissions"
+        can_delete:
+          type: boolean
+          description: Whether the caller may delete the dashboard, which needs Edit on its folder; true for an Editor on a starter dashboard, whose `permissions.edit` is false.
+        can_annotate:
+          type: boolean
+          description: Whether the caller may add, change and remove annotations on the dashboard and pin to it, which needs Edit on its folder; true for an Editor on a starter dashboard, whose `permissions.edit` is false.
         provisioned:
           type: boolean
           description: True for a starter dashboard the server keeps current with each release. Its `permissions.edit` is false, so a list never offers to move or change it.
@@ -3507,128 +3521,6 @@ components:
           type: integer
           minimum: 1
           description: The proposal's head revision now.
-    Comment:
-      type: object
-      additionalProperties: false
-      required:
-        - id
-        - dashboard_id
-        - parent_id
-        - version
-        - panel_id
-        - body
-        - status
-        - allowed_actions
-        - unread
-        - author
-        - actor
-        - created_at
-        - updated_at
-        - edited_at
-        - resolved_at
-        - resolved_by
-        - resolved_actor
-        - resolved_by_version
-        - panel_present
-        - mentions
-        - can_edit
-        - can_delete
-        - revision
-      properties:
-        id:
-          type: string
-          format: uuid
-        dashboard_id:
-          type: string
-          format: uuid
-        parent_id:
-          type: string
-          format: uuid
-          nullable: true
-          description: The thread's first comment, for a reply; null for a thread's first comment.
-        version:
-          type: integer
-          minimum: 1
-        panel_id:
-          type: string
-          nullable: true
-          description: The panel the thread is on; null for the whole dashboard. A reply has its thread's panel.
-        body:
-          type: string
-        status:
-          type: string
-          enum: [open, resolved]
-          description: For a reply, the status of its thread.
-        allowed_actions:
-          type: array
-          uniqueItems: true
-          items:
-            type: string
-            enum: [open, reply, resolve, reopen]
-          description: What the caller may do with this thread now, on its first comment; empty on a reply. `resolve` is absent while the thread's agent run is queued or running. See docs/reference/states.md.
-        unread:
-          type: boolean
-          description: Whether the thread, on its first comment, holds a message from someone else, or an agent run's reply, that the caller has not read; always false on a reply and for a service-account key. `POST /api/v1/threads/{thread_id}/read` clears it.
-        author:
-          $ref: "#/components/schemas/Author"
-        actor:
-          $ref: "#/components/schemas/Actor"
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-        edited_at:
-          type: string
-          format: date-time
-          nullable: true
-          description: When the body was last edited; null when it never was.
-        resolved_at:
-          type: string
-          format: date-time
-          nullable: true
-        resolved_by:
-          nullable: true
-          allOf:
-            - $ref: "#/components/schemas/Author"
-        resolved_actor:
-          nullable: true
-          allOf:
-            - $ref: "#/components/schemas/Actor"
-          description: Who resolved the thread, with the one `label` to show; `Observe Agent for <name>` when an agent run did. Null on a reply and on an open thread.
-        resolved_by_version:
-          type: integer
-          minimum: 1
-          nullable: true
-          description: The version that fixed the thread, when the resolver named one. Also set by the server when an agent request sent from the thread succeeds. Always null on a reply.
-        panel_present:
-          type: boolean
-          description: Whether the latest version of the dashboard still has the panel the comment is anchored to. Always true for a whole-dashboard comment.
-        mentions:
-          type: array
-          description: The people and agents the body mentions, in the order shown.
-          items:
-            $ref: "#/components/schemas/Mention"
-        can_edit:
-          type: boolean
-          description: Whether the caller may edit this comment's body, which only its author may do and only while the caller can still comment.
-        can_delete:
-          type: boolean
-          description: Whether the caller may delete this comment; see `can_delete` on a thread message.
-        revision:
-          type: object
-          nullable: true
-          additionalProperties: false
-          required: [id, status]
-          description: The latest revision requested for this comment, or null when none was requested.
-          properties:
-            id:
-              type: string
-              format: uuid
-            status:
-              type: string
-              enum: [queued, running, succeeded, failed]
     Mention:
       type: object
       additionalProperties: false
@@ -3643,13 +3535,6 @@ components:
         name:
           type: string
           description: The name the mention showed when it was written.
-    CommentEnvelope:
-      type: object
-      additionalProperties: false
-      required: [comment]
-      properties:
-        comment:
-          $ref: "#/components/schemas/Comment"
     Thread:
       type: object
       additionalProperties: false
@@ -3738,7 +3623,7 @@ components:
           type: integer
           minimum: 1
           nullable: true
-          description: The version that fixed the thread, when the resolver named one or the agent request sent from the thread succeeded.
+          description: The version that fixed the thread, when the resolver named one.
         revision:
           type: object
           nullable: true
@@ -3750,8 +3635,7 @@ components:
               type: string
               format: uuid
             status:
-              type: string
-              enum: [queued, running, succeeded, failed]
+              $ref: "#/components/schemas/RunStatus"
         anchor:
           nullable: true
           allOf:
@@ -3917,8 +3801,7 @@ components:
               type: string
               format: uuid
             status:
-              type: string
-              enum: [queued, running, succeeded, failed]
+              $ref: "#/components/schemas/RunStatus"
             assigned_kind:
               type: string
               enum: [builtin, grant, service_account]
@@ -4681,7 +4564,7 @@ components:
           type: string
           format: uuid
           nullable: true
-          description: The comment that requested the revision; null for a prompt, or after the comment was deleted.
+          description: The comment thread an `apply` run answers, such as the thread an answer's suggested change was applied from; null for a prompt, or after the comment was deleted.
         panel_id:
           type: string
           nullable: true
@@ -4695,16 +4578,11 @@ components:
           nullable: true
           description: The version the requester was looking at; null for the `observe` request that created the dashboard. The agent revises the latest version.
         status:
-          type: string
-          enum: [queued, running, succeeded, failed]
+          $ref: "#/components/schemas/RunStatus"
         state:
-          type: string
-          enum: [queued, running, canceling, succeeded, failed, canceled]
-          description: "Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`."
+          $ref: "#/components/schemas/RunState"
         result_kind:
-          type: string
-          enum: [none, version, partial_version, proposal, suggestion, observation, answer]
-          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version."
+          $ref: "#/components/schemas/RunResultKind"
         attempts:
           type: integer
           minimum: 0
@@ -4844,9 +4722,7 @@ components:
         prompt:
           type: string
         status:
-          type: string
-          enum: [queued, running, succeeded, failed]
-          description: Computed from `state`; kept for clients that read it.
+          $ref: "#/components/schemas/RunStatus"
         state:
           type: string
           enum: [queued, running, canceling, succeeded, failed, canceled]
@@ -4918,6 +4794,18 @@ components:
           enum: [low, medium, high, xhigh, max]
           nullable: true
           description: Reasoning effort of the Anthropic provider; null otherwise.
+    RunState:
+      type: string
+      enum: [queued, running, canceling, succeeded, failed, canceled]
+      description: "Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`."
+    RunStatus:
+      type: string
+      enum: [queued, running, succeeded, failed]
+      description: The four-value status of a run, computed from `state`; kept for clients that read it.
+    RunResultKind:
+      type: string
+      enum: [none, version, partial_version, proposal, suggestion, observation, answer]
+      description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version."
     AgentStep:
       type: object
       additionalProperties: false
@@ -5200,7 +5088,7 @@ components:
     AnswerSaved:
       type: object
       additionalProperties: false
-      required: [observation_id, url, replayed]
+      required: [observation_id, url, replayed, outcome]
       properties:
         observation_id:
           type: string
@@ -5210,7 +5098,12 @@ components:
           description: The address of the observation, empty when the server has no public URL configured.
         replayed:
           type: boolean
-          description: True when the answer was already an observation, so this call changed nothing.
+          description: True when the answer was already saved, so this call changed nothing (`outcome` `unchanged`).
+        outcome:
+          type: string
+          enum: [created, kept, unchanged]
+          description: >-
+            `created` when the answer became a new observation, `kept` when it was only shown on an observation's page by a thread share and is now saved there, so withdrawing the share leaves it on that observation, and `unchanged` when it was already saved.
     AnswerShared:
       type: object
       additionalProperties: false
@@ -5349,16 +5242,11 @@ components:
           format: uuid
           nullable: true
         status:
-          type: string
-          enum: [queued, running, succeeded, failed]
+          $ref: "#/components/schemas/RunStatus"
         state:
-          type: string
-          enum: [queued, running, canceling, succeeded, failed, canceled]
-          description: "Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`."
+          $ref: "#/components/schemas/RunState"
         result_kind:
-          type: string
-          enum: [none, version, partial_version, proposal, suggestion, observation, answer]
-          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version."
+          $ref: "#/components/schemas/RunResultKind"
         attempts:
           type: integer
           minimum: 0
@@ -5607,8 +5495,7 @@ components:
           type: string
           format: uuid
         state:
-          type: string
-          enum: [queued, running, canceling, succeeded, failed, canceled]
+          $ref: "#/components/schemas/RunState"
         prompt:
           type: string
         investigation:
@@ -5770,16 +5657,11 @@ components:
         prompt:
           type: string
         status:
-          type: string
-          enum: [queued, running, succeeded, failed]
+          $ref: "#/components/schemas/RunStatus"
         state:
-          type: string
-          enum: [queued, running, canceling, succeeded, failed, canceled]
-          description: "Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`."
+          $ref: "#/components/schemas/RunState"
         result_kind:
-          type: string
-          enum: [none, version, partial_version, proposal, suggestion, observation, answer]
-          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version."
+          $ref: "#/components/schemas/RunResultKind"
         allowed_actions:
           type: array
           uniqueItems: true
@@ -5951,9 +5833,7 @@ components:
           enum: [request_finished, not_continuable, invalid_transition]
           description: "`request_finished` for a cancel, `not_continuable` for a continue and `invalid_transition` for a retry."
         state:
-          type: string
-          enum: [queued, running, canceling, succeeded, failed, canceled]
-          description: The state the request is in.
+          $ref: "#/components/schemas/RunState"
         allowed_actions:
           type: array
           items:
@@ -6189,7 +6069,7 @@ components:
           maxItems: 20
           items:
             $ref: "#/components/schemas/FindingUnverified"
-          description: The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `report` or `enforce`; empty when the check found none or did not run.
+          description: The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `enforce`; empty when the check found none or did not run.
     FindingAskOn:
       type: object
       additionalProperties: false
@@ -6333,7 +6213,7 @@ components:
           maxItems: 20
           items:
             $ref: "#/components/schemas/FindingUnverified"
-          description: The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `report` or `enforce`; empty when the check found none or did not run.
+          description: The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `enforce`; empty when the check found none or did not run.
         from:
           type: string
           format: date-time
@@ -7639,8 +7519,7 @@ components:
           format: uuid
           description: The agent request id.
         status:
-          type: string
-          enum: [queued, running, succeeded, failed]
+          $ref: "#/components/schemas/RunStatus"
         finished_at:
           type: string
           format: date-time
@@ -7694,7 +7573,7 @@ components:
                 format: uuid
               reason:
                 type: string
-                enum: [active, nothing_to_repair, not_found, forbidden_role, provisioned, queue_full]
+                enum: [active, nothing_to_repair, not_found, forbidden_role, provisioned]
     GrafanaResolved:
       type: object
       additionalProperties: false
@@ -7959,7 +7838,7 @@ components:
           description: The status of the repair's run, kept for compatibility; read `outcome` instead.
         outcome:
           type: string
-          enum: [queued, running, repaired, still_failing, failed]
+          enum: [queued, running, repaired, still_failing, proposed, failed]
           description: What the repair came to, computed from the run and the latest health check. See `docs/reference/states.md`.
         request_id:
           type: string
@@ -9220,14 +9099,10 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [name, alias, aliases, type, description, values]
+            required: [name, aliases, type, description, values]
             properties:
               name:
                 type: string
-              alias:
-                type: string
-                nullable: true
-                description: The first of `aliases`, kept for older clients.
               aliases:
                 type: array
                 items:
@@ -9283,7 +9158,7 @@ components:
       content:
         application/json:
           schema:
-            oneOf:
+            anyOf:
               - $ref: "#/components/schemas/Error"
               - $ref: "#/components/schemas/InvalidTransition"
     BlockWriteConflict:

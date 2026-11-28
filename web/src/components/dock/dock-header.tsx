@@ -7,10 +7,10 @@ type Props = {
   headingId: string
   headingRef: Ref<HTMLHeadingElement>
   title: string
-  description?: string
-  back?: () => void
+  description?: string | undefined
+  back?: (() => void) | undefined
   controls?: ReactNode
-  onClose?: () => void
+  onClose?: (() => void) | undefined
   closeLabel: string
   closeDisabled?: boolean
 }

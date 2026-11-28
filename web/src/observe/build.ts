@@ -6,11 +6,11 @@ import {
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { ApiError, isRetryable, unwrap } from "@/api/errors"
+import { ApiError, isRetryable, problemText, unwrap } from "@/api/errors"
 import { dashboardKeys, observeKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import { maxPromptLength } from "@/prompts/rules"
-import { sentence, type ObserveRequest } from "@/observe/queries"
+import { type ObserveRequest } from "@/observe/queries"
 import { requestOrigin, type OriginFields } from "@/observe/request-origin"
 
 export type BuildProgress = components["schemas"]["AgentBuildProgress"]
@@ -212,48 +212,39 @@ export function continueNoteError(raw: string): string | null {
 
 const forbiddenText = "Only the person who asked can do this."
 
-export function cancelErrorText(code: string, message = ""): string {
-  switch (code) {
-    case "forbidden":
-      return forbiddenText
-    case "request_finished":
-      return "The run already finished."
-    default:
-      return message === ""
-        ? "The run could not be canceled."
-        : sentence(message)
-  }
+export function cancelErrorText(error: unknown): string {
+  return problemText(error, {
+    codes: {
+      forbidden: forbiddenText,
+      request_finished: "The run already finished.",
+    },
+    fallback: "The run could not be canceled.",
+  })
 }
 
-export function continueErrorText(code: string, message = ""): string {
-  switch (code) {
-    case "version_conflict":
-      return "Someone saved a newer version after this build started, so it can't be continued. Open the dashboard and ask again."
-    case "forbidden":
-      return forbiddenText
-    case "not_continuable":
-      return "This build can no longer be continued."
-    default:
-      return message === ""
-        ? "The build could not be continued."
-        : sentence(message)
-  }
+export function continueErrorText(error: unknown): string {
+  return problemText(error, {
+    codes: {
+      forbidden: forbiddenText,
+      not_continuable: "This build can no longer be continued.",
+    },
+    fallback: "The build could not be continued.",
+  })
 }
 
-export function saveBuildErrorText(code: string, message = ""): string {
-  switch (code) {
-    case "version_conflict":
-      return "Someone saved a newer version after this build started, so it can't be saved. Open the dashboard and ask again."
-    case "forbidden":
-    case "forbidden_role":
-      return "You need Editor access to save it."
-    case "build_empty":
-      return "Nothing was built yet."
-    default:
-      return message === ""
-        ? "The build could not be saved."
-        : sentence(message)
-  }
+const editorText = "You need Editor access to save it."
+
+export function saveBuildErrorText(error: unknown): string {
+  return problemText(error, {
+    codes: {
+      version_conflict:
+        "Someone saved a newer version after this build started, so it can't be saved. Open the dashboard and ask again.",
+      forbidden: editorText,
+      forbidden_role: editorText,
+      build_empty: "Nothing was built yet.",
+    },
+    fallback: "The build could not be saved.",
+  })
 }
 
 export function useSaveBuild(requestId: string) {

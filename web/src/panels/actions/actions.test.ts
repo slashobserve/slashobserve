@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { ApiError, NetworkError } from "@/api/errors"
+import { defined, must } from "@/panels/must"
 
 import {
   actionHost,
@@ -32,7 +33,7 @@ function oneAction(raw: Record<string, unknown>): RunnableAction {
     [{ title: "Restart", url: "https://ops.example.com/restart", ...raw }],
     noField
   )
-  return action
+  return must(action)
 }
 
 describe("disabledReason", () => {
@@ -119,6 +120,7 @@ describe("parseActions", () => {
       ],
       (name) => (name === "pod" ? "checkout-0" : null)
     )[0]
+    defined(action)
     expect(action.variables.sort()).toEqual(["env", "region", "team"])
     expect(action.fields).toEqual({ pod: "checkout-0" })
   })
@@ -133,6 +135,7 @@ describe("parseActions", () => {
       ],
       (name) => ({ a: "x", b: "y".repeat(1001), c: null })[name] ?? null
     )[0]
+    defined(action)
     expect(action.fields).toEqual({ a: "x" })
   })
 

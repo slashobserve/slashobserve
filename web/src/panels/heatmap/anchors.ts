@@ -34,21 +34,26 @@ export function hitTest(
   const row =
     rows - 1 - Math.min(rows - 1, Math.floor((y / plot.height) * rows))
   const value = model.cells[row]?.[col] ?? null
-  const from = msToIso(model.xs[col])
+  const time = model.xs[col]
+  const rowEntry = model.rows[row]
+  if (time === undefined || rowEntry === undefined) return null
+  const from = msToIso(time)
   if (from === null) return null
   return fit({
     kind: "heat_cell",
     pos: positionOf(point, body),
     from,
-    category: clip(model.rows[row].label),
+    category: clip(rowEntry.label),
     ...(value === null ? {} : { shown: clip(format(value)) }),
   })
 }
 
 function edgeAt(xs: readonly number[], index: number): number {
-  const last = xs.length - 1
-  if (index <= last) return xs[index]
-  return xs[last] + (xs[last] - xs[last - 1])
+  const edge = xs[index]
+  if (edge !== undefined) return edge
+  const last = xs.at(-1) ?? Number.NaN
+  const before = xs.at(-2) ?? Number.NaN
+  return last + (last - before)
 }
 
 function timeAt(layout: HeatmapAnchorLayout, x: number): number {
@@ -62,7 +67,13 @@ function timeAt(layout: HeatmapAnchorLayout, x: number): number {
 function pixelAt(layout: HeatmapAnchorLayout, time: number): number {
   const { xs } = layout.model
   let col = 0
-  while (col < xs.length - 1 && xs[col + 1] <= time) col++
+  for (
+    let next = xs[col + 1];
+    next !== undefined && next <= time;
+    next = xs[col + 1]
+  ) {
+    col++
+  }
   const start = edgeAt(xs, col)
   const width = edgeAt(xs, col + 1) - start
   const fraction = width > 0 ? (time - start) / width : 0
@@ -71,7 +82,11 @@ function pixelAt(layout: HeatmapAnchorLayout, time: number): number {
 
 function hasTimeSpan(layout: HeatmapAnchorLayout): boolean {
   const { xs } = layout.model
-  return xs.length > 1 && xs[xs.length - 1] > xs[0]
+  const first = xs[0]
+  const last = xs.at(-1)
+  return (
+    xs.length > 1 && first !== undefined && last !== undefined && last > first
+  )
 }
 
 function plotArea(layout: HeatmapAnchorLayout): Rect {
@@ -140,8 +155,8 @@ export function locate(
 
 export function hides(layout: HeatmapAnchorLayout, anchor: Anchor): boolean {
   const { xs } = layout.model
-  if (xs.length === 0) return false
   const start = xs[0]
+  if (start === undefined) return false
   const end = xs.length > 1 ? edgeAt(xs, xs.length) : start
   if (anchor.kind === "heat_cell") {
     const at = Date.parse(anchor.from ?? "")

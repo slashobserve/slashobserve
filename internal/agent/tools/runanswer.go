@@ -21,7 +21,7 @@ const (
 	codeNotShareable = "not_shareable"
 	codeWrongThread  = "invalid_thread"
 
-	descSaveRunAnswer = "Save the answer of a run as an observation: a plain question asked in chat or in a comment is answered in the chat only, and this files that answer as an observation, with its text and evidence, in the folder of the dashboard it was about, else in your default folder. Only the one who asked may. An answer whose run read data only Admins can query, such as the audit trail, is saved in the folder of the dashboard or observation it was about when only Admins can read that folder, else in the built-in Audit folder, and is refused with restricted_answer when neither is one only Admins can read. Returns the observation id and url; a repeat call returns the same observation with replayed true."
+	descSaveRunAnswer = "Save the answer of a run as an observation: a plain question asked in chat or in a comment is answered in the chat only, and this files that answer as an observation, with its text and evidence, in the folder of the dashboard it was about, else in your default folder. Only the one who asked may. An answer whose run read data only Admins can query, such as the audit trail, is saved in the folder of the dashboard or observation it was about when only Admins can read that folder, else in the built-in Audit folder, and is refused with restricted_answer when neither is one only Admins can read. Returns the observation id, url and outcome: created, kept when the answer was only shown on an observation's page through a thread share and now stays there after a withdraw, or unchanged with replayed true for a repeat call."
 
 	descShareAnswer = "Share the answer of a private question with the people who can read what it was about. A question asked with start_run kind ask is read only by you and Admins; this posts the question and the agent's answer as a new comment thread on that dashboard or observation, at the same panel or block, and on an observation also writes the answer onto the page. With thread_id it adds both to that thread instead, which must be on the same dashboard or observation. Only the one who asked may, once the run has an answer; you need Comment there, and an answer whose evidence reads a datasource only Admins can query, or whose run read one such as the audit trail, can only be shared where only Admins can read (restricted_answer otherwise). A repeat call returns the same thread with replayed true."
 
@@ -40,6 +40,7 @@ type runAnswerSavedOut struct {
 	ObservationID string `json:"observation_id"`
 	URL           string `json:"url"`
 	Replayed      bool   `json:"replayed"`
+	Outcome       string `json:"outcome"`
 }
 
 func init() { registerEntries((*Registry).runAnswerEntries) }
@@ -66,7 +67,7 @@ func (r *Registry) saveRunAnswer(ctx context.Context, input json.RawMessage) (Re
 		return invalid("run_id must be a UUID"), nil
 	}
 	principal, _ := auth.FromContext(ctx)
-	f, replayed, err := r.deps.Findings.SaveAsObservation(ctx, principal, id)
+	f, outcome, err := r.deps.Findings.SaveAsObservation(ctx, principal, id)
 	switch {
 	case errors.Is(err, findings.ErrNotFound):
 		return toolError(codeNoAnswer, "the run has no answer you can save"), nil
@@ -81,7 +82,14 @@ func (r *Registry) saveRunAnswer(ctx context.Context, input json.RawMessage) (Re
 	if err != nil {
 		return Result{}, err
 	}
-	res := success("Saved the answer of run "+in.RunID+" as observation "+f.ObservationID, runAnswerSavedOut{ObservationID: f.ObservationID, URL: links.Observation(r.deps.PublicURL, f.ObservationID), Replayed: replayed})
+	message := "Saved the answer of run " + in.RunID + " as observation " + f.ObservationID
+	switch outcome {
+	case findings.SaveKept:
+		message = "Kept the answer of run " + in.RunID + " in observation " + f.ObservationID + ", where its thread share showed it; withdrawing the share now leaves it there"
+	case findings.SaveUnchanged:
+		message = "The answer of run " + in.RunID + " is already saved as observation " + f.ObservationID
+	}
+	res := success(message, runAnswerSavedOut{ObservationID: f.ObservationID, URL: links.Observation(r.deps.PublicURL, f.ObservationID), Replayed: outcome == findings.SaveUnchanged, Outcome: string(outcome)})
 	res.Created = []string{f.ObservationID}
 	return res, nil
 }

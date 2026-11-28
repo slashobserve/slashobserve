@@ -26,9 +26,9 @@ export class FakeEventSource {
   }
 
   emit(name: string, data?: unknown) {
-    const message = new MessageEvent(name, {
-      data: data === undefined ? undefined : JSON.stringify(data),
-    })
+    const init: MessageEventInit<string> = {}
+    if (data !== undefined) init.data = JSON.stringify(data)
+    const message = new MessageEvent(name, init)
     for (const listener of this.listeners.get(name) ?? []) listener(message)
   }
 

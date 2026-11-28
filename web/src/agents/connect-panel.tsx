@@ -2,12 +2,12 @@ import { useState, type RefObject } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 
+import { loadProblemText } from "@/api/errors"
 import { instanceQuery } from "@/api/instance"
 import { LoadProblem } from "@/components/load-problem"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CodeSnippet } from "@/service-accounts/code-snippet"
-import { loadProblemText } from "@/service-accounts/queries"
 import { SidePanel } from "@/shell/side-panel"
 
 import { connectClients, isNewConnection } from "./connect-clients"

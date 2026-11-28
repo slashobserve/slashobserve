@@ -4,6 +4,7 @@ import { createFieldResolver } from "@/panels/field-config"
 import type { WireField } from "@/panels/frames"
 import type { PreparedFrame } from "@/panels/transforms"
 import type { DataPanel } from "@/spec"
+import { must } from "@/panels/must"
 
 import {
   reduceItems,
@@ -102,7 +103,7 @@ describe("reduceItems", () => {
         ["host", "c"],
         ["mem", 30],
       ])
-      expect(result[1].value).toBeNull()
+      expect(must(result[1]).value).toBeNull()
     })
 
     it("matches a plain name only as a whole", () => {
@@ -115,12 +116,12 @@ describe("reduceItems", () => {
 
     it("counts a text field with a count reducer", () => {
       const result = items(frames, { fields: "host", reduce: "count" })
-      expect(result[0].value).toBe(3)
+      expect(must(result[0]).value).toBe(3)
     })
 
     it("takes the first text value for a first reducer", () => {
       const result = items(frames, { fields: "host", reduce: "first" })
-      expect(result[0].raw).toBe("a")
+      expect(must(result[0]).raw).toBe("a")
     })
   })
 
@@ -166,7 +167,7 @@ describe("reduceItems", () => {
         {},
         "Asia/Kolkata"
       )
-      expect(result[0].label).toBe("2025-01-02 08:34:05")
+      expect(must(result[0]).label).toBe("2025-01-02 08:34:05")
     })
 
     it("labels a row by its number when there is neither", () => {

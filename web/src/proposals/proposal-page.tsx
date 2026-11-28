@@ -2,7 +2,7 @@ import { useState, type Dispatch, type SetStateAction } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, loadProblemText } from "@/api/errors"
 import { LoadProblem } from "@/components/load-problem"
 import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -11,7 +11,6 @@ import { Discussion } from "@/discussion/discussion"
 import { useDocumentTitle } from "@/lib/document-title"
 import { dashboardLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
-import { sentence } from "@/observe/queries"
 
 import type { Side } from "./conflict-choices"
 import { ProposalActions } from "./proposal-actions"
@@ -118,7 +117,7 @@ export function ProposalPage({
   focusedThreadId,
 }: {
   proposalId: string
-  focusedThreadId?: string
+  focusedThreadId?: string | undefined
 }) {
   const query = useQuery(proposalQuery(proposalId))
   const [picks, setPicks] = useState<Picks>({})
@@ -156,7 +155,7 @@ export function ProposalPage({
       <div className={columnClass}>
         <LoadProblem
           title="Could not load this proposal"
-          detail={sentence(query.error.message)}
+          detail={loadProblemText(query.error)}
           retrying={query.isFetching}
           onRetry={() => void query.refetch()}
         />

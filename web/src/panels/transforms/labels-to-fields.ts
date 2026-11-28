@@ -1,6 +1,7 @@
 import type { Transform } from "@/spec"
 
 import {
+  frameName,
   copyFrame,
   labelKeys,
   rowCount,
@@ -42,7 +43,11 @@ function asColumns(
       type: "string",
       values: Array.from({ length: rows }, () => labels[key]),
     }))
-  return { ...frame, labels: undefined, fields: [...fields, ...labelFields] }
+  return {
+    ref: frame.ref,
+    ...frameName(frame),
+    fields: [...fields, ...labelFields],
+  }
 }
 
 function asRows(
@@ -53,7 +58,7 @@ function asRows(
   const keys = shownLabels(frame, include)
   return {
     ref: frame.ref,
-    name: frame.name,
+    ...frameName(frame),
     fields: [
       { name: "label", type: "string", values: keys },
       { name: "value", type: "string", values: keys.map((key) => labels[key]) },

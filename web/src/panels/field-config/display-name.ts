@@ -29,7 +29,7 @@ function allLabels(labels: Record<string, string>): string {
 
 function variableText(written: string, vars: Selections): string | null {
   const suffix = formatSuffix.exec(written)
-  const name = suffix ? suffix[1] : written
+  const name = suffix?.[1] ?? written
   const values = selectedValues(vars, name)
   if (!values) return null
   const format = suffix?.[2] as VariableFormat | undefined
@@ -47,7 +47,7 @@ function tokenText(inner: string, scope: DisplayNameScope): string | null {
   if (name === "__field.labels") return allLabels(labels)
   if (name.startsWith(labelPrefix)) {
     const key = name.slice(labelPrefix.length)
-    return Object.hasOwn(labels, key) ? labels[key] : null
+    return Object.hasOwn(labels, key) ? (labels[key] ?? null) : null
   }
   return variableText(name, scope.vars)
 }

@@ -81,6 +81,18 @@ func TestMigrateRunsOverTheDirectConnection(t *testing.T) {
 	}
 }
 
+func TestADatabaseFromBeforeTheBaselineIsRefused(t *testing.T) {
+	database := dbtest.New(t)
+	database.Exec(t, `INSERT INTO goose_db_version (version_id, is_applied) VALUES (106, true)`)
+	d, err := openWith(t, db.Config{URL: database.URL()})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	if _, err := d.Migrate(t.Context()); !errors.Is(err, db.ErrBeforeBaseline) {
+		t.Fatalf("Migrate = %v, want ErrBeforeBaseline", err)
+	}
+}
+
 func TestDirectURLToAnotherDatabaseIsRefusedBeforeMigrating(t *testing.T) {
 	main := dbtest.New(t)
 	other := dbtest.NewUnmigrated(t)

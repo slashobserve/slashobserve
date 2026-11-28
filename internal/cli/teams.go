@@ -55,33 +55,23 @@ func memberNames(members []teamMemberView) string {
 }
 
 func (a *app) runTeamsList(cmd *cobra.Command, _ []string) error {
-	c, err := a.newClient()
-	if err != nil {
-		return err
-	}
-	data, err := c.get(cmd.Context(), "teams", nil)
+	data, err := a.fetch(cmd.Context(), "teams", nil)
 	if err != nil {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(list teamList) error {
+		if len(list.Teams) == 0 {
+			out.notice("No teams yet")
+			return nil
+		}
+		rows := make([][]string, 0, len(list.Teams))
+		for _, t := range list.Teams {
+			rows = append(rows, []string{text(t.ID), text(t.Name), strconv.Itoa(len(t.Members)), memberNames(t.Members)})
+		}
+		out.table([]string{"ID", "NAME", "MEMBERS", "PEOPLE"}, rows)
 		return nil
-	}
-	list, err := decode[teamList](data)
-	if err != nil {
-		return err
-	}
-	if len(list.Teams) == 0 {
-		out.notice("No teams yet")
-		return nil
-	}
-	rows := make([][]string, 0, len(list.Teams))
-	for _, t := range list.Teams {
-		rows = append(rows, []string{text(t.ID), text(t.Name), strconv.Itoa(len(t.Members)), memberNames(t.Members)})
-	}
-	out.table([]string{"ID", "NAME", "MEMBERS", "PEOPLE"}, rows)
-	return nil
+	})
 }
 
 func (a *app) runTeamsCreate(cmd *cobra.Command, args []string) error {
@@ -138,18 +128,12 @@ func (a *app) runTeamsMember(method, done string) func(*cobra.Command, []string)
 
 func (a *app) printTeam(data []byte, format string) error {
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(team teamView) error {
+		out.confirm(format, text(team.Name))
+		out.fields([][2]string{
+			{"ID", text(team.ID)},
+			{"Members", memberNames(team.Members)},
+		})
 		return nil
-	}
-	team, err := decode[teamView](data)
-	if err != nil {
-		return err
-	}
-	out.confirm(format, text(team.Name))
-	out.fields([][2]string{
-		{"ID", text(team.ID)},
-		{"Members", memberNames(team.Members)},
 	})
-	return nil
 }

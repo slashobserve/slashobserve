@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import type { PreparedFrame } from "./names"
 import { partitionByValues } from "./partition-by-values"
 
@@ -27,7 +29,7 @@ describe("partitionByValues", () => {
     expect(out.map((frame) => frame.fields.map((field) => field.name))).toEqual(
       [["cpu"], ["cpu"], ["cpu"]]
     )
-    expect(out[0].fields[0].values).toEqual([1, 3])
+    expect(must(must(out[0]).fields[0]).values).toEqual([1, 3])
   })
 
   it("keeps the partition fields when asked", () => {
@@ -36,12 +38,13 @@ describe("partitionByValues", () => {
       fields: ["host"],
       keepFields: true,
     })
+    defined(first)
     expect(first.fields.map((field) => field.name)).toEqual([
       "host",
       "env",
       "cpu",
     ])
-    expect(first.fields[0].values).toEqual(["a", "a"])
+    expect(must(first.fields[0]).values).toEqual(["a", "a"])
   })
 
   it("names the frames from the values instead of labels", () => {
@@ -57,7 +60,7 @@ describe("partitionByValues", () => {
       naming: "append",
     })
     expect(appended.map((frame) => frame.name)).toEqual(["load a", "load b"])
-    expect(appended[0].labels).toBeUndefined()
+    expect(must(appended[0]).labels).toBeUndefined()
   })
 
   it("keeps existing labels and passes frames that lack a field through", () => {
@@ -66,6 +69,7 @@ describe("partitionByValues", () => {
       type: "partitionByValues",
       fields: ["host"],
     })
+    defined(first)
     expect(first.labels).toEqual({ job: "x", host: "a" })
     const out = partitionByValues([table], {
       type: "partitionByValues",

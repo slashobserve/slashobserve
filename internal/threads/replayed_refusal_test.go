@@ -5,39 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-
-	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 )
-
-func TestAReplayedAskAnswersTheRefusalStoredWithItsMessage(t *testing.T) {
-	stored := &RunRefusal{Code: RefusalTooManyRuns, Message: "the queue is full"}
-	sent := (&ask{}).sent(written{replayed: true, refusal: stored})
-	if sent.Refusal == nil || *sent.Refusal != *stored || sent.Run != nil {
-		t.Fatalf("replayed refusal = %+v, run = %+v, want %+v and no run", sent.Refusal, sent.Run, stored)
-	}
-	if sent.To != ToAgent || !sent.Replayed {
-		t.Fatalf("to = %q, replayed = %v, want the ask it was the first time", sent.To, sent.Replayed)
-	}
-
-	plain := (&ask{}).sent(written{replayed: true})
-	if plain.Refusal != nil || plain.To != ToEveryone {
-		t.Fatalf("a replayed message that asked no agent = %+v", plain)
-	}
-}
-
-func TestTheStoredRefusalIsReadFromTheMessageRow(t *testing.T) {
-	if got := storedRefusal(dbsqlc.ThreadMessage{}); got != nil {
-		t.Fatalf("a message without a refusal = %+v, want nil", got)
-	}
-	row := dbsqlc.ThreadMessage{
-		RunRefusalCode:    pgtype.Text{String: RefusalForbidden, Valid: true},
-		RunRefusalMessage: pgtype.Text{String: "you need edit access", Valid: true},
-	}
-	got := storedRefusal(row)
-	if got == nil || got.Code != RefusalForbidden || got.Message != "you need edit access" {
-		t.Fatalf("stored refusal = %+v", got)
-	}
-}
 
 func TestAClientIDResendOfARefusedAskReturnsTheSameRefusal(t *testing.T) {
 	r := newAgentRig(t, true)

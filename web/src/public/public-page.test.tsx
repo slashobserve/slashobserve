@@ -7,6 +7,7 @@ import { renderWithProviders, testQueryClient } from "@/test/render"
 import { PublicPage } from "./public-page"
 import { publicDashboardQuery, type PublicDashboard } from "./queries"
 import type { PublicMode } from "./supported"
+import { must } from "@/test/must"
 
 const token = `pub_${"a".repeat(43)}`
 
@@ -145,9 +146,9 @@ describe("PublicPage", () => {
       await screen.findByRole("combobox", { name: "job" })
     ).toHaveTextContent("api")
     await waitFor(() => expect(panelRequests(urls)).toHaveLength(1))
-    expect(panelRequests(urls)[0].searchParams.getAll("var-job")).toEqual([
-      "api",
-    ])
+    expect(must(panelRequests(urls)[0]).searchParams.getAll("var-job")).toEqual(
+      ["api"]
+    )
   })
 
   it("shows a frozen link's selections as text and ignores the address", async () => {
@@ -157,9 +158,9 @@ describe("PublicPage", () => {
     expect(await screen.findByText("job: api")).toBeInTheDocument()
     expect(screen.queryByRole("combobox", { name: "job" })).toBeNull()
     await waitFor(() => expect(panelRequests(urls)).toHaveLength(1))
-    expect(panelRequests(urls)[0].searchParams.getAll("var-job")).toEqual([
-      "api",
-    ])
+    expect(must(panelRequests(urls)[0]).searchParams.getAll("var-job")).toEqual(
+      ["api"]
+    )
   })
 
   it("renders panel types that need sign-in as unavailable without a request", async () => {
@@ -168,7 +169,7 @@ describe("PublicPage", () => {
       await screen.findByText("Not available on a public link")
     ).toBeInTheDocument()
     await waitFor(() => expect(panelRequests(urls)).toHaveLength(1))
-    expect(panelRequests(urls)[0].pathname).toBe(
+    expect(must(panelRequests(urls)[0]).pathname).toBe(
       `/api/v1/public/${token}/panels/p2/data`
     )
   })

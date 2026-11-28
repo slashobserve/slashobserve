@@ -171,13 +171,13 @@ describe("anchorFrames", () => {
   it("keeps only the selected row of the frame it came from", () => {
     const frame = frameOf(["3000000", "2000000", "1000000"])
     const entry = entryOf(
-      [{ name: "Body", field: frame.fields[2], frame, index: 1 }],
+      [{ name: "Body", field: frame.fields[2]!, frame, index: 1 }],
       { time: 2 }
     )
     const kept = anchorFrames(entry)
     expect(kept).toHaveLength(1)
     expect(bodies(kept)).toEqual(["line 2000000"])
-    expect(kept[0].labels).toEqual({ service_name: "checkout" })
+    expect(kept[0]?.labels).toEqual({ service_name: "checkout" })
   })
 
   it("gives no frame for an entry made of text details", () => {

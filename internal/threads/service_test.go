@@ -11,6 +11,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
+	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 func (r *rig) open(t *testing.T, by auth.Principal, in OpenInput) (Thread, Message) {
@@ -403,6 +404,102 @@ func TestAReplyNeverReopensAResolvedThread(t *testing.T) {
 	}
 }
 
+func TestResolvingByAnyMessageResolvesTheWholeThread(t *testing.T) {
+	r := newRig(t)
+	dash := r.createDashboard(t)
+	r.addVersion(t, dash, 1)
+	thread, _ := r.open(t, testUser, OpenInput{Target: target(KindDashboard, dash), Version: new(1), PanelID: new("rps"), Body: "root"})
+	_, reply := r.reply(t, testUser, thread.ID, "reply")
+	_, nested := r.reply(t, testUser, reply.ID, "nested")
+
+	resolved, changed, err := r.service.SetStatus(reading(t.Context()), testUser, mustParse(t, nested.ID), StatusResolved, new(2))
+	if err != nil || !changed || resolved.ID != thread.ID || resolved.Status != StatusResolved {
+		t.Fatalf("resolved = %+v, changed %v, err %v", resolved, changed, err)
+	}
+	page, err := r.service.List(reading(t.Context()), testUser, ListQuery{Target: target(KindDashboard, dash), Status: StatusResolved, Limit: 10})
+	if err != nil || len(page.Threads) != 1 || len(page.Messages) != 3 {
+		t.Fatalf("resolved page = %+v, err %v", page, err)
+	}
+	open, err := r.service.List(reading(t.Context()), testUser, ListQuery{Target: target(KindDashboard, dash), Status: StatusOpen, Limit: 10})
+	if err != nil || len(open.Threads) != 0 || len(open.Messages) != 0 {
+		t.Fatalf("open page = %+v, err %v", open, err)
+	}
+}
+
+func TestAResolvedByVersionBelowTheThreadsOwnIsRefused(t *testing.T) {
+	r := newRig(t)
+	dash := r.createDashboard(t)
+	r.addVersion(t, dash, 1)
+	r.addVersion(t, dash, 2)
+	thread, _ := r.open(t, testUser, OpenInput{Target: target(KindDashboard, dash), Version: new(3), PanelID: new("rps"), Body: "latest"})
+
+	var invalid *InvalidInputError
+	if _, _, err := r.service.SetStatus(reading(t.Context()), testUser, mustParse(t, thread.ID), StatusResolved, new(2)); !errors.As(err, &invalid) {
+		t.Errorf("below the thread's version: err = %v, want InvalidInputError", err)
+	}
+	missing := mustParse(t, "00000000-0000-4000-8000-000000000000")
+	if _, _, err := r.service.SetStatus(reading(t.Context()), testUser, missing, StatusResolved, new(99)); !errors.Is(err, ErrNotFound) {
+		t.Errorf("a missing thread: err = %v, want ErrNotFound", err)
+	}
+	if got, _, err := r.service.SetStatus(reading(t.Context()), testUser, mustParse(t, thread.ID), StatusResolved, new(3)); err != nil || got.Status != StatusResolved {
+		t.Errorf("the thread's own version: %+v, err %v", got, err)
+	}
+}
+
+func TestAReplyShowsTheStatusOfItsThreadAtInsertTime(t *testing.T) {
+	r := newRig(t)
+	dash := r.createDashboard(t)
+	root, _ := r.open(t, testUser, OpenInput{Target: target(KindDashboard, dash), Version: new(1), PanelID: new("rps"), Body: "root"})
+	sqlDB := r.db.SQLDB(t)
+
+	tx, err := sqlDB.BeginTx(reading(t.Context()), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(reading(t.Context()), `UPDATE threads SET status = 'resolved', resolved_at = now(), resolved_by_kind = 'user', resolved_by_id = gen_random_uuid(), resolved_by_name = 'x' WHERE id = $1::uuid`, root.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	type result struct {
+		thread Thread
+		err    error
+	}
+	done := make(chan result, 1)
+	go func() {
+		thread, _, err := r.service.Reply(reading(t.Context()), testUser, mustParse(t, root.ID), ReplyInput{Body: "reply"}, nil)
+		done <- result{thread, err}
+	}()
+	r.waitForLockWait(t)
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	got := <-done
+	if got.err != nil {
+		t.Fatal(got.err)
+	}
+	if got.thread.Status != StatusResolved {
+		t.Fatalf("thread status after the reply = %q, want resolved", got.thread.Status)
+	}
+}
+
+func TestAMessageWrittenOverMCPNamesItsClient(t *testing.T) {
+	r := newRig(t)
+	dash := r.createDashboard(t)
+	viaMCP := origin.With(reading(t.Context()), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
+	_, root, err := r.service.Open(viaMCP, testUser, OpenInput{Target: target(KindDashboard, dash), Body: "from an agent"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, web := r.reply(t, testUser, root.ID, "from the web")
+	if label := root.Author.JSON().Label; label != "Ada (via Claude Code)" || root.Author.ID != testUserID {
+		t.Fatalf("mcp author = %+v, label %q", root.Author, label)
+	}
+	if label := web.Author.JSON().Label; label != "Ada" {
+		t.Fatalf("web author label = %q, want Ada", label)
+	}
+}
+
 func TestStatusChangesReportChangeAndRecordTheResolver(t *testing.T) {
 	r := newRig(t)
 	dash := r.createDashboard(t)
@@ -612,5 +709,47 @@ func TestAThreadMessageOnAFindingIsOwnedByItsObservationNotItsDashboard(t *testi
 	}
 	if want := []string{detached.String(), onDashboard.String()}; strings.Join(owners, ",") != strings.Join(want, ",") {
 		t.Fatalf("owning observations %v, want %v", owners, want)
+	}
+}
+
+func TestCheckCommentBody(t *testing.T) {
+	for name, in := range map[string]string{
+		"padded":               "  hello \n",
+		"4000 multibyte runes": strings.Repeat("\u00e9", maxBodyRunes),
+		"tab newline CR":       "a\tb\r\nc",
+		"ZWJ sequence":         "\U0001F469\u200d\U0001F4BB",
+		"bidi marks":           "a\u200eb\u200fc\u061cd",
+	} {
+		got, _, err := checkBody(in)
+		if err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+		if got != strings.TrimSpace(in) {
+			t.Errorf("%s: got %q", name, got)
+		}
+	}
+	invalid := map[string]string{
+		"empty":           "",
+		"whitespace only": " \t\n ",
+		"NUL":             "a\x00b",
+		"C0 bell":         "a\x07b",
+		"escape":          "a\x1bb",
+		"DEL":             "a\x7fb",
+		"C1 CSI":          "a\u009bb",
+		"C1 NEL inside":   "a\u0085b",
+		"embedding start": "a\u202ab",
+		"override":        "a\u202eb",
+		"isolate start":   "a\u2066b",
+		"isolate end":     "a\u2069b",
+		"too long":        strings.Repeat("a", maxBodyRunes+1),
+		"invalid UTF-8":   "a\xffb",
+		"zero width only": "\u200b",
+		"joiners only":    "\u200d\u200b\ufeff",
+	}
+	for name, in := range invalid {
+		var target *InvalidInputError
+		if _, _, err := checkBody(in); !errors.As(err, &target) {
+			t.Errorf("%s: got %v, want InvalidInputError", name, err)
+		}
 	}
 }

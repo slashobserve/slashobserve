@@ -26,6 +26,8 @@ const maxShownRows = 4
 const noPanels: ReadonlySet<string> = new Set()
 const fadeIn =
   "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300"
+const staleBuildText =
+  "Someone saved a newer version after this build started, so it can't be saved as it is. Continue carries it onto the newer version."
 
 export type BuildRow = { id: string; title: string | null; panels: Panel[] }
 
@@ -190,7 +192,7 @@ function SaveBuild({
       </div>
       {save.error !== null ? (
         <p role="alert" className="flex flex-wrap items-center gap-x-2">
-          <span>{saveBuildErrorText(code, save.error.message)}</span>
+          <span>{saveBuildErrorText(save.error)}</span>
           {code === "version_conflict" && request.dashboard_id !== null ? (
             <Link
               {...dashboardLink(request.dashboard_id)}
@@ -265,6 +267,11 @@ export function BuildCard({
           </Link>
         ) : null}
       </div>
+      {build.state === "stale" ? (
+        <p className="border-t px-3.5 py-2.5 text-[13px] text-muted-foreground">
+          {staleBuildText}
+        </p>
+      ) : null}
       {!compact && rows.length > 0 ? <Rows rows={rows} fresh={fresh} /> : null}
       {mayAct ? (
         <BuildActions request={request} onContinued={onContinued} />

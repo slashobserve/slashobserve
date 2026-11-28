@@ -16,7 +16,9 @@ function firstTime(frame: PreparedFrame): PreparedField | undefined {
   return frame.fields.find((field) => field.type === "time")
 }
 
-export function flattenFrames(frames: PreparedFrame[]): PreparedFrame {
+export function flattenFrames(
+  frames: readonly [PreparedFrame, ...PreparedFrame[]]
+): PreparedFrame {
   const only = frames.length === 1 ? frames[0] : undefined
   if (
     only &&
@@ -26,35 +28,36 @@ export function flattenFrames(frames: PreparedFrame[]): PreparedFrame {
     return copyFrame(only)
   }
 
-  const counts = frames.map(rowCount)
-  const times = frames.map(firstTime)
+  const sized = frames.map((frame) => ({
+    frame,
+    count: rowCount(frame),
+    time: firstTime(frame),
+  }))
   const fields: PreparedField[] = []
   const used = new Map<string, number>()
 
-  if (times.some((time) => time !== undefined)) {
+  if (sized.some(({ time }) => time !== undefined)) {
     uniqueKey(used, "Time")
     const values: unknown[] = []
-    frames.forEach((_frame, index) => {
-      const time = times[index]
-      for (let row = 0; row < counts[index]; row++) {
+    for (const { time, count } of sized) {
+      for (let row = 0; row < count; row++) {
         values.push(time ? (time.values[row] ?? null) : null)
       }
-    })
+    }
     fields.push({ name: "Time", type: "time", values })
   }
 
-  const byName = frames.map((frame) => {
+  const byName = sized.map(({ frame, count, time }) => {
     const named = new Map<string, PreparedField>()
     const local = new Map<string, number>()
-    const time = firstTime(frame)
     for (const field of frame.fields) {
       if (field !== time) named.set(uniqueKey(local, field.name), field)
     }
-    return named
+    return { named, count }
   })
   const types = new Map<string, PreparedField["type"]>()
   const sources = new Map<string, PreparedField[]>()
-  for (const named of byName) {
+  for (const { named } of byName) {
     for (const [name, field] of named) {
       if (!types.has(name)) types.set(name, field.type)
       sources.set(name, [...(sources.get(name) ?? []), field])
@@ -66,12 +69,12 @@ export function flattenFrames(frames: PreparedFrame[]): PreparedFrame {
   const valueFields: PreparedField[] = []
   for (const [name, type] of types) {
     const values: unknown[] = []
-    byName.forEach((named, index) => {
+    for (const { named, count } of byName) {
       const source = named.get(name)
-      for (let row = 0; row < counts[index]; row++) {
+      for (let row = 0; row < count; row++) {
         values.push(source ? (source.values[row] ?? null) : null)
       }
-    })
+    }
     valueFields.push({
       name: columnNames.get(name) ?? name,
       type,
@@ -86,13 +89,13 @@ export function flattenFrames(frames: PreparedFrame[]): PreparedFrame {
   if (frames.some((frame) => frame.name !== undefined)) keys.add(nameKey)
   for (const key of [...keys].sort()) {
     const values: unknown[] = []
-    frames.forEach((frame, index) => {
+    for (const { frame, count } of sized) {
       const value =
         key === nameKey
           ? (frame.name ?? frame.labels?.[nameKey] ?? null)
           : (frame.labels?.[key] ?? null)
-      for (let row = 0; row < counts[index]; row++) values.push(value)
-    })
+      for (let row = 0; row < count; row++) values.push(value)
+    }
     fields.push({ name: uniqueKey(used, key), type: "string", values })
   }
 
@@ -172,13 +175,14 @@ export function applyQueryFormats(
   const out: PreparedFrame[] = []
   for (const frame of frames) {
     const ref = frame.ref
-    if (ref === undefined || !groups.has(ref)) {
+    const [head, ...tail] = groups.get(ref) ?? []
+    if (head === undefined) {
       out.push(copyFrame(frame))
       continue
     }
     if (emitted.has(ref)) continue
     emitted.add(ref)
-    const table = flattenFrames(groups.get(ref) ?? [])
+    const table = flattenFrames([head, ...tail])
     out.push(
       nameValues(table, several ? `Value #${ref}` : "Value", legendOf.get(ref))
     )

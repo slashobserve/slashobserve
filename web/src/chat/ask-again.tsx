@@ -11,10 +11,10 @@ import {
 import { planSend, type Opens, type Subject } from "@/conversation/send-plan"
 
 type AskInChat = {
-  subject?: Subject | null
-  chatId?: string
+  subject?: Subject | null | undefined
+  chatId?: string | undefined
   onSent: (request: ObserveRequest, opens: Opens) => void | Promise<void>
-  afterSent?: () => void
+  afterSent?: (() => void) | undefined
 }
 
 export function useAskInChat({
@@ -55,7 +55,7 @@ export function AskAgainButton({
 }: {
   prompt: string
   subject?: Subject | null
-  chatId?: string
+  chatId?: string | undefined
   disabled: boolean
   onSent: AskInChat["onSent"]
   afterSent?: () => void

@@ -9,6 +9,7 @@ import {
   useStickToBottom,
   useToday,
 } from "@/activity/timeline-list"
+import { sentence } from "@/api/errors"
 import { threadKeys } from "@/api/keys"
 import { LoadProblem } from "@/components/load-problem"
 import { ScrollPane } from "@/components/scroll-pane"
@@ -33,12 +34,11 @@ import {
   shownAnswer,
 } from "@/conversation/run-answer"
 import { subjectOf } from "@/conversation/send-plan"
-import { unansweredRun } from "@/conversation/thread-state"
+import { askedAgentName, unansweredRun } from "@/conversation/thread-state"
 import { useComposer } from "@/conversation/use-composer"
 import { markOf } from "@/lib/author"
 import { liveRegionText } from "@/lib/live-region"
 import { cn } from "@/lib/utils"
-import { sentence } from "@/observe/queries"
 
 import {
   filterEntries,
@@ -76,7 +76,7 @@ type DiscussionFeedProps = {
     tools: { reply: (() => void) | null }
   ) => ReactNode
   readOnlyAction?: ReactNode
-  focusedThreadId?: string
+  focusedThreadId?: string | undefined
 }
 
 type DiscussionProps = Omit<
@@ -341,7 +341,10 @@ export function DiscussionFeed({
                   />
                 )}
                 {waitingOn === null ? null : (
-                  <RunLine message={message} run={waitingOn} />
+                  <RunLine
+                    run={waitingOn}
+                    agentName={askedAgentName(message, waitingOn)}
+                  />
                 )}
                 {block === undefined ? null : (
                   <EntryMeta>

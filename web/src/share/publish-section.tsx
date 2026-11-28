@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { LoadProblem } from "@/components/load-problem"
 import {
   AlertDialog,
@@ -24,7 +25,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { useMoveDashboard } from "@/dashboards/queries"
 import { foldersQuery } from "@/folders/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { publishAudience, publishTargets } from "./publish"
 

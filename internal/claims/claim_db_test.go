@@ -35,6 +35,7 @@ var (
 
 	builtinClaimer = Claimer{Kind: revisions.AssignBuiltin, ID: instanceID}
 	modelSettings  = ModelSettings{Provider: "anthropic", Model: "claude-x", APIKey: "sk-test-key", MaxTokens: 4096, SessionRenewBytes: 262144}
+	agentSettings  = AgentSettings{InvestigationCallsMax: 40, TaskCalls: map[string]int{"measure": 16}, Loop: true, Grounding: "enforce"}
 )
 
 func TestMain(m *testing.M) {
@@ -71,11 +72,11 @@ func newFixture(t *testing.T) *fixture {
 	logger := slog.New(slog.DiscardHandler)
 	people := &principals{}
 	runs := revisions.NewService(d.DB, logger, revisions.WithBuiltInAgent(),
-		revisions.WithPrincipals(people), revisions.WithAccess(folders.NewAccess(d.DB)), revisions.WithThreads(threads.NewRuns(d.DB)))
+		revisions.WithPrincipals(people), revisions.WithAccess(folders.NewAccess(d.DB)), revisions.WithThreads(threads.NewRuns()))
 	svc := New(Config{
 		DB: d.DB, Runs: runs, Listen: d.Listen,
 		PublicURL: &url.URL{Scheme: "https", Host: "so.example.com"}, InternalURL: &url.URL{Scheme: "http", Host: "127.0.0.1:8080"},
-		InstanceID: instanceID, Model: func(bool) *ModelSettings { settings := modelSettings; return &settings },
+		InstanceID: instanceID, Model: func(bool) *ModelSettings { settings := modelSettings; return &settings }, Agent: &agentSettings,
 		RunTimeout: time.Hour, Logger: logger,
 	})
 	return &fixture{svc: svc, runs: runs, d: d, principals: people, dashboard: seedDashboard(t, d)}

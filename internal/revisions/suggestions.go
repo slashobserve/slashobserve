@@ -124,21 +124,28 @@ func (s *Service) GetSuggestion(ctx context.Context, dashboardID, id pgtype.UUID
 }
 
 func (s *Service) checkDraft(base *spec.Dashboard, entry spec.PanelEntry, draft json.RawMessage) error {
-	candidate, err := spec.WithPanel(base, entry.Panel.ID, draft)
-	var invalid *spec.ValidationError
+	keepsID := &DraftError{Issues: []spec.Issue{{
+		Path:    entry.Pointer,
+		Code:    codeInvalidDraft,
+		Message: fmt.Sprintf("the draft must keep id %q and stay a data, text or dashboard list panel", entry.Panel.ID),
+	}}}
+	var head struct {
+		ID string `json:"id"`
+	}
+	if json.Unmarshal(draft, &head) == nil && head.ID != entry.Panel.ID {
+		return keepsID
+	}
+	candidate, err := spec.ApplyPanelPatch(base, spec.PanelPatch{Upsert: []json.RawMessage{draft}})
+	var patchErr *spec.PatchError
 	switch {
-	case errors.As(err, &invalid):
-		return &DraftError{Issues: invalid.Issues}
+	case errors.As(err, &patchErr):
+		return &DraftError{Issues: patchErr.Issues}
 	case err != nil:
 		return fmt.Errorf("place draft panel: %w", err)
 	}
 	placed, ok := placedPanel(candidate, entry)
 	if !ok {
-		return &DraftError{Issues: []spec.Issue{{
-			Path:    entry.Pointer,
-			Code:    codeInvalidDraft,
-			Message: fmt.Sprintf("the draft must keep id %q and stay a data, text or dashboard list panel", entry.Panel.ID),
-		}}}
+		return keepsID
 	}
 	raw, err := json.Marshal(placed)
 	if err != nil {

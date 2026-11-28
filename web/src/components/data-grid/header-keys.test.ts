@@ -43,6 +43,8 @@ describe("tabStaysInHeader", () => {
   it("lets Tab move from the header into its controls and between them", () => {
     const header = headerWith(["button", "button"])
     const [sort, filter] = header.querySelectorAll("button")
+    if (sort === undefined || filter === undefined)
+      throw new Error("no buttons")
     expect(tabFrom(header)).toBe(true)
     expect(tabFrom(sort)).toBe(true)
     expect(tabFrom(filter)).toBe(false)

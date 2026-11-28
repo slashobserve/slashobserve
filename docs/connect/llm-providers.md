@@ -84,20 +84,20 @@ An agent of your own connects over [MCP](../use/mcp.md) and takes runs with its 
 These behave differently without a provider:
 
 - The endpoints that start the built-in agent answer `503 agent_unavailable`.
-  They are `POST /api/v1/observe` for a request the built-in agent would take, revision prompts, suggestions, health repairs and query drafts.
+  They are `POST /api/v1/observe` for a request the built-in agent would take, suggestions, health repairs and query drafts.
 - A message that mentions `@observe` is saved, and its `run_refusal` is `agent_unavailable`.
-- A comment sent with `request_revision` is saved and queues no revision.
-  Turning the agent on later replays neither.
+  Turning the agent on later does not replay it.
 - Home's **Ask Observe Agent** tab says no model is connected.
 - `GET /api/v1/agent` answers `available: false`, and `observe doctor` reports that no model is configured.
 
 ## Allow the agent's network calls
 
-The model calls come from `observe-agent`, the process the server starts whenever a provider is configured, not from the server itself.
+The model calls come from `slashobserve-harness`, the process the server starts whenever a provider is configured, not from the server itself.
 It calls `api.anthropic.com` for `anthropic` and `api.openai.com` for `openai`, over HTTPS, unless `SLASHOBSERVE_LLM_BASE_URL` names another server.
 The [outbound allowlist](../operate/outbound-access.md) does not cover these calls, so a firewall that restricts egress must allow the host.
 
-The server hands the process the provider settings, including the key, when it claims a run, so the process needs no settings of its own.
+That includes the model calls of query drafts.
+The server hands the process the provider settings, including the key, when it claims a run or a query draft, so the process needs no settings of its own.
 It gives the process only `PATH`, `HOME` and `TZ` from its own environment.
 A proxy variable such as `HTTPS_PROXY` set on the server does not reach it, and neither do the provider's own variables such as `ANTHROPIC_API_KEY` or `OPENAI_BASE_URL`.
 Set every value through `SLASHOBSERVE_LLM_*`.

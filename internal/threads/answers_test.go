@@ -333,14 +333,6 @@ func TestAThreadListDecidesAccessOnlyForRunsThatSavedAnAnswer(t *testing.T) {
 			t.Errorf("%s was read %d times, want once", name, n)
 		}
 	}
-
-	clear(gate.asked)
-	if _, _, err := r.comments.List(reading(t.Context()), viewer, p.target.ID, StatusAll, "", 50, ""); err != nil {
-		t.Fatal(err)
-	}
-	if len(gate.asked) != 0 {
-		t.Errorf("the dashboard comments list, which carries no answer, read %d runs", len(gate.asked))
-	}
 }
 
 func TestAThreadListRecordsNoReadOfTheRunsItAnswers(t *testing.T) {

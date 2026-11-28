@@ -14,6 +14,12 @@ import {
 } from "./fold"
 import type { Span } from "./trace-model"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 type SpanSeed = {
   id: string
   parentId?: string | null
@@ -107,7 +113,7 @@ describe("foldGroups", () => {
     expect(group.depth).toBe(2)
     expect(group.parentId).toBe("batch")
     expect(group.slowestMs).toBe(412)
-    expect(group.slowest[0].id).toBe("catalog.index_item-7")
+    expect(nth(group.slowest, 0).id).toBe("catalog.index_item-7")
     expect(group.offset).toBe(0)
     expect(group.width).toBeCloseTo((2059 * 2 + 1) / traceMs)
   })
@@ -161,14 +167,14 @@ describe("foldedRows", () => {
     )
     const members = rows.filter((row) => row.kind === "span").slice(2)
     expect(members).toHaveLength(foldPage)
-    expect(members[0].kind === "span" && members[0].span.id).toBe(
+    expect(nth(members, 0).kind === "span" && nth(members, 0).span.id).toBe(
       "catalog.index_item-7"
     )
     const durations = members.map((row) =>
       row.kind === "span" ? row.span.duration : -1
     )
     expect(durations).toEqual([...durations].sort((a, b) => b - a))
-    const last = rows[rows.length - 1]
+    const last = nth(rows, rows.length - 1)
     expect(last).toMatchObject({ kind: "more", shown: foldPage })
     expect(rowId(last)).toBe(`${groupId}:more`)
     expect(moreLabel(groups.get(groupId)!, foldPage)).toBe(
@@ -296,7 +302,7 @@ describe("revealSpan", () => {
     expect(revealSpan(opened, groups, spans, "catalog.index_item-7")).toEqual(
       new Map([[groupId, foldPage]])
     )
-    const slow = groups.get(groupId)!.slowest[foldPage + 3].id
+    const slow = nth(groups.get(groupId)!.slowest, foldPage + 3).id
     expect(revealSpan(opened, groups, spans, slow).get(groupId)).toBe(
       2 * foldPage
     )

@@ -76,7 +76,7 @@ mcp-sources:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/InvalidMCPSourceError"
                 - $ref: "../openapi.yaml#/components/schemas/Error"
       "500":
@@ -159,7 +159,7 @@ mcp-sources-uid:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/InvalidMCPSourceError"
                 - $ref: "../openapi.yaml#/components/schemas/Error"
       "500":
@@ -212,6 +212,7 @@ mcp-sources-uid-discover:
       An approved tool whose name, description, input schema or read-only mark changed becomes `changed` and is not served until an Admin approves it again.
       An approved tool the server no longer lists becomes `gone`.
       A failed discovery answers 200 with `source.state` `unreachable` and `source.failure` naming why: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
+      Two discoveries of one source may overlap: the one stored second changes nothing and answers 200 with `superseded` true and the source as the other left it.
     responses:
       "200":
         description: The source as discovery left it, and what discovery found.
@@ -347,7 +348,7 @@ mcp-sources-uid-tools-name-approve:
         content:
           application/json:
             schema:
-              oneOf:
+              anyOf:
                 - $ref: "../openapi.yaml#/components/schemas/Error"
                 - $ref: "../openapi.yaml#/components/schemas/ToolRefusedError"
                 - $ref: "../openapi.yaml#/components/schemas/InvalidTransition"

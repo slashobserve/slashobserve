@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { sentence } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -23,7 +24,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { dashboardLink } from "@/lib/links"
-import { sentence } from "@/observe/queries"
 
 import { cleanText } from "@/lib/user-text"
 

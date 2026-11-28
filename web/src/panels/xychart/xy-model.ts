@@ -52,8 +52,8 @@ export type XyOptions = {
   tooltip: XyTooltip
   tooltipSort: TooltipSort
   tooltipHideZeros: boolean
-  tooltipMaxWidth?: number
-  tooltipMaxHeight?: number
+  tooltipMaxWidth?: number | undefined
+  tooltipMaxHeight?: number | undefined
 }
 
 type XyPoint = readonly [
@@ -120,13 +120,13 @@ export type XyPointSummary = {
 }
 
 type SeriesMapping = {
-  query?: string
-  frame?: string
-  x?: string
-  y?: string
-  size?: string
-  color?: string
-  name?: string
+  query?: string | undefined
+  frame?: string | undefined
+  x?: string | undefined
+  y?: string | undefined
+  size?: string | undefined
+  color?: string | undefined
+  name?: string | undefined
 }
 
 export const missingFieldsReason =
@@ -160,6 +160,7 @@ function textOf(value: unknown): string | undefined {
 export function xyOptions(display: Record<string, unknown>): XyOptions {
   const merged = displayWithDefaults("xychart", display)
   const sortBy = merged.legendSortBy
+  const legendWidth = numberOf(merged.legendWidth)
   const sizes = [
     numberOf(merged.pointSizeMin) ?? 1,
     numberOf(merged.pointSizeMax) ?? 1,
@@ -176,15 +177,15 @@ export function xyOptions(display: Record<string, unknown>): XyOptions {
       merged.legend === "right" || merged.legend === "hidden"
         ? merged.legend
         : "bottom",
-    legendMode:
-      merged.legendMode === "list" || merged.legendMode === "table"
-        ? merged.legendMode
-        : undefined,
+    ...(merged.legendMode === "list" || merged.legendMode === "table"
+      ? { legendMode: merged.legendMode }
+      : {}),
     legendValues: (merged.legendValues ?? []) as Reducer[],
-    legendSortBy:
-      typeof sortBy === "string" ? (sortBy as "name" | Reducer) : undefined,
+    ...(typeof sortBy === "string"
+      ? { legendSortBy: sortBy as "name" | Reducer }
+      : {}),
     legendSortDesc: merged.legendSortDesc === true,
-    legendWidth: numberOf(merged.legendWidth),
+    ...(legendWidth === undefined ? {} : { legendWidth }),
     tooltip:
       merged.tooltip === "all" || merged.tooltip === "hidden"
         ? merged.tooltip
@@ -334,13 +335,15 @@ function pointsOf(source: PointSource): XyPoint[] {
     if (tone !== null && toneValue !== null) {
       color =
         displayValue(toneValue, tone.config, {
-          fieldMin: toneRange.min,
-          fieldMax: toneRange.max,
+          ...(toneRange.min === undefined ? {} : { fieldMin: toneRange.min }),
+          ...(toneRange.max === undefined ? {} : { fieldMax: toneRange.max }),
         }).color ?? seriesColor
     } else if (colorByY) {
       color =
-        displayValue(py, yConfig, { fieldMin: min, fieldMax: max }).color ??
-        seriesColor
+        displayValue(py, yConfig, {
+          ...(min === undefined ? {} : { fieldMin: min }),
+          ...(max === undefined ? {} : { fieldMax: max }),
+        }).color ?? seriesColor
     }
     points.push([
       px,
@@ -615,17 +618,21 @@ function buildGrid(model: XyModel): Grid {
         cellOf(axisFraction(model.y, y), size) * size +
         cellOf(axisFraction(model.x, x), size)
       cells[next++] = cell
-      starts[cell + 1]++
+      starts[cell + 1] = (starts[cell + 1] ?? 0) + 1
     }
   })
-  for (let i = 0; i < size * size; i++) starts[i + 1] += starts[i]
+  for (let i = 0; i < size * size; i++) {
+    starts[i + 1] = (starts[i + 1] ?? 0) + (starts[i] ?? 0)
+  }
   const fill = starts.slice(0, size * size)
   const seriesOf = new Int32Array(total)
   const indexOf = new Int32Array(total)
   next = 0
   model.series.forEach(({ points }, series) => {
     for (let index = 0; index < points.length; index++) {
-      const slot = fill[cells[next++]]++
+      const cell = cells[next++] ?? 0
+      const slot = fill[cell] ?? 0
+      fill[cell] = slot + 1
       seriesOf[slot] = series
       indexOf[slot] = index
     }
@@ -667,14 +674,12 @@ export function nearestPoint(
       for (let c = column - ring; c <= column + ring; c += step) {
         if (c < 0 || c >= grid.size) continue
         const cell = r * grid.size + c
-        for (
-          let slot = grid.starts[cell];
-          slot < grid.starts[cell + 1];
-          slot++
-        ) {
-          const series = grid.seriesOf[slot]
-          const index = grid.indexOf[slot]
-          const point = model.series[series].points[index]
+        const end = grid.starts[cell + 1] ?? 0
+        for (let slot = grid.starts[cell] ?? 0; slot < end; slot++) {
+          const series = grid.seriesOf[slot] ?? 0
+          const index = grid.indexOf[slot] ?? 0
+          const point = model.series[series]?.points[index]
+          if (point === undefined) continue
           const dx = axisFraction(model.x, point[0]) * scale.width - px
           const dy = (1 - axisFraction(model.y, point[1])) * scale.height - py
           const squared = dx * dx + dy * dy
@@ -694,8 +699,8 @@ export function pointsAtX(model: XyModel, x: number): XyHit[] {
   model.series.forEach(({ points }, series) => {
     let nearest = -1
     let gap = Infinity
-    for (let index = 0; index < points.length; index++) {
-      const distance = Math.abs(points[index][0] - x)
+    for (const [index, point] of points.entries()) {
+      const distance = Math.abs(point[0] - x)
       if (distance < gap) {
         gap = distance
         nearest = index
@@ -711,11 +716,14 @@ export function tooltipHits(
   hits: readonly XyHit[],
   options: Pick<XyOptions, "tooltipSort" | "tooltipHideZeros">
 ): XyHit[] {
-  const candidates = hits.flatMap((hit, index) =>
-    model.series[hit.series].hideInTooltip
-      ? []
-      : [{ index, value: model.series[hit.series].points[hit.index][1] }]
-  )
+  const candidates = hits.flatMap((hit, index) => {
+    const series = model.series[hit.series]
+    const point = series?.points[hit.index]
+    if (series === undefined || point === undefined || series.hideInTooltip) {
+      return []
+    }
+    return [{ index, value: point[1] }]
+  })
   const { rows } = tooltipRows(
     candidates,
     {
@@ -726,7 +734,10 @@ export function tooltipHits(
     },
     Infinity
   )
-  return rows.map(({ index }) => hits[index])
+  return rows.flatMap(({ index }) => {
+    const hit = hits[index]
+    return hit === undefined ? [] : [hit]
+  })
 }
 
 function tickStep(span: number, count: number): number {
@@ -777,9 +788,12 @@ function channelText(channel: XyChannel, value: number): string {
 export function pointSummary(
   model: XyModel,
   hit: Pick<XyHit, "series" | "index">
-): XyPointSummary {
-  const { points, xConfig, yConfig, size, tone } = model.series[hit.series]
-  const [x, y, , , sizeValue, toneValue] = points[hit.index]
+): XyPointSummary | null {
+  const series = model.series[hit.series]
+  const point = series?.points[hit.index]
+  if (series === undefined || point === undefined) return null
+  const { xConfig, yConfig, size, tone } = series
+  const [x, y, , , sizeValue, toneValue] = point
   const extras: XyPointSummary["extras"] = []
   if (size && sizeValue !== null) {
     extras.push({ name: size.name, text: channelText(size, sizeValue) })

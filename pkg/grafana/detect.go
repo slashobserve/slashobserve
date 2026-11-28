@@ -27,14 +27,6 @@ type source struct {
 
 const maxFolderTitleRunes = 100
 
-func Detect(raw []byte) (Summary, error) {
-	src, err := load(raw)
-	if err != nil {
-		return Summary{}, err
-	}
-	return src.summary(), nil
-}
-
 func (s *source) summary() Summary {
 	summary := Summary{Format: s.format, Bytes: s.bytes}
 	summary.Title = asString(s.dash["title"])

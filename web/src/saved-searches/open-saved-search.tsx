@@ -2,8 +2,8 @@ import { useQuery } from "@tanstack/react-query"
 import { BookmarkIcon, LoaderCircleIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { Button } from "@/components/ui/button"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { matchesSaved, type SearchDraft } from "./draft"
 import { folderLabel } from "./folder-label"

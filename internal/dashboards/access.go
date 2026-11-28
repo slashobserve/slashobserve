@@ -37,6 +37,7 @@ func (s *Service) need(ctx context.Context, by auth.Principal, id pgtype.UUID, n
 func (d Dashboard) WithAccess(a folders.DashboardAccess) Dashboard {
 	d.Folder = a.Folder
 	d.Abilities = a.Shown()
+	d.editsBesidesContent = a.Abilities.Edit
 	d.Provisioned = a.Provisioned
 	d.ManagedBy = a.ManagedBy()
 	return d

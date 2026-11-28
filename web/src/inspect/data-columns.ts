@@ -33,7 +33,8 @@ export function fitColumnWidths(
   const floorTotal = floors.reduce((sum, width) => sum + width, 0)
   if (floorTotal >= available) return [...natural]
   const share = (available - floorTotal) / (total - floorTotal)
-  return natural.map((width, index) =>
-    Math.floor(floors[index] + (width - floors[index]) * share)
-  )
+  return natural.map((width) => {
+    const floor = Math.min(width, squeezedPx)
+    return Math.floor(floor + (width - floor) * share)
+  })
 }

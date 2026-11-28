@@ -1,0 +1,416 @@
+import { Client } from "@modelcontextprotocol/sdk/client/index.js"
+import {
+  StreamableHTTPClientTransport,
+  StreamableHTTPError,
+} from "@modelcontextprotocol/sdk/client/streamableHttp.js"
+import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js"
+import { type z, ZodError } from "zod"
+import {
+  type BriefAnswer,
+  type BriefInput,
+  type CallHints,
+  type ClaimAnswer,
+  type ClaimDraftAnswer,
+  type FinishAnswer,
+  type FinishDraftAnswer,
+  type FinishDraftInput,
+  type FinishInput,
+  type ReleaseAnswer,
+  type ReleaseInput,
+  type ReportAnswer,
+  type ReportInput,
+  type RunMeta,
+  type RunSessionOffer,
+  type TurnMeta,
+  briefAnswer,
+  briefInput,
+  callMetaKey,
+  claimAnswer,
+  claimDraftAnswer,
+  claimInput,
+  finishAnswer,
+  finishDraftAnswer,
+  finishDraftInput,
+  finishInput,
+  noRunMeta,
+  parseToolError,
+  releaseAnswer,
+  releaseInput,
+  reportAnswer,
+  ToolError,
+  reportInput,
+  runMeta,
+  runMetaKey,
+  turnMetaKey,
+} from "./protocol"
+import type { ToolSpec } from "./session/types"
+import { version } from "./version"
+
+export const claimTimeoutMs = 60_000
+// finish_draft answers after the server checks the drafted query, within the draft's 60 seconds.
+export const draftTurnTimeoutMs = 75_000
+export const reportTimeoutMs = 10_000
+export const startReadTimeoutMs = 30_000
+export const maxTimeoutsInRow = 3
+
+export type ToolReply = {
+  content: string
+  isError: boolean
+  structured: unknown
+  meta: RunMeta
+}
+
+export interface RunTools {
+  listTools(timeoutMs: number, signal?: AbortSignal): Promise<ToolSpec[]>
+  callTool(
+    name: string,
+    args: Record<string, unknown>,
+    turn: TurnMeta | undefined,
+    timeoutMs: number,
+    signal?: AbortSignal,
+    hints?: CallHints
+  ): Promise<ToolReply>
+  close(): Promise<void>
+}
+
+export interface ClaimApi {
+  claimRun(waitSeconds: number, signal?: AbortSignal): Promise<ClaimAnswer>
+  getRunBrief(input: BriefInput, signal?: AbortSignal): Promise<BriefAnswer>
+  reportRun(input: ReportInput, signal?: AbortSignal): Promise<ReportAnswer>
+  finishRun(input: FinishInput, signal?: AbortSignal): Promise<FinishAnswer>
+  releaseRun(input: ReleaseInput, signal?: AbortSignal): Promise<ReleaseAnswer>
+  openRun(session: RunSessionOffer): RunTools
+}
+
+export interface DraftApi {
+  claimDraft(
+    waitSeconds: number,
+    signal?: AbortSignal
+  ): Promise<ClaimDraftAnswer>
+  finishDraft(
+    input: FinishDraftInput,
+    signal?: AbortSignal
+  ): Promise<FinishDraftAnswer>
+}
+
+export class ProtocolError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "ProtocolError"
+  }
+}
+
+type Connected = { client: Client }
+
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return undefined
+  }
+}
+
+function isRequestTimeout(error: unknown): boolean {
+  return error instanceof McpError && error.code === ErrorCode.RequestTimeout
+}
+
+function isTransportFailure(error: unknown, signal?: AbortSignal): boolean {
+  if (signal?.aborted) {
+    return false
+  }
+  if (error instanceof McpError) {
+    return (
+      error.code === ErrorCode.RequestTimeout ||
+      error.code === ErrorCode.ConnectionClosed
+    )
+  }
+  return true
+}
+
+export function isRetryable(error: unknown): boolean {
+  if (
+    error instanceof ToolError ||
+    error instanceof ProtocolError ||
+    error instanceof ZodError
+  ) {
+    return false
+  }
+  if (error instanceof StreamableHTTPError) {
+    const status = error.code
+    return (
+      status === 404 ||
+      status === 408 ||
+      status === 429 ||
+      (status !== undefined && status >= 500)
+    )
+  }
+  return isTransportFailure(error)
+}
+
+export class McpClient implements RunTools {
+  private readonly url: URL
+  private readonly token: string
+  private connection: Promise<Connected> | undefined
+  private timeoutsInRow = 0
+
+  constructor(url: URL, token: string) {
+    this.url = url
+    this.token = token
+  }
+
+  private connect(): Promise<Connected> {
+    if (this.connection === undefined) {
+      const attempt = this.open()
+      this.connection = attempt
+      attempt.catch(() => {
+        if (this.connection === attempt) {
+          this.connection = undefined
+        }
+      })
+    }
+    return this.connection
+  }
+
+  private async open(): Promise<Connected> {
+    const transport = new StreamableHTTPClientTransport(this.url, {
+      requestInit: { headers: { Authorization: `Bearer ${this.token}` } },
+    })
+    const client = new Client(
+      { name: "slashobserve-harness", version },
+      { capabilities: {} }
+    )
+    try {
+      await client.connect(transport)
+    } catch (error) {
+      await transport.close().catch(() => undefined)
+      throw error
+    }
+    return { client }
+  }
+
+  private drop(attempt: Promise<Connected>): void {
+    if (this.connection === attempt) {
+      this.connection = undefined
+      this.timeoutsInRow = 0
+      void attempt.then((c) => c.client.close()).catch(() => undefined)
+    }
+  }
+
+  private shouldDrop(error: unknown): boolean {
+    if (!isRequestTimeout(error)) {
+      return true
+    }
+    this.timeoutsInRow += 1
+    return this.timeoutsInRow >= maxTimeoutsInRow
+  }
+
+  private async use<T>(
+    run: (client: Client) => Promise<T>,
+    signal?: AbortSignal
+  ): Promise<T> {
+    const attempt = this.connect()
+    try {
+      const { client } = await attempt
+      const result = await run(client)
+      this.timeoutsInRow = 0
+      return result
+    } catch (error) {
+      if (isTransportFailure(error, signal) && this.shouldDrop(error)) {
+        this.drop(attempt)
+      }
+      throw error
+    }
+  }
+
+  async listTools(
+    timeoutMs: number,
+    signal?: AbortSignal
+  ): Promise<ToolSpec[]> {
+    const specs: ToolSpec[] = []
+    let cursor: string | undefined
+    do {
+      const page = await this.use(
+        (client) =>
+          client.listTools(cursor === undefined ? {} : { cursor }, {
+            timeout: timeoutMs,
+            ...(signal === undefined ? {} : { signal }),
+          }),
+        signal
+      )
+      for (const tool of page.tools) {
+        specs.push({
+          name: tool.name,
+          description: tool.description ?? "",
+          inputSchema: tool.inputSchema,
+          ...(tool.annotations?.readOnlyHint === undefined
+            ? {}
+            : { readOnly: tool.annotations.readOnlyHint }),
+        })
+      }
+      cursor = page.nextCursor
+    } while (cursor !== undefined)
+    return specs
+  }
+
+  async callTool(
+    name: string,
+    args: Record<string, unknown>,
+    turn: TurnMeta | undefined,
+    timeoutMs: number,
+    signal?: AbortSignal,
+    hints?: CallHints
+  ): Promise<ToolReply> {
+    const sent: Record<string, unknown> = {}
+    if (turn !== undefined) {
+      sent[turnMetaKey] = turn
+    }
+    if (hints !== undefined) {
+      sent[callMetaKey] = hints
+    }
+    const result = await this.use(
+      (client) =>
+        client.callTool(
+          {
+            name,
+            arguments: args,
+            ...(Object.keys(sent).length === 0 ? {} : { _meta: sent }),
+          },
+          undefined,
+          { timeout: timeoutMs, ...(signal === undefined ? {} : { signal }) }
+        ),
+      signal
+    )
+    const blocks = Array.isArray(result.content) ? result.content : []
+    const content = blocks
+      .map((block) => (block.type === "text" ? block.text : ""))
+      .join("")
+    const meta = runMeta.safeParse(result._meta?.[runMetaKey])
+    return {
+      content,
+      isError: result.isError === true,
+      structured: result.structuredContent,
+      meta: meta.success ? meta.data : noRunMeta,
+    }
+  }
+
+  async claimTool<S extends z.ZodType>(
+    name: string,
+    args: Record<string, unknown>,
+    answer: S,
+    timeoutMs: number,
+    signal?: AbortSignal
+  ): Promise<z.output<S>> {
+    const reply = await this.callTool(name, args, undefined, timeoutMs, signal)
+    if (reply.isError) {
+      throw parseToolError(reply.content)
+    }
+    const parsed = answer.safeParse(
+      reply.structured ?? parseJson(reply.content)
+    )
+    if (!parsed.success) {
+      throw new ProtocolError(
+        `${name} answered a shape the harness cannot read`
+      )
+    }
+    return parsed.data
+  }
+
+  async close(): Promise<void> {
+    const attempt = this.connection
+    this.connection = undefined
+    if (attempt !== undefined) {
+      await attempt.then((c) => c.client.close()).catch(() => undefined)
+    }
+  }
+}
+
+export class ClaimClient implements ClaimApi, DraftApi {
+  private readonly base: McpClient
+
+  constructor(base: McpClient) {
+    this.base = base
+  }
+
+  claimDraft(
+    waitSeconds: number,
+    signal?: AbortSignal
+  ): Promise<ClaimDraftAnswer> {
+    return this.base.claimTool(
+      "claim_draft",
+      claimInput.parse({ wait_seconds: waitSeconds }),
+      claimDraftAnswer,
+      claimTimeoutMs,
+      signal
+    )
+  }
+
+  finishDraft(
+    input: FinishDraftInput,
+    signal?: AbortSignal
+  ): Promise<FinishDraftAnswer> {
+    return this.base.claimTool(
+      "finish_draft",
+      finishDraftInput.parse(input),
+      finishDraftAnswer,
+      draftTurnTimeoutMs,
+      signal
+    )
+  }
+
+  claimRun(waitSeconds: number, signal?: AbortSignal): Promise<ClaimAnswer> {
+    return this.base.claimTool(
+      "claim_run",
+      claimInput.parse({ wait_seconds: waitSeconds }),
+      claimAnswer,
+      claimTimeoutMs,
+      signal
+    )
+  }
+
+  getRunBrief(input: BriefInput, signal?: AbortSignal): Promise<BriefAnswer> {
+    return this.base.claimTool(
+      "get_run_brief",
+      briefInput.parse(input),
+      briefAnswer,
+      startReadTimeoutMs,
+      signal
+    )
+  }
+
+  reportRun(input: ReportInput, signal?: AbortSignal): Promise<ReportAnswer> {
+    return this.base.claimTool(
+      "report_run",
+      reportInput.parse(input),
+      reportAnswer,
+      reportTimeoutMs,
+      signal
+    )
+  }
+
+  finishRun(input: FinishInput, signal?: AbortSignal): Promise<FinishAnswer> {
+    return this.base.claimTool(
+      "finish_run",
+      finishInput.parse(input),
+      finishAnswer,
+      reportTimeoutMs,
+      signal
+    )
+  }
+
+  releaseRun(
+    input: ReleaseInput,
+    signal?: AbortSignal
+  ): Promise<ReleaseAnswer> {
+    return this.base.claimTool(
+      "release_run",
+      releaseInput.parse(input),
+      releaseAnswer,
+      reportTimeoutMs,
+      signal
+    )
+  }
+
+  openRun(session: RunSessionOffer): RunTools {
+    return new McpClient(new URL(session.url), session.token)
+  }
+}

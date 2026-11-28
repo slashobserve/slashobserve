@@ -13,7 +13,7 @@ func (d *Datasource) TraceLogs(ctx context.Context, req datasource.TraceLogsRequ
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
-	ctx, cancel := bound(ctx, d.opts.Limits.Timeout)
+	ctx, cancel := datasource.Bound(ctx, d.opts.Limits.Timeout)
 	defer cancel()
 	m, err := d.Mapping(ctx)
 	if err != nil {

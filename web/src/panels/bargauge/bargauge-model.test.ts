@@ -1,13 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import type { StableActionRunner } from "@/panels/actions/action-runner"
+import { itemInteraction } from "@/panels/actions/item-interaction"
 import { createFieldResolver } from "@/panels/field-config"
 import type { PreparedFrame } from "@/panels/transforms"
 import { displayWithDefaults, type DataPanel } from "@/spec"
 
 import {
-  barActions,
   barLimits,
-  barLinks,
+  barScope,
   barSizes,
   barStyleOf,
   bargaugeModel,
@@ -20,6 +21,33 @@ import {
   valueModeOf,
 } from "./bargauge-model"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
+const noRunner: StableActionRunner = {
+  context: null,
+  reason: null,
+  open: () => {},
+  panelId: "p1",
+  fromMs: 0,
+  toMs: 0,
+}
+
+function barInteraction(...args: Parameters<typeof barScope>) {
+  return itemInteraction(args[1], barScope(...args), noRunner)
+}
+
+function barLinks(...args: Parameters<typeof barScope>) {
+  return barInteraction(...args).links
+}
+
+function barActions(...args: Parameters<typeof barScope>) {
+  return barInteraction(...args).actions
+}
+
 beforeEach(() => {
   vi.stubGlobal("location", { origin: "https://observe.example.com" })
 })
@@ -27,6 +55,13 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals()
 })
+
+function two<T>(items: readonly T[]): [T, T] {
+  const [first, second] = items
+  expect(first).toBeDefined()
+  expect(second).toBeDefined()
+  return [first as T, second as T]
+}
 
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
   return {
@@ -111,7 +146,7 @@ describe("bars", () => {
 
   it("names a bar by its display name", () => {
     const { model } = build([series([1])], { displayName: "Pods" })
-    expect(model.bars[0].name).toBe("Pods")
+    expect(nth(model.bars, 0).name).toBe("Pods")
   })
 
   it("keeps the order of the frames", () => {
@@ -152,12 +187,16 @@ describe("reducer", () => {
   const frames = [series([5, 9, 2, null])]
 
   it("reduces with the last non-null value by default", () => {
-    expect(build(frames).model.bars[0].value).toBe(2)
+    expect(nth(build(frames).model.bars, 0).value).toBe(2)
   })
 
   it("reduces with the chosen reducer", () => {
-    expect(build(frames, {}, { reduce: "max" }).model.bars[0].value).toBe(9)
-    expect(build(frames, {}, { reduce: "sum" }).model.bars[0].value).toBe(16)
+    expect(nth(build(frames, {}, { reduce: "max" }).model.bars, 0).value).toBe(
+      9
+    )
+    expect(nth(build(frames, {}, { reduce: "sum" }).model.bars, 0).value).toBe(
+      16
+    )
   })
 })
 
@@ -165,37 +204,56 @@ describe("range", () => {
   const frames = [series([2], { pod: "a" }), series([8], { pod: "b" })]
 
   it("runs from zero to the largest value", () => {
-    const [a, b] = build(frames).model.bars
+    const [a, b] = two(build(frames).model.bars)
     expect([a.min, a.max]).toEqual([0, 8])
     expect([a.fraction, b.fraction]).toEqual([0.25, 1])
   })
 
+  it("takes the data range from the raw values, not the reduced ones", () => {
+    const bar = nth(
+      build([series([100, 10])], {}, { reduce: "last" }).model.bars,
+      0
+    )
+    expect([bar.value, bar.min, bar.max, bar.fraction]).toEqual([
+      10, 0, 100, 0.1,
+    ])
+  })
+
   it("starts below zero when a value is negative", () => {
     const { model } = build([series([-4]), series([4])])
-    expect(model.bars[0].min).toBe(-4)
+    expect(nth(model.bars, 0).min).toBe(-4)
     expect(model.bars.map((bar) => bar.fraction)).toEqual([0, 1])
   })
 
   it("uses the configured min and max", () => {
-    const [a, b] = build(frames, { min: 0, max: 16 }).model.bars
+    const [a, b] = two(build(frames, { min: 0, max: 16 }).model.bars)
     expect([a.min, a.max]).toEqual([0, 16])
     expect([a.fraction, b.fraction]).toEqual([0.125, 0.5])
   })
 
   it("keeps the data range for a bound the field leaves out", () => {
-    const [a] = build(frames, { max: 20 }).model.bars
+    const a = nth(build(frames, { max: 20 }).model.bars, 0)
     expect([a.min, a.max]).toEqual([0, 20])
   })
 
   it("spans 0 to 100 for percent and 0 to 1 for percentunit", () => {
-    const percent = build([series([25])], { unit: "percent" }).model.bars[0]
+    const percent = nth(
+      build([series([25])], { unit: "percent" }).model.bars,
+      0
+    )
     expect([percent.min, percent.max, percent.fraction]).toEqual([0, 100, 0.25])
-    const unit = build([series([0.5])], { unit: "percentunit" }).model.bars[0]
+    const unit = nth(
+      build([series([0.5])], { unit: "percentunit" }).model.bars,
+      0
+    )
     expect([unit.min, unit.max, unit.fraction]).toEqual([0, 1, 0.5])
   })
 
   it("lets a configured bound replace the one a percent unit implies", () => {
-    const [bar] = build([series([25])], { unit: "percent", max: 50 }).model.bars
+    const bar = nth(
+      build([series([25])], { unit: "percent", max: 50 }).model.bars,
+      0
+    )
     expect([bar.min, bar.max, bar.fraction]).toEqual([0, 50, 0.5])
   })
 
@@ -215,13 +273,18 @@ describe("range", () => {
   })
 
   it("starts a bar below zero with fieldMinMax when its field does", () => {
-    const [bar] = build([series([-4, 4])], { fieldMinMax: true }).model.bars
+    const bar = nth(
+      build([series([-4, 4])], { fieldMinMax: true }).model.bars,
+      0
+    )
     expect([bar.min, bar.max]).toEqual([-4, 4])
   })
 
   it("lets a configured bound replace the field's own range", () => {
-    const [bar] = build([series([2, 5])], { fieldMinMax: true, max: 10 }).model
-      .bars
+    const bar = nth(
+      build([series([2, 5])], { fieldMinMax: true, max: 10 }).model.bars,
+      0
+    )
     expect([bar.min, bar.max]).toEqual([0, 10])
   })
 
@@ -229,29 +292,29 @@ describe("range", () => {
     const { model } = build(frames, {
       overrides: [{ match: { series: '{pod="a"}' }, min: 0, max: 4 }],
     })
-    const [a, b] = model.bars
+    const [a, b] = two(model.bars)
     expect([a.max, a.fraction]).toEqual([4, 0.5])
     expect([b.max, b.fraction]).toEqual([8, 1])
   })
 
   it("clamps the fill to the range", () => {
-    const [a, b] = build(frames, { min: 3, max: 5 }).model.bars
+    const [a, b] = two(build(frames, { min: 3, max: 5 }).model.bars)
     expect(a.fraction).toBe(0)
     expect(b.fraction).toBe(1)
   })
 
   it("widens an empty range by one", () => {
     const { model } = build([series([0])])
-    expect([model.bars[0].min, model.bars[0].max]).toEqual([0, 1])
-    const flat = build([series([5])], { min: 5, max: 5 }).model.bars[0]
+    expect([nth(model.bars, 0).min, nth(model.bars, 0).max]).toEqual([0, 1])
+    const flat = nth(build([series([5])], { min: 5, max: 5 }).model.bars, 0)
     expect([flat.min, flat.max, flat.fraction]).toEqual([5, 6, 0])
-    const inverted = build([series([5])], { min: 9, max: 3 }).model.bars[0]
+    const inverted = nth(build([series([5])], { min: 9, max: 3 }).model.bars, 0)
     expect([inverted.min, inverted.max]).toEqual([9, 10])
   })
 
   it("draws an empty bar for a value that is null", () => {
     const { model } = build([series([null])], { min: -5, max: 5 })
-    const [bar] = model.bars
+    const bar = nth(model.bars, 0)
     expect(bar.value).toBeNull()
     expect(bar.fraction).toBe(0)
     expect(bar.text).toBe("-")
@@ -264,7 +327,7 @@ describe("text and color", () => {
     thresholds: [
       { color: "ok" },
       { value: 0.5, color: "warning" },
-    ] as DataPanel["thresholds"],
+    ] as NonNullable<DataPanel["thresholds"]>,
   }
 
   it("shares decimals between bars of one unit", () => {
@@ -290,7 +353,7 @@ describe("text and color", () => {
 
   it("colors a bar by its threshold with the level and word", () => {
     const { model } = build(frames, thresholds)
-    const [low, high] = model.bars
+    const [low, high] = two(model.bars)
     expect([low.threshold, low.word, low.color]).toEqual([
       "ok",
       "OK",
@@ -304,12 +367,12 @@ describe("text and color", () => {
   })
 
   it("leaves a bar without thresholds uncolored at the base level", () => {
-    const [bar] = build(frames).model.bars
+    const bar = nth(build(frames).model.bars, 0)
     expect([bar.color, bar.threshold, bar.word]).toEqual([null, "base", ""])
   })
 
   it("colors a bar by its fixed color", () => {
-    const [bar] = build(frames, { color: "info" }).model.bars
+    const bar = nth(build(frames, { color: "info" }).model.bars, 0)
     expect([bar.color, bar.threshold]).toEqual([
       "var(--threshold-info)",
       "base",
@@ -321,7 +384,7 @@ describe("text and color", () => {
       ...thresholds,
       mappings: [{ value: "0.9", text: "Down", color: "critical" }],
     })
-    const high = model.bars[1]
+    const high = nth(model.bars, 1)
     expect([high.text, high.color, high.threshold, high.word]).toEqual([
       "Down",
       "var(--threshold-critical)",
@@ -336,7 +399,7 @@ describe("text and color", () => {
       thresholds: [
         { color: "ok" },
         { value: 60, color: "critical" },
-      ] as DataPanel["thresholds"],
+      ] as NonNullable<DataPanel["thresholds"]>,
     })
     expect(model.bars.map((bar) => bar.threshold)).toEqual(["ok", "critical"])
   })
@@ -354,7 +417,7 @@ describe("data links", () => {
     frames = [series([3], { pod: "a" })]
   ) {
     const { fields, display, model } = build(frames, extra)
-    return barLinks(fields, model.bars[0], reducerOf(display), {
+    return barLinks(fields, nth(model.bars, 0), reducerOf(display), {
       vars: {},
       fields,
     })
@@ -394,7 +457,7 @@ describe("data links", () => {
       url: "/h/${__data.fields.host}?o=${__data.fields.other}&v=${__data.fields.Value}",
     }
     const { fields, display, model } = build([frame], { links: [row] })
-    const [first] = model.bars
+    const first = nth(model.bars, 0)
     expect(
       barLinks(fields, first, reducerOf(display), { vars: {}, fields })
     ).toEqual([{ title: "Open", href: "/h/new?o=9&v=7", newTab: false }])
@@ -437,7 +500,7 @@ describe("bar field actions", () => {
   })
 
   it("marks the panel's own actions with no override", () => {
-    const [first] = actionsOf({ actions: [restart] })
+    const first = nth(actionsOf({ actions: [restart] }), 0)
     expect(first).toMatchObject([{ title: "Restart", override: null }])
   })
 
@@ -446,8 +509,8 @@ describe("bar field actions", () => {
   })
 
   it("reads data fields from the reduced values of the frame", () => {
-    const [first] = actionsOf({ actions: [restart] })
-    expect(first[0].fields).toEqual({ host: "new" })
+    const first = nth(actionsOf({ actions: [restart] }), 0)
+    expect(nth(first, 0).fields).toEqual({ host: "new" })
   })
 })
 
@@ -476,11 +539,11 @@ describe("bargaugeModel value options", () => {
       { links: [link] } as Partial<DataPanel>,
       { allValues: true }
     )
-    const resolved = barLinks(fields, model.bars[1], reducerOf(display), {
+    const resolved = barLinks(fields, nth(model.bars, 1), reducerOf(display), {
       vars: {},
       fields,
     })
-    expect(resolved[0].href).toBe("/r?v=40&t=1")
+    expect(nth(resolved, 0).href).toBe("/r?v=40&t=1")
   })
 
   it("shows only the fields a pattern picks", () => {

@@ -17,8 +17,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/elasticsearch"
-	"github.com/slashobserve/slashobserve/internal/llm"
-	"github.com/slashobserve/slashobserve/internal/llm/replay"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -29,7 +27,7 @@ const cpuQuestionReason = "CPU usage of a pod is a resource metric, and this Lok
 
 var draftViewer = auth.Principal{Kind: auth.KindUser, ID: "viewer-1", Role: auth.RoleViewer}
 
-func draftRegistry(t *testing.T, provider llm.Provider, fakes map[string]*fakeDS) *Registry {
+func draftRegistry(t *testing.T, provider DraftModel, fakes map[string]*fakeDS) *Registry {
 	t.Helper()
 	logger := slog.New(slog.DiscardHandler)
 	var instances []datasource.Instance
@@ -40,7 +38,7 @@ func draftRegistry(t *testing.T, provider llm.Provider, fakes map[string]*fakeDS
 	if err != nil {
 		t.Fatal(err)
 	}
-	return New(Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger), Provider: provider, Logger: logger})
+	return New(Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger), Drafts: provider, Logger: logger})
 }
 
 func draftCatalog(labels []string, values map[string][]string) func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
@@ -85,51 +83,18 @@ func draftFakes() map[string]*fakeDS {
 	}
 }
 
-type countingProvider struct {
-	llm.Provider
-	mu    sync.Mutex
-	nexts int
-}
-
-func (p *countingProvider) Start(ctx context.Context, req llm.Request) (llm.Session, error) {
-	s, err := p.Provider.Start(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	return &countingSession{Session: s, p: p}, nil
-}
-
-func (p *countingProvider) calls() int {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.nexts
-}
-
-type countingSession struct {
-	llm.Session
-	p *countingProvider
-}
-
-func (s *countingSession) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn, error) {
-	s.p.mu.Lock()
-	s.p.nexts++
-	s.p.mu.Unlock()
-	return s.Session.Next(ctx, results)
-}
-
 type scriptedDraft struct {
-	turns    []llm.Turn
+	turns    []DraftTurn
 	release  chan struct{}
 	entered  chan struct{}
 	mu       sync.Mutex
-	requests []llm.Request
-	results  [][]llm.ToolResult
+	requests []DraftRequest
+	results  [][]DraftResult
 }
 
-func (p *scriptedDraft) Name() string  { return "scripted" }
-func (p *scriptedDraft) Model() string { return "scripted" }
+func (p *scriptedDraft) Available() bool { return true }
 
-func (p *scriptedDraft) Start(_ context.Context, req llm.Request) (llm.Session, error) {
+func (p *scriptedDraft) Start(_ context.Context, req DraftRequest) (DraftSession, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.requests = append(p.requests, req)
@@ -141,7 +106,7 @@ type scriptedDraftSession struct {
 	next int
 }
 
-func (s *scriptedDraftSession) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn, error) {
+func (s *scriptedDraftSession) Next(ctx context.Context, results []DraftResult) (DraftTurn, error) {
 	p := s.p
 	if p.entered != nil {
 		p.entered <- struct{}{}
@@ -150,45 +115,128 @@ func (s *scriptedDraftSession) Next(ctx context.Context, results []llm.ToolResul
 		select {
 		case <-p.release:
 		case <-ctx.Done():
-			return llm.Turn{}, ctx.Err()
+			return DraftTurn{}, ctx.Err()
 		}
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.results = append(p.results, results)
 	if s.next >= len(p.turns) {
-		return llm.Turn{Stop: llm.StopEndTurn, Usage: llm.Usage{Calls: 1}}, nil
+		return DraftTurn{Stop: DraftStopEndTurn}, nil
 	}
 	turn := p.turns[s.next]
 	s.next++
-	turn.Usage.Calls = 1
 	return turn, nil
 }
 
-func (s *scriptedDraftSession) Compact(llm.Compaction) error { return nil }
+func (s *scriptedDraftSession) Close() {}
 
-func submitTurn(input string) llm.Turn {
-	return llm.Turn{Stop: llm.StopToolUse, ToolCalls: []llm.ToolCall{{ID: "call-1", Name: nameSubmitQuery, Input: json.RawMessage(input)}}}
+func submitTurn(input string) DraftTurn {
+	return DraftTurn{Stop: DraftStopToolUse, ToolCalls: []DraftCall{{ID: "call-1", Name: nameSubmitQuery, Input: json.RawMessage(input)}}}
 }
 
-func replayProvider(t *testing.T) *countingProvider {
-	t.Helper()
-	p, err := replay.New(draftFixtures, 0, slog.New(slog.DiscardHandler))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return &countingProvider{Provider: p}
-}
-
-func viewerContext() context.Context {
-	return auth.WithPrincipal(reading(context.Background()), draftViewer)
+type fixtureFile struct {
+	Prompt string        `json:"prompt"`
+	Turns  []fixtureTurn `json:"turns"`
 }
 
 type fixtureTurn struct {
+	Text      string `json:"text"`
 	ToolCalls []struct {
 		Name  string          `json:"name"`
 		Input json.RawMessage `json:"input"`
 	} `json:"tool_calls"`
+	Expect []struct {
+		IsError  bool   `json:"is_error"`
+		Contains string `json:"contains"`
+	} `json:"expect"`
+}
+
+// fixtureModel plays testdata/draft the way the harness's replay provider plays a fixture: matched by the prompt's
+// words, lowercased, one turn per call, each later turn checking the tool result it was sent.
+type fixtureModel struct {
+	fixtures map[string]fixtureFile
+	mu       sync.Mutex
+	nexts    int
+}
+
+func replayProvider(t *testing.T) *fixtureModel {
+	t.Helper()
+	entries, err := os.ReadDir(draftFixtures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := &fixtureModel{fixtures: map[string]fixtureFile{}}
+	for _, e := range entries {
+		raw, err := fs.ReadFile(os.DirFS(draftFixtures), e.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		var f fixtureFile
+		if err := json.Unmarshal(raw, &f); err != nil {
+			t.Fatal(err)
+		}
+		m.fixtures[fixtureKey(f.Prompt)] = f
+	}
+	return m
+}
+
+func fixtureKey(prompt string) string {
+	return strings.Join(strings.Fields(strings.ToLower(prompt)), " ")
+}
+
+func (m *fixtureModel) Available() bool { return true }
+
+func (m *fixtureModel) Start(_ context.Context, req DraftRequest) (DraftSession, error) {
+	f, ok := m.fixtures[fixtureKey(req.Prompt)]
+	return &fixtureSession{m: m, f: f, found: ok}, nil
+}
+
+func (m *fixtureModel) calls() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.nexts
+}
+
+type fixtureSession struct {
+	m     *fixtureModel
+	f     fixtureFile
+	found bool
+	next  int
+}
+
+func (s *fixtureSession) Next(_ context.Context, results []DraftResult) (DraftTurn, error) {
+	s.m.mu.Lock()
+	s.m.nexts++
+	s.m.mu.Unlock()
+	if !s.found {
+		return DraftTurn{}, &DraftModelError{Failure: DraftFailureNoFixture}
+	}
+	if s.next >= len(s.f.Turns) {
+		return DraftTurn{}, fmt.Errorf("fixture %q has no turn %d", s.f.Prompt, s.next+1)
+	}
+	turn := s.f.Turns[s.next]
+	s.next++
+	if turn.Expect != nil && len(turn.Expect) != len(results) {
+		return DraftTurn{}, fmt.Errorf("fixture %q turn %d expected %d results, got %+v", s.f.Prompt, s.next, len(turn.Expect), results)
+	}
+	for i, e := range turn.Expect {
+		if results[i].IsError != e.IsError || !strings.Contains(results[i].Content, e.Contains) {
+			return DraftTurn{}, fmt.Errorf("fixture %q turn %d expected a result like %+v, got %+v", s.f.Prompt, s.next, e, results[i])
+		}
+	}
+	out := DraftTurn{Stop: DraftStopEndTurn}
+	for i, c := range turn.ToolCalls {
+		out.Stop = DraftStopToolUse
+		out.ToolCalls = append(out.ToolCalls, DraftCall{ID: fmt.Sprintf("call-%d", i+1), Name: c.Name, Input: c.Input})
+	}
+	return out, nil
+}
+
+func (s *fixtureSession) Close() {}
+
+func viewerContext() context.Context {
+	return auth.WithPrincipal(reading(context.Background()), draftViewer)
 }
 
 func fixtureOf(t *testing.T, file string) (prompt string, turns []fixtureTurn) {
@@ -197,10 +245,7 @@ func fixtureOf(t *testing.T, file string) (prompt string, turns []fixtureTurn) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var f struct {
-		Prompt string        `json:"prompt"`
-		Turns  []fixtureTurn `json:"turns"`
-	}
+	var f fixtureFile
 	if err := json.Unmarshal(raw, &f); err != nil {
 		t.Fatal(err)
 	}
@@ -303,7 +348,7 @@ func TestDraftGivesUpAfterOneCorrection(t *testing.T) {
 }
 
 func TestDraftCorrectionCarriesTheFailureAsTheToolResult(t *testing.T) {
-	provider := &scriptedDraft{turns: []llm.Turn{
+	provider := &scriptedDraft{turns: []DraftTurn{
 		submitTurn(`{"query":"{service_name=\"checkout\"","explanation":"Checkout lines."}`),
 		submitTurn(`{"query":"{service_name=\"checkout\"}","explanation":"Checkout lines."}`),
 	}}
@@ -339,7 +384,7 @@ func TestDraftBrokenRuleEndsWithoutACorrection(t *testing.T) {
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
-			provider := &scriptedDraft{turns: []llm.Turn{submitTurn(c.input), submitTurn(c.input)}}
+			provider := &scriptedDraft{turns: []DraftTurn{submitTurn(c.input), submitTurn(c.input)}}
 			r := draftRegistry(t, provider, draftFakes())
 			_, err := r.DraftQuery(viewerContext(), DraftInput{DatasourceUID: c.uid, Question: "traces", Signal: signalTraces})
 			reason := cannotTranslate(t, err)
@@ -352,18 +397,18 @@ func TestDraftBrokenRuleEndsWithoutACorrection(t *testing.T) {
 
 func TestDraftTurnsWithoutAnAnswer(t *testing.T) {
 	cases := map[string]struct {
-		turn llm.Turn
+		turn DraftTurn
 		want string
 	}{
-		"refusal":      {llm.Turn{Stop: llm.StopRefusal}, reasonDeclined},
-		"max tokens":   {llm.Turn{Stop: llm.StopMaxTokens}, reasonCutOff},
-		"two calls":    {llm.Turn{Stop: llm.StopToolUse, ToolCalls: []llm.ToolCall{{ID: "a", Name: nameSubmitQuery}, {ID: "b", Name: nameSubmitQuery}}}, reasonNoQuery},
-		"unknown tool": {llm.Turn{Stop: llm.StopToolUse, ToolCalls: []llm.ToolCall{{ID: "a", Name: "lint_query", Input: json.RawMessage(`{}`)}}}, reasonNoQuery},
-		"empty reason": {llm.Turn{Stop: llm.StopToolUse, ToolCalls: []llm.ToolCall{{ID: "a", Name: nameCannotTranslate, Input: json.RawMessage(`{"reason":" "}`)}}}, reasonNoQuery},
+		"refusal":      {DraftTurn{Stop: DraftStopRefusal}, reasonDeclined},
+		"max tokens":   {DraftTurn{Stop: DraftStopMaxTokens}, reasonCutOff},
+		"two calls":    {DraftTurn{Stop: DraftStopToolUse, ToolCalls: []DraftCall{{ID: "a", Name: nameSubmitQuery}, {ID: "b", Name: nameSubmitQuery}}}, reasonNoQuery},
+		"unknown tool": {DraftTurn{Stop: DraftStopToolUse, ToolCalls: []DraftCall{{ID: "a", Name: "lint_query", Input: json.RawMessage(`{}`)}}}, reasonNoQuery},
+		"empty reason": {DraftTurn{Stop: DraftStopToolUse, ToolCalls: []DraftCall{{ID: "a", Name: nameCannotTranslate, Input: json.RawMessage(`{"reason":" "}`)}}}, reasonNoQuery},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := draftRegistry(t, &scriptedDraft{turns: []llm.Turn{c.turn}}, draftFakes())
+			r := draftRegistry(t, &scriptedDraft{turns: []DraftTurn{c.turn}}, draftFakes())
 			_, err := r.DraftQuery(viewerContext(), DraftInput{DatasourceUID: "loki", Question: "errors"})
 			if reason := cannotTranslate(t, err); reason != c.want {
 				t.Fatalf("reason %q, want %q", reason, c.want)
@@ -388,7 +433,7 @@ func TestDraftCannotTranslateFixtures(t *testing.T) {
 }
 
 func TestDraftWarnsAboutAnUnseenService(t *testing.T) {
-	provider := &scriptedDraft{turns: []llm.Turn{submitTurn(`{"trace_filters":{"service":"shipping"},"explanation":"Shipping traces."}`)}}
+	provider := &scriptedDraft{turns: []DraftTurn{submitTurn(`{"trace_filters":{"service":"shipping"},"explanation":"Shipping traces."}`)}}
 	r := draftRegistry(t, provider, draftFakes())
 	draft, err := r.DraftQuery(viewerContext(), DraftInput{DatasourceUID: "tempo", Question: "shipping traces"})
 	if err != nil {
@@ -405,7 +450,7 @@ func TestDraftReturnsAnEmptySampleWithAWarning(t *testing.T) {
 	fakes["loki"].instantFn = func(context.Context, datasource.Query, datasource.TimeRange) ([]datasource.Frame, error) {
 		return nil, nil
 	}
-	provider := &scriptedDraft{turns: []llm.Turn{submitTurn(`{"query":"{service_name=~\".+\"}","explanation":"Every line."}`)}}
+	provider := &scriptedDraft{turns: []DraftTurn{submitTurn(`{"query":"{service_name=~\".+\"}","explanation":"Every line."}`)}}
 	r := draftRegistry(t, provider, fakes)
 	draft, err := r.DraftQuery(viewerContext(), DraftInput{DatasourceUID: "loki", Question: "everything"})
 	if err != nil {
@@ -448,7 +493,7 @@ func TestDraftWritesKQLOnElasticsearchAndOpenSearch(t *testing.T) {
 		for _, c := range cases {
 			t.Run(typ+" "+c.name, func(t *testing.T) {
 				answer, _ := json.Marshal(map[string]string{"query": c.answer, "explanation": "Checkout errors."})
-				provider := &scriptedDraft{turns: []llm.Turn{submitTurn(string(answer))}}
+				provider := &scriptedDraft{turns: []DraftTurn{submitTurn(string(answer))}}
 				r := searchRegistry(t, provider, searchDraftDS(typ))
 				draft, err := r.DraftQuery(viewerContext(), DraftInput{DatasourceUID: "es", Question: "checkout errors"})
 				if err != nil {
@@ -466,7 +511,7 @@ func TestDraftWritesKQLOnElasticsearchAndOpenSearch(t *testing.T) {
 }
 
 func TestDraftFixesAKQLQueryThatFailsItsLint(t *testing.T) {
-	provider := &scriptedDraft{turns: []llm.Turn{
+	provider := &scriptedDraft{turns: []DraftTurn{
 		submitTurn(`{"query":"((service.name:checkout","explanation":"Checkout lines."}`),
 		submitTurn(`{"query":"service.name:checkout","explanation":"Checkout lines."}`),
 	}}
@@ -585,16 +630,16 @@ func TestDraftTimeoutMapsOnlyItsOwnDeadline(t *testing.T) {
 }
 
 func TestDraftProviderFailures(t *testing.T) {
-	rateLimited := llm.NewCallError("anthropic", llm.RateLimited, 429)
 	cases := []struct {
 		err  error
 		want error
 		text string
 	}{
-		{rateLimited, ErrDraftProvider, "rate limited"},
-		{llm.NewCallError("anthropic", llm.ProviderError, 500), ErrDraftProvider, ""},
-		{fmt.Errorf("start: %w", llm.ErrProvider), ErrDraftProvider, ""},
+		{&DraftModelError{Failure: DraftFailureRateLimited}, ErrDraftProvider, "rate limited"},
+		{&DraftModelError{Failure: DraftFailureProviderError}, ErrDraftProvider, ""},
+		{fmt.Errorf("next: %w", &DraftModelError{Failure: DraftFailureCallTimeout}), ErrDraftProvider, ""},
 		{context.Canceled, context.Canceled, ""},
+		{ErrDraftStopped, ErrDraftStopped, ""},
 	}
 	for _, c := range cases {
 		got := modelFailure(c.err)
@@ -602,7 +647,13 @@ func TestDraftProviderFailures(t *testing.T) {
 			t.Errorf("modelFailure(%v) = %v", c.err, got)
 		}
 	}
-	if reason := cannotTranslate(t, modelFailure(llm.ErrNoFixture)); reason != reasonNoReplay {
+	if code, _, ok := DraftFailure(modelFailure(&DraftModelError{Failure: DraftFailureError})); ok {
+		t.Errorf("an unknown model failure maps to the code %s, want an internal error", code)
+	}
+	if code, message, _ := DraftFailure(ErrDraftStopped); code != "agent_unavailable" || message != ErrDraftStopped.Error() {
+		t.Errorf("a stopped agent = %s %q", code, message)
+	}
+	if reason := cannotTranslate(t, modelFailure(&DraftModelError{Failure: DraftFailureNoFixture})); reason != reasonNoReplay {
 		t.Errorf("no fixture reason %q", reason)
 	}
 }
@@ -695,11 +746,7 @@ func TestDraftLogsNoQuestionOrQueryText(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := replay.New(draftFixtures, 0, slog.New(slog.DiscardHandler))
-	if err != nil {
-		t.Fatal(err)
-	}
-	r := New(Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger), Provider: p, Logger: logger})
+	r := New(Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger), Drafts: replayProvider(t), Logger: logger})
 	if _, err := r.DraftQuery(viewerContext(), DraftInput{DatasourceUID: "loki", Question: "checkout lines with a timeout"}); err != nil {
 		t.Fatal(err)
 	}
@@ -730,7 +777,7 @@ func (f *fakeBudget) Spend(_ context.Context, key string) (bool, time.Duration, 
 }
 
 func TestDraftRefusesAQuestionOnceTheHourlyBudgetIsSpent(t *testing.T) {
-	provider := &scriptedDraft{turns: []llm.Turn{submitTurn(`{"query":"{service_name=\"checkout\"}","explanation":"Checkout lines."}`)}}
+	provider := &scriptedDraft{turns: []DraftTurn{submitTurn(`{"query":"{service_name=\"checkout\"}","explanation":"Checkout lines."}`)}}
 	r := draftRegistry(t, provider, draftFakes())
 	budget := &fakeBudget{allowed: false, resetsIn: 17 * time.Minute}
 	r.deps.DraftBudget = budget
@@ -750,7 +797,7 @@ func TestDraftRefusesAQuestionOnceTheHourlyBudgetIsSpent(t *testing.T) {
 }
 
 func TestDraftSpendsOneBudgetUnitPerQuestionAndIgnoresAnInvalidOne(t *testing.T) {
-	provider := &scriptedDraft{turns: []llm.Turn{submitTurn(`{"query":"{service_name=\"checkout\"}","explanation":"Checkout lines."}`)}}
+	provider := &scriptedDraft{turns: []DraftTurn{submitTurn(`{"query":"{service_name=\"checkout\"}","explanation":"Checkout lines."}`)}}
 	r := draftRegistry(t, provider, draftFakes())
 	budget := &fakeBudget{allowed: true}
 	r.deps.DraftBudget = budget

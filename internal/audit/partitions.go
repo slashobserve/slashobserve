@@ -3,7 +3,6 @@ package audit
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -14,8 +13,6 @@ import (
 )
 
 const (
-	CatchUpFor           = 7 * 24 * time.Hour
-	catchUpBefore        = time.Hour
 	DaysAhead            = 14
 	partitionPrefix      = "audit_events_"
 	partitionDayLayout   = "20060102"
@@ -40,9 +37,6 @@ func (r *Recorder) keepPartitions(ctx context.Context, now time.Time) error {
 	if err := r.reportAhead(ctx, today); err != nil {
 		return err
 	}
-	if err := r.catchUp(ctx, now); err != nil {
-		return err
-	}
 	if r.retention <= 0 {
 		return nil
 	}
@@ -52,26 +46,6 @@ func (r *Recorder) keepPartitions(ctx context.Context, now time.Time) error {
 		return err
 	}
 	return r.RecordNow(ctx, Event{Action: ActionPrune, Data: map[string]any{"partitions": removed, "before": cutoff.Format(time.DateOnly)}})
-}
-
-func (r *Recorder) catchUp(ctx context.Context, now time.Time) error {
-	q := r.db.Queries()
-	migrated, err := q.GetAuditBackfill(ctx)
-	if err != nil {
-		return fmt.Errorf("read the audit backfill time: %w", err)
-	}
-	if now.After(migrated.Time.Add(CatchUpFor)) {
-		return nil
-	}
-	since := pgtype.Timestamptz{Time: migrated.Time.Add(-catchUpBefore), Valid: true}
-	inserted, err := q.CatchUpAuditEvents(ctx, dbsqlc.CatchUpAuditEventsParams{Since: since, ByServer: r.server, ByVersion: r.version})
-	if err != nil {
-		return fmt.Errorf("catch up audit events: %w", err)
-	}
-	if inserted > 0 {
-		r.logger.InfoContext(ctx, "audit events recorded for activity an older server wrote", slog.Int64("events", inserted))
-	}
-	return nil
 }
 
 func (r *Recorder) addPartition(ctx context.Context, day time.Time) error {

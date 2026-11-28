@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest"
 
 import {
   isSearchFamily,
-  logsTimeRange,
   queryModeLabel,
   validAsk,
   runPatch,
@@ -169,19 +168,6 @@ describe("validateLogsSearch", () => {
     const search = validateLogsSearch(raw)
     expect(search.from).toBeUndefined()
     expect(search.to).toBeUndefined()
-  })
-})
-
-describe("logsTimeRange", () => {
-  it("defaults to the last hour", () => {
-    expect(logsTimeRange({})).toEqual({ from: "now-1h", to: "now" })
-  })
-
-  it("uses the range in the search", () => {
-    expect(logsTimeRange({ from: "now-2d", to: "now-1d" })).toEqual({
-      from: "now-2d",
-      to: "now-1d",
-    })
   })
 })
 

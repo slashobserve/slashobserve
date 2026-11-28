@@ -119,20 +119,14 @@ func (a *app) runPeopleInvite(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(invite inviteView) error {
+		out.confirm("Invited %s as %s", text(invite.Email), text(invite.Role))
+		out.fields([][2]string{
+			{"ID", text(invite.ID)},
+			{"Sign-in link", text(invite.SignInURL)},
+		})
 		return nil
-	}
-	invite, err := decode[inviteView](data)
-	if err != nil {
-		return err
-	}
-	out.confirm("Invited %s as %s", text(invite.Email), text(invite.Role))
-	out.fields([][2]string{
-		{"ID", text(invite.ID)},
-		{"Sign-in link", text(invite.SignInURL)},
 	})
-	return nil
 }
 
 func (a *app) runPeopleList(cmd *cobra.Command, _ []string) error {
@@ -148,25 +142,19 @@ func (a *app) runPeopleList(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(page personList) error {
+		if len(page.Users) == 0 {
+			out.notice("Nobody has signed in yet")
+			return nil
+		}
+		rows := make([][]string, 0, len(page.Users))
+		for _, p := range page.Users {
+			rows = append(rows, []string{text(p.ID), text(p.Name), text(p.Email), text(p.Role), p.status(), when(p.LastSeenAt)})
+		}
+		out.table([]string{"ID", "NAME", "EMAIL", "ROLE", "STATUS", "LAST ACTIVE"}, rows)
+		pageFooter(out, len(page.Users), nil, page.NextCursor)
 		return nil
-	}
-	page, err := decode[personList](data)
-	if err != nil {
-		return err
-	}
-	if len(page.Users) == 0 {
-		out.notice("Nobody has signed in yet")
-		return nil
-	}
-	rows := make([][]string, 0, len(page.Users))
-	for _, p := range page.Users {
-		rows = append(rows, []string{text(p.ID), text(p.Name), text(p.Email), text(p.Role), p.status(), when(p.LastSeenAt)})
-	}
-	out.table([]string{"ID", "NAME", "EMAIL", "ROLE", "STATUS", "LAST ACTIVE"}, rows)
-	pageFooter(out, len(page.Users), nil, page.NextCursor)
-	return nil
+	})
 }
 
 func (a *app) runPeopleInvites(cmd *cobra.Command, _ []string) error {
@@ -182,25 +170,19 @@ func (a *app) runPeopleInvites(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	out := a.output()
-	if a.json {
-		out.body(data)
+	return render(out, data, func(page inviteList) error {
+		if len(page.Invites) == 0 {
+			out.notice("No pending invites")
+			return nil
+		}
+		rows := make([][]string, 0, len(page.Invites))
+		for _, i := range page.Invites {
+			rows = append(rows, []string{text(i.ID), text(i.Email), text(i.Role), text(i.InvitedBy), when(i.CreatedAt)})
+		}
+		out.table([]string{"ID", "EMAIL", "ROLE", "INVITED BY", "INVITED"}, rows)
+		pageFooter(out, len(page.Invites), nil, page.NextCursor)
 		return nil
-	}
-	page, err := decode[inviteList](data)
-	if err != nil {
-		return err
-	}
-	if len(page.Invites) == 0 {
-		out.notice("No pending invites")
-		return nil
-	}
-	rows := make([][]string, 0, len(page.Invites))
-	for _, i := range page.Invites {
-		rows = append(rows, []string{text(i.ID), text(i.Email), text(i.Role), text(i.InvitedBy), when(i.CreatedAt)})
-	}
-	out.table([]string{"ID", "EMAIL", "ROLE", "INVITED BY", "INVITED"}, rows)
-	pageFooter(out, len(page.Invites), nil, page.NextCursor)
-	return nil
+	})
 }
 
 func (a *app) runPeopleUninvite(cmd *cobra.Command, args []string) error {

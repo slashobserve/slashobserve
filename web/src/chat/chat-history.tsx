@@ -30,7 +30,7 @@ const triggerClass =
 export function ChatHistory({
   currentRequestId,
 }: {
-  currentRequestId?: string
+  currentRequestId?: string | undefined
 }) {
   const open = useHistoryPanel((state) => state.open)
   const setOpen = useHistoryPanel((state) => state.setOpen)
@@ -120,7 +120,7 @@ function HistoryList({
 }: {
   panelId: string
   heading: RefObject<HTMLHeadingElement | null>
-  currentRequestId?: string
+  currentRequestId?: string | undefined
 }) {
   const [text, setText, q] = useSearchText()
   return (
@@ -148,10 +148,13 @@ function HistoryResults({
 }: {
   q: string | undefined
   heading: RefObject<HTMLHeadingElement | null>
-  currentRequestId?: string
+  currentRequestId?: string | undefined
 }) {
   const groupIdPrefix = useId()
-  const { requests, query } = useMyRequests({ q }, pageSize)
+  const { requests, query } = useMyRequests(
+    q === undefined ? {} : { q },
+    pageSize
+  )
   const loadMoreFailed = query.isFetchNextPageError
   const loadMoreErrorId = useId()
   const rows = useRef<HTMLDivElement>(null)

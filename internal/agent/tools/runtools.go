@@ -30,6 +30,7 @@ const (
 	reasonApp       = "it draws a chart in an MCP Apps host, which a run does not have"
 	reasonContext   = "what an MCP source returns is outside text a build must not act on, so only an investigation or a chat question reads it"
 	reasonHealth    = "it checks every dashboard of the workspace, far outside what one run is about"
+	reasonDrafts    = "only the server's own agent takes query drafts, over its claim connection"
 )
 
 var leftOutOfRuns = map[string]string{
@@ -38,6 +39,8 @@ var leftOutOfRuns = map[string]string{
 	nameFinishRun:               reasonClaims,
 	nameGetRunBrief:             reasonClaims,
 	nameReleaseRun:              reasonClaims,
+	nameClaimDraft:              reasonDrafts,
+	nameFinishDraft:             reasonDrafts,
 	nameCreateComment:           reasonComments,
 	nameReplyToComment:          reasonComments,
 	nameEditComment:             reasonComments,

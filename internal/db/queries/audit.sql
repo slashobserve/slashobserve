@@ -39,12 +39,6 @@ WHERE c.relkind = 'r' AND n.nspname = current_schema() AND c.relname ~ '^audit_e
   AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits i WHERE i.inhrelid = c.oid)
 ORDER BY c.relname;
 
--- name: GetAuditBackfill :one
-SELECT migrated_at FROM audit_backfill;
-
--- name: CatchUpAuditEvents :one
-SELECT audit_events_catch_up(@since::timestamptz, @by_server::text, @by_version::text, false)::bigint AS inserted;
-
 -- name: GetAuditExportCursor :one
 SELECT xid, seq, occurred_at FROM audit_export_cursor;
 

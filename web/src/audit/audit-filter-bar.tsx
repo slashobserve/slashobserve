@@ -9,6 +9,7 @@ import { CodeEditor } from "@/query-editor/code-editor"
 
 import { auditFieldsQuery } from "./queries"
 import type { MarkedQuery } from "./query-problem"
+import { suggestedNames } from "./query-text"
 
 export type QueryProblemView = {
   message: string
@@ -28,10 +29,7 @@ export function AuditFilterBar({
 }) {
   const fields = useQuery(auditFieldsQuery())
   const names = useMemo(
-    () =>
-      (fields.data?.fields ?? []).flatMap((field) =>
-        field.alias === null ? [field.name] : [field.name, field.alias]
-      ),
+    () => suggestedNames(fields.data?.fields ?? []),
     [fields.data]
   )
   const form = formLabels[formOf(draft)]

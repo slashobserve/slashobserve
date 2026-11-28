@@ -133,10 +133,9 @@ function traceSearch(
 ) {
   return {
     ds: datasourceUid,
-    from: range?.from,
-    to: range?.to,
-    span,
-    observation,
+    ...(range === undefined ? {} : { from: range.from, to: range.to }),
+    ...(span === undefined ? {} : { span }),
+    ...(observation === undefined ? {} : { observation }),
   }
 }
 

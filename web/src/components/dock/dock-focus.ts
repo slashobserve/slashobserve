@@ -40,12 +40,12 @@ function consumeKeptFocus(): boolean {
 type Options = {
   pane: RefObject<HTMLElement | null>
   heading: RefObject<HTMLElement | null>
-  opener?: () => HTMLElement | null
-  onClose?: () => void
-  holdClose?: () => boolean
-  active?: boolean
-  closeOnEscape?: boolean
-  modeKey?: string
+  opener?: (() => HTMLElement | null) | undefined
+  onClose?: (() => void) | undefined
+  holdClose?: (() => boolean) | undefined
+  active?: boolean | undefined
+  closeOnEscape?: boolean | undefined
+  modeKey?: string | undefined
 }
 
 export function useDockFocus({

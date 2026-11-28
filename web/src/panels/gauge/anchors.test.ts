@@ -4,6 +4,12 @@ import type { ValueAnchorLayout } from "../value-anchors"
 
 import { hitTest, locate } from "./anchors"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 const layout: ValueAnchorLayout = {
   body: { width: 200, height: 100 },
   targets: [
@@ -48,7 +54,7 @@ describe("gauge locate", () => {
   it("finds the value a hit test named", () => {
     const anchor = hitTest(layout, { x: 50, y: 60 })
     expect(anchor).not.toBeNull()
-    expect(locate(layout, anchor!)).toEqual(layout.targets[1].rect)
+    expect(locate(layout, anchor!)).toEqual(nth(layout.targets, 1).rect)
   })
 
   it("returns null when the value is gone", () => {
@@ -64,7 +70,10 @@ describe("gauge locate", () => {
   it("points at the bottom edge for a value scrolled out of view", () => {
     const scrolled: ValueAnchorLayout = {
       ...layout,
-      targets: [{ ...layout.targets[0], rect: null }, layout.targets[1]],
+      targets: [
+        { ...nth(layout.targets, 0), rect: null },
+        nth(layout.targets, 1),
+      ],
     }
     expect(hitTest(scrolled, { x: 50, y: 20 })).toBeNull()
     expect(

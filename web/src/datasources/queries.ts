@@ -34,7 +34,6 @@ type DatasourceList = components["schemas"]["DatasourceList"]
 export function useRecheckDatasource() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: (uid: string) =>
       api
         .POST("/datasources/{uid}/recheck", { params: { path: { uid } } })

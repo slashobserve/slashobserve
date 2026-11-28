@@ -24,14 +24,11 @@ import (
 
 const Prompt = "Repair every panel and variable listed as unverified so its query runs and returns data; keep every other panel unchanged and never delete an unverified panel."
 
-const MaxActivePerRequester = 20
-
 const (
 	ReasonActive          = "active"
 	ReasonNothingToRepair = "nothing_to_repair"
 	ReasonNotFound        = "not_found"
 	ReasonForbidden       = "forbidden_role"
-	ReasonQueueFull       = "queue_full"
 	ReasonProvisioned     = "provisioned"
 )
 
@@ -53,13 +50,13 @@ type Deps struct {
 type Service struct {
 	db        *db.DB
 	access    *folders.Access
-	revisions *revisions.Service
+	queue     *Queue
 	publicURL *url.URL
 	logger    *slog.Logger
 }
 
 func New(d Deps) *Service {
-	return &Service{db: d.DB, access: d.Access, revisions: d.Revisions, publicURL: d.PublicURL, logger: d.Logger}
+	return &Service{db: d.DB, access: d.Access, queue: NewQueue(d.DB, d.Access, d.Revisions), publicURL: d.PublicURL, logger: d.Logger}
 }
 
 type ListParams struct {
@@ -131,132 +128,59 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Pa
 }
 
 func (s *Service) Request(ctx context.Context, by auth.Principal, t Target) (Outcome, error) {
-	if !s.revisions.Available() {
-		return Outcome{}, revisions.ErrUnavailable
-	}
-	requester, err := db.ParseUUID(by.ID)
-	if err != nil {
-		return Outcome{}, fmt.Errorf("requester id: %w", err)
-	}
-	levels, err := s.access.Levels(ctx, by)
+	batch, err := s.queue.Begin(ctx, by, importPlan)
 	if err != nil {
 		return Outcome{}, err
 	}
-	out := Outcome{Queued: []Queued{}, Skipped: []Skipped{}}
-	handle := func(id pgtype.UUID) error {
-		return s.handle(ctx, by, requester, levels, id, &out)
-	}
 	if !t.All {
-		seen := make(map[pgtype.UUID]bool, len(t.DashboardIDs))
-		for _, id := range t.DashboardIDs {
-			if seen[id] {
-				continue
-			}
-			seen[id] = true
-			if err := handle(id); err != nil {
-				return Outcome{}, err
-			}
+		if err := batch.Each(ctx, t.DashboardIDs); err != nil {
+			return Outcome{}, err
 		}
-		return out, nil
+		return batch.Outcome(), nil
 	}
-	if err := checkFolder(levels, t.FolderID); err != nil {
+	if err := checkFolder(batch.Levels, t.FolderID); err != nil {
 		return Outcome{}, err
 	}
 	var cursor *httpapi.TimeCursor
 	for {
-		rows, err := s.rows(ctx, levels, t.FolderID, cursor, walkPageSize)
+		rows, err := s.rows(ctx, batch.Levels, t.FolderID, cursor, walkPageSize)
 		if err != nil {
 			return Outcome{}, err
 		}
 		for _, row := range rows {
-			if err := handle(row.ID); err != nil {
+			if err := batch.Add(ctx, row.ID); err != nil {
 				return Outcome{}, err
 			}
 		}
 		if len(rows) < walkPageSize {
-			return out, nil
+			return batch.Outcome(), nil
 		}
 		last := rows[len(rows)-1]
 		cursor = &httpapi.TimeCursor{Time: last.UpdatedAt.Time, ID: last.ID}
 	}
 }
 
-func (s *Service) handle(ctx context.Context, by auth.Principal, requester pgtype.UUID, levels folders.Levels, id pgtype.UUID, out *Outcome) error {
-	var reason string
-	var queued dbsqlc.AgentRequest
-	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		latest, why, err := checkTarget(ctx, q, requester, levels, id)
-		if err != nil || why != "" {
-			reason = why
-			return err
-		}
-		queued, err = s.revisions.Enqueue(ctx, q, revisions.EnqueueParams{
-			DashboardID: id,
-			Prompt:      Prompt,
-			BaseVersion: latest,
-			By:          by,
-		})
-		return err
-	})
-	switch {
-	case db.IsForeignKeyViolation(err):
-		reason = ReasonNotFound
-	case err != nil:
-		return err
-	}
-	if reason != "" {
-		out.Skipped = append(out.Skipped, Skipped{DashboardID: id.String(), Reason: reason})
-		return nil
-	}
-	out.Queued = append(out.Queued, Queued{DashboardID: id.String(), RequestID: queued.ID.String()})
-	return nil
-}
-
-func checkTarget(ctx context.Context, q *dbsqlc.Queries, requester pgtype.UUID, levels folders.Levels, id pgtype.UUID) (int, string, error) {
-	if err := q.LockAgentRequestsForDashboard(ctx, id); err != nil {
-		return 0, "", fmt.Errorf("lock agent requests: %w", err)
-	}
+func importPlan(ctx context.Context, q *dbsqlc.Queries, levels folders.Levels, id pgtype.UUID) (int, string, string, error) {
 	target, err := q.RepairTarget(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, ReasonNotFound, nil
+		return 0, "", ReasonNotFound, nil
 	}
 	if err != nil {
-		return 0, "", fmt.Errorf("read repair target: %w", err)
+		return 0, "", "", fmt.Errorf("read repair target: %w", err)
 	}
-	abilities := levels.Of(target.FolderID)
-	if !abilities.View {
-		return 0, ReasonNotFound, nil
-	}
-	if !abilities.Edit {
-		return 0, ReasonForbidden, nil
-	}
-	if target.Provisioned {
-		return 0, ReasonProvisioned, nil
-	}
-	active, err := q.CountActiveAgentRequests(ctx, id)
-	if err != nil {
-		return 0, "", fmt.Errorf("count active agent requests: %w", err)
-	}
-	if active > 0 {
-		return 0, ReasonActive, nil
+	if reason, err := Admit(ctx, q, levels, id, target.FolderID, target.Provisioned); err != nil || reason != "" {
+		return 0, "", reason, err
 	}
 	var unverified dashboards.Unverified
 	if len(target.Unverified) > 0 {
 		if err := json.Unmarshal(target.Unverified, &unverified); err != nil {
-			return 0, "", fmt.Errorf("decode unverified: %w", err)
+			return 0, "", "", fmt.Errorf("decode unverified: %w", err)
 		}
 	}
 	if unverified.Empty() {
-		return 0, ReasonNothingToRepair, nil
+		return 0, "", ReasonNothingToRepair, nil
 	}
-	mine, err := q.CountActiveRepairsBy(ctx, dbsqlc.CountActiveRepairsByParams{RequesterID: requester, RepairPrompt: Prompt})
-	if err != nil {
-		return 0, "", fmt.Errorf("count active repairs: %w", err)
-	}
-	if mine >= MaxActivePerRequester {
-		return 0, ReasonQueueFull, nil
-	}
-	return int(target.LatestVersion), "", nil
+	return int(target.LatestVersion), Prompt, "", nil
 }
 
 func checkFolder(levels folders.Levels, folder pgtype.UUID) error {

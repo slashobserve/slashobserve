@@ -1,0 +1,1061 @@
+[
+  {
+    "name": "a read shows its fact ids and a clean citation is saved rendered",
+    "mode": "enforce",
+    "question": "why is checkout slow",
+    "calls": [
+      {
+        "tool": "measure_window",
+        "input": {
+          "datasource": "prom",
+          "query": "max(request_duration_seconds)",
+          "stat": "max"
+        },
+        "content": "{\"stat\":\"max\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"sampled\":\"30s\",\"query\":\"max_over_time(p99[2h:30s])\",\"empty\":false,\"values\":[{\"labels\":{\"service\":\"checkout\"},\"value\":0.5234123,\"at\":\"2026-11-20T10:05:00Z\"}]}",
+        "want": "{\"stat\":\"max\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"sampled\":\"30s\",\"query\":\"max_over_time(p99[2h:30s])\",\"empty\":false,\"values\":[{\"labels\":{\"service\":\"checkout\"},\"value\":0.5234123,\"at\":\"2026-11-20T10:05:00Z\",\"facts\":{\"value\":\"f1\"}}]}"
+      },
+      {
+        "tool": "measure_window",
+        "input": {
+          "datasource": "prom",
+          "query": "max(request_duration_seconds)",
+          "stat": "max",
+          "step": "30s"
+        },
+        "content": "{\"stat\":\"max\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"sampled\":\"30s\",\"query\":\"max_over_time(p99[2h:30s])\",\"empty\":false,\"values\":[{\"labels\":{\"service\":\"checkout\"},\"value\":0.5234123,\"at\":\"2026-11-20T10:05:00Z\"}]}",
+        "want": "{\"stat\":\"max\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"sampled\":\"30s\",\"query\":\"max_over_time(p99[2h:30s])\",\"empty\":false,\"values\":[{\"labels\":{\"service\":\"checkout\"},\"value\":0.5234123,\"at\":\"2026-11-20T10:05:00Z\",\"facts\":{\"value\":\"f1\"}}]}"
+      }
+    ],
+    "saves": [
+      {
+        "input": {
+          "title": "Checkout at {{f1:ms:3}}",
+          "markdown": "Checkout p99 peaked at {{f1:ms}}.",
+          "impact": "Slow for {{f1:s}}.",
+          "ruled_out": [
+            "Not {{f1:3}}"
+          ],
+          "next_steps": [
+            "Read {{f1}} again"
+          ]
+        },
+        "want": {
+          "send_back": "",
+          "sent_back": false,
+          "unverified": [],
+          "saved": {
+            "impact": "Slow for 0.5234123 s.",
+            "markdown": "Checkout p99 peaked at 523.4123 ms.",
+            "next_steps": [
+              "Read 0.5234123 again"
+            ],
+            "ruled_out": [
+              "Not 0.523"
+            ],
+            "title": "Checkout at 523 ms",
+            "unverified": []
+          }
+        }
+      },
+      {
+        "input": {
+          "markdown": "Checkout p99 peaked at {{f12}}."
+        },
+        "want": {
+          "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- cited fact \"{{f12}}\": f12 is not a fact this run read, or it is no longer held: read the value again and cite the id the result gives",
+          "sent_back": true,
+          "unverified": [
+            {
+              "kind": "fact",
+              "text": "{{f12}}"
+            }
+          ],
+          "saved": {
+            "markdown": "Checkout p99 peaked at [figure not read].",
+            "unverified": [
+              {
+                "kind": "fact",
+                "text": "{{f12}}"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "two answers for one quantity are sent back",
+    "mode": "enforce",
+    "question": "why is checkout slow",
+    "calls": [
+      {
+        "tool": "measure_window",
+        "input": {
+          "datasource": "prom",
+          "query": "max(request_duration_seconds)",
+          "stat": "max",
+          "step": "30s"
+        },
+        "content": "{\"stat\":\"max\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"sampled\":\"30s\",\"query\":\"max_over_time(p99[2h:30s])\",\"empty\":false,\"values\":[{\"labels\":{\"service\":\"checkout\"},\"value\":0.5234123,\"at\":\"2026-11-20T10:05:00Z\"}]}",
+        "want": "{\"stat\":\"max\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"sampled\":\"30s\",\"query\":\"max_over_time(p99[2h:30s])\",\"empty\":false,\"values\":[{\"labels\":{\"service\":\"checkout\"},\"value\":0.5234123,\"at\":\"2026-11-20T10:05:00Z\",\"facts\":{\"value\":\"f1\"}}]}"
+      },
+      {
+        "tool": "measure_window",
+        "input": {
+          "datasource": "prom",
+          "query": "max(request_duration_seconds)",
+          "stat": "max",
+          "step": "15s"
+        },
+        "content": "{\"stat\":\"max\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"sampled\":\"30s\",\"query\":\"max_over_time(p99[2h:15s])\",\"empty\":false,\"values\":[{\"labels\":{\"service\":\"checkout\"},\"value\":0.61,\"at\":\"2026-11-20T10:05:00Z\"}]}",
+        "want": "{\"stat\":\"max\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"sampled\":\"30s\",\"query\":\"max_over_time(p99[2h:15s])\",\"empty\":false,\"values\":[{\"labels\":{\"service\":\"checkout\"},\"value\":0.61,\"at\":\"2026-11-20T10:05:00Z\",\"facts\":{\"value\":\"f2\"}}]}"
+      }
+    ],
+    "saves": [
+      {
+        "input": {
+          "markdown": "Checkout p99 peaked at {{f1:ms}}.",
+          "answers": [
+            {
+              "quantity": "peak p99",
+              "fact": "f1"
+            },
+            {
+              "quantity": "peak p99",
+              "fact": "f2"
+            }
+          ]
+        },
+        "want": {
+          "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- cited fact \"answers: peak p99 = f1 or f2\": one quantity takes one fact: make the read that settles which value is right and list only that fact\n- cited fact \"answers: peak p99 = f2\": the markdown never gives this answer: cite {{f2}} where it answers \"peak p99\"",
+          "sent_back": true,
+          "unverified": [
+            {
+              "kind": "fact",
+              "text": "answers: peak p99 = f1 or f2"
+            },
+            {
+              "kind": "fact",
+              "text": "answers: peak p99 = f2"
+            }
+          ],
+          "saved": {
+            "answers": [
+              {
+                "fact": "f1",
+                "quantity": "peak p99"
+              },
+              {
+                "fact": "f2",
+                "quantity": "peak p99"
+              }
+            ],
+            "markdown": "Checkout p99 peaked at 523.4123 ms.",
+            "unverified": [
+              {
+                "kind": "fact",
+                "text": "answers: peak p99 = f1 or f2"
+              },
+              {
+                "kind": "fact",
+                "text": "answers: peak p99 = f2"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "input": {
+          "markdown": "Checkout p99 peaked at {{f2:ms}}.",
+          "answers": [
+            {
+              "quantity": "peak p99",
+              "fact": "f2"
+            }
+          ]
+        },
+        "want": {
+          "send_back": "",
+          "sent_back": false,
+          "unverified": [],
+          "saved": {
+            "answers": [
+              {
+                "fact": "f2",
+                "quantity": "peak p99"
+              }
+            ],
+            "markdown": "Checkout p99 peaked at 610 ms.",
+            "unverified": []
+          }
+        }
+      },
+      {
+        "input": {
+          "markdown": "Checkout p99 peaked at 0.5 s, and 2,950 orders failed over the last 6 hours on HTTP 503."
+        },
+        "want": {
+          "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- figure \"0.5 s\": more than 1% from f1, 0.5234123: cite {{f1}}, with significant figures that keep it within 1%\n- figure \"2,950\": read it, correct it, or remove it",
+          "sent_back": true,
+          "unverified": [
+            {
+              "kind": "figure",
+              "text": "0.5 s"
+            },
+            {
+              "kind": "figure",
+              "text": "2,950"
+            }
+          ],
+          "saved": {
+            "markdown": "Checkout p99 peaked at 0.5 s, and 2,950 orders failed over the last 6 hours on HTTP 503.",
+            "unverified": [
+              {
+                "kind": "figure",
+                "text": "0.5 s"
+              },
+              {
+                "kind": "figure",
+                "text": "2,950"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "an ungrounded finding is sent back and a repaired one passes",
+    "mode": "enforce",
+    "question": "why is checkout slow",
+    "calls": [
+      {
+        "tool": "query_range",
+        "input": {
+          "datasource": "prom",
+          "query": "p99"
+        },
+        "content": "{\"series\":[{\"labels\":{\"service_name\":\"checkout\"},\"min\":0.287,\"max\":0.5234}]}",
+        "ranges": [
+          {
+            "from": "2026-11-20T09:00:00Z",
+            "to": "2026-11-20T11:00:00Z"
+          }
+        ],
+        "want": "{\"series\":[{\"labels\":{\"service_name\":\"checkout\"},\"min\":0.287,\"max\":0.5234,\"facts\":{\"min\":\"f1\",\"max\":\"f2\"}}]}"
+      }
+    ],
+    "saves": [
+      {
+        "input": {
+          "title": "Checkout latency",
+          "markdown": "Checkout p99 rose to 9.3 s and 2,950 orders failed.",
+          "root_cause": {
+            "component": "cartservice",
+            "kind": "dependency",
+            "summary": "s"
+          },
+          "onset": "2026-11-20T10:05:00Z",
+          "evidence": [
+            {
+              "id": "p99"
+            }
+          ]
+        },
+        "want": {
+          "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- figure \"9.3 s\": read it, correct it, or remove it\n- figure \"2,950\": read it, correct it, or remove it\n- component, not a name this run saw, \"cartservice\": read it, correct it, or remove it",
+          "sent_back": true,
+          "unverified": [
+            {
+              "kind": "figure",
+              "text": "9.3 s"
+            },
+            {
+              "kind": "figure",
+              "text": "2,950"
+            },
+            {
+              "kind": "component",
+              "text": "cartservice"
+            }
+          ],
+          "saved": {
+            "evidence": [
+              {
+                "id": "p99"
+              }
+            ],
+            "markdown": "Checkout p99 rose to 9.3 s and 2,950 orders failed.",
+            "onset": "2026-11-20T10:05:00Z",
+            "root_cause": {
+              "band": "low",
+              "component": "cartservice",
+              "kind": "dependency",
+              "score": 0.05,
+              "signals": {
+                "component": false,
+                "kinds": [],
+                "onset_fact": false,
+                "onset_read": true,
+                "ruled_out": false,
+                "trigger_read": false
+              },
+              "summary": "s"
+            },
+            "title": "Checkout latency",
+            "unverified": [
+              {
+                "kind": "figure",
+                "text": "9.3 s"
+              },
+              {
+                "kind": "figure",
+                "text": "2,950"
+              },
+              {
+                "kind": "component",
+                "text": "cartservice"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "input": {
+          "title": "Checkout latency",
+          "markdown": "Checkout p99 rose to 523 ms, up from 287 ms.",
+          "root_cause": {
+            "component": "checkout",
+            "kind": "dependency",
+            "summary": "s"
+          },
+          "onset": "2026-11-20T10:05:00Z",
+          "evidence": [
+            {
+              "id": "p99"
+            }
+          ]
+        },
+        "want": {
+          "send_back": "",
+          "sent_back": false,
+          "unverified": [],
+          "saved": {
+            "evidence": [
+              {
+                "id": "p99"
+              }
+            ],
+            "markdown": "Checkout p99 rose to 523 ms, up from 287 ms.",
+            "onset": "2026-11-20T10:05:00Z",
+            "root_cause": {
+              "band": "low",
+              "component": "checkout",
+              "kind": "dependency",
+              "score": 0.15,
+              "signals": {
+                "component": true,
+                "kinds": [],
+                "onset_fact": false,
+                "onset_read": true,
+                "ruled_out": false,
+                "trigger_read": false
+              },
+              "summary": "s"
+            },
+            "title": "Checkout latency",
+            "unverified": []
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "a figure question without answers is sent back",
+    "mode": "enforce",
+    "task": "measure",
+    "question": "why is checkout slow",
+    "calls": [
+      {
+        "tool": "query_range",
+        "input": {
+          "datasource": "prom",
+          "query": "p99"
+        },
+        "content": "{\"series\":[{\"labels\":{\"service_name\":\"checkout\"},\"min\":0.287,\"max\":0.5234}]}",
+        "ranges": [
+          {
+            "from": "2026-11-20T09:00:00Z",
+            "to": "2026-11-20T11:00:00Z"
+          }
+        ],
+        "want": "{\"series\":[{\"labels\":{\"service_name\":\"checkout\"},\"min\":0.287,\"max\":0.5234,\"facts\":{\"min\":\"f1\",\"max\":\"f2\"}}]}"
+      }
+    ],
+    "saves": [
+      {
+        "input": {
+          "title": "Checkout latency",
+          "markdown": "Checkout p99 rose to 523 ms, up from 287 ms.",
+          "root_cause": {
+            "component": "checkout",
+            "kind": "dependency",
+            "summary": "s"
+          },
+          "onset": "2026-11-20T10:05:00Z",
+          "evidence": [
+            {
+              "id": "p99"
+            }
+          ]
+        },
+        "want": {
+          "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- answer \"Checkout p99 rose to 523 ms, up from 287 ms.\": the markdown states a figure but answers is empty: list each quantity the question asks for in answers with the one fact that answers it",
+          "sent_back": true,
+          "unverified": [],
+          "saved": {
+            "evidence": [
+              {
+                "id": "p99"
+              }
+            ],
+            "markdown": "Checkout p99 rose to 523 ms, up from 287 ms.",
+            "onset": "2026-11-20T10:05:00Z",
+            "root_cause": {
+              "band": "low",
+              "component": "checkout",
+              "kind": "dependency",
+              "score": 0.15,
+              "signals": {
+                "component": true,
+                "kinds": [],
+                "onset_fact": false,
+                "onset_read": true,
+                "ruled_out": false,
+                "trigger_read": false
+              },
+              "summary": "s"
+            },
+            "title": "Checkout latency",
+            "unverified": []
+          }
+        }
+      },
+      {
+        "input": {
+          "title": "Checkout",
+          "markdown": "Checkout is fine.",
+          "evidence": []
+        },
+        "want": {
+          "send_back": "",
+          "sent_back": false,
+          "unverified": [],
+          "saved": {
+            "evidence": [],
+            "markdown": "Checkout is fine.",
+            "title": "Checkout",
+            "unverified": []
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "only datasource reads and MCP source text feed the record",
+    "mode": "enforce",
+    "question": "why is checkout slow",
+    "calls": [
+      {
+        "tool": "get_observation",
+        "input": {
+          "q": "get_observation"
+        },
+        "content": "{\"blocks\":[{\"text\":\"p99 reached 9.3 s for 2,950 orders\"}],\"value\":4321}",
+        "want": "{\"blocks\":[{\"text\":\"p99 reached 9.3 s for 2,950 orders\"}],\"value\":4321}"
+      },
+      {
+        "tool": "list_observations",
+        "input": {
+          "q": "list_observations"
+        },
+        "content": "{\"observations\":[{\"title\":\"Checkout at 7,700 ms\"}]}",
+        "want": "{\"observations\":[{\"title\":\"Checkout at 7,700 ms\"}]}"
+      },
+      {
+        "tool": "get_trace",
+        "input": {
+          "q": "get_trace"
+        },
+        "content": "{\"duration_ms\":812.4,\"services\":[{\"name\":\"checkout\",\"spans\":40}]}",
+        "want": "{\"duration_ms\":812.4,\"services\":[{\"name\":\"checkout\",\"spans\":40,\"facts\":{\"spans\":\"f2\"}}],\"facts\":{\"duration_ms\":\"f1\"}}"
+      },
+      {
+        "tool": "list_metrics",
+        "input": {
+          "q": "list_metrics"
+        },
+        "content": "{\"metrics\":[\"pool_in_use\"],\"total\":640}",
+        "discovered": {
+          "datasource": "prom",
+          "of": "metrics",
+          "names": [
+            "pool_in_use"
+          ]
+        },
+        "want": "{\"metrics\":[\"pool_in_use\"],\"total\":640}"
+      },
+      {
+        "tool": "list_mcp_sources",
+        "input": {
+          "q": "list_mcp_sources"
+        },
+        "content": "{\"sources\":[{\"name\":\"code\",\"about\":\"reads cartservice code\",\"tools\":3,\"revision\":7700}]}",
+        "want": "{\"sources\":[{\"name\":\"code\",\"about\":\"reads cartservice code\",\"tools\":3,\"revision\":7700}]}"
+      },
+      {
+        "tool": "call_mcp_tool",
+        "input": {
+          "source": "code",
+          "tool": "grep"
+        },
+        "content": "{\"notice\":\"n\",\"source\":\"code\",\"tool\":\"grep\",\"source_error\":true,\"text\":\"paymentFailure not found\"}",
+        "is_error": true,
+        "want": "{\"notice\":\"n\",\"source\":\"code\",\"tool\":\"grep\",\"source_error\":true,\"text\":\"paymentFailure not found\"}"
+      },
+      {
+        "tool": "call_mcp_tool",
+        "input": {
+          "source": "code",
+          "tool": "grep"
+        },
+        "content": "{\"notice\":\"n\",\"source\":\"code\",\"tool\":\"grep\",\"text\":\"checkout.go:4821: flag adFailure\"}",
+        "want": "{\"notice\":\"n\",\"source\":\"code\",\"tool\":\"grep\",\"text\":\"checkout.go:4821: flag adFailure\"}"
+      }
+    ],
+    "saves": [
+      {
+        "input": {
+          "markdown": "Traces took {{f3}} over 640 metrics, not 9.3 s, 2,950, 4,321 or 7,700 ms; the match is at line 4,821.",
+          "root_cause": {
+            "component": "adFailure",
+            "kind": "config",
+            "summary": "s"
+          }
+        },
+        "want": {
+          "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- cited fact \"{{f3}}\": f3 is not a fact this run read, or it is no longer held: read the value again and cite the id the result gives\n- figure \"9.3 s\": read it, correct it, or remove it\n- figure \"2,950\": read it, correct it, or remove it\n- figure \"4,321\": read it, correct it, or remove it\n- figure \"7,700 ms\": read it, correct it, or remove it\n- figure \"4,821\": read it, correct it, or remove it",
+          "sent_back": true,
+          "unverified": [
+            {
+              "kind": "fact",
+              "text": "{{f3}}"
+            },
+            {
+              "kind": "figure",
+              "text": "9.3 s"
+            },
+            {
+              "kind": "figure",
+              "text": "2,950"
+            },
+            {
+              "kind": "figure",
+              "text": "4,321"
+            },
+            {
+              "kind": "figure",
+              "text": "7,700 ms"
+            },
+            {
+              "kind": "figure",
+              "text": "4,821"
+            }
+          ],
+          "saved": {
+            "markdown": "Traces took [figure not read] over 640 metrics, not 9.3 s, 2,950, 4,321 or 7,700 ms; the match is at line 4,821.",
+            "root_cause": {
+              "band": "low",
+              "component": "adFailure",
+              "kind": "config",
+              "score": 0.1,
+              "signals": {
+                "component": true,
+                "kinds": [],
+                "onset_fact": false,
+                "onset_read": false,
+                "ruled_out": false,
+                "trigger_read": false
+              },
+              "summary": "s"
+            },
+            "unverified": [
+              {
+                "kind": "fact",
+                "text": "{{f3}}"
+              },
+              {
+                "kind": "figure",
+                "text": "9.3 s"
+              },
+              {
+                "kind": "figure",
+                "text": "2,950"
+              },
+              {
+                "kind": "figure",
+                "text": "4,321"
+              },
+              {
+                "kind": "figure",
+                "text": "7,700 ms"
+              },
+              {
+                "kind": "figure",
+                "text": "4,821"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "input": {
+          "markdown": "paymentFailure is off.",
+          "causes": [
+            {
+              "component": {
+                "kind": "flag",
+                "name": "paymentFailure"
+              },
+              "kind": "config_or_flag",
+              "mechanism": "m"
+            }
+          ]
+        },
+        "want": {
+          "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- component, not a name this run saw, \"paymentFailure\": read it, correct it, or remove it",
+          "sent_back": false,
+          "unverified": [
+            {
+              "kind": "component",
+              "text": "paymentFailure"
+            }
+          ],
+          "saved": {
+            "causes": [
+              {
+                "band": "low",
+                "component": {
+                  "kind": "flag",
+                  "name": "paymentFailure"
+                },
+                "kind": "config_or_flag",
+                "mechanism": "m",
+                "score": 0,
+                "signals": {
+                  "component": false,
+                  "kinds": [],
+                  "onset_fact": false,
+                  "onset_read": false,
+                  "ruled_out": false,
+                  "trigger_read": false
+                }
+              }
+            ],
+            "markdown": "paymentFailure is off.",
+            "unverified": [
+              {
+                "kind": "component",
+                "text": "paymentFailure"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "a cut trace id is sent back with the whole id",
+    "mode": "enforce",
+    "question": "why is checkout slow",
+    "calls": [
+      {
+        "tool": "trace_slow_path",
+        "input": {
+          "datasource": "tempo",
+          "route": "GET /cart"
+        },
+        "content": "{\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"threshold\":\"route p50\",\"listed_traces\":40,\"complete\":true,\"sample\":false,\"routes\":[{\"route\":\"GET /cart\",\"threshold_ms\":120,\"slow_traces\":7,\"examined\":40,\"top_self_time\":[],\"services\":[],\"example\":{\"trace_id\":\"4bf92f3577b34da6a3ce929d0e0e4736\",\"duration_ms\":1312.75}}],\"note\":\"\"}",
+        "want": "{\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"threshold\":\"route p50\",\"listed_traces\":40,\"complete\":true,\"sample\":false,\"routes\":[{\"route\":\"GET /cart\",\"threshold_ms\":120,\"slow_traces\":7,\"examined\":40,\"top_self_time\":[],\"services\":[],\"example\":{\"trace_id\":\"4bf92f3577b34da6a3ce929d0e0e4736\",\"duration_ms\":1312.75,\"facts\":{\"trace_id\":\"f5\",\"duration_ms\":\"f6\"}},\"facts\":{\"threshold_ms\":\"f2\",\"slow_traces\":\"f3\",\"examined\":\"f4\"}}],\"note\":\"\",\"facts\":{\"listed_traces\":\"f1\"}}"
+      }
+    ],
+    "saves": [
+      {
+        "input": {
+          "markdown": "GET /cart had 7 slow traces, such as 4bf92f35, which took {{f8}}."
+        },
+        "want": {
+          "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- cited fact \"{{f8}}\": f8 is not a fact this run read, or it is no longer held: read the value again and cite the id the result gives\n- trace id \"4bf92f35\": an id cut short: write the whole id 4bf92f3577b34da6a3ce929d0e0e4736, or cite its fact",
+          "sent_back": true,
+          "unverified": [
+            {
+              "kind": "fact",
+              "text": "{{f8}}"
+            },
+            {
+              "kind": "trace_id",
+              "text": "4bf92f35"
+            }
+          ],
+          "saved": {
+            "markdown": "GET /cart had 7 slow traces, such as 4bf92f35, which took [figure not read].",
+            "unverified": [
+              {
+                "kind": "fact",
+                "text": "{{f8}}"
+              },
+              {
+                "kind": "trace_id",
+                "text": "4bf92f35"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "input": {
+          "markdown": "GET /cart had {{f3}} slow traces, such as {{f5}}, which took {{f6:s}}.",
+          "answers": [
+            {
+              "quantity": "example trace",
+              "fact": "f5"
+            },
+            {
+              "quantity": "its duration",
+              "fact": "f6"
+            }
+          ]
+        },
+        "want": {
+          "send_back": "",
+          "sent_back": false,
+          "unverified": [],
+          "saved": {
+            "answers": [
+              {
+                "fact": "f5",
+                "quantity": "example trace"
+              },
+              {
+                "fact": "f6",
+                "quantity": "its duration"
+              }
+            ],
+            "markdown": "GET /cart had 7 slow traces, such as 4bf92f3577b34da6a3ce929d0e0e4736, which took 1.31275 s.",
+            "unverified": []
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "a sampled log facet count is cited as a lower bound",
+    "mode": "enforce",
+    "question": "why is checkout slow",
+    "calls": [
+      {
+        "tool": "log_facets",
+        "input": {
+          "datasource": "loki",
+          "query": "{service_name=\"cart\"}"
+        },
+        "content": "{\"sampled\":true,\"lines_sampled\":2000,\"fields\":[{\"name\":\"level\",\"kind\":\"field\",\"exact\":false,\"values\":[{\"value\":\"error\",\"count\":37}],\"truncated\":false}],\"truncated\":false}",
+        "want": "{\"sampled\":true,\"lines_sampled\":2000,\"fields\":[{\"name\":\"level\",\"kind\":\"field\",\"exact\":false,\"values\":[{\"value\":\"error\",\"count\":37,\"facts\":{\"count\":\"f2\"}}],\"truncated\":false}],\"truncated\":false,\"facts\":{\"lines_sampled\":\"f1\"}}"
+      }
+    ],
+    "saves": [
+      {
+        "input": {
+          "markdown": "Cart logged {{f2}} errors."
+        },
+        "want": {
+          "send_back": "",
+          "sent_back": false,
+          "unverified": [],
+          "saved": {
+            "markdown": "Cart logged at least 37 errors.",
+            "unverified": []
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "a cause read only through an MCP source scores its trigger",
+    "mode": "enforce",
+    "question": "why is checkout slow",
+    "calls": [
+      {
+        "tool": "call_mcp_tool",
+        "input": {
+          "source": "cluster",
+          "tool": "kubectl_get"
+        },
+        "content": "{\"notice\":\"n\",\"source\":\"cluster\",\"tool\":\"kubectl_get\",\"text\":\"NAME               POD-SELECTOR   AGE\\ndeny-all-ingress   app=cart       4m\"}",
+        "want": "{\"notice\":\"n\",\"source\":\"cluster\",\"tool\":\"kubectl_get\",\"text\":\"NAME               POD-SELECTOR   AGE\\ndeny-all-ingress   app=cart       4m\"}"
+      },
+      {
+        "tool": "call_mcp_tool",
+        "input": {
+          "source": "code",
+          "tool": "read_file"
+        },
+        "content": "{\"notice\":\"n\",\"source\":\"code\",\"tool\":\"read_file\",\"text\":\"{\\\"flags\\\":{\\\"cartFailure\\\":{\\\"state\\\":\\\"ENABLED\\\"}}}\"}",
+        "want": "{\"notice\":\"n\",\"source\":\"code\",\"tool\":\"read_file\",\"text\":\"{\\\"flags\\\":{\\\"cartFailure\\\":{\\\"state\\\":\\\"ENABLED\\\"}}}\"}"
+      },
+      {
+        "tool": "measure_window",
+        "input": {
+          "datasource": "prom",
+          "query": "errors"
+        },
+        "content": "{\"stat\":\"max\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"query\":\"rate(errors[5m])\",\"values\":[{\"labels\":{\"service\":\"cart\"},\"value\":0.52,\"at\":\"2026-11-20T10:05:00Z\"}]}",
+        "ranges": [
+          {
+            "from": "2026-11-20T09:00:00Z",
+            "to": "2026-11-20T11:00:00Z"
+          }
+        ],
+        "want": "{\"stat\":\"max\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"query\":\"rate(errors[5m])\",\"values\":[{\"labels\":{\"service\":\"cart\"},\"value\":0.52,\"at\":\"2026-11-20T10:05:00Z\",\"facts\":{\"value\":\"f1\"}}]}"
+      }
+    ],
+    "saves": [
+      {
+        "input": {
+          "title": "Cart unreachable",
+          "markdown": "Cart stopped answering.",
+          "causes": [
+            {
+              "component": {
+                "kind": "config",
+                "name": "deny-all-ingress"
+              },
+              "kind": "config_or_flag",
+              "mechanism": "A policy blocks traffic to cart.",
+              "trigger": {
+                "kind": "feature_flag",
+                "key": "cartFailure",
+                "value": "on"
+              },
+              "evidence": {}
+            }
+          ]
+        },
+        "want": {
+          "send_back": "",
+          "sent_back": false,
+          "unverified": [],
+          "saved": {
+            "causes": [
+              {
+                "band": "low",
+                "component": {
+                  "kind": "config",
+                  "name": "deny-all-ingress"
+                },
+                "evidence": {},
+                "kind": "config_or_flag",
+                "mechanism": "A policy blocks traffic to cart.",
+                "score": 0.3,
+                "signals": {
+                  "component": true,
+                  "kinds": [],
+                  "onset_fact": false,
+                  "onset_read": false,
+                  "ruled_out": false,
+                  "trigger_read": true
+                },
+                "trigger": {
+                  "key": "cartFailure",
+                  "kind": "feature_flag",
+                  "value": "on"
+                }
+              }
+            ],
+            "markdown": "Cart stopped answering.",
+            "title": "Cart unreachable",
+            "unverified": []
+          }
+        }
+      },
+      {
+        "input": {
+          "title": "Cart errors",
+          "markdown": "Cart errors peaked at {{f1:%}}.",
+          "ruled_out": [
+            "Not the database: {{f1}}"
+          ],
+          "causes": [
+            {
+              "component": {
+                "kind": "service",
+                "name": "cart"
+              },
+              "kind": "config_or_flag",
+              "mechanism": "Errors at {{f1:%:2}}.",
+              "onset": "2026-11-20T10:04:00Z",
+              "trigger": {
+                "kind": "feature_flag",
+                "key": "cartFailure",
+                "value": "on"
+              },
+              "evidence": {
+                "facts": [
+                  "f1",
+                  "f1"
+                ]
+              },
+              "score": 0.99,
+              "queries": [
+                "mine"
+              ]
+            },
+            {
+              "component": {
+                "kind": "service",
+                "name": "payments"
+              },
+              "kind": "unknown",
+              "mechanism": "m"
+            }
+          ]
+        },
+        "want": {
+          "send_back": "Some figures, facts, ids or names in this finding do not match what this run read. Fix each item below as it says, reading again first if you need to, then call save_finding again.\n- component, not a name this run saw, \"payments\": read it, correct it, or remove it",
+          "sent_back": true,
+          "unverified": [
+            {
+              "kind": "component",
+              "text": "payments"
+            }
+          ],
+          "saved": {
+            "causes": [
+              {
+                "band": "high",
+                "component": {
+                  "kind": "service",
+                  "name": "cart"
+                },
+                "evidence": {
+                  "facts": [
+                    "f1",
+                    "f1"
+                  ]
+                },
+                "kind": "config_or_flag",
+                "mechanism": "Errors at 52%.",
+                "onset": "2026-11-20T10:04:00Z",
+                "queries": [
+                  "rate(errors[5m])"
+                ],
+                "score": 0.75,
+                "signals": {
+                  "component": true,
+                  "kinds": [
+                    "metrics"
+                  ],
+                  "onset_fact": true,
+                  "onset_read": true,
+                  "ruled_out": true,
+                  "trigger_read": true
+                },
+                "trigger": {
+                  "key": "cartFailure",
+                  "kind": "feature_flag",
+                  "value": "on"
+                }
+              },
+              {
+                "band": "low",
+                "component": {
+                  "kind": "service",
+                  "name": "payments"
+                },
+                "kind": "unknown",
+                "mechanism": "m",
+                "score": 0.05,
+                "signals": {
+                  "component": false,
+                  "kinds": [],
+                  "onset_fact": false,
+                  "onset_read": false,
+                  "ruled_out": true,
+                  "trigger_read": false
+                }
+              }
+            ],
+            "markdown": "Cart errors peaked at 52%.",
+            "ruled_out": [
+              "Not the database: 0.52"
+            ],
+            "title": "Cart errors",
+            "unverified": [
+              {
+                "kind": "component",
+                "text": "payments"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "with grounding off a read is returned as the tool gave it",
+    "mode": "off",
+    "question": "why is checkout slow",
+    "calls": [
+      {
+        "tool": "measure_window",
+        "input": {
+          "datasource": "prom",
+          "query": "max(request_duration_seconds)",
+          "stat": "max"
+        },
+        "content": "{\"stat\":\"max\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"sampled\":\"30s\",\"query\":\"max_over_time(p99[2h:30s])\",\"empty\":false,\"values\":[{\"labels\":{\"service\":\"checkout\"},\"value\":0.5234123,\"at\":\"2026-11-20T10:05:00Z\"}]}",
+        "want": "{\"stat\":\"max\",\"from\":\"2026-11-20T09:00:00Z\",\"to\":\"2026-11-20T11:00:00Z\",\"sampled\":\"30s\",\"query\":\"max_over_time(p99[2h:30s])\",\"empty\":false,\"values\":[{\"labels\":{\"service\":\"checkout\"},\"value\":0.5234123,\"at\":\"2026-11-20T10:05:00Z\"}]}"
+      }
+    ],
+    "saves": [
+      {
+        "input": {
+          "title": "Checkout latency",
+          "markdown": "Checkout p99 rose to 9.3 s and 2,950 orders failed.",
+          "root_cause": {
+            "component": "cartservice",
+            "kind": "dependency",
+            "summary": "s"
+          },
+          "onset": "2026-11-20T10:05:00Z"
+        },
+        "want": {
+          "send_back": "",
+          "sent_back": true,
+          "unverified": [],
+          "saved": {
+            "markdown": "Checkout p99 rose to 9.3 s and 2,950 orders failed.",
+            "onset": "2026-11-20T10:05:00Z",
+            "root_cause": {
+              "component": "cartservice",
+              "kind": "dependency",
+              "summary": "s"
+            },
+            "title": "Checkout latency",
+            "unverified": []
+          }
+        }
+      }
+    ]
+  }
+]

@@ -5,11 +5,11 @@ import {
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { ApiError, unwrap } from "@/api/errors"
+import { type ProblemTexts, unwrap } from "@/api/errors"
 import { userKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
+import { followCursor } from "@/lib/follow-cursor"
 import type { Role } from "@/lib/roles"
-import { loadProblemText } from "@/service-accounts/queries"
 
 export type Invite = components["schemas"]["Invite"]
 
@@ -18,23 +18,26 @@ const maxPages = 20
 const maxEmailBytes = 254
 const invitesKey = [...userKeys.all, "invites"] as const
 
-async function fetchAllInvites(signal: AbortSignal): Promise<Invite[]> {
-  const invites: Invite[] = []
-  const seen = new Set<string>()
-  let cursor: string | undefined
-  for (let pages = 0; pages < maxPages; pages++) {
-    const page = await api
-      .GET("/invites", {
-        params: { query: { limit: pageSize, cursor } },
-        signal,
-      })
-      .then(unwrap)
-    invites.push(...page.invites)
-    cursor = page.next_cursor ?? undefined
-    if (cursor === undefined || seen.has(cursor)) break
-    seen.add(cursor)
-  }
-  return invites
+function fetchAllInvites(signal: AbortSignal): Promise<Invite[]> {
+  return followCursor(
+    (cursor) =>
+      api
+        .GET("/invites", {
+          params: {
+            query: {
+              limit: pageSize,
+              ...(cursor === undefined ? {} : { cursor }),
+            },
+          },
+          signal,
+        })
+        .then(unwrap)
+        .then((page) => ({
+          items: page.invites,
+          next: page.next_cursor ?? null,
+        })),
+    maxPages
+  )
 }
 
 export function invitesQuery() {
@@ -59,25 +62,20 @@ export function inviteEmailProblem(email: string): string | null {
   return null
 }
 
-export function inviteProblemText(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.code === "already_member") {
-      return "Someone with this email has already signed in. Change their role in the People table instead."
-    }
-    if (error.code === "email_domain_not_allowed") {
-      return "People with this email cannot sign in. Add its domain to the allowed email domains in the sign-in settings first."
-    }
-    if (error.status === 404) {
-      return "This invite no longer exists. It was withdrawn, or the person has signed in."
-    }
-  }
-  return loadProblemText(error)
+export const inviteProblems: ProblemTexts = {
+  codes: {
+    already_member:
+      "Someone with this email has already signed in. Change their role in the People table instead.",
+    email_domain_not_allowed:
+      "People with this email cannot sign in. Add its domain to the allowed email domains in the sign-in settings first.",
+  },
+  notFound:
+    "This invite no longer exists. It was withdrawn, or the person has signed in.",
 }
 
 export function useSaveInvite() {
   const queryClient = useQueryClient()
   return useMutation({
-    networkMode: "always",
     mutationFn: ({ email, role }: { email: string; role: Role }) =>
       api
         .POST("/invites", { body: { email: email.trim(), role } })

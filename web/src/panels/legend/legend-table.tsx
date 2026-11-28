@@ -34,14 +34,14 @@ type Props = {
   reducers: readonly string[]
   headers?: readonly string[]
   cells: string[][]
-  sortBy?: string
+  sortBy?: string | undefined
   sortDesc?: boolean
   hidden: ReadonlySet<string>
   placement: LegendPlacement
   available: number
   width: number
   onToggle: (key: string) => void
-  onHover?: LegendHover
+  onHover?: LegendHover | undefined
   more?: number
 }
 
@@ -51,6 +51,10 @@ type LegendRow =
 
 const legendRowId = (row: LegendRow) =>
   row.kind === "item" ? `item:${row.item.key}` : "more"
+
+function widthOf(width: number | undefined): { width?: number } {
+  return width === undefined ? {} : { width }
+}
 
 export function LegendTable({
   ref,
@@ -116,7 +120,7 @@ export function LegendTable({
         id: "name",
         label: "Series",
         header: () => <span className="sr-only">Series</span>,
-        sort: sortBy === "name" ? sorted : undefined,
+        ...(sortBy === "name" ? { sort: sorted } : {}),
         minWidth: legendNameMinWidth(rem),
         cell: (row) =>
           row.kind === "more" ? (
@@ -149,14 +153,14 @@ export function LegendTable({
       },
       ...reducers.map((reducer, column): PanelGridColumn<LegendRow> => ({
         id: `value:${column}`,
-        label: names[column],
+        label: names[column] ?? "",
         header: () => (
           <span className="w-full px-1.5 text-right font-medium whitespace-nowrap text-muted-foreground tabular-nums">
             {names[column]}
           </span>
         ),
-        sort: sortBy === reducer ? sorted : undefined,
-        width: valueWidths[column],
+        ...(sortBy === reducer ? { sort: sorted } : {}),
+        ...widthOf(valueWidths[column]),
         cell: (row) =>
           row.kind === "item" ? (
             <span

@@ -52,7 +52,7 @@ type Props = {
   ownerId?: string
   canComment: boolean
   idle: boolean
-  viewing?: boolean
+  viewing?: boolean | undefined
   onCanvas: boolean
   composerRef: RefObject<HTMLTextAreaElement | null>
 }

@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { CalendarIcon, ClockIcon, RefreshCwIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { dashboardKeys } from "@/api/keys"
 import { DateCalendar } from "@/components/date-calendar"
 import { Button } from "@/components/ui/button"
@@ -25,7 +26,6 @@ import {
   zonedTimeValue,
 } from "@/lib/time"
 import { preferredDisplayZone, usePreferences } from "@/lib/preferences"
-import { loadProblemText } from "@/service-accounts/queries"
 import type { Dashboard } from "@/spec"
 
 import { useAddVersion } from "./queries"
@@ -49,11 +49,11 @@ type SaveDefault = {
 type ControlProps = {
   value: TimeRangeValue
   onChange: (next: TimeRangeValue) => void
-  quickRanges?: QuickRange[]
-  zone?: string | null
-  saveDefault?: SaveDefault
-  defaultOpen?: boolean
-  onDismiss?: () => void
+  quickRanges?: QuickRange[] | undefined
+  zone?: string | null | undefined
+  saveDefault?: SaveDefault | undefined
+  defaultOpen?: boolean | undefined
+  onDismiss?: (() => void) | undefined
 }
 
 export function TimeRangeControl({
@@ -297,7 +297,7 @@ type Props = {
   quickRanges: QuickRange[]
   hidden: boolean
   timezone: string | undefined
-  defaultRange?: { spec: Dashboard; version: number } | null
+  defaultRange?: { spec: Dashboard; version: number } | null | undefined
 }
 
 export function TimeRangePicker({

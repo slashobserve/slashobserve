@@ -75,7 +75,6 @@ export function useCreateDatasource() {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: (draft: DatasourceDraft) =>
       api.POST("/datasources", { body: draft }).then(settle),
     onSuccess: () =>
@@ -87,7 +86,6 @@ export function useUpdateDatasource(uid: string) {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: (draft: DatasourceDraft) =>
       api
         .PATCH("/datasources/{uid}", {
@@ -104,7 +102,6 @@ export function useDeleteDatasource() {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
     mutationFn: (uid: string) =>
       api
         .DELETE("/datasources/{uid}", { params: { path: { uid } } })
@@ -117,8 +114,13 @@ export function useDeleteDatasource() {
 export function useTestDatasource() {
   return useMutation({
     gcTime: 0,
-    networkMode: "always",
-    mutationFn: ({ draft, base }: { draft: DatasourceDraft; base?: string }) =>
+    mutationFn: ({
+      draft,
+      base,
+    }: {
+      draft: DatasourceDraft
+      base?: string | undefined
+    }) =>
       api
         .POST("/datasources/test", {
           params: { query: base === undefined ? {} : { base } },

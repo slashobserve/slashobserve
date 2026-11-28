@@ -1,42 +1,19 @@
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type RefObject,
-} from "react"
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useNavigate, useSearch } from "@tanstack/react-router"
-import {
-  BookmarkIcon,
-  FolderSearchIcon,
-  LinkIcon,
-  MoreHorizontalIcon,
-  RadioIcon,
-} from "lucide-react"
-import { toast } from "sonner"
 
+import { AskedFrom, AskProblem } from "@/ask/ask-result"
+import { loadProblemText } from "@/api/errors"
 import { AskField } from "@/ask/ask-field"
 import type { InputMode } from "@/ask/input-mode"
 import { InputModeToggle } from "@/ask/input-mode-toggle"
 import { useAsk } from "@/ask/use-ask"
 import { useInputModeShortcut } from "@/ask/use-input-mode-shortcut"
 import { AgentMark } from "@/components/agent-mark"
-import { CopyButton } from "@/components/copy-button"
 import { PageBar } from "@/components/page-bar"
 import { LoadProblem } from "@/components/load-problem"
 import { StatusLabel } from "@/components/status-label"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
@@ -44,7 +21,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import type { PanelDataResponse } from "@/dashboards/queries"
-import { TimeRangeControl } from "@/dashboards/time-range-picker"
 import { useSourceMemory } from "@/datasources/datasource-memory"
 import type { DatasourceStatus } from "@/datasources/queries"
 import { SourceTitle } from "@/datasources/source-title"
@@ -67,17 +43,13 @@ import { usePageCursors } from "@/lib/use-page-cursors"
 import { cn } from "@/lib/utils"
 import { exploreErrorText, exploreQuery, offlineText } from "@/logs/explore"
 import { ExploreFailure } from "@/logs/explore-failure"
-import { usePhone } from "@/logs/logs-results"
 import { useAgentInfo } from "@/observe/queries"
 import type { CodeEditorHandle } from "@/query-editor/code-editor"
 import { saveBlockedText, tracesDraft } from "@/saved-searches/draft"
-import { savedSearchLocation } from "@/saved-searches/links"
-import { savedSearchesQuery } from "@/saved-searches/queries"
 import { OpenSavedSearch } from "@/saved-searches/open-saved-search"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
-import { SavedSearchesMenu } from "@/saved-searches/saved-searches-menu"
-import { loadProblemText } from "@/service-accounts/queries"
-import { TopRowActions } from "@/shell/top-row-actions"
+import { ExploreActions } from "@/saved-searches/explore-actions"
+import { useLeaveAskOnSavedOpen } from "@/saved-searches/saved-open"
 
 import { AddToDashboardAction } from "./add-to-dashboard-action"
 import { AddToObservationAction } from "./add-to-observation-action"
@@ -90,7 +62,7 @@ import {
   hasTraceStats,
   linkWithoutPage,
   rangeInFuture,
-  tracesTimeRange,
+  searchRange,
   type TraceSearch,
 } from "./search"
 import {
@@ -140,7 +112,7 @@ function useTraceSearch() {
   const update: UpdateSearch = (next, options) =>
     void navigate({
       search: (state) => ({ ...state, page: undefined, ...next }),
-      replace: options?.replace,
+      ...(options?.replace === undefined ? {} : { replace: options.replace }),
     })
   return { search, update }
 }
@@ -161,7 +133,7 @@ export function TracesPage({ uid }: { uid: string }) {
       useSourceMemory.getState().remember("traces", rememberedUid)
     }
   }, [rememberedUid])
-  const range = tracesTimeRange(search)
+  const range = searchRange(search)
   const folders = useQuery(foldersQuery())
   const saveBlocked = saveBlockedText(folders.data)
   const [saving, setSaving] = useState(false)
@@ -236,11 +208,15 @@ export function TracesPage({ uid }: { uid: string }) {
         draft={draft}
         onClose={() => update({ saved: undefined }, { replace: true })}
       />
-      <TraceSearchActions
+      <ExploreActions
+        kind="traces"
         range={range}
         onRangeChange={update}
-        live={live}
-        onLiveChange={setLive}
+        tail={{
+          on: live,
+          blocked: isRelativeRange(range) ? undefined : liveBlockedText,
+          toggle: () => setLive(!live),
+        }}
         saveTrigger={saveTrigger}
         saveBlocked={saveBlocked}
         shareHref={
@@ -267,152 +243,6 @@ export function TracesPage({ uid }: { uid: string }) {
   )
 }
 
-async function copyLink(href: string) {
-  try {
-    await navigator.clipboard.writeText(href)
-    toast.success("Link copied")
-  } catch {
-    toast.error("Could not copy. Select the text and press Ctrl+C or Cmd+C.")
-  }
-}
-
-function SavedSearchItems() {
-  const navigate = useNavigate()
-  const query = useQuery(savedSearchesQuery({ kind: "traces" }))
-  const items = query.data?.saved_searches ?? []
-  if (query.isPending) {
-    return <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
-  }
-  if (query.isError) {
-    return (
-      <DropdownMenuItem disabled>
-        {loadProblemText(query.error)}
-      </DropdownMenuItem>
-    )
-  }
-  if (items.length === 0) {
-    return <DropdownMenuItem disabled>No saved searches yet.</DropdownMenuItem>
-  }
-  return items.map((saved) => (
-    <DropdownMenuItem
-      key={saved.id}
-      onClick={() => void navigate(savedSearchLocation(saved))}
-    >
-      <span className="min-w-0 flex-1 truncate">{saved.title}</span>
-    </DropdownMenuItem>
-  ))
-}
-
-function TraceSearchActions({
-  range,
-  onRangeChange,
-  live,
-  onLiveChange,
-  saveTrigger,
-  saveBlocked,
-  shareHref,
-  onSave,
-}: {
-  range: { from: string; to: string }
-  onRangeChange: UpdateSearch
-  live: boolean
-  onLiveChange: (next: boolean) => void
-  saveTrigger: RefObject<HTMLButtonElement | null>
-  saveBlocked: string | undefined
-  shareHref: string
-  onSave: () => void
-}) {
-  const phone = usePhone()
-  const relative = isRelativeRange(range)
-  return (
-    <TopRowActions>
-      <div className="flex items-center gap-2">
-        <span className={cn("contents", phone && "[&_button]:h-11")}>
-          <TimeRangeControl value={range} onChange={onRangeChange} />
-        </span>
-        <Button
-          type="button"
-          variant="outline"
-          aria-pressed={live}
-          disabled={!relative}
-          title={relative ? undefined : liveBlockedText}
-          className={cn(phone && "h-11")}
-          onClick={() => onLiveChange(!live)}
-        >
-          <RadioIcon aria-hidden="true" />
-          {live ? "Stop live tail" : "Live tail"}
-        </Button>
-        {phone ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  ref={saveTrigger}
-                  variant="ghost"
-                  size="icon"
-                  aria-label="More actions"
-                  className="size-11"
-                />
-              }
-            >
-              <MoreHorizontalIcon aria-hidden="true" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem
-                className="min-h-11"
-                disabled={saveBlocked !== undefined}
-                title={saveBlocked}
-                onClick={onSave}
-              >
-                <BookmarkIcon aria-hidden="true" />
-                Save search
-              </DropdownMenuItem>
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="min-h-11">
-                  <FolderSearchIcon aria-hidden="true" />
-                  Saved searches
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-64">
-                  <SavedSearchItems />
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-              <DropdownMenuItem
-                className="min-h-11"
-                onClick={() => void copyLink(shareHref)}
-              >
-                <LinkIcon aria-hidden="true" />
-                Copy link
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <>
-            <span aria-hidden="true" className="h-5 w-px bg-border" />
-            <SavedSearchesMenu kind="traces" />
-            <Button
-              ref={saveTrigger}
-              type="button"
-              variant="ghost"
-              disabled={saveBlocked !== undefined}
-              title={saveBlocked}
-              onClick={onSave}
-            >
-              <BookmarkIcon aria-hidden="true" />
-              <span className="@max-[780px]/top:sr-only">Save search</span>
-            </Button>
-            <CopyButton
-              text={shareHref}
-              label="Copy link"
-              variant="ghost"
-              size="icon"
-            />
-          </>
-        )}
-      </div>
-    </TopRowActions>
-  )
-}
-
 function TraceSearchWorkspace({
   datasource,
   search,
@@ -428,7 +258,7 @@ function TraceSearchWorkspace({
   const uid = datasource.uid
   const type = datasource.type
   const clickhouse = type === "clickhouse"
-  const range = tracesTimeRange(search)
+  const range = searchRange(search)
   const agent = useAgentInfo()
   const agentAvailable = agent.data?.available === true
   const inputMode = useTraceInputMode({ type, search, agentAvailable })
@@ -473,6 +303,12 @@ function TraceSearchWorkspace({
   }
 
   useInputModeShortcut(() => switchMode(inputMode.following()))
+  useLeaveAskOnSavedOpen(shown, (_, remember) =>
+    inputMode.select(
+      clickhouse && search.q === undefined ? "builder" : "code",
+      remember
+    )
+  )
 
   function askAgain() {
     ask.askAgain()
@@ -497,7 +333,9 @@ function TraceSearchWorkspace({
       <SourceTitle
         kind="traces"
         source={datasource}
-        language={inputMode.language}
+        {...(inputMode.language === undefined
+          ? {}
+          : { language: inputMode.language })}
       />
       <section
         aria-label="Query"
@@ -630,40 +468,18 @@ function TraceSearchWorkspace({
               <span className="text-xs text-muted-foreground">
                 or press Ctrl+Enter or Cmd+Enter
               </span>
-              {search.ask !== undefined ? (
-                <span className="min-w-0 truncate text-xs text-muted-foreground">
-                  From: {search.ask}
-                </span>
-              ) : null}
-              {answered || ask.problem !== null ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="narrow:h-11"
-                  onClick={askAgain}
-                >
-                  Write again
-                </Button>
-              ) : null}
+              <AskedFrom
+                question={search.ask}
+                onWriteAgain={
+                  answered || ask.problem !== null ? askAgain : undefined
+                }
+              />
             </div>
           </>
         )}
         {ask.problem !== null ? (
-          <div
-            role="alert"
-            className="flex flex-col items-start gap-1 border-t px-4 py-2.5 text-[13px]"
-          >
-            {ask.problem.kind === "cannot_translate" ? (
-              <>
-                <StatusLabel tone="critical">
-                  I could not turn that into a query.
-                </StatusLabel>
-                <p className="text-muted-foreground">{ask.problem.reason}</p>
-              </>
-            ) : (
-              <StatusLabel tone="critical">{ask.problem.text}</StatusLabel>
-            )}
+          <div className="border-t px-4 py-2.5">
+            <AskProblem problem={ask.problem} />
           </div>
         ) : null}
       </section>
@@ -716,7 +532,7 @@ function TraceResults({
   update: UpdateSearch
   live: boolean
 }) {
-  const range = tracesTimeRange(search)
+  const range = searchRange(search)
   const [openedAt] = useState(Date.now)
   const polling = {
     refetchInterval: liveRefreshMs(live, range),
@@ -836,7 +652,7 @@ function TraceResults({
       state={state}
       noun="traces"
       qualifier=" in range"
-      note={datasource.type === "tempo" ? tempoPagingNote : undefined}
+      {...(datasource.type === "tempo" ? { note: tempoPagingNote } : {})}
       label="Trace pages"
       busy={results.isFetching}
       onPage={(next) => {
@@ -989,7 +805,7 @@ function SelectableTraceTable({
   label: string
   fitWindow: boolean
 }) {
-  const range = tracesTimeRange(search)
+  const range = searchRange(search)
   const panel = tracesPanelFor({
     id: "traces",
     title: tracePanelTitle(search),

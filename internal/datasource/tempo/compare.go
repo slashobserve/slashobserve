@@ -11,6 +11,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/otlphttp"
 )
 
 const compareConcurrency = 4
@@ -26,7 +27,7 @@ func (d *Datasource) TraceAttributes(ctx context.Context, req datasource.TraceAt
 			break
 		}
 		group.Go(func() error {
-			callCtx, cancel := bound(groupCtx, d.opts.Limits.Timeout)
+			callCtx, cancel := datasource.Bound(groupCtx, d.opts.Limits.Timeout)
 			defer cancel()
 			rows, _, err := d.fetchSpans(callCtx, id, req.Range)
 			switch {
@@ -58,19 +59,19 @@ func (d *Datasource) TraceAttributes(ctx context.Context, req datasource.TraceAt
 	return sets, nil
 }
 
-func pairsOf(rows []spanRow) []datasource.TraceAttribute {
+func pairsOf(rows []otlphttp.Row) []datasource.TraceAttribute {
 	seen := map[datasource.TraceAttribute]struct{}{}
 	add := func(key, value string) { seen[datasource.TraceAttribute{Key: key, Value: value}] = struct{}{} }
 	for _, r := range rows {
-		add("name", r.name)
-		add("kind", r.kind)
-		add("status", r.status)
-		for key, value := range r.res {
+		add("name", r.Name)
+		add("kind", r.Kind)
+		add("status", r.Status)
+		for key, value := range r.Res {
 			if text, ok := scalarText(value); ok {
 				add("resource."+key, text)
 			}
 		}
-		for key, value := range r.attrs {
+		for key, value := range r.Attrs {
 			if text, ok := scalarText(value); ok {
 				add("span."+key, text)
 			}

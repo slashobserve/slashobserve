@@ -2,7 +2,6 @@ package runsession
 
 import (
 	"bytes"
-	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -14,9 +13,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/agent/brief"
-	"github.com/slashobserve/slashobserve/internal/agent/grounding"
-	"github.com/slashobserve/slashobserve/internal/agent/guard"
-	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
@@ -69,44 +65,35 @@ type Datasources interface {
 }
 
 type Config struct {
-	DB                    *db.DB
-	Runs                  *revisions.Service
-	Claims                *claims.Service
-	Builds                Builds
-	Dashboards            Dashboards
-	Imports               brief.ImportReader
-	Statuses              Statuses
-	Datasources           Datasources
-	Steps                 revisions.StepRecorder
-	Prices                pricing.Table
-	MaxRunCostUSD         float64
-	InvestigationCalls    int
-	InvestigationLoop     bool
-	InvestigationCallsMax int
-	FindingGrounding      grounding.Mode
-	Logger                *slog.Logger
+	DB            *db.DB
+	Runs          *revisions.Service
+	Claims        *claims.Service
+	Builds        Builds
+	Dashboards    Dashboards
+	Imports       brief.ImportReader
+	Statuses      Statuses
+	Datasources   Datasources
+	Steps         revisions.StepRecorder
+	Prices        pricing.Table
+	MaxRunCostUSD float64
+	Logger        *slog.Logger
 }
 
 type Service struct {
-	db                 *db.DB
-	runs               *revisions.Service
-	claims             *claims.Service
-	builds             Builds
-	dashboards         Dashboards
-	loader             brief.Loader
-	statuses           Statuses
-	datasources        Datasources
-	steps              revisions.StepRecorder
-	prices             pricing.Table
-	maxRunCost         float64
-	investigationCalls int
-	investigationLoop  bool
-	investigationMax   int
-	findingGrounding   grounding.Mode
-	logger             *slog.Logger
-	inFlight           slots
-	runLocks           runLocks
-	sweeper            Sweeper
+	db          *db.DB
+	runs        *revisions.Service
+	claims      *claims.Service
+	builds      Builds
+	dashboards  Dashboards
+	loader      brief.Loader
+	statuses    Statuses
+	datasources Datasources
+	steps       revisions.StepRecorder
+	prices      pricing.Table
+	maxRunCost  float64
+	logger      *slog.Logger
+	inFlight    slots
+	runLocks    runLocks
 }
 
 func New(c Config) *Service {
@@ -119,7 +106,7 @@ func New(c Config) *Service {
 	return &Service{
 		db: c.DB, runs: c.Runs, claims: c.Claims, builds: c.Builds, dashboards: c.Dashboards,
 		loader:   brief.Loader{Dashboards: c.Dashboards, Imports: c.Imports, Logger: c.Logger},
-		statuses: c.Statuses, datasources: c.Datasources, steps: c.Steps, prices: c.Prices, maxRunCost: c.MaxRunCostUSD, investigationCalls: c.InvestigationCalls, investigationLoop: c.InvestigationLoop, investigationMax: c.InvestigationCallsMax, findingGrounding: c.FindingGrounding, logger: c.Logger,
+		statuses: c.Statuses, datasources: c.Datasources, steps: c.Steps, prices: c.Prices, maxRunCost: c.MaxRunCostUSD, logger: c.Logger,
 		inFlight: make(slots, max(1, c.DB.Stat().MaxConns()/2)),
 	}
 }
@@ -202,12 +189,6 @@ func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Req
 	if err := json.Unmarshal(stored.State, &sess.state); err != nil {
 		return nil, fmt.Errorf("decode run session: %w", err)
 	}
-	if created {
-		sess.recordRoute()
-	}
-	if sess.state.Guard.InvestigationCalls == 0 {
-		sess.state.Guard.InvestigationCalls = s.investigationCalls
-	}
 	return sess, nil
 }
 
@@ -225,10 +206,11 @@ func (s *Service) create(ctx context.Context, q *dbsqlc.Queries, req revisions.R
 		return none, err
 	}
 	attempt := httpapi.Int32(req.Attempt)
-	if initial.Triage, err = priorTriage(ctx, q, id, attempt); err != nil {
+	before, err := priorSession(ctx, q, id, attempt)
+	if err != nil {
 		return none, err
 	}
-	initial.seedLedger()
+	initial.Agent = before.carried()
 	raw, err := json.Marshal(initial)
 	if err != nil {
 		return none, fmt.Errorf("encode run session: %w", err)
@@ -247,7 +229,7 @@ func (s *Service) initial(ctx context.Context, req revisions.Request, id pgtype.
 	if err != nil {
 		return State{}, err
 	}
-	state := s.watched(run, req, s.routed(ctx, run, req))
+	state := State{Mode: run.Mode}
 	parent := 0
 	switch {
 	case run.Mode == tools.ModeSuggest:
@@ -261,38 +243,17 @@ func (s *Service) initial(ctx context.Context, req revisions.Request, id pgtype.
 			return State{}, err
 		}
 	}
-	building := false
 	if run.Build {
 		build, found, err := s.builds.Build(ctx, id)
 		if err != nil {
 			return State{}, fmt.Errorf("get the run's build: %w", err)
 		}
 		if found {
-			building, state.Build = true, buildProgress(build)
+			state.Build = buildProgress(build)
 		}
 	}
-	state.Guard.BeginSession(building, parent)
+	state.beginSession(parent)
 	return state, nil
-}
-
-func (s *Service) watched(run tools.Run, req revisions.Request, task route.Task) State {
-	state := State{Guard: guard.New(run.Mode), Task: task, Loop: s.investigationLoop && run.Mode == tools.ModeInvestigate && run.Investigation}
-	if run.Mode == tools.ModeInvestigate {
-		state.Guard.InvestigationCalls = cmp.Or(s.investigationCalls, guard.InvestigationCallsFor(task))
-	}
-	if state.Loop {
-		state.Guard.WatchLedger()
-	}
-	if run.Mode != tools.ModeSuggest {
-		state.Grounding = grounding.NewRecord(s.findingGrounding)
-	}
-	if state.Grounding.Enforced() {
-		state.Guard.WatchGrounding()
-	}
-	if state.Loop && req.Assignee == revisions.AssignBuiltin {
-		state.Guard.StartLoop(s.investigationMax)
-	}
-	return state
 }
 
 func buildProgress(b dashboards.Build) *tools.BuildProgress {
@@ -331,7 +292,7 @@ func (s *Service) Scope(ctx context.Context, req revisions.Request) (tools.Run, 
 	}
 	ended := false
 	err = s.with(ctx, req, func(ctx context.Context, sess *session) error {
-		run.ParentVersion = sess.state.Guard.ParentVersion
+		run.ParentVersion = sess.state.ParentVersion
 		run.Task, run.AllTools = sess.state.Task, sess.state.AllTools
 		run.Access, run.WriteFolders = sess.access, sess.writes.Folders
 		if run.Mode != tools.ModeSuggest {

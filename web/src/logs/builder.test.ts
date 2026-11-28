@@ -52,7 +52,7 @@ describe("rowsOf", () => {
 
   it("keeps a value with spaces quoted", () => {
     const rows = rowsOf('message:"payment failed"')
-    expect(rows?.[0].value).toBe("payment failed")
+    expect(rows?.[0]?.value).toBe("payment failed")
     expect(textOf(rows ?? [])).toBe('message : "payment failed"')
   })
 

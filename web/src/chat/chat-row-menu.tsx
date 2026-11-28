@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { problemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -32,7 +33,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import {
-  sentence,
   useDeleteChatTurns,
   useMyRequests,
   usePinChat,
@@ -56,9 +56,9 @@ const archiveText = "The chat leaves your chat lists."
 type ChatRef = Pick<RequestSummary, "id" | "title" | "pinned_at">
 
 function failureText(error: unknown): string {
-  return error instanceof Error && error.message !== ""
-    ? sentence(error.message)
-    : "The chat could not be changed. Try again."
+  return problemText(error, {
+    fallback: "The chat could not be changed. Try again.",
+  })
 }
 
 export function chatRowId(requestId: string): string {

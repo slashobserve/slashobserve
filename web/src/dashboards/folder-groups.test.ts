@@ -183,7 +183,7 @@ describe("groupPage", () => {
       total: 60,
       filtered: true,
     })
-    expect(later[0].continued).toBe(false)
+    expect(later[0]?.continued).toBe(false)
   })
 
   it("falls back to the filtered behaviour when folder counts disagree with the total", () => {
@@ -234,7 +234,7 @@ describe("groupPage", () => {
       total: 60,
       filtered: true,
     })
-    expect([first[0].count, later[0].count]).toEqual([null, null])
+    expect([first[0]?.count, later[0]?.count]).toEqual([null, null])
   })
 
   it("gives no sections for a filter that matches nothing", () => {

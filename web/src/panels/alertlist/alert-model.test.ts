@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { must } from "@/panels/must"
+
 import type { PreparedFrame } from "../transforms"
 import { activeFor, alertModel, missingAlertsReason } from "./alert-model"
 
@@ -87,12 +89,12 @@ describe("alertModel", () => {
       now
     )
     expect(
-      model.alerts.map((item) => [item.labels[0][1], item.activeFor])
+      model.alerts.map((item) => [must(item.labels[0])[1], item.activeFor])
     ).toEqual([
       ["checkout", "for 12m"],
       ["payments", null],
     ])
-    expect(model.alerts[0].since).toBe(now - 720_000)
+    expect(must(model.alerts[0]).since).toBe(now - 720_000)
   })
 
   it("sorts A to Z and Z to A by name", () => {

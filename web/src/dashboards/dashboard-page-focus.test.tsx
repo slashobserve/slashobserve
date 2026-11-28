@@ -299,7 +299,7 @@ describe("dashboard page panel keys", () => {
       )
     )
     const copy = screen.getAllByRole("article", { name: "Latency" })[1]
-    await user.hover(copy)
+    await user.hover(copy!)
     await user.keyboard("c")
     await waitFor(() =>
       expect(router.state.location.search).toMatchObject({
@@ -400,7 +400,7 @@ describe("dashboard page panel keys", () => {
     )
     await waitFor(() => expect(agentRequested()).toBe(true))
     const copy = screen.getAllByRole("article", { name: "Latency" })[1]
-    await user.hover(copy)
+    await user.hover(copy!)
     await waitFor(async () => {
       await user.keyboard("a")
       expect(router.state.location.search).toMatchObject({ tab: "chat" })

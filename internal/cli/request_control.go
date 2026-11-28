@@ -89,11 +89,14 @@ func (a *app) runSaveAnswer(cmd *cobra.Command, args []string) error {
 		out.body(data)
 		return nil
 	}
-	if saved.Replayed {
+	switch {
+	case saved.Replayed:
 		out.line("Already an observation: %s", text(saved.URL))
-		return nil
+	case saved.Outcome == "kept":
+		out.line("Kept in the observation its thread share showed it in, so a withdraw leaves it there: %s", text(saved.URL))
+	default:
+		out.line("Saved as an observation: %s", text(saved.URL))
 	}
-	out.line("Saved as an observation: %s", text(saved.URL))
 	return nil
 }
 
@@ -101,6 +104,7 @@ type savedAnswer struct {
 	ObservationID string `json:"observation_id"`
 	URL           string `json:"url"`
 	Replayed      bool   `json:"replayed"`
+	Outcome       string `json:"outcome"`
 }
 
 func saveAnswerError(err error, id string) error {
@@ -233,14 +237,6 @@ func requestControlError(err error, id string) error {
 		return fmt.Errorf("request %s already finished, so it cannot be canceled", id)
 	case "not_continuable":
 		return fmt.Errorf("request %s has no stopped build to continue: it did not fail, was saved, was already continued or lost its build", id)
-	case "version_conflict":
-		var body struct {
-			Latest int `json:"latest_version"`
-		}
-		if json.Unmarshal(api.raw, &body) == nil && body.Latest > 0 {
-			return fmt.Errorf("request %s cannot be continued: the dashboard has a newer version (%d) than the build started from", id, body.Latest)
-		}
-		return fmt.Errorf("request %s cannot be continued: the dashboard has a newer version than the build started from", id)
 	}
 	return err
 }

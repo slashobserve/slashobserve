@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import { extractFields } from "./extract-fields"
 import type { PreparedFrame } from "./names"
 
@@ -24,6 +26,7 @@ function run(
     field: "line",
     ...extra,
   })
+  defined(out)
   return Object.fromEntries(
     out.fields.map((f) => [f.name, { type: f.type, values: f.values }])
   )
@@ -62,9 +65,9 @@ describe("extractFields json", () => {
         { path: "constructor" },
       ],
     })
-    expect(out.second.values).toEqual([2])
-    expect(out.s.values).toEqual(["x"])
-    expect(out["a.missing"].values).toEqual([null])
+    expect(must(out.second).values).toEqual([2])
+    expect(must(out.s).values).toEqual(["x"])
+    expect(must(out["a.missing"]).values).toEqual([null])
     expect(
       Object.entries(out).find(([name]) => name === "constructor")?.[1].values
     ).toEqual([null])
@@ -72,7 +75,7 @@ describe("extractFields json", () => {
 
   it("writes nested values as JSON text", () => {
     expect(
-      run(['{"o":{"k":1},"l":[1,2]}'], { format: "json" }).o.values
+      must(run(['{"o":{"k":1},"l":[1,2]}'], { format: "json" }).o).values
     ).toEqual(['{"k":1}'])
   })
 
@@ -88,8 +91,8 @@ describe("extractFields kvp, delimiter and regexp", () => {
   it("reads key=value pairs with quoted values and key: value lists", () => {
     const out = run(['a=1 b="x y" c=z', "a: 2, b: q"], { format: "kvp" })
     expect(out.a).toEqual({ type: "number", values: [1, 2] })
-    expect(out.b.values).toEqual(["x y", "q"])
-    expect(out.c.values).toEqual(["z", null])
+    expect(must(out.b).values).toEqual(["x y", "q"])
+    expect(must(out.c).values).toEqual(["z", null])
   })
 
   it("splits by the delimiter into fields named 1, 2, ...", () => {
@@ -97,9 +100,9 @@ describe("extractFields kvp, delimiter and regexp", () => {
       format: "delimiter",
       delimiter: ";",
     })
-    expect(out["1"].values).toEqual(["a", "b"])
+    expect(must(out["1"]).values).toEqual(["a", "b"])
     expect(out["2"]).toEqual({ type: "number", values: [1, 2] })
-    expect(out["3"].values).toEqual([null, "extra"])
+    expect(must(out["3"]).values).toEqual([null, "extra"])
   })
 
   it("turns named groups into fields", () => {
@@ -107,16 +110,20 @@ describe("extractFields kvp, delimiter and regexp", () => {
       format: "regexp",
       regex: "(?<method>\\w+) (?<path>\\S+) (?<status>\\d+)",
     })
-    expect(out.method.values).toEqual(["GET", "POST", null])
+    expect(must(out.method).values).toEqual(["GET", "POST", null])
     expect(out.status).toEqual({ type: "number", values: [200, 500, null] })
   })
 
   it("adds nothing for a missing or invalid regexp", () => {
     for (const regex of [undefined, "("]) {
-      expect(Object.keys(run(["a"], { format: "regexp", regex }))).toEqual([
-        "Time",
-        "line",
-      ])
+      expect(
+        Object.keys(
+          run(["a"], {
+            format: "regexp",
+            ...(regex === undefined ? {} : { regex }),
+          })
+        )
+      ).toEqual(["Time", "line"])
     }
   })
 })
@@ -124,8 +131,8 @@ describe("extractFields kvp, delimiter and regexp", () => {
 describe("extractFields auto and options", () => {
   it("tries JSON first and falls back to key=value", () => {
     const out = run(['{"a":1}', "b=2"])
-    expect(out.a.values).toEqual([1, null])
-    expect(out.b.values).toEqual([null, 2])
+    expect(must(out.a).values).toEqual([1, null])
+    expect(must(out.b).values).toEqual([null, 2])
   })
 
   it("replaces every field but keeps time when asked", () => {
@@ -138,7 +145,7 @@ describe("extractFields auto and options", () => {
   it("does not overwrite an existing field of the same name", () => {
     const out = run(['{"Time":"t","a":1}'], { format: "json" })
     expect(out.Time).toEqual({ type: "time", values: [0] })
-    expect(out.a.values).toEqual([1])
+    expect(must(out.a).values).toEqual([1])
   })
 
   it("leaves the frame alone when the source field is missing", () => {
@@ -152,6 +159,6 @@ describe("extractFields auto and options", () => {
 
   it("skips rows that are not text", () => {
     const out = run([null, 5, '{"a":1}'], { format: "json" })
-    expect(out.a.values).toEqual([null, null, 1])
+    expect(must(out.a).values).toEqual([null, null, 1])
   })
 })

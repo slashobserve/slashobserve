@@ -17,7 +17,7 @@ import { logsLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { exploreErrorText } from "@/logs/explore"
 import { ExploreLogs } from "@/logs/logs-results"
-import { useElementSize } from "@/logs/use-element-size"
+import { useElementSize } from "@/lib/use-element-size"
 import type { Span } from "@/panels/traces/trace-model"
 
 import {

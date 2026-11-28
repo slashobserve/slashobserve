@@ -2,6 +2,7 @@ import type { Transform } from "@/spec"
 
 import { groupFrame } from "./group-by"
 import {
+  frameName,
   cell,
   copyFrame,
   type PreparedField,
@@ -19,7 +20,7 @@ function nestedFrame(
 ): PreparedFrame {
   return {
     ref: frame.ref,
-    name: frame.name,
+    ...frameName(frame),
     fields: frame.fields
       .filter((field) => !keys.includes(field))
       .map((field) => ({
@@ -46,7 +47,7 @@ export function groupToNestedTable(
     }
     return {
       ref: frame.ref,
-      name: frame.name,
+      ...frameName(frame),
       fields: [...grouped.fields, nested],
     }
   })

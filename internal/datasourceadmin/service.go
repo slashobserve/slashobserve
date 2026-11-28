@@ -51,6 +51,51 @@ type version struct {
 	id        pgtype.UUID
 	updatedAt time.Time
 	blocked   bool
+	failed    bool
+}
+
+func (v version) sameRow(o version) bool {
+	return v.id == o.id && v.updatedAt.Equal(o.updatedAt) && v.blocked == o.blocked
+}
+
+const (
+	definitionNotJSON   = "the stored definition is not valid JSON"
+	definitionInvalid   = "the stored definition is invalid"
+	definitionUnopened  = "the stored definition cannot be opened"
+	codeNotLoaded       = "datasource_not_loaded"
+	codeNotLoadable     = "datasource_not_loadable"
+	codeServerOwned     = "datasource_server_owned"
+	codeNoSealingKey    = "datasource_no_secret_key"
+	codeUnreadable      = "datasource_credentials_unreadable"
+	codeDefinitionJSON  = "datasource_definition_not_json"
+	codeDefinitionBad   = "datasource_definition_invalid"
+	codeDefinitionOpens = "datasource_definition_not_opened"
+)
+
+func failureCode(err error) string {
+	switch {
+	case errors.Is(err, datasource.ErrServerOwned):
+		return codeServerOwned
+	case errors.Is(err, datasource.ErrNoSecretKey):
+		return codeNoSealingKey
+	case errors.Is(err, datasource.ErrUnreadable):
+		return codeUnreadable
+	case errors.Is(err, datasource.ErrNotLoadable):
+		var upstream *datasource.UpstreamError
+		if !errors.As(err, &upstream) {
+			return codeNotLoadable
+		}
+		switch upstream.Message {
+		case definitionNotJSON:
+			return codeDefinitionJSON
+		case definitionInvalid:
+			return codeDefinitionBad
+		case definitionUnopened:
+			return codeDefinitionOpens
+		}
+		return codeNotLoadable
+	}
+	return codeNotLoaded
 }
 
 type Service struct {
@@ -122,16 +167,18 @@ func (s *Service) Reconcile(ctx context.Context) error {
 
 func (s *Service) applyLocked(row dbsqlc.Datasource, allowed domains.List) {
 	v := version{id: row.ID, updatedAt: row.UpdatedAt.Time, blocked: s.blocked(row, allowed)}
-	if known, ok := s.applied[row.Uid]; ok && known == v {
+	if known, ok := s.applied[row.Uid]; ok && known.sameRow(v) {
 		return
 	}
-	s.applied[row.Uid] = v
 	instance, total := s.instanceOf(row, v.blocked)
 	if err := s.registry.Put(instance); err != nil {
 		_ = instance.Datasource.Close()
-		s.logger.Warn("stored datasource not loaded", slog.String("uid", row.Uid), slog.String("reason", err.Error()))
+		v.failed = true
+		s.applied[row.Uid] = v
+		s.logger.Warn("stored datasource not loaded", logattrs.Failure(failureCode(err), err, slog.String("uid", row.Uid), slog.String("type", row.Type))...)
 		return
 	}
+	s.applied[row.Uid] = v
 	s.slots.SetTotal(row.Uid, total)
 }
 
@@ -161,7 +208,7 @@ func (s *Service) instanceOf(row dbsqlc.Datasource, blocked bool) (datasource.In
 	var def Definition
 	ds, total, err := s.open(row, &def)
 	if err != nil {
-		s.logger.Warn("stored datasource cannot be used", slog.String("uid", row.Uid), slog.String("type", row.Type), slog.String("reason", err.Error()))
+		s.logger.Warn("stored datasource cannot be used", logattrs.Failure(failureCode(err), err, slog.String("uid", row.Uid), slog.String("type", row.Type))...)
 		instance.Datasource = datasource.NewUnavailable(row.Type, err)
 		return instance, 0
 	}
@@ -172,7 +219,7 @@ func (s *Service) instanceOf(row dbsqlc.Datasource, blocked bool) (datasource.In
 
 func (s *Service) open(row dbsqlc.Datasource, def *Definition) (datasource.Datasource, int, error) {
 	if err := json.Unmarshal(row.Config, def); err != nil {
-		return nil, 0, datasource.Errorf(datasource.ErrNotLoadable, "the stored definition is not valid JSON")
+		return nil, 0, datasource.Errorf(datasource.ErrNotLoadable, definitionNotJSON)
 	}
 	secrets, err := s.secretsOf(row)
 	if err != nil {
@@ -180,11 +227,11 @@ func (s *Service) open(row dbsqlc.Datasource, def *Definition) (datasource.Datas
 	}
 	cfg, problems := def.Config(secrets)
 	if len(problems) > 0 {
-		return nil, 0, datasource.Errorf(datasource.ErrNotLoadable, "the stored definition is invalid")
+		return nil, 0, datasource.Errorf(datasource.ErrNotLoadable, definitionInvalid)
 	}
 	ds, err := provision.Open(cfg)
 	if err != nil {
-		return nil, 0, datasource.Errorf(datasource.ErrNotLoadable, "the stored definition cannot be opened")
+		return nil, 0, datasource.Errorf(datasource.ErrNotLoadable, definitionUnopened)
 	}
 	return ds, cfg.MaxConcurrentQueries, nil
 }

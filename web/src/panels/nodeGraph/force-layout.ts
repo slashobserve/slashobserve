@@ -11,6 +11,10 @@ const minDistance = 0.01
 const startingHeat = 0.1
 const gravity = 0.5
 
+function valueAt(values: ArrayLike<number>, index: number): number {
+  return values[index] ?? Number.NaN
+}
+
 function seededRandom(seed: number): () => number {
   let state = seed >>> 0
   return () => {
@@ -80,61 +84,65 @@ class QuadTree {
   }
 
   private quadrant(cell: number, x: number, y: number): number {
-    const half = this.size[cell] / 2
+    const half = valueAt(this.size, cell) / 2
     return (
-      (x >= this.left[cell] + half ? 1 : 0) +
-      (y >= this.top[cell] + half ? 2 : 0)
+      (x >= valueAt(this.left, cell) + half ? 1 : 0) +
+      (y >= valueAt(this.top, cell) + half ? 2 : 0)
     )
   }
 
   private childFor(cell: number, x: number, y: number): number {
     const slot = cell * 4 + this.quadrant(cell, x, y)
-    if (this.kids[slot] !== -1) return this.kids[slot]
+    if (valueAt(this.kids, slot) !== -1) return valueAt(this.kids, slot)
     if (this.used === this.capacity) return -1
-    const half = this.size[cell] / 2
+    const half = valueAt(this.size, cell) / 2
     const q = slot - cell * 4
     this.kids[slot] = this.newCell(
-      this.left[cell] + (q % 2) * half,
-      this.top[cell] + Math.floor(q / 2) * half,
+      valueAt(this.left, cell) + (q % 2) * half,
+      valueAt(this.top, cell) + Math.floor(q / 2) * half,
       half
     )
-    return this.kids[slot]
+    return valueAt(this.kids, slot)
   }
 
   private holds(cell: number, x: number, y: number): boolean {
     return (
-      x >= this.left[cell] &&
-      x <= this.left[cell] + this.size[cell] &&
-      y >= this.top[cell] &&
-      y <= this.top[cell] + this.size[cell]
+      x >= valueAt(this.left, cell) &&
+      x <= valueAt(this.left, cell) + valueAt(this.size, cell) &&
+      y >= valueAt(this.top, cell) &&
+      y <= valueAt(this.top, cell) + valueAt(this.size, cell)
     )
   }
 
   private isLeaf(cell: number): boolean {
-    return this.body[cell] !== -1
+    return valueAt(this.body, cell) !== -1
   }
 
   private add(cell: number, point: number) {
-    this.sumX[cell] += this.xs[point]
-    this.sumY[cell] += this.ys[point]
-    this.count[cell]++
+    this.sumX[cell] = valueAt(this.sumX, cell) + valueAt(this.xs, point)
+    this.sumY[cell] = valueAt(this.sumY, cell) + valueAt(this.ys, point)
+    this.count[cell] = valueAt(this.count, cell) + 1
   }
 
   private insert(point: number) {
-    const x = this.xs[point]
-    const y = this.ys[point]
+    const x = valueAt(this.xs, point)
+    const y = valueAt(this.ys, point)
     let cell = 0
     for (let depth = 0; ; depth++) {
-      if (this.count[cell] === 0) {
+      if (valueAt(this.count, cell) === 0) {
         this.add(cell, point)
         this.body[cell] = point
         return
       }
       if (this.isLeaf(cell)) {
-        const resident = this.body[cell]
+        const resident = valueAt(this.body, cell)
         const room =
           depth < maxTreeDepth
-            ? this.childFor(cell, this.xs[resident], this.ys[resident])
+            ? this.childFor(
+                cell,
+                valueAt(this.xs, resident),
+                valueAt(this.ys, resident)
+              )
             : -1
         if (room === -1) {
           this.add(cell, point)
@@ -159,21 +167,22 @@ class QuadTree {
     strength: number,
     stack: Int32Array
   ): [number, number] {
-    const x = this.xs[point]
-    const y = this.ys[point]
+    const x = valueAt(this.xs, point)
+    const y = valueAt(this.ys, point)
     let forceX = 0
     let forceY = 0
     let top = 0
     stack[top++] = 0
     while (top > 0) {
-      const cell = stack[--top]
-      const mass = this.count[cell]
-      if (mass === 0 || this.body[cell] === point) continue
-      const dx = x - this.sumX[cell] / mass
-      const dy = y - this.sumY[cell] / mass
+      const cell = valueAt(stack, --top)
+      const mass = valueAt(this.count, cell)
+      if (mass === 0 || valueAt(this.body, cell) === point) continue
+      const dx = x - valueAt(this.sumX, cell) / mass
+      const dy = y - valueAt(this.sumY, cell) / mass
       const distance = Math.max(Math.hypot(dx, dy), minDistance)
       const far =
-        this.size[cell] / distance < openingAngle && !this.holds(cell, x, y)
+        valueAt(this.size, cell) / distance < openingAngle &&
+        !this.holds(cell, x, y)
       if (this.isLeaf(cell) || far) {
         const push = (strength * mass) / (distance * distance)
         forceX += dx * push
@@ -181,7 +190,7 @@ class QuadTree {
         continue
       }
       for (let q = 0; q < 4; q++) {
-        const kid = this.kids[cell * 4 + q]
+        const kid = valueAt(this.kids, cell * 4 + q)
         if (kid !== -1) stack[top++] = kid
       }
     }
@@ -197,8 +206,9 @@ export function forceLayout(
   const count = nodes.length
   const layout: Layout = new Map()
   if (count === 0) return layout
-  if (count === 1) {
-    layout.set(nodes[0].id, { x: width / 2, y: height / 2 })
+  const [only] = nodes
+  if (count === 1 && only !== undefined) {
+    layout.set(only.id, { x: width / 2, y: height / 2 })
     return layout
   }
 
@@ -228,46 +238,48 @@ export function forceLayout(
       const tree = new QuadTree(xs, ys, side)
       for (let i = 0; i < count; i++) {
         const [fx, fy] = tree.repulsion(i, repulsionStrength, stack)
-        dispX[i] += fx
-        dispY[i] += fy
+        dispX[i] = valueAt(dispX, i) + fx
+        dispY[i] = valueAt(dispY, i) + fy
       }
     } else {
       for (let i = 0; i < count; i++) {
         for (let j = i + 1; j < count; j++) {
-          const dx = xs[i] - xs[j]
-          const dy = ys[i] - ys[j]
+          const dx = valueAt(xs, i) - valueAt(xs, j)
+          const dy = valueAt(ys, i) - valueAt(ys, j)
           const distance = Math.max(Math.hypot(dx, dy), minDistance)
           const push = repulsionStrength / (distance * distance)
-          dispX[i] += dx * push
-          dispY[i] += dy * push
-          dispX[j] -= dx * push
-          dispY[j] -= dy * push
+          dispX[i] = valueAt(dispX, i) + dx * push
+          dispY[i] = valueAt(dispY, i) + dy * push
+          dispX[j] = valueAt(dispX, j) - dx * push
+          dispY[j] = valueAt(dispY, j) - dy * push
         }
       }
     }
 
     for (const [from, to] of pairs) {
-      const dx = xs[from] - xs[to]
-      const dy = ys[from] - ys[to]
+      const dx = valueAt(xs, from) - valueAt(xs, to)
+      const dy = valueAt(ys, from) - valueAt(ys, to)
       const distance = Math.max(Math.hypot(dx, dy), minDistance)
       const pull = distance / ideal
-      dispX[from] -= dx * pull
-      dispY[from] -= dy * pull
-      dispX[to] += dx * pull
-      dispY[to] += dy * pull
+      dispX[from] = valueAt(dispX, from) - dx * pull
+      dispY[from] = valueAt(dispY, from) - dy * pull
+      dispX[to] = valueAt(dispX, to) + dx * pull
+      dispY[to] = valueAt(dispY, to) + dy * pull
     }
 
     for (let i = 0; i < count; i++) {
-      dispX[i] -= (xs[i] - width / 2) * gravity
-      dispY[i] -= (ys[i] - height / 2) * gravity
-      const length = Math.hypot(dispX[i], dispY[i])
+      dispX[i] = valueAt(dispX, i) - (valueAt(xs, i) - width / 2) * gravity
+      dispY[i] = valueAt(dispY, i) - (valueAt(ys, i) - height / 2) * gravity
+      const length = Math.hypot(valueAt(dispX, i), valueAt(dispY, i))
       if (length === 0) continue
       const move = Math.min(length, heat) / length
-      xs[i] += dispX[i] * move
-      ys[i] += dispY[i] * move
+      xs[i] = valueAt(xs, i) + valueAt(dispX, i) * move
+      ys[i] = valueAt(ys, i) + valueAt(dispY, i) * move
     }
   }
 
-  nodes.forEach((node, at) => layout.set(node.id, { x: xs[at], y: ys[at] }))
+  nodes.forEach((node, at) =>
+    layout.set(node.id, { x: valueAt(xs, at), y: valueAt(ys, at) })
+  )
   return layout
 }

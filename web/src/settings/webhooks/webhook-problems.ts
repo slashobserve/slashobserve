@@ -1,7 +1,7 @@
-import { ApiError } from "@/api/errors"
-import { loadProblemText } from "@/service-accounts/queries"
-
 import type { ActivityType } from "./event-types"
+
+import { ApiError, loadProblemText } from "@/api/errors"
+import { addressProblem } from "@/lib/address-problem"
 
 export type WebhookFormat = "generic" | "slack" | "teams"
 export type WebhookInput = {
@@ -25,34 +25,6 @@ export function trimWebhook(input: WebhookInput): WebhookInput {
   return { ...input, name: input.name.trim(), url: input.url.trim() }
 }
 
-function urlProblem(url: string): string | undefined {
-  if (url === "") return "Enter the address that receives the events."
-  if (new TextEncoder().encode(url).length > maxURLBytes) {
-    return `The address can be at most ${maxURLBytes} characters.`
-  }
-  let parsed: URL
-  try {
-    parsed = new URL(url)
-  } catch {
-    return "Enter a full https address, such as https://hooks.example.com/slashobserve."
-  }
-  if (parsed.protocol !== "https:")
-    return "The address must start with https://."
-  if (parsed.port !== "") return "The address must use port 443."
-  if (parsed.username !== "" || parsed.password !== "") {
-    return "The address cannot hold a user name or password."
-  }
-  if (parsed.hash !== "") return "The address cannot end with a # fragment."
-  if (
-    !parsed.hostname.includes(".") ||
-    /^[\d.]+$/.test(parsed.hostname) ||
-    parsed.hostname.startsWith("[")
-  ) {
-    return "The address must use a public domain name, like hooks.example.com. localhost and IP addresses are refused."
-  }
-  return undefined
-}
-
 export function webhookProblems(raw: WebhookInput): WebhookProblems {
   const input = trimWebhook(raw)
   const problems: WebhookProblems = {}
@@ -60,7 +32,21 @@ export function webhookProblems(raw: WebhookInput): WebhookProblems {
   else if ([...input.name].length > maxNameCharacters) {
     problems.name = `The name can be at most ${maxNameCharacters} characters.`
   }
-  const url = urlProblem(input.url)
+  const url = addressProblem(input.url, {
+    example: "https://hooks.example.com/slashobserve",
+    https: true,
+    empty: "Enter the address that receives the events.",
+    maxBytes: maxURLBytes,
+    publicHost: "hooks.example.com",
+    check: (parsed) => {
+      if (parsed.port !== "") return "The address must use port 443."
+      if (parsed.username !== "" || parsed.password !== "") {
+        return "The address cannot hold a user name or password."
+      }
+      if (parsed.hash !== "") return "The address cannot end with a # fragment."
+      return undefined
+    },
+  })
   if (url !== undefined) problems.url = url
   if (input.events.length === 0) problems.events = "Choose at least one event."
   return problems

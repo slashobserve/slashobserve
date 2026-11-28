@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { renderWithProviders } from "@/test/render"
 
 import { SavedSearchesMenu } from "./saved-searches-menu"
+import { must } from "@/test/must"
 
 const navigate = vi.hoisted(() => vi.fn())
 
@@ -71,7 +72,7 @@ describe("SavedSearchesMenu", () => {
       "Checkout errorsShop",
       "Slow paymentsMy Dashboards",
     ])
-    expect(requests[0].searchParams.get("kind")).toBe("logs")
+    expect(must(requests[0]).searchParams.get("kind")).toBe("logs")
   })
 
   it("opens and lists a search the caller may only view", async () => {

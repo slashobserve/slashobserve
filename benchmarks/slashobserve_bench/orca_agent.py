@@ -13,14 +13,11 @@ from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 
 from slashobserve_bench import atif, orca
-from slashobserve_bench.api import ApiError, Client, RunTimeout, wait_for_terminal
+from slashobserve_bench.adapter import AGENT_NAME, AGENT_VERSION, LLM_KEY_FILE_ENV, llm_key, record_spend, run_to_end, split_model
+from slashobserve_bench.api import ApiError, Client
 from slashobserve_bench.ledger import SpendLedger
 from slashobserve_bench.server import POSTGRES_IMAGE, ServerConfig, Stack, StackError, ensure_image
 
-AGENT_NAME = "slashobserve"
-AGENT_VERSION = "0.1.0"
-LLM_KEY_FILE_ENV = "SLASHOBSERVE_BENCH_LLM_KEY_FILE"
-CANCEL_GRACE_SEC = 30
 REPORT_STAGING = "/tmp/slashobserve-report.md"
 CODE_READY_SEC = 60
 CODE_TOOLS_WAIT_SEC = 60
@@ -97,18 +94,18 @@ class CodeServer:
 
 
 def wait_for_code_tools(
-    client: Client, names: orca.SourceNames, timeout_sec: float = CODE_TOOLS_WAIT_SEC, sleep: Callable[[float], None] = time.sleep
+    client: Client, image: str, timeout_sec: float = CODE_TOOLS_WAIT_SEC, sleep: Callable[[float], None] = time.sleep
 ) -> None:
     deadline = time.monotonic() + timeout_sec
     while True:
         try:
-            problem = orca.code_tools_problem(client.mcp_tools(orca.CODE_SOURCE, names.collection))
+            problem = orca.code_tools_problem(client.mcp_tools(orca.CODE_SOURCE))
         except ApiError as error:
             if error.status != 404:
                 raise CodeContextUnavailable(f"listing the tools of {orca.CODE_SOURCE} failed: {error}") from None
-            raise CodeContextUnavailable(f"the server has no MCP source {orca.CODE_SOURCE}: {orca.code_mismatch_hint(names)}") from None
+            raise CodeContextUnavailable(f"the server has no MCP source {orca.CODE_SOURCE}: {orca.code_unavailable_hint(image)}") from None
         except ValueError:
-            raise CodeContextUnavailable(f"the server does not serve /api/v1/{names.collection}: {orca.code_mismatch_hint(names)}") from None
+            raise CodeContextUnavailable(f"the server does not serve /api/v1/mcp-sources: {orca.code_unavailable_hint(image)}") from None
         if problem is None:
             return
         if time.monotonic() >= deadline:
@@ -181,24 +178,14 @@ class OrcaAgent(BaseAgent):
 
     @property
     def _ledger(self) -> SpendLedger | None:
-        options = self.options
-        if options.spend_cap_usd is None or options.ledger_path is None:
-            return None
-        return SpendLedger(Path(options.ledger_path), options.spend_cap_usd)
+        return self.options.spend_ledger()
 
     def _provider_and_model(self) -> tuple[str, str | None]:
-        provider = self._parsed_model_provider
-        if not provider or not self._parsed_model_name:
-            raise ValueError("pass the model as <provider>/<model>, for example -m anthropic/claude-sonnet-5-5 or -m replay/replay")
-        return provider, None if provider == "replay" else self._parsed_model_name
+        return split_model(self.model_name)
 
     def _llm_key(self, provider: str) -> str | None:
-        if provider == "replay":
-            return None
         path = self.extra_env.get(LLM_KEY_FILE_ENV) or os.environ.get(LLM_KEY_FILE_ENV)
-        if not path:
-            raise ValueError(f"set {LLM_KEY_FILE_ENV} in the environment or with --ae to the path of a file that holds the model API key")
-        return Path(path).read_text(encoding="utf-8").strip()
+        return llm_key(provider, path, " in the environment or with --ae")
 
     async def setup(self, environment: BaseEnvironment) -> None:
         self._provider_and_model()
@@ -244,14 +231,14 @@ class OrcaAgent(BaseAgent):
             **options.server_settings(),
             run_max_cost_usd=options.run_max_cost_usd,
             replay_dir=Path(options.replay_dir) if options.replay_dir else None,
-            extra_env=orca.code_settings(options.names) if served else (),
+            extra_env=orca.code_settings() if served else (),
         )
         stack = Stack(
             config,
             orca.datasources_yaml(endpoints, options.span_index),
             self.logs_dir,
             self._llm_key(provider),
-            extra_files=orca.code_files(options.names) if served else None,
+            extra_files=orca.code_files() if served else None,
         )
         notes = [
             orca.spans_note_line(options.span_index),
@@ -299,46 +286,22 @@ class OrcaAgent(BaseAgent):
     def _code_context(self, client: Client, network: str, code_dir: Path | None) -> None:
         options = self.options
         if options.code_mode == "codeserver":
-            wait_for_code_tools(client, options.names, CODE_TOOLS_WAIT_SEC)
+            wait_for_code_tools(client, options.server_image, CODE_TOOLS_WAIT_SEC)
         elif options.code_mode == "hook":
             orca.load_code_context(options.code_context)(client, network, code_dir)
 
     async def _investigate(
         self, client: Client, question: str, as_of: str, deadline: float, instruction: str, context: AgentContext
     ) -> dict:
-        run_id = await asyncio.to_thread(client.start_run, orca.start_body(question, as_of))
-        seen: dict[str, dict] = {}
-
-        def poll() -> dict:
-            seen["request"] = client.get_run(run_id)
-            return seen["request"]
-
-        try:
-            try:
-                return await asyncio.to_thread(wait_for_terminal, poll, max(deadline - time.monotonic(), 0))
-            except RunTimeout:
-                await asyncio.to_thread(self._cancel, client, run_id)
-                try:
-                    request = await asyncio.to_thread(wait_for_terminal, poll, CANCEL_GRACE_SEC)
-                except RunTimeout:
-                    request = seen["request"]
-                self._save(request, instruction, context)
-                raise
-        finally:
-            self._record_spend(seen.get("request"))
+        body = orca.start_body(question, as_of)
+        request, timeout = await asyncio.to_thread(run_to_end, client, body, deadline - time.monotonic(), self._record_spend)
+        if timeout is not None:
+            self._save(request, instruction, context)
+            raise timeout
+        return request
 
     def _record_spend(self, request: dict | None) -> None:
-        ledger = self._ledger
-        if ledger is None or request is None:
-            return
-        ledger.record(self.logs_dir.parent.name, atif.Usage.from_request(request).cost_usd or 0.0)
-
-    @staticmethod
-    def _cancel(client: Client, run_id: str) -> None:
-        try:
-            client.cancel_run(run_id)
-        except ApiError:
-            pass
+        record_spend(self._ledger, self.logs_dir.parent.name, request)
 
     def _save(self, request: dict, instruction: str, context: AgentContext) -> None:
         self.logs_dir.mkdir(parents=True, exist_ok=True)

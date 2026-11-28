@@ -1,7 +1,13 @@
 import type { Transform } from "@/spec"
 
 import { commonType, fillValue } from "./empty-value"
-import { cell, rowCount, type PreparedField, type PreparedFrame } from "./names"
+import {
+  frameName,
+  cell,
+  rowCount,
+  type PreparedField,
+  type PreparedFrame,
+} from "./names"
 
 type TransposeOptions = Extract<Transform, { type: "transpose" }>
 
@@ -27,7 +33,7 @@ function transposed(
   }
   return {
     ref: frame.ref,
-    name: frame.name,
+    ...frameName(frame),
     fields: [
       {
         name: firstName ?? defaultFirstName,

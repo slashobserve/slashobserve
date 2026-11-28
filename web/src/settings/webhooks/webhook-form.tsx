@@ -38,7 +38,7 @@ import {
 
 type Props = {
   formId: string
-  initial?: WebhookInput
+  initial?: WebhookInput | undefined
   serverError: unknown
   onSubmit: (input: WebhookInput) => void
   firstInputRef: RefObject<HTMLInputElement | null>

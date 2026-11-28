@@ -1,8 +1,9 @@
-import { useEffect, useId, useState, type RefObject } from "react"
+import { useId, useState, type RefObject } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
+import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { api } from "@/api/client"
-import { unwrap } from "@/api/errors"
+import { unwrap, loadProblemText } from "@/api/errors"
 import { exploreKeys } from "@/api/keys"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -17,7 +18,6 @@ import {
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 import { SidePanel } from "@/shell/side-panel"
 import { allPanels, isDataPanel, panelTitle, type DataPanel } from "@/spec"
 
@@ -36,15 +36,6 @@ type DashboardChoice = { id: string; title: string; folder: string }
 type PanelChoice = { id: string; title: string; type: string; panel: DataPanel }
 
 const searchDelayMs = 250
-
-function useDebounced(value: string): string {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), searchDelayMs)
-    return () => clearTimeout(timer)
-  }, [value])
-  return debounced
-}
 
 function panelChoices(raw: unknown): PanelChoice[] {
   return allPanels(asDashboardSpec(raw))
@@ -74,14 +65,15 @@ export function PanelPicker({
   const [dashboard, setDashboard] = useState<DashboardChoice | null>(null)
   const [panel, setPanel] = useState<PanelChoice | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
-  const search = useDebounced(searchText.trim())
+  const trimmed = searchText.trim()
+  const search = useDebouncedValue(trimmed, trimmed, searchDelayMs)
 
   const dashboards = useQuery({
     queryKey: exploreKeys.targets(search),
     queryFn: ({ signal }) =>
       api
         .GET("/dashboards", {
-          params: { query: { q: search || undefined, limit: 50 } },
+          params: { query: search ? { q: search, limit: 50 } : { limit: 50 } },
           signal,
         })
         .then(unwrap),

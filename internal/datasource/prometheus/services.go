@@ -15,7 +15,7 @@ func (d *Datasource) Services(ctx context.Context, req datasource.ServiceRequest
 	if err != nil {
 		return datasource.ServiceList{}, err
 	}
-	ctx, cancel := bound(ctx, discoverTimeout)
+	ctx, cancel := datasource.Bound(ctx, discoverTimeout)
 	defer cancel()
 	form := url.Values{"start": {unixSeconds(req.Range.From)}, "end": {unixSeconds(req.Range.To)}}
 	names, err := d.getStrings(ctx, "/api/v1/labels", form)
@@ -31,7 +31,7 @@ func (d *Datasource) Services(ctx context.Context, req datasource.ServiceRequest
 			return datasource.ServiceList{}, err
 		}
 		if len(values) > 0 {
-			shown, _ := filterSortLimit(values, "", req.Limit)
+			shown, _ := datasource.FilterSortLimit(values, "", req.Limit)
 			return datasource.ServiceList{Signal: signal, Field: label, Values: shown}, nil
 		}
 	}

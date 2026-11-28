@@ -4,6 +4,12 @@ import { edgeHeight } from "../list-anchors"
 
 import { hitTest, locate, reveal, type SpanAnchorLayout } from "./anchors"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 const layout: SpanAnchorLayout = {
   body: { width: 400, height: 100 },
   spans: [
@@ -44,7 +50,7 @@ describe("traces locate", () => {
   it("finds the span a hit test named", () => {
     const anchor = hitTest(layout, { x: 40, y: 30 })
     expect(anchor).not.toBeNull()
-    expect(locate(layout, anchor!)).toEqual(layout.spans[1].rect)
+    expect(locate(layout, anchor!)).toEqual(nth(layout.spans, 1).rect)
   })
 
   it("points at the bottom edge for a span scrolled out of view", () => {
