@@ -106,11 +106,11 @@ export const PublicPanel = memo(function PublicPanel({
   const query = usePanelData({
     source,
     panel: dataPanel ?? panel,
-    from,
-    to,
-    timezone,
+    ...(from === undefined ? {} : { from }),
+    ...(to === undefined ? {} : { to }),
+    ...(timezone === undefined ? {} : { timezone }),
     vars: selections,
-    maxDataPoints: maxDataPointsFor(dataPanel ?? panel, wholeBody.width),
+    ...maxDataPointsProp(maxDataPointsFor(dataPanel ?? panel, wholeBody.width)),
     refreshMs,
     enabled: dataPanel !== undefined && supported && seen && selectionsReady,
     inView,
@@ -161,7 +161,7 @@ export const PublicPanel = memo(function PublicPanel({
         state={state}
         error={query.data ? query.error : (blockedError ?? failureOf(query))}
         refreshing={query.isFetching && query.data !== undefined}
-        staleNotice={stale}
+        {...(stale === undefined ? {} : { staleNotice: stale })}
         onRetry={() => (blockedError ? onRetryBlocked() : void query.refetch())}
       >
         {available ? null : (
@@ -182,7 +182,7 @@ export const PublicPanel = memo(function PublicPanel({
             timezone={timezone}
             from={rangeFrom}
             to={rangeTo}
-            reusedFilter={reusedFilter}
+            {...(reusedFilter === undefined ? {} : { reusedFilter })}
           />
         ) : null}
         {isStaticPanel(panel) && supported ? (
@@ -199,3 +199,9 @@ export const PublicPanel = memo(function PublicPanel({
     </div>
   )
 })
+
+function maxDataPointsProp(maxDataPoints: number | undefined): {
+  maxDataPoints?: number
+} {
+  return maxDataPoints === undefined ? {} : { maxDataPoints }
+}

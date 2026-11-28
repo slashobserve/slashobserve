@@ -93,9 +93,9 @@ export function PublicPage({
   const { states, selections, values, ready, blocking, select } = useVariables({
     source,
     variables,
-    from: search.from,
-    to: search.to,
-    timezone: spec.timezone,
+    ...(search.from === undefined ? {} : { from: search.from }),
+    ...(search.to === undefined ? {} : { to: search.to }),
+    ...(spec.timezone === undefined ? {} : { timezone: spec.timezone }),
     urlVars,
     setUrlVars,
   })
@@ -157,7 +157,7 @@ export function PublicPage({
                   onSearchChange((state) => ({ ...state, ...next }))
                 }
                 quickRanges={pickerQuickRanges(spec)}
-                zone={displayZone(undefined, spec.timezone)}
+                {...zoneProp(displayZone(undefined, spec.timezone))}
               />
             )}
             <Button
@@ -322,4 +322,8 @@ export function PublicLoadError({
       />
     </main>
   )
+}
+
+function zoneProp(zone: string | undefined): { zone?: string } {
+  return zone === undefined ? {} : { zone }
 }
