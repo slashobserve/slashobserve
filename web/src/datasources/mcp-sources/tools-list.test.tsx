@@ -6,6 +6,7 @@ import { renderWithProviders } from "@/test/render"
 
 import type { MCPTool } from "./queries"
 import { ToolsList } from "./tools-list"
+import { must } from "@/test/must"
 
 const calls = vi.hoisted(() => ({
   approve: vi.fn(),
@@ -68,7 +69,7 @@ describe("ToolsList", () => {
       await screen.findByRole("button", { name: "Approve search" })
     )
     expect(calls.approve).toHaveBeenCalledTimes(1)
-    expect(calls.approve.mock.calls[0][0]).toMatchObject({
+    expect(must(calls.approve.mock.calls[0])[0]).toMatchObject({
       uid: "docs",
       tool: { name: "search", hash: "a".repeat(64) },
     })
@@ -96,7 +97,9 @@ describe("ToolsList", () => {
     await user.click(
       screen.getByRole("button", { name: "Approve the new search" })
     )
-    expect(calls.approve.mock.calls[0][0].tool.seen.hash).toBe("b".repeat(64))
+    expect(must(calls.approve.mock.calls[0])[0].tool.seen.hash).toBe(
+      "b".repeat(64)
+    )
   })
 
   it("gives a refused tool its reason and no approve button", async () => {
@@ -124,7 +127,7 @@ describe("ToolsList", () => {
     expect(await screen.findByText("Not marked read-only")).toBeVisible()
     expect(screen.getAllByText("Not marked read-only")).toHaveLength(1)
     await user.click(screen.getByRole("button", { name: "Approve restart" }))
-    expect(calls.approve.mock.calls[0][0]).toMatchObject({
+    expect(must(calls.approve.mock.calls[0])[0]).toMatchObject({
       uid: "docs",
       tool: { name: "restart" },
     })
@@ -147,7 +150,7 @@ describe("ToolsList", () => {
     await user.click(
       await screen.findByRole("button", { name: "Approve all read-only" })
     )
-    expect(calls.approveAll.mock.calls[0][0]).toBe("docs")
+    expect(must(calls.approveAll.mock.calls[0])[0]).toBe("docs")
   })
 
   it("hides the bulk button when nothing waits for review", async () => {
@@ -156,7 +159,7 @@ describe("ToolsList", () => {
     await user.click(
       await screen.findByRole("button", { name: "Revoke search" })
     )
-    expect(calls.revoke.mock.calls[0][0]).toEqual({
+    expect(must(calls.revoke.mock.calls[0])[0]).toEqual({
       uid: "docs",
       name: "search",
     })

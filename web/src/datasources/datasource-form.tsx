@@ -47,8 +47,8 @@ function Field({
 }: {
   id: string
   label: string
-  hint?: string
-  error?: string
+  hint?: string | undefined
+  error?: string | undefined
   children: ReactNode
 }) {
   return (
@@ -103,7 +103,7 @@ function TextField({
   placeholder?: string
   hint?: string
   mono?: boolean
-  inputRef?: RefObject<HTMLElement | null>
+  inputRef?: RefObject<HTMLElement | null> | undefined
   disabled?: boolean
 }) {
   const id = `${baseId}-${name}`
@@ -144,7 +144,7 @@ function CredentialField({
   isSet: boolean
   value: string
   cleared: boolean
-  error?: string
+  error?: string | undefined
   onValue: (value: string) => void
   onToggleClear: () => void
 }) {

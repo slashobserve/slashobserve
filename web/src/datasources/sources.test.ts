@@ -271,9 +271,7 @@ describe("tracesSwitchSearch", () => {
         from: "now-6h",
         to: "now",
       })
-    ).toMatchObject({
-      ask: undefined,
-      page: undefined,
+    ).toEqual({
       service: "checkout",
       from: "now-6h",
       to: "now",

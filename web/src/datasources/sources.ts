@@ -1,3 +1,4 @@
+import { withoutKeys } from "@/lib/without-keys"
 import { auditDatasourceUid } from "@/audit/audit-source"
 import {
   logsLink,
@@ -182,26 +183,19 @@ export function logsSwitchSearch(
   toType: string
 ): LogsSearch {
   const keepsQuery = isSearchFamily(fromType) && isSearchFamily(toType)
-  return {
-    ...current,
-    q: keepsQuery ? current.q : undefined,
-    ask: undefined,
-    line: undefined,
-    cols: undefined,
-    saved: undefined,
-    page: undefined,
-  }
+  const dropped = withoutKeys(current, ["ask", "line", "cols", "saved", "page"])
+  return keepsQuery ? dropped : withoutKeys(dropped, ["q"])
 }
 
 export function tracesSwitchSearch(current: TraceSearch): TraceSearch {
-  return { ...current, ask: undefined, page: undefined }
+  return withoutKeys(current, ["ask", "page"])
 }
 
 export function metricsSwitchSearch(current: MetricsSearch): MetricsSearch {
-  return { ...current, ask: undefined }
+  return withoutKeys(current, ["ask"])
 }
 
-export function withoutSource<T extends { ds?: string }>(
+export function withoutSource<T extends { ds?: string | undefined }>(
   search: T
 ): { uid: string | undefined; search: Omit<T, "ds"> } {
   const { ds, ...rest } = search

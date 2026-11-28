@@ -38,7 +38,8 @@ import { saveProblems } from "./problems"
 import { RestrictedHolders } from "./restricted-holders"
 
 type Target =
-  { mode: "create"; type?: DatasourceType } | { mode: "edit"; uid: string }
+  | { mode: "create"; type?: DatasourceType | undefined }
+  | { mode: "edit"; uid: string }
 
 type Props = {
   target: Target

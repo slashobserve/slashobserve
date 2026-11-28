@@ -11,7 +11,7 @@ export function SourceTitle({
 }: {
   kind: ExploreKind
   source: DatasourceStatus
-  language?: string
+  language?: string | undefined
 }) {
   usePublishSourceLanguage(source.uid, language)
   return (

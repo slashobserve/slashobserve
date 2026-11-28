@@ -30,7 +30,7 @@ type Props = {
   onChange: (kind: SourceKind) => void
   triggerRef?: RefObject<HTMLElement | null>
   invalid?: boolean
-  describedBy?: string
+  describedBy?: string | undefined
 }
 
 export function SourceKindSelect({

@@ -114,7 +114,13 @@ export function useDeleteDatasource() {
 export function useTestDatasource() {
   return useMutation({
     gcTime: 0,
-    mutationFn: ({ draft, base }: { draft: DatasourceDraft; base?: string }) =>
+    mutationFn: ({
+      draft,
+      base,
+    }: {
+      draft: DatasourceDraft
+      base?: string | undefined
+    }) =>
       api
         .POST("/datasources/test", {
           params: { query: base === undefined ? {} : { base } },

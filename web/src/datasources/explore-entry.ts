@@ -24,7 +24,7 @@ export function exploreEntryBeforeLoad(kind: ExploreKind) {
     search,
     context,
   }: {
-    search: { ds?: string }
+    search: { ds?: string | undefined }
     context: { queryClient: QueryClient }
   }) => {
     const { uid, search: rest } = withoutSource(search)

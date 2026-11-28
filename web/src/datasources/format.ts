@@ -93,7 +93,7 @@ export function failureAdvice(
 export function statusOf(datasource: DatasourceStatus): {
   tone: StatusTone
   text: string
-  advice?: string
+  advice?: string | undefined
 } {
   if (datasource.healthy) return { tone: "ok", text: "Healthy" }
   return {
