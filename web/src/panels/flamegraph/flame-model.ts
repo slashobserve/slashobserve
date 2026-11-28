@@ -115,9 +115,12 @@ export function flameModel(
     const text = String(label.values[index] ?? "")
     const total = amount(value.values[index])
     const parent = depth === 0 ? -1 : stack[depth - 1]
-    const start = parent === -1 ? rootCursor : cursors[parent]
+    if (parent === undefined) return { reason: brokenOrderReason }
+    const parentCursor = parent === -1 ? rootCursor : cursors[parent]
+    if (parentCursor === undefined) return { reason: brokenOrderReason }
+    const start = parentCursor
     if (parent === -1) rootCursor += total
-    else cursors[parent] += total
+    else cursors[parent] = parentCursor + total
     let color = colors.get(text)
     if (color === undefined) {
       color = colorOf(text)
@@ -175,7 +178,7 @@ export function nodeAt(
   let found = -1
   while (low <= high) {
     const middle = (low + high) >> 1
-    if (profile.nodes[row[middle]].start <= position) {
+    if (nodeOfRow(profile, row, middle).start <= position) {
       found = middle
       low = middle + 1
     } else {
@@ -183,8 +186,26 @@ export function nodeAt(
     }
   }
   if (found === -1) return null
-  const node = profile.nodes[row[found]]
+  const node = nodeOfRow(profile, row, found)
   return position < node.start + node.value ? node.index : null
+}
+
+function nodeOfRow(
+  profile: FlameProfile,
+  row: readonly number[],
+  position: number
+): FlameNode {
+  const index = row[position]
+  const node = index === undefined ? undefined : profile.nodes[index]
+  if (node === undefined)
+    throw new RangeError("flame row points past its nodes")
+  return node
+}
+
+function nodeOf(profile: FlameProfile, index: number): FlameNode {
+  const node = profile.nodes[index]
+  if (node === undefined) throw new RangeError("no flame node at that index")
+  return node
 }
 
 export function search(
@@ -227,12 +248,12 @@ export function stepFocus(
     case "ArrowDown":
       return (
         profile.levels[node.level + 1]?.find(
-          (child) => profile.nodes[child].parent === node.index
+          (child) => nodeOf(profile, child).parent === node.index
         ) ?? node.index
       )
     case "ArrowLeft":
     case "ArrowRight": {
-      const row = profile.levels[node.level]
+      const row = profile.levels[node.level] ?? []
       const next = row.indexOf(node.index) + (key === "ArrowLeft" ? -1 : 1)
       return row[next] ?? node.index
     }
@@ -240,7 +261,7 @@ export function stepFocus(
 }
 
 export function focusText(profile: FlameProfile, index: number): string {
-  const node = profile.nodes[index]
+  const node = nodeOf(profile, index)
   const total = displayValue(node.value, profile.config).text
   const self = displayValue(node.self, profile.config).text
   return `${node.label}, total ${total} (${shareText(node.share)}), self ${self}, level ${node.level + 1}`
@@ -259,7 +280,7 @@ export function zoomForFocus(
   }
   let ancestor = node.parent
   while (ancestor !== -1) {
-    const candidate = profile.nodes[ancestor]
+    const candidate = nodeOf(profile, ancestor)
     if (
       candidate.parent !== -1 &&
       candidate.start <= range.start &&
