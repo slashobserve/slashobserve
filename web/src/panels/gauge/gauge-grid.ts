@@ -2,7 +2,10 @@ export const gridGap = 8
 
 export type GaugeGrid = { columns: number; rows: number }
 
-export type GridLimits = { minWidth?: number; minHeight?: number }
+export type GridLimits = {
+  minWidth?: number | undefined
+  minHeight?: number | undefined
+}
 
 function cell(
   columns: number,

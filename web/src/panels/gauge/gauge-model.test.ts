@@ -18,6 +18,12 @@ import {
   type Gauge,
 } from "./gauge-model"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 const noRunner: StableActionRunner = {
   context: null,
   reason: null,
@@ -83,7 +89,7 @@ const one = (
   values: (number | null)[],
   extra: Partial<DataPanel> = {},
   display: Record<string, unknown> = {}
-): Gauge => build([frame([time, number(values)])], extra, display)[0]
+): Gauge => nth(build([frame([time, number(values)])], extra, display), 0)
 
 const steps = [
   { color: "ok" },
@@ -131,14 +137,14 @@ describe("gauge set", () => {
   it("keeps the key of two identical series distinct", () => {
     const same = frame([time, number([1])])
     const gauges = build([same, same])
-    expect(gauges[0].key).not.toBe(gauges[1].key)
+    expect(nth(gauges, 0).key).not.toBe(nth(gauges, 1).key)
   })
 
   it("names a gauge by its display name", () => {
     const named = build([frame([time, number([1])])], {
       displayName: "Busy ${__field.name}",
     })
-    expect(named[0].name).toBe("Busy Value")
+    expect(nth(named, 0).name).toBe("Busy Value")
   })
 
   it("names a gauge by the query legend", () => {
@@ -146,11 +152,14 @@ describe("gauge set", () => {
     const frames = prepareFrames(withLegend, [
       frame([time, number([1])], { labels: { pod: "web-1" } }),
     ])
-    const [gauge] = gaugeModel(
-      frames,
-      createFieldResolver(withLegend),
-      displayWithDefaults("gauge", {}),
-      undefined
+    const gauge = nth(
+      gaugeModel(
+        frames,
+        createFieldResolver(withLegend),
+        displayWithDefaults("gauge", {}),
+        undefined
+      ),
+      0
     )
     expect(gauge.name).toBe("web-1")
   })
@@ -190,7 +199,7 @@ describe("gauge range", () => {
       [0, 90],
       [-2, 30],
     ])
-    expect(gauges[1].fraction).toBeCloseTo(32 / 32)
+    expect(nth(gauges, 1).fraction).toBeCloseTo(32 / 32)
   })
 
   it("lets an override turn fieldMinMax on for one field", () => {
@@ -214,7 +223,7 @@ describe("gauge range", () => {
       [frame([time, number([5], "shown"), number([500], "hidden")])],
       { overrides: [{ match: { field: "hidden" }, hidden: true }] }
     )
-    expect(gauges[0].max).toBe(5)
+    expect(nth(gauges, 0).max).toBe(5)
   })
 
   it("takes the range of a very long series without spreading it", () => {
@@ -399,8 +408,8 @@ describe("gauge text and color", () => {
       thresholdMode: "percentage",
       thresholds: [...steps],
     })
-    expect([gauges[0].min, gauges[0].max]).toEqual([0, 40])
-    expect(gauges[0].threshold.level).toBe("critical")
+    expect([nth(gauges, 0).min, nth(gauges, 0).max]).toEqual([0, 40])
+    expect(nth(gauges, 0).threshold.level).toBe("critical")
   })
 
   it("shows a mapping's text and color instead of the threshold state", () => {
@@ -483,8 +492,8 @@ describe("gauge markers", () => {
 
   it("starts the base step at the range minimum", () => {
     const gauge = one([10], { thresholds: [...steps], min: -20, max: 100 })
-    expect(gauge.markers[0].from).toBe(0)
-    expect(gauge.markers[0].to).toBeCloseTo(70 / 120)
+    expect(nth(gauge.markers, 0).from).toBe(0)
+    expect(nth(gauge.markers, 0).to).toBeCloseTo(70 / 120)
   })
 
   it("maps percentage steps through the range", () => {
@@ -552,11 +561,14 @@ describe("gauge links", () => {
 
   function links(extra: Partial<DataPanel>) {
     const fields = createFieldResolver(panel(extra))
-    const [gauge] = gaugeModel(
-      [frame([time, number([4, 7])], { labels: { pod: "web-1" } })],
-      fields,
-      displayWithDefaults("gauge", {}),
-      undefined
+    const gauge = nth(
+      gaugeModel(
+        [frame([time, number([4, 7])], { labels: { pod: "web-1" } })],
+        fields,
+        displayWithDefaults("gauge", {}),
+        undefined
+      ),
+      0
     )
     return itemInteraction(
       gauge,
@@ -654,7 +666,7 @@ describe("gauge field actions", () => {
   })
 
   it("marks the panel's own actions with no override", () => {
-    const [first] = actionsOf({ actions: [restart] })
+    const first = nth(actionsOf({ actions: [restart] }), 0)
     expect(first).toMatchObject([{ title: "Restart", override: null }])
   })
 
@@ -663,17 +675,20 @@ describe("gauge field actions", () => {
   })
 
   it("reads data fields from the last row", () => {
-    const [first] = actionsOf({ actions: [restart] })
-    expect(first[0].fields).toEqual({ pod: "c" })
+    const first = nth(actionsOf({ actions: [restart] }), 0)
+    expect(nth(first, 0).fields).toEqual({ pod: "c" })
   })
 
   it("builds the scope with the value, its text and the series", () => {
     const fields = createFieldResolver(panel({}))
-    const [gauge] = gaugeModel(
-      [gaugeFrame],
-      fields,
-      displayWithDefaults("gauge", {}),
-      undefined
+    const gauge = nth(
+      gaugeModel(
+        [gaugeFrame],
+        fields,
+        displayWithDefaults("gauge", {}),
+        undefined
+      ),
+      0
     )
     const scope = gaugeScope(gauge, fields, { vars: { env: ["prod"] }, fields })
     expect(scope).toMatchObject({
@@ -752,11 +767,11 @@ describe("gaugeModel value options", () => {
     const gauges = build([rows], extra, { allValues: true })
     const fields = createFieldResolver(panel(extra))
     const resolved = itemInteraction(
-      gauges[1],
-      gaugeScope(gauges[1], fields, { vars: {}, fields }),
+      nth(gauges, 1),
+      gaugeScope(nth(gauges, 1), fields, { vars: {}, fields }),
       noRunner
     ).links
-    expect(resolved[0].href).toBe("/r?v=40&t=2")
+    expect(nth(resolved, 0).href).toBe("/r?v=40&t=2")
   })
 
   it("shows only the field the fields option names", () => {
@@ -835,7 +850,7 @@ describe("gauge threshold labels", () => {
       },
       labelled
     )
-    expect(gauge.labels[0].text).toBe("0.25")
+    expect(nth(gauge.labels, 0).text).toBe("0.25")
   })
 })
 

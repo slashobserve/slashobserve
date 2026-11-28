@@ -21,9 +21,15 @@ type GaugeMarker = { from: number; to: number; color: string }
 
 type ThresholdLabel = { fraction: number; text: string }
 
-export type GaugeLimits = { minWidth?: number; minHeight?: number }
+export type GaugeLimits = {
+  minWidth?: number | undefined
+  minHeight?: number | undefined
+}
 
-export type GaugeSizes = { titleSize?: number; valueSize?: number }
+export type GaugeSizes = {
+  titleSize?: number | undefined
+  valueSize?: number | undefined
+}
 
 type GaugeArc = { from: number; to: number }
 
@@ -45,7 +51,7 @@ export type Gauge = {
   config: FieldConfig
   frame: PreparedFrame
   field: PreparedField
-  row?: number
+  row?: number | undefined
 }
 
 const center = 50
@@ -227,11 +233,7 @@ export function gaugeModel(
   const withLabels = display.thresholdLabels === true
   const data = dataRange(new Set(sources.map((source) => source.field)))
   const decimals = decimalsByUnit(
-    sources.map(({ config, value }) => ({
-      unit: config.unit,
-      decimals: config.decimals,
-      value,
-    }))
+    sources.map(({ config, value }) => ({ ...config, value }))
   )
   return sources.map(
     ({ key, label, raw, value, frame, field, config, row }) => {
@@ -240,8 +242,9 @@ export function gaugeModel(
         config.fieldMinMax ? fieldRange(field) : data
       )
       const { min, max } = range
+      const shared = decimals.get(config.unit)
       const shown = displayValue(raw, config, {
-        decimals: decimals.get(config.unit),
+        ...(shared === undefined ? {} : { decimals: shared }),
         fieldMin: min,
         fieldMax: max,
       })
@@ -285,7 +288,7 @@ export function gaugeScope(
   return {
     ...scope,
     row: { frame, index: gauge.row ?? field.values.length - 1 },
-    labels: frame.labels,
+    ...(frame.labels === undefined ? {} : { labels: frame.labels }),
     seriesName: fields.seriesName(frame, field),
     fieldName: field.name,
     value: gauge.value,
