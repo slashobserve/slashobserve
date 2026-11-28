@@ -10,6 +10,7 @@ import {
   type Replying,
   type Target,
 } from "./activity-composer"
+import { must } from "@/test/must"
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -185,7 +186,7 @@ describe("ActivityComposer", () => {
     expect(posts).toHaveLength(0)
     await user.keyboard("{Enter}")
     await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].body.body).toBe("one\ntwo")
+    expect(must(posts[0]).body.body).toBe("one\ntwo")
     expect(await field()).toHaveValue("")
   })
 
@@ -204,7 +205,7 @@ describe("ActivityComposer", () => {
       })
     )
     await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].body).toMatchObject({ to: "agent" })
+    expect(must(posts[0]).body).toMatchObject({ to: "agent" })
   })
 
   it("keeps the thread's agent on when a person is mentioned in a reply", async () => {
@@ -217,8 +218,8 @@ describe("ActivityComposer", () => {
     expect(within(await form()).getByText("To: everyone here")).toBeVisible()
     await user.click(within(await form()).getByRole("button", { name: "Send" }))
     await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].path).toBe("/api/v1/threads/t9/messages")
-    expect(posts[0].body).not.toHaveProperty("to")
+    expect(must(posts[0]).path).toBe("/api/v1/threads/t9/messages")
+    expect(must(posts[0]).body).not.toHaveProperty("to")
   })
 
   it("asks the mentioned agent and shows the run line", async () => {
@@ -236,10 +237,10 @@ describe("ActivityComposer", () => {
       })
     )
     await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].body).toMatchObject({
+    expect(must(posts[0]).body).toMatchObject({
       body: "@observe raise the threshold",
     })
-    expect(posts[0].body).not.toHaveProperty("to")
+    expect(must(posts[0]).body).not.toHaveProperty("to")
     expect(
       await within(await form()).findByText(/Observe Agent is working on it/)
     ).toBeVisible()
@@ -300,7 +301,7 @@ describe("ActivityComposer", () => {
     expect(await field()).toHaveFocus()
     await user.keyboard("{Enter}")
     await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].path).toBe("/api/v1/threads")
+    expect(must(posts[0]).path).toBe("/api/v1/threads")
   })
 
   it("delivers a double send once", async () => {

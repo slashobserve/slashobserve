@@ -7,6 +7,7 @@ import {
   type RefObject,
 } from "react"
 
+import { withoutKeys } from "@/lib/without-keys"
 import type { Selections } from "@/api/keys"
 import { DashboardChat, type OpenChat } from "@/chat/dashboard-chat"
 import { DockHeader } from "@/components/dock/dock-header"
@@ -110,11 +111,10 @@ export function ActivityCard({
   const onScopeChange = useCallback(
     (next: string | null) =>
       setSearch(
-        (state) => ({
-          ...state,
-          panel: next ?? undefined,
-          edit: undefined,
-        }),
+        (state) =>
+          next === null
+            ? withoutKeys(state, ["panel", "edit"])
+            : { ...withoutKeys(state, ["edit"]), panel: next },
         { replace: true }
       ),
     [setSearch]
@@ -139,7 +139,7 @@ export function ActivityCard({
 
   const onBack = useCallback(() => {
     setOpen(true)
-    setSearch((state) => ({ ...state, edit: undefined, panel: undefined }))
+    setSearch((state) => withoutKeys(state, ["edit", "panel"]))
   }, [setOpen, setSearch])
 
   const onViewChange = useCallback(
@@ -153,12 +153,7 @@ export function ActivityCard({
 
   const onSaved = useCallback(() => {
     setOpen(true)
-    setSearch((state) => ({
-      ...state,
-      panel: undefined,
-      edit: undefined,
-      version: undefined,
-    }))
+    setSearch((state) => withoutKeys(state, ["panel", "edit", "version"]))
   }, [setOpen, setSearch])
 
   const onTabChange = useCallback(

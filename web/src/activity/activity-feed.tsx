@@ -94,7 +94,7 @@ type Props = {
   onSelectPanel: (panelId: string) => void
   back: string | undefined
   composerRef: RefObject<HTMLTextAreaElement | null>
-  focusedThreadId?: string
+  focusedThreadId?: string | undefined
 }
 
 type PanelRef = { id: string; title: string }

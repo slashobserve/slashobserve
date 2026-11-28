@@ -159,14 +159,16 @@ export const useActivityStore = create<ActivityState>()(
 
 export function useDraft(dashboardId: string): string {
   return useActivityStore((state) =>
-    Object.hasOwn(state.drafts, dashboardId) ? state.drafts[dashboardId] : ""
+    Object.hasOwn(state.drafts, dashboardId)
+      ? (state.drafts[dashboardId] ?? "")
+      : ""
   )
 }
 
 export function useStoredTarget(dashboardId: string): string | null {
   return useActivityStore((state) =>
     Object.hasOwn(state.targets, dashboardId)
-      ? state.targets[dashboardId]
+      ? (state.targets[dashboardId] ?? null)
       : null
   )
 }
@@ -201,7 +203,7 @@ export function watchPostedDrafts(queryClient: QueryClient) {
     const { drafts, setDraft } = useActivityStore.getState()
     if (
       Object.hasOwn(drafts, dashboardId) &&
-      drafts[dashboardId].trim() === text
+      drafts[dashboardId]?.trim() === text
     ) {
       setDraft(dashboardId, "")
     }

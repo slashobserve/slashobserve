@@ -15,14 +15,14 @@ import { EntryTime } from "./entry-time"
 type Props = {
   avatar: AuthorMarkModel
   who: string
-  verb?: string
-  panel?: { title: string; onSelect?: () => void }
+  verb?: string | undefined
+  panel?: { title: string; onSelect?: (() => void) | undefined } | undefined
   at: string
   edited?: boolean
   nested?: boolean
-  focused?: boolean
-  unread?: { onRead: () => void }
-  className?: string
+  focused?: boolean | undefined
+  unread?: { onRead: () => void } | undefined
+  className?: string | undefined
   children?: ReactNode
 }
 

@@ -13,6 +13,7 @@ import {
 import { useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 
+import { withoutKeys } from "@/lib/without-keys"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
@@ -265,7 +266,7 @@ export function EditPane({
             onDirtyChange={onDirtyChange}
             onSaved={() => run("saved")}
             onOpenLatest={() =>
-              setSearch((state) => ({ ...state, version: undefined }))
+              setSearch((state) => withoutKeys(state, ["version"]))
             }
             onDiscard={() => leave("back")}
           />
