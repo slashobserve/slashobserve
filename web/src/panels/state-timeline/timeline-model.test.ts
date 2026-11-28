@@ -14,6 +14,12 @@ import {
   withoutStates,
 } from "./timeline-model"
 
+function nth<T>(items: ArrayLike<T>, index: number): T {
+  const item = items[index]
+  expect(item).toBeDefined()
+  return item as T
+}
+
 const range = { from: 0, to: 100 }
 const intervals = { step_ms: 10, queries: [] }
 
@@ -67,7 +73,7 @@ describe("timelineModel", () => {
   it("merges equal neighbours by default", () => {
     const { rows } = build([series("a", [1, 1, 2, 2, 1])])
     expect(
-      rows[0].segments.map(({ from, to, text }) => [from, to, text])
+      nth(rows, 0).segments.map(({ from, to, text }) => [from, to, text])
     ).toEqual([
       [0, 20, "1"],
       [20, 40, "2"],
@@ -83,13 +89,17 @@ describe("timelineModel", () => {
         mergeValues: false,
       }
     )
-    expect(rows[0].segments).toHaveLength(5)
-    expect(rows[0].segments[1]).toMatchObject({ from: 10, to: 20, text: "1" })
+    expect(nth(rows, 0).segments).toHaveLength(5)
+    expect(nth(rows, 0).segments[1]).toMatchObject({
+      from: 10,
+      to: 20,
+      text: "1",
+    })
   })
 
   it("leaves a gap for a null value and does not merge across it", () => {
     const { rows } = build([series("a", [1, null, 1])])
-    expect(rows[0].segments.map(({ from, to }) => [from, to])).toEqual([
+    expect(nth(rows, 0).segments.map(({ from, to }) => [from, to])).toEqual([
       [0, 10],
       [20, 100],
     ])
@@ -97,7 +107,7 @@ describe("timelineModel", () => {
 
   it("lets the last value last until the end of the range", () => {
     const { rows } = build([series("a", [1, 2])], {}, {}, { from: 0, to: 55 })
-    expect(rows[0].segments.at(-1)).toMatchObject({ from: 10, to: 55 })
+    expect(nth(rows, 0).segments.at(-1)).toMatchObject({ from: 10, to: 55 })
   })
 
   it("clips samples outside the range", () => {
@@ -107,7 +117,7 @@ describe("timelineModel", () => {
       {}
     )
     expect(
-      rows[0].segments.map(({ from, to, text }) => [from, to, text])
+      nth(rows, 0).segments.map(({ from, to, text }) => [from, to, text])
     ).toEqual([
       [0, 40, "1"],
       [40, 100, "2"],
@@ -117,7 +127,7 @@ describe("timelineModel", () => {
   it("orders samples by time before cutting segments", () => {
     const { rows } = build([series("a", [2, 1], "number", [50, 0])])
     expect(
-      rows[0].segments.map(({ from, to, text }) => [from, to, text])
+      nth(rows, 0).segments.map(({ from, to, text }) => [from, to, text])
     ).toEqual([
       [0, 50, "1"],
       [50, 100, "2"],
@@ -149,7 +159,7 @@ describe("timelineModel", () => {
 
   it("names rows by display name", () => {
     const { rows } = build([series("a", [1])], { displayName: "Pods" })
-    expect(rows[0].name).toBe("Pods")
+    expect(nth(rows, 0).name).toBe("Pods")
   })
 
   it("uses mapping text and colors", () => {
@@ -159,7 +169,9 @@ describe("timelineModel", () => {
         { value: "0", text: "Idle", color: "warning" },
       ],
     } as Partial<DataPanel>)
-    expect(rows[0].segments.map(({ text, color }) => [text, color])).toEqual([
+    expect(
+      nth(rows, 0).segments.map(({ text, color }) => [text, color])
+    ).toEqual([
       ["Serving", "var(--threshold-ok)"],
       ["Idle", "var(--threshold-warning)"],
     ])
@@ -173,7 +185,7 @@ describe("timelineModel", () => {
     const { rows } = build([series("a", [1, 90])], {
       thresholds: [{ color: "ok" }, { value: 50, color: "critical" }],
     } as Partial<DataPanel>)
-    expect(rows[0].segments.map(({ color }) => color)).toEqual([
+    expect(nth(rows, 0).segments.map(({ color }) => color)).toEqual([
       "var(--threshold-ok)",
       "var(--threshold-critical)",
     ])
@@ -184,7 +196,7 @@ describe("timelineModel", () => {
       colorMode: "scheme",
       colorScheme: "greenYellowRed",
     } as Partial<DataPanel>)
-    expect(rows[0].segments.map(({ color }) => color)).toEqual([
+    expect(nth(rows, 0).segments.map(({ color }) => color)).toEqual([
       schemeColor("greenYellowRed", 0),
       schemeColor("greenYellowRed", 0.5),
       schemeColor("greenYellowRed", 1),
@@ -200,7 +212,7 @@ describe("timelineModel", () => {
       min: 0,
       max: 100,
     } as Partial<DataPanel>)
-    expect(rows[0].segments.map(({ color }) => color)).toEqual([
+    expect(nth(rows, 0).segments.map(({ color }) => color)).toEqual([
       schemeColor("greenYellowRed", 0.25),
       schemeColor("greenYellowRed", 0.5),
     ])
@@ -212,7 +224,7 @@ describe("timelineModel", () => {
       colorScheme: "greenYellowRed",
       mappings: [{ value: "5", text: "Maintenance", color: "warning" }],
     } as Partial<DataPanel>)
-    expect(rows[0].segments.map(({ color }) => color)).toEqual([
+    expect(nth(rows, 0).segments.map(({ color }) => color)).toEqual([
       "var(--threshold-ok)",
       "var(--threshold-warning)",
       "var(--threshold-critical)",
@@ -221,7 +233,7 @@ describe("timelineModel", () => {
       colorMode: "scheme",
       colorScheme: "greenYellowRed",
     } as Partial<DataPanel>)
-    expect(text.rows[0].segments.map(({ color }) => color)).toEqual([
+    expect(nth(text.rows, 0).segments.map(({ color }) => color)).toEqual([
       "var(--series-1)",
       "var(--series-2)",
     ])
@@ -235,7 +247,7 @@ describe("timelineModel", () => {
       range,
       true
     )
-    expect(rows[0].segments.map(({ color }) => color)).toEqual([
+    expect(nth(rows, 0).segments.map(({ color }) => color)).toEqual([
       schemeColor("yellowRed", 0),
       schemeColor("yellowRed", 1),
     ])
@@ -252,7 +264,7 @@ describe("timelineModel", () => {
       "var(--series-2)",
       "var(--series-3)",
     ])
-    expect(rows[1].segments[1].color).toBe("var(--series-1)")
+    expect(nth(nth(rows, 1).segments, 1).color).toBe("var(--series-1)")
   })
 
   it("lists no states for an empty panel", () => {
@@ -272,7 +284,7 @@ describe("timelineModel with cells", () => {
   it("keeps equal neighbours as separate cells", () => {
     const { rows } = cells([series("a", [1, 1, 2, 2, 1])])
     expect(
-      rows[0].segments.map(({ from, to, text }) => [from, to, text])
+      nth(rows, 0).segments.map(({ from, to, text }) => [from, to, text])
     ).toEqual([
       [0, 10, "1"],
       [10, 20, "1"],
@@ -290,7 +302,7 @@ describe("timelineModel with cells", () => {
       range,
       true
     )
-    expect(rows[0].segments).toHaveLength(2)
+    expect(nth(rows, 0).segments).toHaveLength(2)
   })
 
   it("colors states and leaves a gap for null the same way", () => {
@@ -299,7 +311,11 @@ describe("timelineModel with cells", () => {
     const split = cells(frames)
     expect(split.states).toEqual(merged.states)
     expect(
-      split.rows[0].segments.map(({ from, to, color }) => [from, to, color])
+      nth(split.rows, 0).segments.map(({ from, to, color }) => [
+        from,
+        to,
+        color,
+      ])
     ).toEqual([
       [0, 10, "var(--series-1)"],
       [20, 30, "var(--series-1)"],
@@ -375,7 +391,7 @@ describe("null joining", () => {
       spanNulls: true,
     } as Partial<DataPanel>)
     expect(
-      rows[0].segments.map(({ from, to, text }) => [from, to, text])
+      nth(rows, 0).segments.map(({ from, to, text }) => [from, to, text])
     ).toEqual([
       [0, 30, "1"],
       [30, 100, "2"],
@@ -389,11 +405,11 @@ describe("hideInTooltip", () => {
       overrides: [{ match: { series: "b" }, hideInTooltip: true }],
     } as Partial<DataPanel>)
     expect(hidden.rows.map((row) => row.hideInTooltip)).toEqual([false, true])
-    expect(hidden.rows[1].segments).toHaveLength(2)
+    expect(nth(hidden.rows, 1).segments).toHaveLength(2)
     const panelWide = build([series("a", [1])], {
       hideInTooltip: true,
     } as Partial<DataPanel>)
-    expect(panelWide.rows[0].hideInTooltip).toBe(true)
+    expect(nth(panelWide.rows, 0).hideInTooltip).toBe(true)
   })
 })
 
@@ -426,9 +442,11 @@ describe("fill and line width", () => {
 describe("segment values", () => {
   it("keeps the number behind a number state and none for text", () => {
     const numbers = build([series("a", [0, 2])])
-    expect(numbers.rows[0].segments.map(({ value }) => value)).toEqual([0, 2])
+    expect(nth(numbers.rows, 0).segments.map(({ value }) => value)).toEqual([
+      0, 2,
+    ])
     const text = build([series("a", ["up"], "string")])
-    expect(text.rows[0].segments[0].value).toBeNull()
+    expect(nth(nth(text.rows, 0).segments, 0).value).toBeNull()
   })
 })
 
@@ -436,7 +454,10 @@ describe("withoutStates", () => {
   it("drops the segments of hidden states and keeps every row and state", () => {
     const model = build([series("a", [1, 2, 1])])
     const shown = withoutStates(model, new Set(["2"]))
-    expect(shown.rows[0].segments.map(({ text }) => text)).toEqual(["1", "1"])
+    expect(nth(shown.rows, 0).segments.map(({ text }) => text)).toEqual([
+      "1",
+      "1",
+    ])
     expect(shown.states).toBe(model.states)
     expect(withoutStates(model, new Set())).toBe(model)
   })
@@ -478,7 +499,7 @@ describe("inserted nulls", () => {
       insertNulls: true,
     } as Partial<DataPanel>)
     expect(
-      rows[0].segments.map(({ from, to, text }) => [from, to, text])
+      nth(rows, 0).segments.map(({ from, to, text }) => [from, to, text])
     ).toEqual([
       [0, 20, "1"],
       [50, 100, "2"],
@@ -490,7 +511,7 @@ describe("inserted nulls", () => {
       insertNulls: 5,
     } as Partial<DataPanel>)
     expect(
-      rows[0].segments.map(({ from, to, text }) => [from, to, text])
+      nth(rows, 0).segments.map(({ from, to, text }) => [from, to, text])
     ).toEqual([
       [0, 5, "1"],
       [10, 15, "1"],
@@ -503,7 +524,7 @@ describe("inserted nulls", () => {
       insertNulls: true,
       spanNulls: true,
     } as Partial<DataPanel>)
-    expect(rows[0].segments.map(({ from, to }) => [from, to])).toEqual([
+    expect(nth(rows, 0).segments.map(({ from, to }) => [from, to])).toEqual([
       [0, 50],
       [50, 100],
     ])
