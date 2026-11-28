@@ -74,7 +74,7 @@ export function PinnedDashboards({
   onToggle: () => void
   pending?: boolean
   currentId: string | null
-  onNavigate?: () => void
+  onNavigate?: (() => void) | undefined
 }) {
   const health = usePinHealth(pins)
   const reserved = useReservedRows(
