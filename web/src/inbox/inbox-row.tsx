@@ -27,7 +27,7 @@ type Props = {
   onToggleUnread?: (item: InboxItem) => void
   onToggleDone?: (item: InboxItem) => void
   done?: boolean
-  expanded?: boolean
+  expanded?: boolean | undefined
 }
 
 const rowClass =
@@ -120,7 +120,7 @@ export function InboxRow({
       {asLink && link !== null ? (
         <Link
           to={link.to}
-          search={link.search}
+          {...(link.search === undefined ? {} : { search: link.search })}
           data-inbox-row={item.seq}
           tabIndex={tabStop ? 0 : -1}
           aria-current={selected ? "true" : undefined}

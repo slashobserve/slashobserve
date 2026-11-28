@@ -52,7 +52,12 @@ function inboxInfiniteQuery(view: InboxView, filter: InboxFilter = "open") {
       api
         .GET("/inbox", {
           params: {
-            query: { view, filter, cursor: pageParam, limit: pageSize },
+            query: {
+              view,
+              filter,
+              ...(pageParam === undefined ? {} : { cursor: pageParam }),
+              limit: pageSize,
+            },
           },
           signal,
         })

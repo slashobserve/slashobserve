@@ -10,6 +10,7 @@ import type { InboxItem } from "./inbox-item"
 import { useInboxPanelStore } from "./inbox-panel-store"
 import { liveToastDuration, liveToasterId } from "./live-toasts"
 import { resetLiveToasts, useLiveInboxToasts } from "./use-live-toasts"
+import { must } from "@/test/must"
 
 const toastMock = vi.hoisted(() => vi.fn())
 vi.mock("sonner", () => ({ toast: toastMock }))
@@ -121,7 +122,7 @@ describe("useLiveInboxToasts", () => {
 
     await setItems(queryClient, [mention(6), mention(5)])
     await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
-    const [title, options] = toastMock.mock.calls[0]
+    const [title, options] = must(toastMock.mock.calls[0])
     expect(title).toBe("Ada mentioned you on Checkout")
     expect(options.toasterId).toBe(liveToasterId)
     expect(options.duration).toBe(liveToastDuration)
@@ -140,7 +141,7 @@ describe("useLiveInboxToasts", () => {
     const burst = [2, 3, 4, 5, 6].map(mention).reverse()
     await setItems(queryClient, [...burst, mention(1)])
     await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
-    const [title, options] = toastMock.mock.calls[0]
+    const [title, options] = must(toastMock.mock.calls[0])
     expect(title).toBe("5 new in Inbox")
     act(() => options.action.onClick())
     expect(useInboxPanelStore.getState().open).toBe(true)
@@ -155,7 +156,9 @@ describe("useLiveInboxToasts", () => {
     setHidden(false)
     await act(async () => {})
     await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
-    expect(toastMock.mock.calls[0][0]).toBe("Ada mentioned you on Checkout")
+    expect(must(toastMock.mock.calls[0])[0]).toBe(
+      "Ada mentioned you on Checkout"
+    )
   })
 
   it("sums items missed while hidden into one summary on return", async () => {
@@ -166,7 +169,7 @@ describe("useLiveInboxToasts", () => {
     setHidden(false)
     await act(async () => {})
     await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
-    expect(toastMock.mock.calls[0][0]).toBe("4 new in Inbox")
+    expect(must(toastMock.mock.calls[0])[0]).toBe("4 new in Inbox")
   })
 
   it("toasts nothing on return when nothing arrived while hidden", async () => {
@@ -205,7 +208,7 @@ describe("useLiveInboxToasts", () => {
     } as InboxItem
     await setItems(queryClient, [pageless, mention(5)])
     await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
-    act(() => toastMock.mock.calls[0][1].action.onClick())
+    act(() => must(toastMock.mock.calls[0])[1].action.onClick())
     const state = useInboxPanelStore.getState()
     expect(state.open).toBe(true)
     expect(state.item).toBe(6)

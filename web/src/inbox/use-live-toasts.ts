@@ -76,7 +76,10 @@ export function useLiveInboxToasts(): void {
           .show({ view: "for_you", filter: "open", item: item.seq })
         return
       }
-      void navigate({ to: link.to, search: link.search })
+      void navigate({
+        to: link.to,
+        ...(link.search === undefined ? {} : { search: link.search }),
+      })
     }
 
     for (const item of plan.items) {

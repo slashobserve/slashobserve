@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { applyInboxChange, unreadAfter, type InboxPages } from "./inbox-cache"
 import type { InboxItem } from "./inbox-item"
+import { must } from "@/test/must"
 
 function item(
   seq: number,
@@ -101,14 +102,17 @@ describe("applyInboxChange", () => {
       { kind: "unread", seq: 9, unread: false },
       2
     )
-    expect(read.pages[0].items.map((i) => i.unread)).toEqual([false, true])
+    expect(must(read.pages[0]).items.map((i) => i.unread)).toEqual([
+      false,
+      true,
+    ])
     const done = applyInboxChange(
       forYou,
       { kind: "done", seq: 5, done: true },
       2
     )
-    expect(done.pages[1].items[0].unread).toBe(false)
-    expect(forYou.pages[1].items[0].unread).toBe(true)
+    expect(must(must(done.pages[1]).items[0]).unread).toBe(false)
+    expect(must(must(forYou.pages[1]).items[0]).unread).toBe(true)
   })
 
   it("keeps each item's state in step with the change", () => {

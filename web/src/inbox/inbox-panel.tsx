@@ -275,8 +275,9 @@ function InboxCard() {
       rows.length - 1,
       Math.max(0, here + (event.key === "ArrowDown" ? 1 : -1))
     )
-    rows[next].focus()
-    setFocused(ordered[next].seq)
+    rows[next]?.focus()
+    const focusedItem = ordered[next]
+    if (focusedItem !== undefined) setFocused(focusedItem.seq)
   }
 
   function body() {
