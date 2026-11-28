@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import { concatenate } from "./concatenate"
 import type { PreparedFrame } from "./names"
 
@@ -22,13 +24,14 @@ const frames: PreparedFrame[] = [
 describe("concatenate", () => {
   it("puts every field side by side and pads short ones with null", () => {
     const [out] = concatenate(frames, { type: "concatenate" })
+    defined(out)
     expect(out.ref).toBe("A")
     expect(out.fields.map((field) => field.name)).toEqual([
       "Time",
       "Value",
       "Value",
     ])
-    expect(out.fields[2].values).toEqual([7, 8, null])
+    expect(must(out.fields[2]).values).toEqual([7, 8, null])
   })
 
   it("prefixes field names with the frame name", () => {
@@ -36,12 +39,13 @@ describe("concatenate", () => {
       type: "concatenate",
       nameMode: "field",
     })
+    defined(out)
     expect(out.fields.map((field) => field.name)).toEqual([
       "cpu Time",
       "cpu Value",
       "mem Value",
     ])
-    expect(out.fields[2].seriesName).toBe("mem Value")
+    expect(must(out.fields[2]).seriesName).toBe("mem Value")
   })
 
   it("adds the frame name as a label on the series name", () => {
@@ -49,13 +53,15 @@ describe("concatenate", () => {
       type: "concatenate",
       nameMode: "label",
     })
-    expect(out.fields[1].seriesName).toBe('cpu{frame="cpu"}')
+    defined(out)
+    expect(must(out.fields[1]).seriesName).toBe('cpu{frame="cpu"}')
     const [custom] = concatenate(frames, {
       type: "concatenate",
       nameMode: "label",
       nameLabel: "query",
     })
-    expect(custom.fields[2].seriesName).toBe('mem{query="mem"}')
+    defined(custom)
+    expect(must(custom.fields[2]).seriesName).toBe('mem{query="mem"}')
   })
 
   it("gives nothing for no frames", () => {

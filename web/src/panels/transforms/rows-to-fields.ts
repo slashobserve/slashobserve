@@ -2,6 +2,7 @@ import type { FieldProps, Transform } from "@/spec"
 
 import { isNumber } from "../reducers"
 import {
+  frameName,
   cell,
   copyFrame,
   rowCount,
@@ -90,7 +91,7 @@ function toFields(
       ...(config ? { config } : {}),
     })
   }
-  return { ref: frame.ref, name: frame.name, fields }
+  return { ref: frame.ref, ...frameName(frame), fields }
 }
 
 export function rowsToFields(

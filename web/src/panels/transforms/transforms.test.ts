@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { WireFrame } from "@/dashboards/queries"
 import type { DataPanel, Transform } from "@/spec"
+import { defined, must } from "@/panels/must"
 
 import type { WireField } from "../frames"
 import {
@@ -94,6 +95,7 @@ describe("query format table", () => {
       series("a:1", 1),
       series("b:1", 0),
     ])
+    defined(out)
     expect(rest).toEqual([])
     expect(out.ref).toBe("A")
     expect(out.fields.map((f) => [f.name, f.type])).toEqual([
@@ -121,6 +123,7 @@ describe("query format table", () => {
         labels: { pod: "b" },
       }),
     ])
+    defined(out)
     expect(columns(out)).toEqual({
       Time: [1, 2, 3, 1, 2, 3],
       pod: ["a", "a", "a", "b", "b", "b"],
@@ -136,18 +139,20 @@ describe("query format table", () => {
       [a, b]
     )
     expect(both.map((f) => f.ref)).toEqual(["A", "B"])
-    expect(both[0].fields.map((f) => f.name)).toEqual(["Time", "Value #A"])
-    expect(columns(both[1])).toEqual({ Time: [4], "Value #B": [9] })
+    expect(must(both[0]).fields.map((f) => f.name)).toEqual([
+      "Time",
+      "Value #A",
+    ])
+    expect(columns(must(both[1]))).toEqual({ Time: [4], "Value #B": [9] })
 
     const noData = panel([
       { format: "table" },
       { ref: "B", format: "table" },
       { ref: "C", format: "table", hide: true },
     ])
-    expect(prepareFrames(noData, [a])[0].fields.map((f) => f.name)).toEqual([
-      "Time",
-      "Value",
-    ])
+    expect(
+      must(prepareFrames(noData, [a])[0]).fields.map((f) => f.name)
+    ).toEqual(["Time", "Value"])
   })
 
   it("names a table query's value by its legend when several table queries returned data", () => {
@@ -172,7 +177,7 @@ describe("query format table", () => {
       ["Time", "__name__", "status", "Value #A"],
       ["Time", "__name__", "status", "Value #B"],
     ])
-    expect(out.map((f) => seriesName(f, f.fields[3]))).toEqual([
+    expect(out.map((f) => seriesName(f, must(f.fields[3])))).toEqual([
       "placed",
       "bad orders",
     ])
@@ -182,12 +187,14 @@ describe("query format table", () => {
     const [plain] = prepareFrames(tablePanel, [
       frame([num("Value", [1])], { labels: { pod: "a" } }),
     ])
+    defined(plain)
     expect(plain.fields.map((f) => f.name)).toEqual(["pod", "Value"])
 
     const [mixed] = prepareFrames(tablePanel, [
       frame([num("Value", [1])], { labels: { pod: "a" } }),
       frame([num("Value", [2])], { labels: { zone: "z" } }),
     ])
+    defined(mixed)
     expect(columns(mixed)).toEqual({
       pod: ["a", null],
       zone: [null, "z"],
@@ -204,6 +211,7 @@ describe("query format table", () => {
         labels: { service: "web" },
       }),
     ])
+    defined(out)
     expect(out.fields.map((f) => f.name)).toEqual([
       "Time",
       "service",
@@ -223,6 +231,7 @@ describe("query format table", () => {
         labels: { pod: "b" },
       }),
     ])
+    defined(out)
     expect(out.fields.map((f) => f.name)).toEqual(["Time", "pod", "c", "c#1"])
     expect(columns(out)).toEqual({
       Time: [1, 1],
@@ -239,6 +248,7 @@ describe("query format table", () => {
         labels: { Time: "t", Value: "v" },
       }),
     ])
+    defined(out)
     expect(out.fields.map((f) => [f.name, f.type])).toEqual([
       ["Time", "time"],
       ["Time#1", "string"],
@@ -261,6 +271,7 @@ describe("query format table", () => {
         labels: { pod: "a" },
       }),
     ])
+    defined(out)
     expect(out.fields.map((f) => [f.name, f.type])).toEqual([
       ["Time", "time"],
       ["pod", "string"],
@@ -303,15 +314,17 @@ describe("query format table", () => {
       panel([{ format: "timeseries", legend: "{{pod}} pod" }]),
       [series]
     )
-    expect(stamped.fields[1].seriesName).toBe("checkout-0 pod")
-    expect(seriesName(stamped, stamped.fields[1])).toBe("checkout-0 pod")
+    defined(stamped)
+    expect(must(stamped.fields[1]).seriesName).toBe("checkout-0 pod")
+    expect(seriesName(stamped, must(stamped.fields[1]))).toBe("checkout-0 pod")
 
     const [flat] = prepareFrames(
       panel([{ format: "table", legend: "{{pod}} pod" }]),
       [series]
     )
+    defined(flat)
     expect(flat.fields.map((f) => f.name)).toEqual(["Time", "pod", "Value"])
-    expect(seriesName(flat, flat.fields[2])).toBe("checkout-0 pod")
+    expect(seriesName(flat, must(flat.fields[2]))).toBe("checkout-0 pod")
   })
 
   it("shows the legend of a single table query without renaming its column", () => {
@@ -319,8 +332,9 @@ describe("query format table", () => {
       panel([{ format: "table", legend: "placed" }]),
       [frame([time([1]), num("Value", [5])], { name: "orders" })]
     )
+    defined(out)
     expect(out.fields.map((f) => f.name)).toEqual(["Time", "__name__", "Value"])
-    expect(seriesName(out, out.fields[2])).toBe("placed")
+    expect(seriesName(out, must(out.fields[2]))).toBe("placed")
   })
 
   it("qualifies table legends that render the same for different queries", () => {
@@ -334,7 +348,7 @@ describe("query format table", () => {
         frame([time([1]), num("Value", [1])], { ref })
       )
     )
-    expect(out.map((f) => seriesName(f, f.fields[1]))).toEqual([
+    expect(out.map((f) => seriesName(f, must(f.fields[1])))).toEqual([
       "A: orders",
       "B: orders",
       "other",
@@ -362,26 +376,30 @@ describe("query format table", () => {
         }),
       ]
     )
-    expect(out[0].fields.map((f) => f.name)).toEqual([
+    expect(must(out[0]).fields.map((f) => f.name)).toEqual([
       "Time",
       "pod",
       "Value #A",
     ])
-    expect(seriesName(out[0], out[0].fields[2])).toBe("Value #A")
-    expect(seriesName(out[1], out[1].fields[2])).toBe("c")
+    expect(seriesName(must(out[0]), must(must(out[0]).fields[2]))).toBe(
+      "Value #A"
+    )
+    expect(seriesName(must(out[1]), must(must(out[1]).fields[2]))).toBe("c")
   })
 
   it("names a sql table query's value by its legend, adding the field name for several numbers", () => {
     const sql = panel([{ format: "table", legend: "total" }])
     const types = () => "postgres"
     const [one] = prepareFrames(sql, [frame([num("Value", [1])])], types)
-    expect(seriesName(one, one.fields[0])).toBe("total")
+    defined(one)
+    expect(seriesName(one, must(one.fields[0]))).toBe("total")
     const [two] = prepareFrames(
       sql,
       [frame([num("Value", [1]), num("Other", [2])])],
       types
     )
-    expect(seriesName(two, two.fields[0])).toBe("total Value")
+    defined(two)
+    expect(seriesName(two, must(two.fields[0]))).toBe("total Value")
   })
 })
 
@@ -398,7 +416,8 @@ describe("merge", () => {
         frame([time([2]), num("Value", [2])], { labels: { pod: "a" } }),
       ]
     )
-    expect(seriesName(out, out.fields[2])).toBe("a pod")
+    defined(out)
+    expect(seriesName(out, must(out.fields[2]))).toBe("a pod")
 
     const withConfig = frame([time([1]), num("Value", [1])], {
       labels: { pod: "a" },
@@ -415,6 +434,7 @@ describe("merge", () => {
       ],
       { type: "merge" }
     )
+    defined(kept)
     expect(kept.fields.find((f) => f.name === "Value")?.config).toEqual(config)
   })
 
@@ -429,6 +449,7 @@ describe("merge", () => {
       ],
       { type: "merge" }
     )
+    defined(out)
     expect(rest).toEqual([])
     expect(out.fields.map((f) => f.name)).toEqual([
       "Time",
@@ -452,6 +473,7 @@ describe("merge", () => {
       ],
       { type: "merge" }
     )
+    defined(out)
     expect(columns(out)).toEqual({
       Time: [1, 2],
       pod: ["a", "a"],
@@ -473,6 +495,7 @@ describe("merge", () => {
       ],
       { type: "merge" }
     )
+    defined(out)
     expect(columns(out)).toEqual({
       Time: [1, 2, 1, 2],
       job: ["api", "api", "api", "api"],
@@ -495,6 +518,7 @@ describe("merge", () => {
       ],
       { type: "merge" }
     )
+    defined(out)
     expect(rest).toEqual([])
     expect(out.ref).toBe("A")
     expect(columns(out)).toEqual({
@@ -514,6 +538,7 @@ describe("merge", () => {
       ],
       { type: "merge" }
     )
+    defined(out)
     expect(columns(out)).toEqual({
       Time: [1, 1],
       job: ["api", "api"],
@@ -554,6 +579,7 @@ describe("seriesToRows", () => {
       ],
       { type: "seriesToRows" }
     )
+    defined(out)
     expect(rest).toEqual([])
     expect(columns(out)).toEqual({
       Time: [3, 2, 1],
@@ -584,6 +610,7 @@ describe("organize", () => {
       rename: { Errors: "Err" },
       order: ["Value"],
     })
+    defined(out)
     expect(out.fields.map((f) => f.name)).toEqual(["Value", "Time", "Err"])
   })
 
@@ -596,6 +623,7 @@ describe("organize", () => {
       type: "organize",
       rename: { 'cpu{pod="a"}': "CPU" },
     })
+    defined(out)
     expect(out.fields.map((f) => f.name)).toEqual(["Time", "CPU"])
   })
 
@@ -605,6 +633,7 @@ describe("organize", () => {
       rename: { Errors: "Err" },
       order: ["Err", "Value"],
     })
+    defined(out)
     expect(out.fields.map((f) => f.name)).toEqual([
       "Err",
       "Value",
@@ -619,6 +648,7 @@ describe("organize", () => {
       exclude: ["nope"],
       order: ["nope"],
     })
+    defined(out)
     expect(out.fields.map((f) => f.name)).toEqual([
       "Time",
       "Value",
@@ -647,19 +677,21 @@ describe("series names", () => {
     const [renamed] = applyTransforms(frames, [
       { type: "organize", rename: { "checkout-0": "Checkout" } },
     ])
+    defined(renamed)
     expect(renamed.fields.map((f) => f.name)).toEqual(["Time", "Checkout"])
-    expect(seriesName(renamed, renamed.fields[1])).toBe("Checkout")
+    expect(seriesName(renamed, must(renamed.fields[1]))).toBe("Checkout")
 
     const [sorted] = applyTransforms(frames, [
       { type: "sortBy", field: "checkout-0" },
     ])
+    defined(sorted)
     expect(columns(sorted).Value).toEqual([1, 5])
 
     const kept = applyTransforms(frames, [
       { type: "filterFieldsByName", include: ["checkout-1"] },
     ])
     expect(kept).toHaveLength(1)
-    expect(kept[0].fields.map((f) => f.name)).toEqual(["Value"])
+    expect(must(kept[0]).fields.map((f) => f.name)).toEqual(["Value"])
   })
 
   it("shows an organize rename on a labelled series through its series name", () => {
@@ -671,7 +703,8 @@ describe("series names", () => {
       type: "organize",
       rename: { Value: "CPU" },
     })
-    expect(seriesName(out, out.fields[1])).toBe("CPU")
+    defined(out)
+    expect(seriesName(out, must(out.fields[1]))).toBe("CPU")
   })
 })
 
@@ -690,6 +723,7 @@ describe("reduce", () => {
       type: "reduce",
       reducers: ["max", "mean"],
     })
+    defined(out)
     expect(rest).toEqual([])
     expect(columns(out)).toEqual({
       Field: ['cpu{pod="a"}', 'cpu{pod="b"}'],
@@ -703,14 +737,17 @@ describe("reduce", () => {
     const [rows] = applyTransforms(stamped, [
       { type: "reduce", reducers: ["max"] },
     ])
+    defined(rows)
     expect(columns(rows).Field).toEqual(["a", "b"])
     const [one] = applyTransforms(stamped, [
       { type: "reduce", mode: "reduceFields", reducers: ["max"] },
     ])
-    expect(one.fields[0].seriesName).toBe("a")
+    defined(one)
+    expect(must(one.fields[0]).seriesName).toBe("a")
     const [two] = applyTransforms(stamped, [
       { type: "reduce", mode: "reduceFields", reducers: ["min", "max"] },
     ])
+    defined(two)
     expect(two.fields.map((f) => f.seriesName)).toEqual(["a Min", "a Max"])
   })
 
@@ -729,6 +766,7 @@ describe("reduce", () => {
       mode: "reduceFields",
       reducers: ["max"],
     })
+    defined(single)
     expect(single.labels).toEqual({ pod: "a" })
     expect(columns(single)).toEqual({ Value: [3], Errors: [1], host: ["y"] })
     const [several] = run([wide], {
@@ -736,6 +774,7 @@ describe("reduce", () => {
       mode: "reduceFields",
       reducers: ["min", "max"],
     })
+    defined(several)
     expect(columns(several)).toEqual({
       "Value Min": [1],
       "Value Max": [3],
@@ -757,6 +796,7 @@ describe("reduce with any reducer", () => {
 
   it("names a column per reducer and types it by the result kind with seriesToRows", () => {
     const [out] = run([a, b], { type: "reduce", reducers: [...reducers] })
+    defined(out)
     expect(columns(out)).toEqual({
       Field: ['{pod="a"}', '{pod="b"}'],
       Variance: [2 / 3, 25],
@@ -777,6 +817,7 @@ describe("reduce with any reducer", () => {
       mode: "reduceFields",
       reducers: [...reducers],
     })
+    defined(out)
     expect(columns(out)).toEqual({
       "Value Variance": [2 / 3],
       "Value All zeros": [false],
@@ -801,6 +842,7 @@ describe("groupBy with any reducer", () => {
       by: ["host"],
       aggregate: [{ field: "env", reducers: ["allValues", "allIsNull"] }],
     })
+    defined(out)
     expect(columns(out)).toEqual({
       host: ["a", "b"],
       "env (allValues)": ["p, p", "q"],
@@ -824,6 +866,7 @@ describe("joinByField", () => {
 
   it("outer joins on the first time field and sorts by it", () => {
     const [out, ...rest] = run([cpu, mem], { type: "joinByField" })
+    defined(out)
     expect(rest).toEqual([])
     expect(columns(out)).toEqual({
       Time: [1, 2, 3, 4],
@@ -834,6 +877,7 @@ describe("joinByField", () => {
 
   it("inner joins keep only keys present in every frame", () => {
     const [out] = run([cpu, mem], { type: "joinByField", mode: "inner" })
+    defined(out)
     expect(columns(out)).toEqual({
       Time: [2, 3],
       cpu: [20, 30],
@@ -845,6 +889,7 @@ describe("joinByField", () => {
     const left = frame([str("host", ["b", "a"]), num("cpu", [2, 1])])
     const right = frame([str("host", ["a", "c"]), num("mem", [10, 30])])
     const [out] = run([left, right], { type: "joinByField", field: "host" })
+    defined(out)
     expect(columns(out)).toEqual({
       host: ["a", "b", "c"],
       cpu: [1, 2, null],
@@ -857,6 +902,7 @@ describe("joinByField", () => {
     const y = frame([time([1]), num("Value", [2])])
     const z = frame([time([1]), num("Value#1", [3])])
     const [out] = run([z, x, y], { type: "joinByField" })
+    defined(out)
     const names = out.fields.map((f) => f.name)
     expect(new Set(names).size).toBe(names.length)
     expect(names).toEqual(["Time", "Value#1", "Value", "Value#2"])
@@ -872,6 +918,7 @@ describe("joinByField", () => {
     const x = frame([time([1]), num("Value", [1])])
     const y = frame([time([1]), num("Value", [2])])
     const [out] = run([x, y], { type: "joinByField" })
+    defined(out)
     expect(out.fields.map((f) => f.name)).toEqual(["Time", "Value", "Value#1"])
   })
 
@@ -880,14 +927,18 @@ describe("joinByField", () => {
     const right = frame([time([1, 2], "ts"), num("y", [7, 8])])
     const out = run([left, right], { type: "joinByField" })
     expect(out).toHaveLength(1)
-    expect(columns(out[0])).toEqual({ Time: [1, 2], x: [1, 2], y: [7, 8] })
+    expect(columns(must(out[0]))).toEqual({
+      Time: [1, 2],
+      x: [1, 2],
+      y: [7, 8],
+    })
   })
 
   it("joins on a number field common to every frame when the first has no time", () => {
     const left = frame([num("id", [1, 2]), num("x", [10, 20])])
     const right = frame([num("id", [2, 3]), num("y", [200, 300])])
     const out = run([left, right], { type: "joinByField" })
-    expect(columns(out[0])).toEqual({
+    expect(columns(must(out[0]))).toEqual({
       id: [1, 2, 3],
       x: [10, 20, null],
       y: [null, 200, 300],
@@ -898,6 +949,7 @@ describe("joinByField", () => {
     const left = frame([num("k", [2, null, 1]), num("x", [20, 99, 10])])
     const right = frame([num("k", [1, 2]), num("y", [100, 200])])
     const [outer] = run([left, right], { type: "joinByField", field: "k" })
+    defined(outer)
     expect(columns(outer)).toEqual({
       k: [1, 2, null],
       x: [10, 20, 99],
@@ -908,6 +960,7 @@ describe("joinByField", () => {
       field: "k",
       mode: "inner",
     })
+    defined(inner)
     expect(columns(inner)).toEqual({ k: [1, 2], x: [10, 20], y: [100, 200] })
   })
 
@@ -919,10 +972,10 @@ describe("joinByField", () => {
     const other = frame([str("s", ["x"])])
     const out = run([only, other], { type: "joinByField" })
     expect(out).toHaveLength(2)
-    expect(out[0].name).toBe("cpu")
-    expect(out[0].labels).toEqual({ pod: "a" })
-    expect(out[0].fields.map((f) => f.name)).toEqual(["Time", "v"])
-    expect(columns(out[0])).toEqual({ Time: [10, 20, 30], v: [1, 2, 3] })
+    expect(must(out[0]).name).toBe("cpu")
+    expect(must(out[0]).labels).toEqual({ pod: "a" })
+    expect(must(out[0]).fields.map((f) => f.name)).toEqual(["Time", "v"])
+    expect(columns(must(out[0]))).toEqual({ Time: [10, 20, 30], v: [1, 2, 3] })
     expect(out[1]).toEqual(other)
   })
 
@@ -936,6 +989,7 @@ describe("joinByField", () => {
       labels: { pod: "b" },
     })
     const [out] = run([x, y], { type: "joinByField" })
+    defined(out)
     expect(out.fields.map((f) => f.name)).toEqual([
       "Time",
       'cpu{pod="a"}',
@@ -966,6 +1020,7 @@ describe("filterFieldsByName", () => {
       type: "filterFieldsByName",
       include: ["Value", "host"],
     })
+    defined(out)
     expect(out.fields.map((f) => f.name)).toEqual(["Value", "host"])
   })
 
@@ -974,6 +1029,7 @@ describe("filterFieldsByName", () => {
       type: "filterFieldsByName",
       includeRegex: "(Err.*|host)",
     })
+    defined(out)
     expect(out.fields.map((f) => f.name)).toEqual(["Errors", "host"])
   })
 
@@ -983,6 +1039,7 @@ describe("filterFieldsByName", () => {
       include: ["Time"],
       includeRegex: "Err.*",
     })
+    defined(out)
     expect(out.fields.map((f) => f.name)).toEqual(["Time", "Errors"])
   })
 
@@ -1010,6 +1067,7 @@ describe("filterFieldsByName", () => {
       include: ["Value"],
       includeRegex: "(",
     })
+    defined(out)
     expect(out.fields.map((f) => f.name)).toEqual(["Value"])
   })
 
@@ -1031,6 +1089,7 @@ describe("filterFieldsByName", () => {
       type: "filterFieldsByName",
       include: ['cpu{pod="a"}'],
     })
+    defined(out)
     expect(out.fields.map((f) => f.name)).toEqual(["Value"])
   })
 })
@@ -1049,6 +1108,7 @@ describe("calculateField", () => {
       alias: "pct",
       expr: "Value * 100",
     })
+    defined(out)
     expect(out.fields.at(-1)).toEqual({
       name: "pct",
       type: "number",
@@ -1062,14 +1122,15 @@ describe("calculateField", () => {
       alias: "ratio",
       expr: "A / B",
     })
+    defined(out)
     expect(out.fields.at(-1)?.values).toEqual([5, null, 2])
   })
 
   it("supports all four operators with a literal on the left", () => {
     const calc = (expr: string) =>
-      run([input], { type: "calculateField", alias: "r", expr })[0].fields.at(
-        -1
-      )?.values
+      must(
+        run([input], { type: "calculateField", alias: "r", expr })[0]
+      ).fields.at(-1)?.values
     expect(calc("A + B")).toEqual([12, 9, 12])
     expect(calc("A - B")).toEqual([8, 9, 4])
     expect(calc("A*B")).toEqual([20, 0, 32])
@@ -1084,9 +1145,9 @@ describe("calculateField", () => {
       num("Value #B (lastNotNull)", [4, 8]),
     ])
     const calc = (expr: string) =>
-      run([spaced], { type: "calculateField", alias: "r", expr })[0].fields.at(
-        -1
-      )?.values
+      must(
+        run([spaced], { type: "calculateField", alias: "r", expr })[0]
+      ).fields.at(-1)?.values
     expect(calc("Value #A (lastNotNull) - Value #B (lastNotNull)")).toEqual([
       6, 0,
     ])
@@ -1102,6 +1163,7 @@ describe("calculateField", () => {
       alias: "total",
       reduceRow: "sum",
     })
+    defined(out)
     expect(out.fields.at(-1)?.values).toEqual([13, 11, 12])
   })
 
@@ -1112,6 +1174,7 @@ describe("calculateField", () => {
       reduceRow: "sum",
       include: ["A", "B", "Missing"],
     })
+    defined(out)
     expect(out.fields.at(-1)?.values).toEqual([12, 9, 12])
   })
 
@@ -1122,6 +1185,7 @@ describe("calculateField", () => {
       reduceRow: "sum",
       include: ["Missing"],
     })
+    defined(out)
     expect(out.fields.map((f) => f.name)).toEqual(["Time", "Value", "A", "B"])
   })
 
@@ -1131,6 +1195,7 @@ describe("calculateField", () => {
       alias: "A",
       expr: "A + B",
     })
+    defined(out)
     expect(out.fields.filter((f) => f.name === "A")).toHaveLength(1)
     expect(out.fields.at(-1)?.values).toEqual([12, 9, 12])
   })
@@ -1150,7 +1215,7 @@ describe("calculateField", () => {
       { type: "calculateField", alias: "ratio", expr: "errors / total" },
     ])
     expect(out).toHaveLength(1)
-    expect(columns(out[0])).toEqual({
+    expect(columns(must(out[0]))).toEqual({
       Time: [1, 2],
       errors: [1, 3],
       total: [10, 12],
@@ -1203,6 +1268,7 @@ describe("sortBy", () => {
 
   it("sorts numbers ascending with nulls last", () => {
     const [out] = run([input], { type: "sortBy", field: "Value" })
+    defined(out)
     expect(columns(out)).toEqual({
       host: ["d", "b", "c", "a"],
       Value: [1, 2, 3, null],
@@ -1211,6 +1277,7 @@ describe("sortBy", () => {
 
   it("sorts descending with nulls still last", () => {
     const [out] = run([input], { type: "sortBy", field: "Value", desc: true })
+    defined(out)
     expect(columns(out)).toEqual({
       host: ["c", "b", "d", "a"],
       Value: [3, 2, 1, null],
@@ -1219,20 +1286,24 @@ describe("sortBy", () => {
 
   it("sorts strings with localeCompare", () => {
     const [out] = run([input], { type: "sortBy", field: "host" })
+    defined(out)
     expect(columns(out).host).toEqual(["a", "b", "c", "d"])
   })
 
   it("sorts strings with collation rather than code points", () => {
     const names = frame([str("host", ["Zebra", "apple", null, "Mango"])])
     const [asc] = run([names], { type: "sortBy", field: "host" })
+    defined(asc)
     expect(columns(asc).host).toEqual(["apple", "Mango", "Zebra", null])
     const [desc] = run([names], { type: "sortBy", field: "host", desc: true })
+    defined(desc)
     expect(columns(desc).host).toEqual(["Zebra", "Mango", "apple", null])
   })
 
   it("sorts by time numerically", () => {
     const series = frame([time([10, 9, 100]), num("Value", [1, 2, 3])])
     const [out] = run([series], { type: "sortBy", field: "Time" })
+    defined(out)
     expect(columns(out).Time).toEqual([9, 10, 100])
   })
 
@@ -1246,12 +1317,13 @@ describe("limit", () => {
 
   it("keeps the first rows of every frame", () => {
     const [out] = run([input, input], { type: "limit", count: 2 })
+    defined(out)
     expect(columns(out)).toEqual({ Time: [1, 2], Value: [1, 2] })
   })
 
   it("keeps nothing for zero and everything for a large count", () => {
     expect(
-      run([input], { type: "limit", count: 0 })[0].fields[0].values
+      must(must(run([input], { type: "limit", count: 0 })[0]).fields[0]).values
     ).toEqual([])
     expect(run([input], { type: "limit", count: 99 })).toEqual([input])
   })
@@ -1270,6 +1342,7 @@ describe("chaining", () => {
       { type: "sortBy", field: "Value", desc: true },
       { type: "limit", count: 2 }
     )
+    defined(out)
     expect(columns(out)).toEqual({ Value: [4, 3], host: ["c", "a"] })
   })
 
@@ -1288,6 +1361,7 @@ describe("chaining", () => {
       ),
       series
     )
+    defined(out)
     expect(columns(out)).toEqual({ Time: [1], pod: ["b"], Value: [9] })
   })
 
@@ -1304,6 +1378,7 @@ describe("chaining", () => {
       undefined,
       { ...filter, after: 1 }
     )
+    defined(afterSource)
     expect(columns(afterSource)).toEqual({ pod: ["a"], Value: [1] })
     const [beforeAll] = prepareFrames(
       panel([{}], transforms),
@@ -1314,6 +1389,7 @@ describe("chaining", () => {
         after: 0,
       }
     )
+    defined(beforeAll)
     expect(columns(beforeAll)).toEqual({ pod: ["a", "a"], Value: [3, 1] })
   })
 
@@ -1363,36 +1439,41 @@ describe("calculateField modes", () => {
       num("B", [9, 16]),
     ])
     const fn = (name: "abs" | "floor" | "ceil" | "round") =>
-      calc(signed, { alias: "r", unary: { fn: name } }).fields.at(-1)?.values
+      must(calc(signed, { alias: "r", unary: { fn: name } })).fields.at(-1)
+        ?.values
     expect(fn("abs")).toEqual([2, 4.6, null, 0])
     expect(fn("floor")).toEqual([-2, 4, null, 0])
     expect(fn("ceil")).toEqual([-2, 5, null, 0])
     expect(fn("round")).toEqual([-2, 5, null, 0])
     expect(
-      calc(signed, { alias: "r", unary: {} }).fields.at(-1)?.values
+      must(calc(signed, { alias: "r", unary: {} })).fields.at(-1)?.values
     ).toEqual([2, 4.6, null, 0])
     expect(
-      calc(other, { alias: "r", unary: { fn: "floor", field: "B" } }).fields.at(
-        -1
-      )?.values
+      must(
+        calc(other, { alias: "r", unary: { fn: "floor", field: "B" } })
+      ).fields.at(-1)?.values
     ).toEqual([9, 16])
   })
 
   it("gives null where exp overflows and ln is undefined", () => {
     const input = frame([num("Value", [0, 1, -1, 1000])])
-    const exp = calc(input, { alias: "e", unary: { fn: "exp" } }).fields.at(-1)
+    const exp = must(
+      calc(input, { alias: "e", unary: { fn: "exp" } })
+    ).fields.at(-1)
     expect(exp?.values[0]).toBe(1)
     expect(exp?.values[1]).toBeCloseTo(Math.E)
     expect(exp?.values[3]).toBeNull()
     expect(
-      calc(input, { alias: "l", unary: { fn: "ln" } }).fields.at(-1)?.values
+      must(calc(input, { alias: "l", unary: { fn: "ln" } })).fields.at(-1)
+        ?.values
     ).toEqual([null, 0, null, expect.closeTo(Math.log(1000))])
   })
 
   it("numbers rows from zero or as a share of the last row", () => {
-    const rows = calc(signed, { alias: "i", index: {} }).fields.at(-1)
+    const rows = must(calc(signed, { alias: "i", index: {} })).fields.at(-1)
     expect(rows?.values).toEqual([0, 1, 2, 3])
     const share = calc(signed, { alias: "i", index: { percentile: true } })
+    defined(share)
     expect(share.fields.at(-1)?.values).toEqual([
       0,
       expect.closeTo(1 / 3),
@@ -1401,26 +1482,28 @@ describe("calculateField modes", () => {
     ])
     const single = frame([num("Value", [5])])
     expect(
-      calc(single, { alias: "i", index: { percentile: true } }).fields.at(-1)
-        ?.values
+      must(calc(single, { alias: "i", index: { percentile: true } })).fields.at(
+        -1
+      )?.values
     ).toEqual([0])
   })
 
   it("keeps a running total or mean and skips nulls", () => {
     const input = frame([num("Value", [1, 2, null, 3])])
     expect(
-      calc(input, { alias: "c", cumulative: {} }).fields.at(-1)?.values
+      must(calc(input, { alias: "c", cumulative: {} })).fields.at(-1)?.values
     ).toEqual([1, 3, null, 6])
     expect(
-      calc(input, { alias: "c", cumulative: { fn: "mean" } }).fields.at(-1)
-        ?.values
+      must(calc(input, { alias: "c", cumulative: { fn: "mean" } })).fields.at(
+        -1
+      )?.values
     ).toEqual([1, 1.5, null, 2])
   })
 
   it("moves a window over trailing or centered rows", () => {
     const input = frame([num("Value", [1, 3, 5, 7, 9])])
     const window = (w: object) =>
-      calc(input, { alias: "w", window: w }).fields.at(-1)?.values
+      must(calc(input, { alias: "w", window: w })).fields.at(-1)?.values
     expect(window({ size: 2 })).toEqual([1, 2, 4, 6, 8])
     expect(window({ size: 3, align: "centered" })).toEqual([2, 3, 5, 7, 8])
     expect(window({ size: 2, fn: "variance" })).toEqual([0, 1, 1, 1, 1])
@@ -1432,7 +1515,7 @@ describe("calculateField modes", () => {
   it("defaults a window to a tenth of the rows and never goes under one row", () => {
     const input = frame([num("Value", [1, 3, 5])])
     expect(
-      calc(input, { alias: "w", window: {} }).fields.at(-1)?.values
+      must(calc(input, { alias: "w", window: {} })).fields.at(-1)?.values
     ).toEqual([1, 3, 5])
     const long = frame([
       num(
@@ -1440,39 +1523,42 @@ describe("calculateField modes", () => {
         Array.from({ length: 20 }, (_, i) => i)
       ),
     ])
-    const smoothed = calc(long, { alias: "w", window: {} }).fields.at(-1)
+    const smoothed = must(calc(long, { alias: "w", window: {} })).fields.at(-1)
     expect(smoothed?.values.at(-1)).toBe(18.5)
   })
 
   it("leaves a null sample null inside a window", () => {
     const input = frame([num("Value", [2, null, 4])])
     expect(
-      calc(input, { alias: "w", window: { size: 3 } }).fields.at(-1)?.values
+      must(calc(input, { alias: "w", window: { size: 3 } })).fields.at(-1)
+        ?.values
     ).toEqual([2, null, 3])
   })
 
   it("keeps only the time field and the new field with replace", () => {
     const input = frame([time([1, 2]), num("A", [1, 2]), num("B", [3, 4])])
     const out = calc(input, { alias: "s", expr: "A + B", replace: true })
+    defined(out)
     expect(columns(out)).toEqual({ Time: [1, 2], s: [4, 6] })
     const noTime = calc(frame([num("A", [1])]), {
       alias: "s",
       expr: "A + 1",
       replace: true,
     })
+    defined(noTime)
     expect(columns(noTime)).toEqual({ s: [2] })
   })
 
   it("supports modulo and power in an expression", () => {
     const input = frame([num("A", [10, 9, 8]), num("B", [3, 0, 4])])
     expect(
-      calc(input, { alias: "m", expr: "A % B" }).fields.at(-1)?.values
+      must(calc(input, { alias: "m", expr: "A % B" })).fields.at(-1)?.values
     ).toEqual([1, null, 0])
     expect(
-      calc(input, { alias: "p", expr: "A ^ 2" }).fields.at(-1)?.values
+      must(calc(input, { alias: "p", expr: "A ^ 2" })).fields.at(-1)?.values
     ).toEqual([100, 81, 64])
     expect(
-      calc(input, { alias: "p", expr: "B ^ 0.5" }).fields.at(-1)?.values
+      must(calc(input, { alias: "p", expr: "B ^ 0.5" })).fields.at(-1)?.values
     ).toEqual([expect.closeTo(Math.sqrt(3)), 0, 2])
   })
 
@@ -1506,6 +1592,7 @@ describe("reduce options", () => {
       reducers: ["max"],
       includeTime: true,
     })
+    defined(out)
     expect(columns(out)).toEqual({
       Field: ["Time", 'cpu{pod="a", zone="x"}'],
       Max: [9, 3],
@@ -1519,6 +1606,7 @@ describe("reduce options", () => {
       reducers: ["last", "count"],
       includeTime: true,
     })
+    defined(out)
     expect(out.fields.map((f) => [f.name, f.type, f.values])).toEqual([
       ["Time Last", "time", [9]],
       ["Time Count", "number", [3]],
@@ -1533,7 +1621,7 @@ describe("reduce options", () => {
       reducers: ["sum"],
       fields: ["Other"],
     })
-    expect(columns(byName[0])).toEqual({
+    expect(columns(must(byName[0]))).toEqual({
       Field: ['cpu{pod="b"} Other'],
       Total: [2],
     })
@@ -1542,7 +1630,7 @@ describe("reduce options", () => {
       reducers: ["sum"],
       fieldsRegex: "/^Val/",
     })
-    expect(columns(byRegex[0])).toEqual({
+    expect(columns(must(byRegex[0]))).toEqual({
       Field: ['cpu{pod="b"} Value'],
       Total: [30],
     })
@@ -1552,7 +1640,7 @@ describe("reduce options", () => {
       reducers: ["sum"],
       fields: ["Other"],
     })
-    expect(reduced[0].fields.map((f) => f.name)).toEqual(["Other"])
+    expect(must(reduced[0]).fields.map((f) => f.name)).toEqual(["Other"])
   })
 
   it("adds a column per label key with labelsToFields in rows mode", () => {
@@ -1561,6 +1649,7 @@ describe("reduce options", () => {
       reducers: ["max"],
       labelsToFields: true,
     })
+    defined(out)
     expect(columns(out)).toEqual({
       Field: [
         'cpu{pod="a", zone="x"}',
@@ -1580,6 +1669,7 @@ describe("reduce options", () => {
       reducers: ["max"],
       labelsToFields: true,
     })
+    defined(out)
     expect(columns(out)).toEqual({ Value: [3], pod: ["a"], zone: ["x"] })
   })
 })
@@ -1597,6 +1687,7 @@ describe("joinByField outerTabular", () => {
       field: "id",
       mode: "outerTabular",
     })
+    defined(out)
     expect(columns(out)).toEqual({
       id: ["k1", "k1", "k2", null, "k3", null],
       x: [1, 2, 3, 4, null, null],
@@ -1610,6 +1701,7 @@ describe("joinByField outerTabular", () => {
       field: "id",
       mode: "outerTabular",
     })
+    defined(out)
     expect(columns(out).id).toEqual(["k1", "k1", "k2", null])
   })
 
@@ -1620,6 +1712,7 @@ describe("joinByField outerTabular", () => {
       field: "id",
       mode: "outerTabular",
     })
+    defined(out)
     expect(columns(out).z).toEqual([null, null, 7, null, 8, null])
   })
 })
@@ -1704,6 +1797,7 @@ describe("sortBy then", () => {
       field: "host",
       then: [{ field: "Value", desc: true }],
     })
+    defined(out)
     expect(columns(out)).toEqual({
       host: ["a", "a", "b", "b", "c"],
       Value: [5, 1, 3, 1, 2],
@@ -1716,6 +1810,7 @@ describe("sortBy then", () => {
       field: "nope",
       then: [{ field: "Value" }],
     })
+    defined(out)
     expect(columns(out).Value).toEqual([1, 1, 2, 3, 5])
   })
 })
@@ -1730,6 +1825,7 @@ describe("organize include", () => {
       exclude: ["b"],
       order: ["c"],
     })
+    defined(out)
     expect(out.fields.map((f) => f.name)).toEqual(["c", "a"])
   })
 })
@@ -1737,8 +1833,11 @@ describe("organize include", () => {
 describe("limit from a variable", () => {
   const input = frame([num("Value", [1, 2, 3, 4])])
   const limited = (vars: Record<string, string[]>) =>
-    applyTransforms([input], [{ type: "limit", count: "${n}" }], vars)[0]
-      .fields[0].values
+    must(
+      must(
+        applyTransforms([input], [{ type: "limit", count: "${n}" }], vars)[0]
+      ).fields[0]
+    ).values
 
   it("reads the count from the selected value", () => {
     expect(limited({ n: ["2"] })).toEqual([1, 2])
@@ -1766,8 +1865,8 @@ describe("transforms scoped to queries", () => {
     })
     expect(out.map((f) => f.ref)).toEqual(["A", "B", "C"])
     expect(out[0]).toEqual(a)
-    expect(columns(out[1]).Value).toEqual([4, 5, 6])
-    expect(columns(out[2]).Value).toEqual([7, 8, 9])
+    expect(columns(must(out[1])).Value).toEqual([4, 5, 6])
+    expect(columns(must(out[2])).Value).toEqual([7, 8, 9])
   })
 
   it("puts a joined result where its first frame was and keeps the rest in order", () => {
@@ -1797,7 +1896,7 @@ describe("transforms scoped to queries", () => {
       { type: "limit", count: 1, queries: ["A"] },
       { type: "limit", count: 2, queries: ["B"] }
     )
-    expect(out.map((f) => f.fields[0].values.length)).toEqual([1, 2])
+    expect(out.map((f) => must(f.fields[0]).values.length)).toEqual([1, 2])
   })
 })
 

@@ -61,7 +61,9 @@ function jsonParser({ paths }: ExtractOptions): (text: string) => Row | null {
 
 const kvpParser: Parser = (text) =>
   new Map(
-    [...text.matchAll(pair)].map((match) => [match[1], unquote(match[2])])
+    [...text.matchAll(pair)].flatMap(([, key, value]): [string, string][] =>
+      key === undefined || value === undefined ? [] : [[key, unquote(value)]]
+    )
   )
 
 function delimiterParser({ delimiter = "," }: ExtractOptions): Parser {

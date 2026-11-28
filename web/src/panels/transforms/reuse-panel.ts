@@ -13,15 +13,22 @@ export function reusePanel(
     ? (source.transform ?? [])
     : []
   const transform = [...sourceTransforms, ...(panel.transform ?? [])]
+  const reused: DataPanel = { ...panel, queries: source.queries }
+  delete reused.datasource
+  delete reused.maxDataPoints
+  delete reused.interval
+  delete reused.timeFrom
+  delete reused.timeShift
+  delete reused.transform
+  const { datasource, maxDataPoints, interval, timeFrom, timeShift } = source
   return {
-    ...panel,
-    datasource: source.datasource,
-    queries: source.queries,
-    maxDataPoints: source.maxDataPoints,
-    interval: source.interval,
-    timeFrom: source.timeFrom,
-    timeShift: source.timeShift,
-    transform: transform.length > 0 ? transform : undefined,
+    ...reused,
+    ...(datasource === undefined ? {} : { datasource }),
+    ...(maxDataPoints === undefined ? {} : { maxDataPoints }),
+    ...(interval === undefined ? {} : { interval }),
+    ...(timeFrom === undefined ? {} : { timeFrom }),
+    ...(timeShift === undefined ? {} : { timeShift }),
+    ...(transform.length > 0 ? { transform } : {}),
   }
 }
 

@@ -29,19 +29,25 @@ export function histogram(
 ): PreparedFrame[] {
   const found = samples(frames, options.combine === true)
   const all = found.flatMap((sample) => sample.values)
-  if (all.length === 0) return frames.map((frame) => ({ ...frame }))
+  const first = frames[0]
+  if (first === undefined || all.length === 0) {
+    return frames.map((frame) => ({ ...frame }))
+  }
   const lowest = all.reduce((a, b) => Math.min(a, b))
   const highest = all.reduce((a, b) => Math.max(a, b))
   const buckets = bucketsOf(lowest, highest, options)
   const edges = edgesOf(buckets)
   const counts = found.map((sample): PreparedField => {
     const values = new Array<number>(buckets.count).fill(0)
-    for (const value of sample.values) values[bucketIndex(value, buckets)]++
+    for (const value of sample.values) {
+      const index = bucketIndex(value, buckets)
+      values[index] = (values[index] ?? 0) + 1
+    }
     return { name: sample.name, type: "number", values }
   })
   return [
     {
-      ref: frames[0].ref,
+      ref: first.ref,
       fields: [
         { name: "xMin", type: "number", values: edges.slice(0, -1) },
         { name: "xMax", type: "number", values: edges.slice(1) },

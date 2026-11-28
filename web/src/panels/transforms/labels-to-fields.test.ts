@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import { labelsToFields } from "./labels-to-fields"
 import type { PreparedFrame } from "./names"
 
@@ -16,6 +18,7 @@ const series: PreparedFrame = {
 describe("labelsToFields", () => {
   it("adds one constant string column per label in columns mode", () => {
     const [out] = labelsToFields([series], { type: "labelsToFields" })
+    defined(out)
     expect(out.labels).toBeUndefined()
     expect(out.fields.map((field) => field.name)).toEqual([
       "Time",
@@ -24,8 +27,8 @@ describe("labelsToFields", () => {
       "namespace",
       "pod",
     ])
-    expect(out.fields[4].values).toEqual(["web-1", "web-1"])
-    expect(out.fields[1].seriesName).toBe("Value")
+    expect(must(out.fields[4]).values).toEqual(["web-1", "web-1"])
+    expect(must(out.fields[1]).seriesName).toBe("Value")
   })
 
   it("keeps only the listed labels in the order listed", () => {
@@ -33,6 +36,7 @@ describe("labelsToFields", () => {
       type: "labelsToFields",
       include: ["pod", "missing", "namespace"],
     })
+    defined(out)
     expect(out.fields.slice(2).map((field) => field.name)).toEqual([
       "pod",
       "namespace",
@@ -44,8 +48,9 @@ describe("labelsToFields", () => {
       type: "labelsToFields",
       valueLabel: "pod",
     })
-    expect(out.fields[1].name).toBe("web-1")
-    expect(out.fields[1].seriesName).toBe("web-1")
+    defined(out)
+    expect(must(out.fields[1]).name).toBe("web-1")
+    expect(must(out.fields[1]).seriesName).toBe("web-1")
     expect(out.fields.map((field) => field.name)).not.toContain("pod")
   })
 
@@ -55,6 +60,7 @@ describe("labelsToFields", () => {
       mode: "rows",
       include: ["pod", "namespace"],
     })
+    defined(out)
     expect(out.fields).toEqual([
       { name: "label", type: "string", values: ["pod", "namespace"] },
       { name: "value", type: "string", values: ["web-1", "shop"] },

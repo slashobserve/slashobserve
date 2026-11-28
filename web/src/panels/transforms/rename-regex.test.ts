@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import type { PreparedFrame } from "./names"
 import { renameByRegex } from "./rename-regex"
 
@@ -23,6 +25,7 @@ function names(regex: string, renameTo: string): string[] {
     regex,
     renameTo,
   })
+  defined(out)
   return out.fields.map((f) => f.seriesName ?? f.name)
 }
 
@@ -54,12 +57,13 @@ describe("renameByRegex", () => {
       regex: "Time",
       renameTo: "When",
     })
-    expect(out.fields[0].name).toBe("When")
+    defined(out)
+    expect(must(out.fields[0]).name).toBe("When")
   })
 
   it("renames to an empty name and ignores an invalid pattern", () => {
     expect(names("Time", "")[0]).toBe("")
     expect(names("(", "x")).toEqual(["Time", "web-1 requests", "db-1 errors"])
-    expect(frame.fields[0].name).toBe("Time")
+    expect(must(frame.fields[0]).name).toBe("Time")
   })
 })

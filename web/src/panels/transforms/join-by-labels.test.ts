@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import { joinByLabels } from "./join-by-labels"
 import type { PreparedFrame } from "./names"
 
@@ -31,15 +33,16 @@ describe("joinByLabels", () => {
       value: "mode",
       on: ["instance"],
     })
+    defined(out)
     expect(out.fields.map((field) => field.name)).toEqual([
       "Time",
       "instance",
       "user",
       "system",
     ])
-    expect(out.fields[1].values).toEqual(["a", "b", "a", "b"])
-    expect(out.fields[2].values).toEqual([1, 5, 2, 6])
-    expect(out.fields[3].values).toEqual([3, null, 4, null])
+    expect(must(out.fields[1]).values).toEqual(["a", "b", "a", "b"])
+    expect(must(out.fields[2]).values).toEqual([1, 5, 2, 6])
+    expect(must(out.fields[3]).values).toEqual([3, null, 4, null])
   })
 
   it("joins on every other label when on is absent", () => {
@@ -47,6 +50,7 @@ describe("joinByLabels", () => {
       type: "joinByLabels",
       value: "mode",
     })
+    defined(out)
     expect(out.fields.map((field) => field.name)).toEqual([
       "Time",
       "instance",
@@ -73,6 +77,7 @@ describe("joinByLabels", () => {
       value: "job",
       on: ["env"],
     })
+    defined(out)
     expect(out.fields).toEqual([
       { name: "env", type: "string", values: ["p"] },
       { name: "x", type: "number", values: [7] },

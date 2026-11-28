@@ -2,6 +2,7 @@ import type { Transform } from "@/spec"
 
 import { commonType, fillValue } from "./empty-value"
 import {
+  frameName,
   cell,
   copyFrame,
   matchesName,
@@ -51,7 +52,7 @@ function matrix(frame: PreparedFrame, options: MatrixOptions): PreparedFrame {
   })
   return {
     ref: frame.ref,
-    name: frame.name,
+    ...frameName(frame),
     fields: [
       {
         name: `${row.name}\\${column.name}`,

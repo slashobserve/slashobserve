@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined } from "@/panels/must"
+
 import { histogram } from "./histogram"
 import type { PreparedFrame } from "./names"
 
@@ -18,6 +20,7 @@ function columns(frame: PreparedFrame): unknown[][] {
 describe("histogram", () => {
   it("counts values into equal buckets, the last one holding the maximum", () => {
     const [out] = histogram([sample], { type: "histogram", bucketCount: 4 })
+    defined(out)
     expect(out.fields.map((field) => field.name)).toEqual(["xMin", "xMax", "v"])
     expect(columns(out)).toEqual([
       [1, 3, 5, 7],
@@ -28,6 +31,7 @@ describe("histogram", () => {
 
   it("aligns buckets to the size and the offset", () => {
     const [aligned] = histogram([sample], { type: "histogram", bucketSize: 5 })
+    defined(aligned)
     expect(columns(aligned)).toEqual([
       [0, 5],
       [5, 10],
@@ -38,6 +42,7 @@ describe("histogram", () => {
       bucketSize: 5,
       bucketOffset: 1,
     })
+    defined(shifted)
     expect(columns(shifted)).toEqual([
       [1, 6],
       [6, 11],
@@ -54,6 +59,7 @@ describe("histogram", () => {
       type: "histogram",
       bucketSize: 5,
     })
+    defined(each)
     expect(each.fields.map((field) => field.name)).toEqual([
       "xMin",
       "xMax",
@@ -69,6 +75,7 @@ describe("histogram", () => {
       bucketSize: 5,
       combine: true,
     })
+    defined(combined)
     expect(combined.fields.map((field) => field.name)).toEqual([
       "xMin",
       "xMax",
@@ -83,6 +90,7 @@ describe("histogram", () => {
       fields: [{ name: "v", type: "number", values: [7, 7] }],
     }
     const [out] = histogram([single], { type: "histogram" })
+    defined(out)
     expect(columns(out)).toEqual([[7], [7], [2]])
   })
 

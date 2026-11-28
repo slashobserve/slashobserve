@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import type { PreparedFrame } from "./names"
 import { timeSeriesTable } from "./time-series-table"
 
@@ -27,6 +29,7 @@ describe("timeSeriesTable", () => {
       ],
       { type: "timeSeriesTable" }
     )
+    defined(table)
     expect(table.fields).toEqual([
       { name: "pod", type: "string", values: ["p1", "p2"] },
       {
@@ -50,8 +53,8 @@ describe("timeSeriesTable", () => {
       { type: "timeSeriesTable", stats: { A: "max", B: "mean" } }
     )
     expect(out.map((frame) => frame.ref)).toEqual(["A", "B"])
-    expect(out[0].fields[2].values).toEqual([9])
-    expect(out[1].fields[2].values).toEqual([4])
+    expect(must(must(out[0]).fields[2]).values).toEqual([9])
+    expect(must(must(out[1]).fields[2]).values).toEqual([4])
   })
 
   it("names rows by series when there are no labels and passes tables through", () => {
@@ -68,7 +71,7 @@ describe("timeSeriesTable", () => {
       fields: [{ name: "x", type: "string", values: ["k"] }],
     }
     const out = timeSeriesTable([plain, table], { type: "timeSeriesTable" })
-    expect(out[0].fields[0]).toEqual({
+    expect(must(out[0]).fields[0]).toEqual({
       name: "Series",
       type: "string",
       values: ["cpu"],

@@ -7,6 +7,7 @@ export function selectedValues(
 ): string[] | undefined {
   if (!vars || !Object.hasOwn(vars, name)) return undefined
   const values = vars[name]
+  if (values === undefined) return undefined
   return values.length === 0 || values.includes(ALL) ? undefined : values
 }
 

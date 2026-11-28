@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import { heatmap } from "./heatmap"
 import type { PreparedFrame } from "./names"
 
@@ -28,19 +30,19 @@ describe("heatmap", () => {
       yBuckets: { mode: "count", value: 4 },
     })
     expect(out).toHaveLength(1)
-    expect(out[0].fields.map((field) => field.name)).toEqual([
+    expect(must(out[0]).fields.map((field) => field.name)).toEqual([
       "xMin",
       "yMin",
       "yMax",
       "count",
     ])
-    expect(out[0].fields.map((field) => field.type)).toEqual([
+    expect(must(out[0]).fields.map((field) => field.type)).toEqual([
       "time",
       "number",
       "number",
       "number",
     ])
-    expect(columns(out[0])).toEqual([
+    expect(columns(must(out[0]))).toEqual([
       [0, minute, 2 * minute, 3 * minute],
       [1, 5, 9, 13],
       [5, 9, 13, 17],
@@ -54,6 +56,7 @@ describe("heatmap", () => {
       xBuckets: { mode: "count", value: 2 },
       yBuckets: { mode: "count", value: 2 },
     })
+    defined(out)
     expect(columns(out)).toEqual([
       [0, 90_000],
       [1, 9],
@@ -68,6 +71,7 @@ describe("heatmap", () => {
       xBuckets: { mode: "size", value: 120 },
       yBuckets: { mode: "count", value: 1 },
     })
+    defined(out)
     expect(columns(out)).toEqual([
       [0, 2 * minute],
       [1, 1],
@@ -89,7 +93,10 @@ describe("heatmap", () => {
       yBuckets: { mode: "count", value: 3 },
       yScale: "log",
     })
+    defined(out)
     const [xMin, yMin, yMax, count] = columns(out)
+    defined(yMin)
+    defined(yMax)
     expect(xMin).toEqual([0, 1, 2, 3])
     expect(count).toEqual([1, 1, 1, 1])
     ;[1, 2, 4, 4].forEach((edge, at) => expect(yMin[at]).toBeCloseTo(edge))
@@ -110,6 +117,7 @@ describe("heatmap", () => {
       yBuckets: { mode: "count", value: 1 },
       xScale: "log",
     })
+    defined(out)
     const [xMin, , , count] = columns(out)
     expect(xMin).toEqual([1000, 2000, 4000, 8000])
     expect(count).toEqual([2, 1, 1, 1])
@@ -130,6 +138,7 @@ describe("heatmap", () => {
       xScale: "log",
       xLogBase: 10,
     })
+    defined(out)
     const [xMin, , , count] = columns(out)
     expect(xMin).toEqual([10, 46, 215])
     expect(count).toEqual([2, 2, 1])
@@ -149,6 +158,7 @@ describe("heatmap", () => {
       yBuckets: { mode: "count", value: 1 },
       xScale: "symlog",
     })
+    defined(out)
     const [xMin, , , count] = columns(out)
     expect(xMin).toEqual([0, 1, 3, 7])
     expect(count).toEqual([1, 1, 1, 2])
@@ -163,6 +173,7 @@ describe("heatmap", () => {
       ],
     }
     const [out] = heatmap([states], { type: "heatmap", yScale: "ordinal" })
+    defined(out)
     expect(columns(out)).toEqual([
       [0, 2, 1, 3],
       [5, 5, 3, 9],
@@ -183,6 +194,7 @@ describe("heatmap", () => {
       type: "heatmap",
       yBuckets: { mode: "count", value: 2 },
     })
+    defined(out)
     expect(columns(out)).toEqual([
       [0, minute, 2 * minute, 3 * minute],
       [1, 1, 9, 9],
@@ -201,7 +213,7 @@ describe("heatmap", () => {
     expect(kept).toHaveLength(2)
     expect(kept[0]).toEqual(series)
     expect(kept[0]).not.toBe(series)
-    expect(kept[1].fields.map((field) => field.name)).toEqual([
+    expect(must(kept[1]).fields.map((field) => field.name)).toEqual([
       "xMin",
       "yMin",
       "yMax",

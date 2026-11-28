@@ -14,7 +14,11 @@ export function fieldLookup(
   return frames.map((frame) => {
     const places = locate(
       frame,
-      { mode: "lookup", lookup: lookupField, gazetteer },
+      {
+        mode: "lookup",
+        ...(lookupField === undefined ? {} : { lookup: lookupField }),
+        ...(gazetteer === undefined ? {} : { gazetteer }),
+      },
       gazetteers
     )
     return places ? withLocationFields(frame, places) : copyFrame(frame)

@@ -22,12 +22,12 @@ export type Location = NonNullable<
 
 export type Locations = { lat: (number | null)[]; lon: (number | null)[] }
 
-const latitudeNames = ["lat", "latitude"]
-const longitudeNames = ["lon", "lng", "longitude"]
-const geohashNames = ["geohash"]
+const latitudeField = "lat"
+const longitudeField = "lon"
 
-const latitudeField = latitudeNames[0]
-const longitudeField = longitudeNames[0]
+const latitudeNames = [latitudeField, "latitude"]
+const longitudeNames = [longitudeField, "lng", "longitude"]
+const geohashNames = ["geohash"]
 
 function named(
   frame: PreparedFrame,

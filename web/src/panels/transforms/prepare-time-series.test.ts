@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined } from "@/panels/must"
+
 import type { PreparedFrame } from "./names"
 import { prepareTimeSeries } from "./prepare-time-series"
 
@@ -30,6 +32,7 @@ describe("prepareTimeSeries", () => {
       type: "prepareTimeSeries",
       format: "wide",
     })
+    defined(wide)
     expect(wide.fields.map((field) => field.values)).toEqual([
       [1, 2, 3],
       [10, 20, null],
@@ -70,6 +73,7 @@ describe("prepareTimeSeries", () => {
       type: "prepareTimeSeries",
       format: "long",
     })
+    defined(long)
     expect(long.fields).toEqual([
       { name: "Time", type: "time", values: [1, 2, 2, 3] },
       { name: "pod", type: "string", values: ["p1", "p1", "p2", "p2"] },

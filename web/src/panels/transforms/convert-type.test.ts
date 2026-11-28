@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import { convertFieldType } from "./convert-type"
 import type { PreparedField, PreparedFrame } from "./names"
 
@@ -16,7 +18,8 @@ function one(
     type: "convertFieldType",
     conversions: [conversion],
   })
-  return out.fields[0]
+  defined(out)
+  return must(out.fields[0])
 }
 
 describe("convertFieldType", () => {
@@ -103,6 +106,7 @@ describe("convertFieldType", () => {
         { field: "a", to: "string" },
       ],
     })
+    defined(out)
     expect(out.fields.map((f) => [f.name, f.type, f.values])).toEqual([
       ["a", "string", ["1"]],
       ["b", "other", ["x"]],
@@ -124,6 +128,6 @@ describe("convertFieldType", () => {
       conversions: [{ field: "missing", to: "number" }],
     })
     expect(out).toEqual(frame)
-    expect(frame.fields[0].type).toBe("string")
+    expect(must(frame.fields[0]).type).toBe("string")
   })
 })

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { WireFrame } from "@/dashboards/queries"
 import type { DataPanel } from "@/spec"
+import { defined, must } from "@/panels/must"
 
 import { applyTransforms } from "."
 import {
@@ -69,9 +70,13 @@ describe("Prometheus series names", () => {
 
   it("names an unlabelled series after the query text", () => {
     for (const legend of [undefined, "__auto", "{}"]) {
-      expect(names([{ query: expr, legend }], bare, "prometheus")).toEqual([
-        [expr],
-      ])
+      expect(
+        names(
+          [{ query: expr, ...(legend === undefined ? {} : { legend }) }],
+          bare,
+          "prometheus"
+        )
+      ).toEqual([[expr]])
     }
   })
 
@@ -80,7 +85,7 @@ describe("Prometheus series names", () => {
       ["Value"],
     ])
     expect(
-      names([{ legend: "{{constructor}}" }], [pods[0]], "prometheus")
+      names([{ legend: "{{constructor}}" }], [must(pods[0])], "prometheus")
     ).toEqual([["checkout-0"]])
   })
 
@@ -213,7 +218,7 @@ describe("SQL series names", () => {
 
   it("uses a legend template and the column suffix", () => {
     expect(
-      names([{ legend: "{{service}}" }], [byService[0]], "clickhouse")
+      names([{ legend: "{{service}}" }], [must(byService[0])], "clickhouse")
     ).toEqual([["api"]])
     expect(
       names(
@@ -228,7 +233,7 @@ describe("SQL series names", () => {
     expect(
       names(
         [{}],
-        [frame({ labels: { service: "" } }, "c"), byService[1]],
+        [frame({ labels: { service: "" } }, "c"), must(byService[1])],
         "clickhouse"
       )
     ).toEqual([["c"], ["c web"]])
@@ -249,6 +254,7 @@ describe("SQL series names", () => {
       ],
     }
     const [out] = stampSeriesNames(panel(), [raw], () => "clickhouse")
+    defined(out)
     expect(out.fields.map((field) => field.seriesName)).toEqual([
       undefined,
       "n",
@@ -267,7 +273,7 @@ describe("mixed panels", () => {
       frames,
       (uid) => (uid === "ch" ? "clickhouse" : "prometheus")
     )
-    expect(out.map((f) => f.fields[1].seriesName)).toEqual([
+    expect(out.map((f) => must(f.fields[1]).seriesName)).toEqual([
       '{pod="checkout-0"}',
       'B c {service="api"}',
     ])
@@ -284,15 +290,15 @@ describe("mixed panels", () => {
       frames,
       () => "prometheus"
     )
-    expect(out[0].fields[1].seriesName).toBe('{pod="x"}')
-    expect(out[1].fields[1].seriesName).toBeUndefined()
-    expect(out[2].fields[1].seriesName).toBeUndefined()
+    expect(must(must(out[0]).fields[1]).seriesName).toBe('{pod="x"}')
+    expect(must(must(out[1]).fields[1]).seriesName).toBeUndefined()
+    expect(must(must(out[2]).fields[1]).seriesName).toBeUndefined()
     const sql = stampSeriesNames(
       panel([{}, { format: "table" }]),
-      [frame({ labels: { service: "api" } }, "c"), frames[1]],
+      [frame({ labels: { service: "api" } }, "c"), must(frames[1])],
       () => "clickhouse"
     )
-    expect(sql[0].fields[1].seriesName).toBe("c api")
+    expect(must(must(sql[0]).fields[1]).seriesName).toBe("c api")
   })
 
   it("does not mutate its input", () => {
@@ -311,7 +317,8 @@ describe("mixed panels", () => {
     const [renamed] = applyTransforms(stamped, [
       { type: "organize", rename: { "c api": "API" } },
     ])
-    expect(renamed.fields[1].seriesName).toBe("API")
+    defined(renamed)
+    expect(must(renamed.fields[1]).seriesName).toBe("API")
   })
 })
 
@@ -427,10 +434,16 @@ describe("displayLabels", () => {
       [series("A", "up", { pod: "a" }), series("A", "up", { pod: "b" })],
       () => "prometheus"
     )
+    defined(a)
+    defined(b)
     expect(
       displayLabels(built, [
-        { frame: a, field: a.fields[1], name: "Primary" },
-        { frame: b, field: b.fields[1], name: b.fields[1].seriesName ?? "" },
+        { frame: a, field: must(a.fields[1]), name: "Primary" },
+        {
+          frame: b,
+          field: must(b.fields[1]),
+          name: must(b.fields[1]).seriesName ?? "",
+        },
       ])
     ).toEqual(["Primary", "b"])
   })

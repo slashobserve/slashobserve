@@ -27,7 +27,9 @@ const calculations: Record<
 function pointAt(places: Locations, row: number): GeoPoint | null {
   const lat = places.lat[row]
   const lon = places.lon[row]
-  return lat === null || lon === null ? null : { lat, lon }
+  return lat === null || lat === undefined || lon === null || lon === undefined
+    ? null
+    : { lat, lon }
 }
 
 function points(places: Locations): (GeoPoint | null)[] {
@@ -82,18 +84,25 @@ function pickRows(frame: PreparedFrame, rows: readonly number[]) {
   }
 }
 
-function locatedRows(places: Locations): number[] {
-  return places.lat.flatMap((lat, row) =>
-    lat === null || places.lon[row] === null ? [] : [row]
-  )
+function located(places: Locations): (GeoPoint & { row: number })[] {
+  return places.lat.flatMap((_, row) => {
+    const point = pointAt(places, row)
+    return point ? [{ ...point, row }] : []
+  })
 }
 
 function asLine(frame: PreparedFrame, places: Locations): PreparedFrame {
-  const rows = locatedRows(places)
-  return withLocationFields(pickRows(frame, rows), {
-    lat: rows.map((row) => places.lat[row]),
-    lon: rows.map((row) => places.lon[row]),
-  })
+  const found = located(places)
+  return withLocationFields(
+    pickRows(
+      frame,
+      found.map(({ row }) => row)
+    ),
+    {
+      lat: found.map(({ lat }) => lat),
+      lon: found.map(({ lon }) => lon),
+    }
+  )
 }
 
 function lineBuilder(
@@ -101,14 +110,16 @@ function lineBuilder(
   from: Locations,
   to: Locations
 ): PreparedFrame[] {
-  return locatedRows(from)
-    .filter((row) => to.lat[row] !== null && to.lon[row] !== null)
-    .map((row) =>
-      withLocationFields(pickRows(frame, [row, row]), {
-        lat: [from.lat[row], to.lat[row]],
-        lon: [from.lon[row], to.lon[row]],
-      })
-    )
+  return located(from).flatMap((start) => {
+    const end = pointAt(to, start.row)
+    if (!end) return []
+    return [
+      withLocationFields(pickRows(frame, [start.row, start.row]), {
+        lat: [start.lat, end.lat],
+        lon: [start.lon, end.lon],
+      }),
+    ]
+  })
 }
 
 function modified(

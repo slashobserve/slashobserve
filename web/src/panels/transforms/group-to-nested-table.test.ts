@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import { groupToNestedTable } from "./group-to-nested-table"
 import type { PreparedFrame } from "./names"
 
@@ -19,17 +21,21 @@ describe("groupToNestedTable", () => {
       by: ["host"],
       aggregate: [{ field: "lat", reducers: ["mean"] }],
     })
+    defined(out)
     expect(out.fields.map((field) => field.name)).toEqual([
       "host",
       "lat (mean)",
       "Nested frames",
     ])
-    expect(out.fields[0].values).toEqual(["a", "b"])
-    expect(out.fields[1].values).toEqual([25, 20])
+    expect(must(out.fields[0]).values).toEqual(["a", "b"])
+    expect(must(out.fields[1]).values).toEqual([25, 20])
     const nested = out.fields[2]
+    defined(nested)
     expect(nested.type).toBe("other")
     expect(nested.nested).toEqual({ headers: true })
     const [first, second] = nested.values as PreparedFrame[]
+    defined(first)
+    defined(second)
     expect(first.fields.map((field) => field.name)).toEqual(["env", "lat"])
     expect(first.fields.map((field) => field.values)).toEqual([
       ["p", "r"],
@@ -44,7 +50,8 @@ describe("groupToNestedTable", () => {
       by: ["host"],
       hideHeaders: true,
     })
-    expect(out.fields[1].nested).toEqual({ headers: false })
+    defined(out)
+    expect(must(out.fields[1]).nested).toEqual({ headers: false })
   })
 
   it("leaves a frame alone when it has none of the named fields", () => {

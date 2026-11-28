@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { defined, must } from "@/panels/must"
+
 import { formatString } from "./format-string"
 import type { PreparedFrame } from "./names"
 
@@ -23,7 +25,8 @@ function run(
     format,
     ...extra,
   })
-  return out.fields[1].values
+  defined(out)
+  return must(out.fields[1]).values
 }
 
 describe("formatString", () => {

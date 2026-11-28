@@ -38,7 +38,8 @@ export function concatenate(
   frames: PreparedFrame[],
   options: ConcatenateOptions
 ): PreparedFrame[] {
-  if (frames.length === 0) return []
+  const [first] = frames
+  if (first === undefined) return []
   const rows = Math.max(...frames.map(rowCount))
   const fields = frames.flatMap((frame) =>
     frame.fields.map((field) => {
@@ -49,5 +50,5 @@ export function concatenate(
       }
     })
   )
-  return [{ ref: frames[0].ref, fields }]
+  return [{ ref: first.ref, fields }]
 }
