@@ -52,7 +52,7 @@ export function mentionSegments(body: string): MentionSegment[] {
     }
     const [raw, name, kind, id] = match
     segments.push(
-      id === undefined
+      id === undefined || name === undefined
         ? { kind: "mention", ref: agentMention, name: observeHandle, raw }
         : {
             kind: "mention",

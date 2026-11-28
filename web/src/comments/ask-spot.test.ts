@@ -13,6 +13,7 @@ import {
   type PinTurn,
 } from "./ask-spot"
 import { sitsOn } from "./canvas-host"
+import { must } from "@/test/must"
 
 const row: Anchor = {
   kind: "row",
@@ -226,7 +227,7 @@ describe("askChips", () => {
       from: "2026-11-22T23:50:00Z",
       to: "2026-11-23T00:10:00Z",
     }
-    expect(askChips("Load", overnight)[1].label).toBe(
+    expect(must(askChips("Load", overnight)[1]).label).toBe(
       "Range 22 Nov 23:50 to 23 Nov 00:10 UTC"
     )
   })
@@ -237,7 +238,9 @@ describe("askChips", () => {
       pos: { x: 0.4, y: 0.3 },
       from: "2026-01-05T08:54:00Z",
     }
-    expect(askChips("Load", moment)[1].label).toBe("Moment 5 Jan 08:54 UTC")
+    expect(must(askChips("Load", moment)[1]).label).toBe(
+      "Moment 5 Jan 08:54 UTC"
+    )
   })
 
   it("names the whole panel when asked by key", () => {

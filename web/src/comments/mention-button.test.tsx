@@ -25,7 +25,7 @@ function Harness({
   initial: string
   replaceFrom?: number | null
   initiallyOpen?: boolean
-  target?: string | null
+  target?: string | null | undefined
 }) {
   const picks = useMentionPicks()
   const [value, setValue] = useState(initial)

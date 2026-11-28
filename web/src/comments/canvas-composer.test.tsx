@@ -21,6 +21,7 @@ import {
   useCanvasGate,
 } from "./canvas-composer"
 import type { CanvasSubject } from "./canvas-host"
+import { must } from "@/test/must"
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -187,8 +188,8 @@ describe("CanvasComposer", () => {
     })
     await user.type(field, "Why the spike?{Enter}")
     await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].path).toBe("/api/v1/threads")
-    expect(posts[0].body).toMatchObject({
+    expect(must(posts[0]).path).toBe("/api/v1/threads")
+    expect(must(posts[0]).body).toMatchObject({
       target: "dashboard:d1",
       body: "Why the spike?",
       panel_id: "p1",
@@ -218,7 +219,7 @@ describe("CanvasComposer", () => {
     expect(within(popup).getByText("To: Observe Agent")).toBeInTheDocument()
     await user.keyboard("{Enter}")
     await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].body).toMatchObject({
+    expect(must(posts[0]).body).toMatchObject({
       body: "@observe make this a bar chart",
       to: "agent",
     })
@@ -233,7 +234,7 @@ describe("CanvasComposer", () => {
     })
     await user.type(field, "Why the spike?{Enter}")
     await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].body).toMatchObject({ to: "everyone" })
+    expect(must(posts[0]).body).toMatchObject({ to: "everyone" })
   })
 
   it("does not send a lone @ when Enter is pressed with the mention list open", async () => {
@@ -273,12 +274,12 @@ describe("CanvasComposer", () => {
     })
     await user.type(field, "Which deploy?{Enter}")
     await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].body).toMatchObject({
+    expect(must(posts[0]).body).toMatchObject({
       target: "observation:o1",
       block_id: "b1",
       anchor: quoted,
     })
-    expect(posts[0].body).not.toHaveProperty("panel_id")
+    expect(must(posts[0]).body).not.toHaveProperty("panel_id")
   })
 
   it("opens by key on the whole panel with no motion", async () => {

@@ -79,7 +79,7 @@ function threadsQuery(target: string) {
               target,
               status: "all",
               limit: pageSize,
-              cursor: pageParam,
+              ...(pageParam === undefined ? {} : { cursor: pageParam }),
             },
           },
           signal,
@@ -173,17 +173,18 @@ export function useOpenThread(target: string) {
   const queryClient = useQueryClient()
   const dashboardId = dashboardIdOf(target)
   return useMutation({
-    mutationKey:
-      dashboardId === null ? undefined : dashboardKeys.posts(dashboardId),
+    ...(dashboardId === null
+      ? {}
+      : { mutationKey: dashboardKeys.posts(dashboardId) }),
     mutationFn: (input: {
       body: string
-      to?: "agent" | "everyone"
-      clientId?: string
-      version?: number
-      panelId?: string | null
-      blockId?: string | null
-      anchor?: Anchor
-      timeZone?: string
+      to?: "agent" | "everyone" | undefined
+      clientId?: string | undefined
+      version?: number | undefined
+      panelId?: string | null | undefined
+      blockId?: string | null | undefined
+      anchor?: Anchor | undefined
+      timeZone?: string | undefined
     }) =>
       resendOnceOffline(input.clientId, () =>
         api.POST("/threads", {
@@ -216,11 +217,11 @@ export function useReplyToThread(target: string) {
     mutationFn: (input: {
       threadId: string
       body: string
-      to?: "agent" | "everyone"
+      to?: "agent" | "everyone" | undefined
       clientId?: string
-      blockId?: string | null
-      replyToId?: string | null
-      timeZone?: string
+      blockId?: string | null | undefined
+      replyToId?: string | null | undefined
+      timeZone?: string | undefined
     }) =>
       resendOnceOffline(input.clientId, () =>
         api.POST("/threads/{thread_id}/messages", {

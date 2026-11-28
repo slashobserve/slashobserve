@@ -17,6 +17,7 @@ import {
   type Message,
   type Thread,
 } from "./thread-queries"
+import { must } from "@/test/must"
 
 const ada = {
   kind: "user" as const,
@@ -128,8 +129,11 @@ describe("groupThreadPages", () => {
     }
     const grouped = groupThreadPages([first, second])
     expect(grouped.map((entry) => entry.thread.id)).toEqual(["t1", "t2"])
-    expect(grouped[0].messages.map((item) => item.id)).toEqual(["t1", "m2"])
-    expect(grouped[1].messages.map((item) => item.id)).toEqual(["m3"])
+    expect(must(grouped[0]).messages.map((item) => item.id)).toEqual([
+      "t1",
+      "m2",
+    ])
+    expect(must(grouped[1]).messages.map((item) => item.id)).toEqual(["m3"])
   })
 
   it("keeps one copy of a message that two pages both carry", () => {
@@ -138,7 +142,7 @@ describe("groupThreadPages", () => {
       messages: [message("t1", "t1", "2026-11-06T10:00:00Z")],
     }
     const grouped = groupThreadPages([page, page])
-    expect(grouped[0].messages).toHaveLength(1)
+    expect(must(grouped[0]).messages).toHaveLength(1)
   })
 })
 

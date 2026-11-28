@@ -10,6 +10,7 @@ import {
 } from "./canvas-pins"
 import { sitsOn } from "./canvas-host"
 import type { Message, Thread, ThreadWithMessages } from "./thread-queries"
+import { must } from "@/test/must"
 
 const actor: Message["actor"] = {
   kind: "user",
@@ -57,7 +58,7 @@ describe("panelPins", () => {
       () => here
     )
     expect(pins.map((pin) => pin.entry.thread.id)).toEqual(["t1"])
-    expect(pins[0].placement).toBe(here)
+    expect(must(pins[0]).placement).toBe(here)
   })
 
   it("keeps the threads on one observation block by their block", () => {
@@ -79,6 +80,7 @@ describe("pinLabel", () => {
     const shown = entry("t1", thread)
     return {
       entry: shown,
+      root: must(shown.messages[0]),
       anchor: shown.thread.anchor!,
       placement: { ...here, gone },
     }
@@ -109,6 +111,7 @@ describe("stackPins", () => {
     const shown = entry(id, { status: status as Thread["status"] })
     return {
       entry: shown,
+      root: must(shown.messages[0]),
       anchor: shown.thread.anchor!,
       placement: { at: { x, y }, gone: false },
     }
@@ -135,9 +138,9 @@ describe("stackPins", () => {
       at("t2", 1, 1, "resolved"),
       at("t3", 2, 2),
     ])
-    expect(stackLabel(stack)).toBe("3 comments here, 1 resolved")
+    expect(stackLabel(must(stack))).toBe("3 comments here, 1 resolved")
     const [open] = stackPins([at("t1", 0, 0), at("t2", 1, 1)])
-    expect(stackLabel(open)).toBe("2 comments here")
+    expect(stackLabel(must(open))).toBe("2 comments here")
   })
 })
 
