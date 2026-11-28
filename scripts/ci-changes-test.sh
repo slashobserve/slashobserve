@@ -15,20 +15,6 @@ expect() {
   fi
 }
 
-expect_draft() {
-  local name="$1" want="$2" got
-  shift 2
-  got="$(printf '%s\n' "$@" | "$here/ci-changes.sh" draft | tr '\n' ' ')"
-  if [[ "$got" != "$want " ]]; then
-    echo "FAIL $name: got '$got', want '$want '" >&2
-    failures=$((failures + 1))
-  fi
-}
-
-expect_draft "a draft pull request skips the compose jobs" \
-  "go=true web=false build=true stack=false image=false audit=false" internal/agent/tools/query.go
-expect_draft "a draft pull request that changes the workflow still skips the compose jobs" \
-  "go=true web=true build=true stack=false image=true audit=true" .github/workflows/ci.yml
 expect "a docs page runs the Go tests that read docs and nothing else" \
   "go=true web=false build=false stack=false image=false audit=false" docs/use/mcp.md
 expect "a web component skips Go" \

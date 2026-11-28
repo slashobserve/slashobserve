@@ -332,22 +332,22 @@ A gate fails the run when any of these happens:
 | `web-test` | A file other than Go or prose changed. | The web Vitest suite in two shards. |
 | `build` | Non-prose files changed. | `make build`, then `make generate`, which must leave every file unchanged. |
 | `image` | `Dockerfile` or `.dockerignore` changed. | A build of the `Dockerfile` from its own stages. |
-| `e2e-api` | Non-test, non-prose files changed. | `make e2e`, with a 30 minute limit. |
-| `e2e-browser` | Non-test, non-prose files changed. | `make e2e-browser` in four shards, each on its own stack, with a 30 minute limit; a test that passes on its retry is reported as flaky and does not fail the shard. |
+| `e2e-api` | In the merge queue, on `main` and in a manual run, when non-test, non-prose files changed. | `make e2e`, with a 30 minute limit. |
+| `e2e-browser` | In the merge queue, on `main` and in a manual run, when non-test, non-prose files changed. | `make e2e-browser` in four shards, each on its own stack, with a 30 minute limit; a test that passes on its retry is reported as flaky and does not fail the shard. |
 | `audit` | A lockfile, `package.json`, `go.mod` or `tools/` changed, on `main` and daily. | `make audit`. |
-| `check` | Always. | Passes when every lint, test, build and image job that ran has passed; `audit` and the two end-to-end jobs are separate. |
+| `check` | Always. | Passes when every job that ran has passed, the end-to-end jobs included; `audit` is separate. It is the one required check. |
 
 Details of how CI picks jobs:
 
-- A pull request runs only the jobs its changed files need, and a skipped job counts as passed.
-- `main` and a manual run start every job.
+- A pull request runs only the fast jobs its changed files need, never the end-to-end ones, and a skipped job counts as passed.
+- `main` merges through GitHub's merge queue, which runs every job, the end-to-end ones included, on the change as it will land, so `main` stays green while a pull request waits only for the fast jobs.
+- `main` and a manual run start every job; to run the end-to-end jobs on a branch before it is queued, start the CI workflow on it by hand.
 - The daily run starts only `audit`.
 - A web-only change skips the Go jobs, except when it changes `web/src/spec/defaults.gen.ts`, `harness/src/protocol.ts` or `harness/test/fixtures/prompts/guide-prometheus.md`, which Go tests read.
 - A Go-only change skips the web jobs.
 - A change to documentation skips every job but the Go ones, whose lint runs the docs check.
 - A change to unit tests skips the two end-to-end jobs.
 - A change under `.github/`, to `Makefile`, `scripts/ci-changes.sh` or `scripts/go-test-shard.sh` runs every job.
-- A draft pull request runs neither end-to-end job; marking it ready for review runs them.
 
 Details of how the end-to-end jobs start:
 

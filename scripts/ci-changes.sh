@@ -5,14 +5,13 @@ GO_READS_FROM_WEB=('web/src/panels/*/manifest.ts' web/src/mcp-panel/fixtures/sho
 
 usage() {
   cat >&2 <<USAGE
-Usage: scripts/ci-changes.sh [all|audit-only|go-reads|draft]
+Usage: scripts/ci-changes.sh [all|audit-only|go-reads]
 
 Reads changed file paths on stdin, one per line, and prints which CI job groups
 they need as name=true|false lines: go, web, build, stack, image, audit.
   all         print every group as true without reading stdin
   audit-only  print only audit as true without reading stdin
   go-reads    print the web and agent files that Go tests read
-  draft       read stdin as usual but leave stack false, for a draft pull request
 USAGE
   exit 2
 }
@@ -44,11 +43,8 @@ emit() {
   done
 }
 
-skip_compose_jobs=false
-
 case "${1:-}" in
   "") ;;
-  draft) skip_compose_jobs=true ;;
   all)
     go=true web=true build=true stack=true image=true audit=true
     emit
@@ -98,9 +94,5 @@ while IFS= read -r path; do
     audit=true
   fi
 done
-
-if [[ "$skip_compose_jobs" == true ]]; then
-  stack=false
-fi
 
 emit
