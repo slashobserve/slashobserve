@@ -11,13 +11,13 @@ import {
 export type MetricsMode = "graph" | "table"
 
 export type MetricsSearch = {
-  q?: string
-  ask?: string
-  from?: string
-  to?: string
-  mode?: "table"
-  observation?: string
-  saved?: string
+  q?: string | undefined
+  ask?: string | undefined
+  from?: string | undefined
+  to?: string | undefined
+  mode?: "table" | undefined
+  observation?: string | undefined
+  saved?: string | undefined
 }
 
 export const metricsDatasourceTypes = ["prometheus"] as const
@@ -35,7 +35,7 @@ export function validateMetricsSearch(
   }
 }
 
-export type MetricsEntrySearch = MetricsSearch & { ds?: string }
+export type MetricsEntrySearch = MetricsSearch & { ds?: string | undefined }
 
 export function validateMetricsEntrySearch(
   raw: Record<string, unknown>

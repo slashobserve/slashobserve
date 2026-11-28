@@ -44,7 +44,7 @@ function useMetricsSearch() {
     (next, options) =>
       void navigate({
         search: (state) => searchAfter(state, next),
-        replace: options?.replace,
+        ...(options?.replace === undefined ? {} : { replace: options.replace }),
       }),
     [navigate]
   )

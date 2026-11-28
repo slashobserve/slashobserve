@@ -87,7 +87,9 @@ export function MetricsResultActions({
           panel={panelFor({ id: "metrics", y: 0, title: "Metrics" })}
           from={range.from}
           to={range.to}
-          defaultObservationId={observation}
+          {...(observation === undefined
+            ? {}
+            : { defaultObservationId: observation })}
           onClose={() => setOpen(null)}
           trigger={observationTrigger}
         />
