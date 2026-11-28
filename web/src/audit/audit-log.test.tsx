@@ -102,7 +102,7 @@ function serve(routes: Routes = {}) {
               fields: [
                 {
                   name: "outcome",
-                  alias: null,
+                  aliases: [],
                   type: "enum",
                   description: "",
                   values: [],

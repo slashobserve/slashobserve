@@ -84,7 +84,7 @@ func TestAuditShowFacetsHistogramAndFieldsReadTheirRoutes(t *testing.T) {
 			"/api/v1/audit/histogram", url.Values{"buckets": {"2"}}, []string{"2026-11-21T11:00:00Z", "3 events, one bucket per 1h0m0s."}},
 		{[]string{"audit", "aggregate", "--query", `{"aggs":{"o":{"terms":{"field":"origin"}}}}`}, `{"levels":[{"name":"o"}],"metrics":[],"rows":[{"keys":["mcp"],"doc_count":4,"values":[]}],"truncated":false}`,
 			"/api/v1/audit/aggregate", url.Values{"q": {`{"aggs":{"o":{"terms":{"field":"origin"}}}}`}}, []string{"DOC_COUNT", "mcp", "4"}},
-		{[]string{"audit", "fields"}, `{"fields":[{"name":"actor_name","alias":"actor","aliases":["actor","actor.name"],"type":"text","description":"The actor's name","values":null}]}`,
+		{[]string{"audit", "fields"}, `{"fields":[{"name":"actor_name","aliases":["actor","actor.name"],"type":"text","description":"The actor's name","values":null}]}`,
 			"/api/v1/audit/fields", url.Values{}, []string{"actor_name", "actor, actor.name", "The actor's name"}},
 	} {
 		call, stdout, stderr, code := runAudit(t, http.StatusOK, nil, tc.reply, tc.args...)

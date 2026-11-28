@@ -9099,14 +9099,10 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [name, alias, aliases, type, description, values]
+            required: [name, aliases, type, description, values]
             properties:
               name:
                 type: string
-              alias:
-                type: string
-                nullable: true
-                description: The first of `aliases`, kept for older clients.
               aliases:
                 type: array
                 items:

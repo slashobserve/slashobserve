@@ -10,14 +10,18 @@ import { splitForm } from "@/logs/query-form"
 
 import type { AuditEvent } from "./stream"
 
-export type FacetField = { name: string; alias: string | null }
+export type FacetField = { name: string; aliases: readonly string[] }
 
 export type TermState = "include" | "exclude" | null
 
 type Source = { prefix: string; body: string; clauses: KqlClause[] }
 
 function namesOf(field: FacetField): string[] {
-  return field.alias === null ? [field.name] : [field.name, field.alias]
+  return [field.name, ...field.aliases]
+}
+
+export function suggestedNames(fields: readonly FacetField[]): string[] {
+  return fields.flatMap(namesOf)
 }
 
 function matches(node: KqlNode, names: string[], value: string): boolean {

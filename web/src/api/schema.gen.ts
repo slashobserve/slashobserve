@@ -9138,8 +9138,6 @@ export interface components {
         AuditFieldList: {
             fields: {
                 name: string;
-                /** @description The first of `aliases`, kept for older clients. */
-                alias: string | null;
                 /** @description The other names a query can use for the field, such as `actor` and `actor.name` for `actor_name`. */
                 aliases: string[];
                 /** @enum {string} */
