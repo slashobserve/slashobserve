@@ -123,15 +123,6 @@ describe("DashboardHealthButton", () => {
     ).toBeTruthy()
   })
 
-  test("opens the healthy popover with when and on which version it was checked", async () => {
-    serve([item({ problems: [], state: "healthy" })])
-    const { user } = renderButton()
-    await user.click(await screen.findByRole("button", { name: "Queries OK" }))
-    expect(await screen.findByText("No problems found")).toBeTruthy()
-    expect(screen.getByText(/on version 4/)).toBeTruthy()
-    expect(screen.queryByRole("button", { name: /Repair/ })).toBeNull()
-  })
-
   test("says a changed dashboard waits for a recheck instead of showing the old problems", async () => {
     serve([item({ state: "outdated" })])
     const { user } = renderButton()

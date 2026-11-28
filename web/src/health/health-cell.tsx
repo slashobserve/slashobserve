@@ -1,14 +1,8 @@
 import { StatusLabel } from "@/components/status-label"
 import { Button } from "@/components/ui/button"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+import { Popover, PopoverTrigger } from "@/components/ui/popover"
 import { Skeleton } from "@/components/ui/skeleton"
 
-import { CheckLine } from "./check-line"
 import {
   awaitsRecheck,
   currentProblems,
@@ -24,8 +18,8 @@ import {
 } from "./health-labels"
 import { useListHealth, useListHealthRepair } from "./list-health"
 import { KindSummary } from "./kind-summary"
-import { ProblemGroups } from "./problem-groups"
-import { RecheckNote, RecheckPending } from "./recheck-pending"
+import { HealthPopoverContent, HealthyPopover } from "./health-popover"
+import { RecheckPending } from "./recheck-pending"
 import { RepairControl } from "./repair-control"
 
 function ariaLabel(title: string, parts: readonly (string | undefined)[]) {
@@ -34,28 +28,19 @@ function ariaLabel(title: string, parts: readonly (string | undefined)[]) {
 
 function HealthyCell({ item, title }: { item: HealthItem; title: string }) {
   return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="xs"
-            aria-haspopup="dialog"
-            aria-label={`Health of ${title}: ${healthyLabel}`}
-            className="-ml-2 h-auto max-w-full py-1 text-left font-normal whitespace-normal"
-          />
-        }
-      >
-        <StatusLabel tone="ok">{healthyLabel}</StatusLabel>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-80">
-        <PopoverTitle>Health</PopoverTitle>
-        <p>No problems found</p>
-        <p className="text-xs text-muted-foreground">
-          <CheckLine item={item} />
-        </p>
-      </PopoverContent>
-    </Popover>
+    <HealthyPopover
+      item={item}
+      align="start"
+      trigger={
+        <Button
+          variant="ghost"
+          size="xs"
+          aria-haspopup="dialog"
+          aria-label={`Health of ${title}: ${healthyLabel}`}
+          className="-ml-2 h-auto max-w-full py-1 text-left font-normal whitespace-normal"
+        />
+      }
+    />
   )
 }
 
@@ -124,25 +109,18 @@ export function HealthCell({
           <StatusLabel tone={status.tone}>{status.label}</StatusLabel>
         )}
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-80">
-        <PopoverTitle>Health</PopoverTitle>
-        {awaiting ? (
-          <RecheckNote item={item} />
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            <CheckLine item={item} />
-          </p>
-        )}
-        <ProblemGroups problems={currentProblems(item)} />
-        <div>
-          <RepairControl
-            item={item}
-            agentAvailable={agentAvailable}
-            pending={pendingId === item.id}
-            onRepair={() => requestRepair(item.id)}
-          />
-        </div>
-      </PopoverContent>
+      <HealthPopoverContent
+        item={item}
+        problems={currentProblems(item)}
+        align="start"
+      >
+        <RepairControl
+          item={item}
+          agentAvailable={agentAvailable}
+          pending={pendingId === item.id}
+          onRepair={() => requestRepair(item.id)}
+        />
+      </HealthPopoverContent>
     </Popover>
   )
 }
