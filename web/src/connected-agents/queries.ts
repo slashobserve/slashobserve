@@ -20,7 +20,12 @@ function grantsQuery(scope: GrantScope) {
   return infiniteQueryOptions({
     queryKey: grantKeys.list(scope),
     queryFn: ({ pageParam, signal }) => {
-      const request = { params: { query: { cursor: pageParam } }, signal }
+      const request = {
+        params: {
+          query: pageParam === undefined ? {} : { cursor: pageParam },
+        },
+        signal,
+      }
       return (
         scope === "mine"
           ? api.GET("/me/grants", request)
