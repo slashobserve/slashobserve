@@ -148,7 +148,7 @@ export function EvidencePanel({ findingId, panel, from, to, height }: Props) {
               timezone={undefined}
               from={from}
               to={to}
-              columnOverrides={columnOverrides}
+              {...(columnOverrides === undefined ? {} : { columnOverrides })}
             />
           ) : null}
           {isStaticPanel(panel) && supported ? (

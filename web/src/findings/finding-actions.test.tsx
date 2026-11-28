@@ -5,6 +5,7 @@ import { renderWithProviders } from "@/test/render"
 
 import { MakeDashboardAction, PinAction } from "./finding-actions"
 import type { Finding } from "./queries"
+import { must } from "@/test/must"
 
 function finding(patch: Partial<Finding> = {}): Finding {
   return {
@@ -103,7 +104,7 @@ describe("MakeDashboardAction", () => {
       await screen.findByRole("button", { name: "Make a dashboard" })
     )
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledOnce())
-    expect(navigate.mock.calls[0][0]).toMatchObject({ viewTransition })
+    expect(must(navigate.mock.calls[0])[0]).toMatchObject({ viewTransition })
     vi.unstubAllGlobals()
   })
 })

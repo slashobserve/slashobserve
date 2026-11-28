@@ -44,9 +44,9 @@ export function FindingCard({
 }: {
   finding: Finding
   showOpenLink: boolean
-  chatId?: string
+  chatId?: string | undefined
   actions?: ReactNode
-  variant?: FindingVariant
+  variant?: FindingVariant | undefined
 }) {
   const panels = useMemo(() => evidencePanels(finding), [finding])
   const layout = variants[variant]

@@ -38,7 +38,11 @@ export function findingsForDashboardQuery(dashboardId: string) {
         api
           .GET("/findings", {
             params: {
-              query: { dashboard_id: dashboardId, limit: findingsPage, cursor },
+              query: {
+                dashboard_id: dashboardId,
+                limit: findingsPage,
+                ...(cursor === undefined ? {} : { cursor }),
+              },
             },
             signal,
           })
@@ -74,14 +78,14 @@ export function useFindingPanelData({
   panel: Panel
   from?: string
   to?: string
-  maxDataPoints?: number
+  maxDataPoints?: number | undefined
   enabled: boolean
 }) {
   return useQuery({
     queryKey: findingKeys.panelData(findingId, panel.id, {
-      from,
-      to,
-      maxDataPoints,
+      ...(from === undefined ? {} : { from }),
+      ...(to === undefined ? {} : { to }),
+      ...(maxDataPoints === undefined ? {} : { maxDataPoints }),
     }),
     queryFn: ({ signal }) => {
       const query: { from?: string; to?: string; max_data_points?: number } = {}

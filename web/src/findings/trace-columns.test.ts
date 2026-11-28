@@ -7,6 +7,7 @@ import { prepareFrames } from "@/panels/transforms"
 import type { DataPanel } from "@/spec"
 
 import { traceColumnOverrides } from "./trace-columns"
+import { must } from "@/test/must"
 
 const traceId = "ef177585544c8e5e1e23c6ca4d1232bb"
 
@@ -22,7 +23,9 @@ function datasource(uid: string, type: string): DatasourceStatus {
   return { uid, type, name: uid } as DatasourceStatus
 }
 
-function panel(extra: Partial<DataPanel> = {}): DataPanel {
+function panel(
+  extra: { [K in keyof DataPanel]?: DataPanel[K] | undefined } = {}
+): DataPanel {
   return {
     id: "evidence-1",
     type: "table",
@@ -77,7 +80,7 @@ describe("traceColumnOverrides", () => {
 
   it("links only values that are trace ids", () => {
     const [override] = overridesOf(panel(), [search()], [tempo])
-    const [link] = override.links ?? []
+    const link = must(must(override).links?.[0])
     const open = (value: unknown) =>
       resolveLink(link, { vars: {}, value, fromMs: 1000, toMs: 2000 })?.href
     expect(open(traceId.toUpperCase())).toBe(
@@ -115,7 +118,7 @@ describe("traceColumnOverrides", () => {
       [search()],
       [datasource("ch-1", "clickhouse"), tempo]
     )
-    expect(found[0].links?.[0].url).toContain("?ds=ch-1&")
+    expect(must(must(found[0]).links?.[0]).url).toContain("?ds=ch-1&")
     expect(found[1]).toEqual({ match: { field: "Duration" }, unit: "ns" })
   })
 
@@ -189,7 +192,7 @@ describe("traceColumnOverrides", () => {
         },
       ],
     })
-    expect(overridesOf(renamed, [search()], [tempo])[0].match).toEqual({
+    expect(must(overridesOf(renamed, [search()], [tempo])[0]).match).toEqual({
       field: "trace_id",
     })
   })
